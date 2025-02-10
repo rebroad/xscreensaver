@@ -617,7 +617,7 @@ draw_hexagons (ModeInfo *mi)
 
                   /* End point glow */
 				  glBegin(GL_TRIANGLE_FAN);
-				  glColor4f(glow_color[0], glow_color[1], glow_color[2], glow_alpha); // Needed?
+				  //glColor4f(glow_color[0], glow_color[1], glow_color[2], glow_alpha); // Needed?
 				  glVertex3f(p[3].x, p[3].y, p[3].z);
 				  //for (int g = 0; g <= 16; g++) {
 				  for (int g = 0; g <= 8; g++) {
@@ -634,7 +634,7 @@ draw_hexagons (ModeInfo *mi)
 				  float nx = -dy/length * size * glow_scale;
 				  float ny = dx/length * size * glow_scale;
 
-				  glColor4f(glow_color[0], glow_color[1], glow_color[2], glow_alpha); // Needed?
+				  //glColor4f(glow_color[0], glow_color[1], glow_color[2], glow_alpha); // Needed?
 				  glVertex3f(p[0].x + nx, p[0].y + ny, p[0].z);
 				  glVertex3f(p[0].x - nx, p[0].y - ny, p[0].z);
 				  glVertex3f(p[3].x + nx, p[3].y + ny, p[3].z);
