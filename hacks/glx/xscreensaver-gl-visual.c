@@ -38,6 +38,7 @@ char *progclass = "XScreenSaver";
 int
 main (int argc, char **argv)
 {
+  printf("%s: %s\n", __FILE__, __func__);
   Display *dpy;
   Screen *screen;
   Visual *visual;

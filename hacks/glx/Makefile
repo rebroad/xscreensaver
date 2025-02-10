@@ -24,6 +24,12 @@ manNdir		= $(mandir)/man$(mansuffix)
 HACKDIR		= ${libexecdir}/xscreensaver
 HACK_CONF_DIR	= ${datadir}/xscreensaver/config
 
+MINGW_PREFIX = x86_64-w64-mingw32-
+WINDOWS_INCLUDE = -I../../hacks -I../../utils -I/usr/x86_64-w64-mingw32/include
+WINDOWS_LIBS = -L/usr/x86_64-w64-mingw32/lib -lopengl32 -lglut -lglu32 -lwinmm
+SDL2_CFLAGS = $(shell $(MINGW_PREFIX)sdl2-config --cflags)
+SDL2_LIBS = $(shell $(MINGW_PREFIX)sdl2-config --libs) -lopengl32
+
 CC		= gcc -std=gnu99 -pedantic -Wall -Wnested-externs -Wstrict-prototypes -Wmissing-prototypes -Wno-overlength-strings
 CFLAGS		= -g -O2
 LDFLAGS		=  -L${exec_prefix}/lib
@@ -1138,6 +1144,11 @@ teeth_dxf::
 
 hextrail:	hextrail.o	 normals.o $(HACK_TRACK_OBJS)
 	$(CC_HACK) -o $@ $@.o	 normals.o $(HACK_TRACK_OBJS) $(HACK_LIBS)
+
+#hextrail.exe: hextrail.o normals.o $(HACK_TRACK_OBJS)
+#	$(MINGW_PREFIX)$(CC_HACK) $(WINDOWS_INCLUDE) -o $@ $@.o  normals.o $(HACK_TRACK_OBJS) $(WINDOWS_LIBS)
+hextrail.exe: hextrail.o normals.o
+	$(MINGW_PREFIX)gcc $(SDL2_CFLAGS) -o $@ $^ $(SDL2_LIBS)
 
 papercube:	papercube.o	$(HACK_TRACK_OBJS)
 	$(CC_HACK) -o $@ $@.o	$(HACK_TRACK_OBJS) $(HACK_LIBS)
