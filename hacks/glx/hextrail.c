@@ -592,7 +592,8 @@ draw_hexagons (ModeInfo *mi)
 				    //glow_alpha = 0.8 / (layer + 1);
 				  } else {
 					glow_scale = 0.1 + ((layer+1) * 0.1);
-				    glow_alpha = 0.15 / ((layer + 1) * (layer + 1));
+				    //glow_alpha = 0.15 / ((layer + 1) * (layer + 1));
+				    glow_alpha = 0.15 * pow(0.5, layer);
 				  }
 
 				  /* Make the glow color brighter than the base color */
@@ -633,7 +634,7 @@ draw_hexagons (ModeInfo *mi)
 
                   /* End point glow */
 				  glBegin(GL_TRIANGLE_FAN);
-				  //if (!do_neon)
+				  if (!do_neon)
 				    glColor4f(glow_color[0], glow_color[1], glow_color[2], glow_alpha); // Needed?
 				  glVertex3f(p[3].x, p[3].y, p[3].z);
 				  for (int g = 0; g <= 16; g++) {
@@ -647,11 +648,14 @@ draw_hexagons (ModeInfo *mi)
 				  glEnd();
 
 				  /* Arm glow */
-				  glBegin(GL_TRIANGLE_STRIP);
+				  if (do_neon)
+					glBegin(GL_TRIANGLE_STRIP);
+				  else
+					glBegin(GL_QUADS);
 				  float nx = -dy/length * size * glow_scale;
 				  float ny = dx/length * size * glow_scale;
 
-				  //if (!do_neon)
+				  if (!do_neon)
 				    glColor4f(glow_color[0], glow_color[1], glow_color[2], glow_alpha); // Needed?
 				  glVertex3f(p[0].x + nx, p[0].y + ny, p[0].z);
 				  glVertex3f(p[0].x - nx, p[0].y - ny, p[0].z);
