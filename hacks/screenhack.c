@@ -751,12 +751,17 @@ init_window (Display *dpy, Widget toplevel, const char *title)
 int
 main (int argc, char **argv)
 {
+  printf("%s: %s\n", __FILE__, __func__);
   struct xscreensaver_function_table *ft = xscreensaver_function_table;
 
+#ifdef USE_SDL
+  init_sdl_gl();
+#else
   XWindowAttributes xgwa;
   Widget toplevel;
   Display *dpy;
   Window window;
+#endif
 # ifdef DEBUG_PAIR
   Window window2 = 0;
   Widget toplevel2 = 0;
@@ -840,34 +845,31 @@ main (int argc, char **argv)
     free(v);
   }
 
-  if (argc > 1)
-    {
+  if (argc > 1) {
       int i;
       int x = 18;
       int end = 78;
-      Bool help_p = (!strcmp(argv[1], "-help") ||
-                     !strcmp(argv[1], "--help"));
+      Bool help_p = (!strcmp(argv[1], "-help") || !strcmp(argv[1], "--help"));
       fprintf (stderr, "%s\n", version);
       fprintf (stderr, "\n\thttps://www.jwz.org/xscreensaver/\n\n");
 
       if (!help_p)
-	fprintf(stderr, "Unrecognised option: %s\n", argv[1]);
+        fprintf(stderr, "Unrecognised option: %s\n", argv[1]);
       fprintf (stderr, "Options include: ");
       for (i = 0; i < merged_options_size; i++)
-	{
+        {
 	  char *sw = merged_options [i].option;
 	  Bool argp = (merged_options [i].argKind == XrmoptionSepArg);
 	  int size = strlen (sw) + (argp ? 6 : 0) + 2;
-	  if (x + size >= end)
-	    {
+	  if (x + size >= end) {
 	      fprintf (stderr, "\n\t\t ");
 	      x = 18;
-	    }
+	  }
 	  x += size;
 	  fprintf (stderr, "-%s", sw);  /* two dashes */
 	  if (argp) fprintf (stderr, " <arg>");
 	  if (i != merged_options_size - 1) fprintf (stderr, ", ");
-	}
+  }
 
       fprintf (stderr, ".\n");
 
@@ -1092,8 +1094,14 @@ main (int argc, char **argv)
   if (anim_state) screenhack_record_anim_free (anim_state);
 #endif
 
+#ifdef USE_SDL
+  SDL_GL_DeleteContext(glContext);
+  SDL_DestroyWindow(window);
+  SDL_Quit();
+#else
   XtDestroyWidget (toplevel);
   XtDestroyApplicationContext (app);
+#endif
 
   return 0;
 }

@@ -28,6 +28,28 @@
 
 #ifdef USE_GL /* whole file */
 
+#ifdef USE_SDL
+#include <SDL2/SDL.h>
+#include <SDL2/SDL_opengl.h>
+
+SDL_Window* window;
+SDL_GLContext glContext;
+
+void init_sdl_gl() {
+  SDL_Init(SDL_INIT_VIDEO);
+
+  SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 2);
+  SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 1);
+  SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
+  SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
+
+  window = SDL_CreateWindow("HexTrail",
+    SDL_WINDOWPOS_CENTERED, SDL_WINDOWSPOS_CENTERED,
+	800, 600, SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN);
+
+  glContext = SDL_GL_CreateContext(window);
+}
+#endif
 
 #define DEF_SPIN        "True"
 #define DEF_WANDER      "True"
@@ -57,7 +79,9 @@ struct hexagon {
 };
 
 typedef struct {
+#ifndef USE_SDL
   GLXContext *glx_context;
+#endif
   rotator *rot;
   trackball_state *trackball;
   Bool button_down_p;
@@ -821,7 +845,11 @@ init_hextrail (ModeInfo *mi)
 
   bp = &bps[MI_SCREEN(mi)];
 
+#ifdef USE_SDL
+  init_sdl_gl();
+#else
   bp->glx_context = init_GL(mi);
+#endif
 
   reshape_hextrail (mi, MI_WIDTH(mi), MI_HEIGHT(mi));
 
@@ -861,10 +889,13 @@ draw_hextrail (ModeInfo *mi)
   Display *dpy = MI_DISPLAY(mi);
   Window window = MI_WINDOW(mi);
 
-  if (!bp->glx_context)
-    return;
-
+#ifdef USE_SDL
+  if (!glContext) return;
+  // TODO
+#else
+  if (!bp->glx_context) return;
   glXMakeCurrent(MI_DISPLAY(mi), MI_WINDOW(mi), *bp->glx_context);
+#endif
 
   glShadeModel(GL_SMOOTH);
 
@@ -914,8 +945,13 @@ free_hextrail (ModeInfo *mi)
 {
   hextrail_configuration *bp = &bps[MI_SCREEN(mi)];
 
+#ifdef USE_SDL
+  if (!glContext) return;
+  // TODO
+#else
   if (!bp->glx_context) return;
   glXMakeCurrent(MI_DISPLAY(mi), MI_WINDOW(mi), *bp->glx_context);
+#endif
 
   if (bp->trackball) gltrackball_free (bp->trackball);
   if (bp->rot) free_rotator (bp->rot);
