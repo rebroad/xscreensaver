@@ -32,6 +32,7 @@
 #define DEF_SPIN        "True"
 #define DEF_WANDER      "True"
 #define DEF_GLOW        "True"
+#define DEF_NEON        "False"
 #define DEF_SPEED       "1.0"
 #define DEF_THICKNESS   "0.15"
 
@@ -78,6 +79,7 @@ static Bool do_spin;
 static GLfloat speed;
 static Bool do_wander;
 static Bool do_glow;
+static Bool do_neon;
 static GLfloat thickness;
 
 static XrmOptionDescRec opts[] = {
@@ -88,6 +90,8 @@ static XrmOptionDescRec opts[] = {
   { "+wander", ".wander", XrmoptionNoArg, "False" },
   { "-glow",   ".glow",   XrmoptionNoArg, "True" },
   { "+glow",   ".glow",   XrmoptionNoArg, "False" },
+  { "-neon",   ".neon",   XrmoptionNoArg, "True" },
+  { "+neon",   ".neon",   XrmoptionNoArg, "False" },
   { "-thickness", ".thickness", XrmoptionSepArg, 0 },
 };
 
@@ -95,6 +99,7 @@ static argtype vars[] = {
   {&do_spin,   "spin",   "Spin",   DEF_SPIN,   t_Bool},
   {&do_wander, "wander", "Wander", DEF_WANDER, t_Bool},
   {&do_glow,   "glow",   "Glow",   DEF_GLOW,   t_Bool},
+  {&do_neon,   "neon",   "Neon",   DEF_NEON,   t_Bool},
   {&speed,     "speed",  "Speed",  DEF_SPEED,  t_Float},
   {&thickness, "thickness", "Thickness", DEF_THICKNESS, t_Float},
 };
@@ -536,7 +541,7 @@ draw_hexagons (ModeInfo *mi)
               p[3].y = h->pos.y + yoff * size2 * thick2 + y * end;
               p[3].z = h->pos.z;
 
-              if (do_glow) {
+              if (do_glow || do_neon) {
 				static time_t debug_time = 0;
 				time_t current_time = time(NULL);
 				Bool debug_now = False;
@@ -570,15 +575,25 @@ draw_hexagons (ModeInfo *mi)
 				  printf("Blend enabled: %d\n", blend_enabled);
 				}
 
-				glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+				if (do_neon)
+				  glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+				else
+				  glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);  // More natural blending
 
 				const int glow_layers = 4;
+
                 for (int layer = 0; layer < glow_layers; layer++) {
-                  GLfloat glow_scale = 1.0 + (layer * 0.2);
-                  //GLfloat glow_scale = 1.0 + (layer * 0.5);
-                  //GLfloat glow_scale = 1.0 + ((layer + 1) * 0.5);
-				  GLfloat glow_alpha = 0.3 / ((layer + 1) * (layer + 1));
-				  //GLfloat glow_alpha = 0.8 / (layer + 1);
+				  GLfloat glow_scale, glow_alpha;
+
+				  if (do_neon) {
+                    glow_scale = 1.0 + (layer * 0.2);
+                    //glow_scale = 1.0 + (layer * 0.5);
+				    glow_alpha = 0.3 / ((layer + 1) * (layer + 1));
+				    //glow_alpha = 0.8 / (layer + 1);
+				  } else {
+					glow_scale = 0.1 + ((layer+1) * 0.1);
+				    glow_alpha = 0.15 / ((layer + 1) * (layer + 1));
+				  }
 
 				  /* Make the glow color brighter than the base color */
 				  GLfloat *glow_color = color;
@@ -618,11 +633,12 @@ draw_hexagons (ModeInfo *mi)
 
                   /* End point glow */
 				  glBegin(GL_TRIANGLE_FAN);
-				  //glColor4f(glow_color[0], glow_color[1], glow_color[2], glow_alpha); // Needed?
+				  //if (!do_neon)
+				    glColor4f(glow_color[0], glow_color[1], glow_color[2], glow_alpha); // Needed?
 				  glVertex3f(p[3].x, p[3].y, p[3].z);
 				  for (int g = 0; g <= 16; g++) {
 				  //for (int g = 0; g <= 8; g++) {
-					float angle = g * M_PI / 8;
+				    float angle = g * M_PI / 8;
 					//float angle = g * M_PI / 4;
 					float x = p[3].x + cos(angle) * size * glow_scale;
 					float y = p[3].y + sin(angle) * size * glow_scale;
@@ -635,7 +651,8 @@ draw_hexagons (ModeInfo *mi)
 				  float nx = -dy/length * size * glow_scale;
 				  float ny = dx/length * size * glow_scale;
 
-				  //glColor4f(glow_color[0], glow_color[1], glow_color[2], glow_alpha); // Needed?
+				  //if (!do_neon)
+				    glColor4f(glow_color[0], glow_color[1], glow_color[2], glow_alpha); // Needed?
 				  glVertex3f(p[0].x + nx, p[0].y + ny, p[0].z);
 				  glVertex3f(p[0].x - nx, p[0].y - ny, p[0].z);
 				  glVertex3f(p[3].x + nx, p[3].y + ny, p[3].z);
