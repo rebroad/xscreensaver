@@ -24,6 +24,7 @@
 #include "gltrackball.h"
 #include <ctype.h>
 #include <math.h>
+#include <time.h>
 
 #ifdef USE_GL /* whole file */
 
@@ -440,7 +441,7 @@ draw_hexagons (ModeInfo *mi)
 
           if (h->border_state != EMPTY)
             {
-              GLfloat color1[4];
+              GLfloat color1[3];
               memcpy (color1, color, sizeof(color1));
               color1[0] *= h->border_ratio;
               color1[1] *= h->border_ratio;
@@ -536,27 +537,29 @@ draw_hexagons (ModeInfo *mi)
               p[3].z = h->pos.z;
 
               if (do_glow) {
-				static int debug_counter = 0;
-				debug_counter++;
+				static time_t debug_time = 0;
+				time_t current_time = time(NULL);
+				Bool debug_now = False;
+				if (current_time != debug_time) debug_now = True;
 
-				if (debug_counter == 100) {
+				if (debug_now) {
 				  printf("\nGLOW DEBUG:\n");
-				  printf("Current color: %.2f, %.2f, %.2f, %.2f\n",
-						 color[0], color[1], color[2], color[3]);
+				  printf("Current color: %.2f, %.2f, %.2f\n",
+						 color[0], color[1], color[2]);
 				  printf("Current p[0]: %.2f, %.2f, %.2f\n", p[0].x, p[0].y, p[0].z);
 				  printf("Current p[3]: %.2f, %.2f, %.2f\n", p[3].x, p[3].y, p[3].z);
 				  printf("Size value: %.2f\n", size);
 				}
 
                 GLenum err = glGetError();
-				if (err != GL_NO_ERROR && debug_counter == 100) {
+				if (err != GL_NO_ERROR && debug_now) {
 				  printf("GL Error before glow: %d\n", err);
 				}
 
 				glEnd();
 
 				glEnable(GL_BLEND);
-				if (debug_counter == 100) {
+				if (debug_now) {
 				  err = glGetError();
 				  if (err != GL_NO_ERROR) {
 					printf("GL Error after enable blend: %d\n", err);
@@ -569,38 +572,43 @@ draw_hexagons (ModeInfo *mi)
 
 				glBlendFunc(GL_SRC_ALPHA, GL_ONE);
 
-				const int glow_layers = 8;
+				const int glow_layers = 4;
                 for (int layer = 0; layer < glow_layers; layer++) {
-                  GLfloat glow_scale = 1.0 + ((layer + 1) * 1.0);
-				  //GLfloat glow_alpha = 0.8 / ((layer + 1) * (layer + 1));
-				  GLfloat glow_alpha = 0.8 / (layer + 1);
+                  GLfloat glow_scale = 1.0 + (layer * 0.5);
+                  //GLfloat glow_scale = 1.0 + ((layer + 1) * 0.5);
+				  GLfloat glow_alpha = 0.3 / ((layer + 1) * (layer + 1));
+				  //GLfloat glow_alpha = 0.8 / (layer + 1);
 
 				  /* Make the glow color brighter than the base color */
-				  GLfloat bright_color[3] = {
+				  GLfloat *glow_color = color;
+				  /*GLfloat glow_color[4] = {
 					fmin(color[0] * 2.0, 1.0),
 					fmin(color[1] * 2.0, 1.0),
-					fmin(color[2] * 2.0, 1.0)
-				  };
+					fmin(color[2] * 2.0, 1.0),
+					color[3]
+				  };*/
 
 				  float dx = p[3].x - p[0].x;
 				  float dy = p[3].y - p[0].y;
                   float length = sqrt(dx*dx + dy*dy);
 
-				  if (debug_counter == 100 && layer == 4) {
+				  if (debug_now && layer == 2) {
 					printf("\nLayer %d:\n", layer);
                     printf("Glow scale: %.2f\n", glow_scale);
 					printf("Glow alpha: %.2f\n", glow_alpha);
                     printf("Bright color: %.2f, %.2f, %.2f\n",
-						   bright_color[0], bright_color[1], bright_color[2]);
+						   glow_color[0], glow_color[1], glow_color[2]);
 					printf("Arm length: %.2f\n", length);
 				  }
 
                   /* Center point glow */
 				  glBegin(GL_TRIANGLE_FAN);
-				  glColor4f(bright_color[0], bright_color[1], bright_color[2], glow_alpha);
+				  glColor4f(glow_color[0], glow_color[1], glow_color[2], glow_alpha);
 				  glVertex3f(p[0].x, p[0].y, p[0].z);
-				  for (int g = 0; g <= 16; g++) {
-					  float angle = g * M_PI / 8;
+				  //for (int g = 0; g <= 16; g++) {
+				  for (int g = 0; g <= 8; g++) {
+					  //float angle = g * M_PI / 8;
+					  float angle = g * M_PI / 4;
 					  float x = p[0].x + cos(angle) * size * glow_scale;
                       float y = p[0].y + sin(angle) * size * glow_scale;
 					  glVertex3f(x, y, p[0].z);
@@ -609,9 +617,12 @@ draw_hexagons (ModeInfo *mi)
 
                   /* End point glow */
 				  glBegin(GL_TRIANGLE_FAN);
+				  glColor4f(glow_color[0], glow_color[1], glow_color[2], glow_alpha); // Needed?
 				  glVertex3f(p[3].x, p[3].y, p[3].z);
-				  for (int g = 0; g <= 16; g++) {
-					float angle = g * M_PI / 8;
+				  //for (int g = 0; g <= 16; g++) {
+				  for (int g = 0; g <= 8; g++) {
+					//float angle = g * M_PI / 8;
+					float angle = g * M_PI / 4;
 					float x = p[3].x + cos(angle) * size * glow_scale;
 					float y = p[3].y + sin(angle) * size * glow_scale;
 					glVertex3f(x, y, p[3].z);
@@ -623,7 +634,7 @@ draw_hexagons (ModeInfo *mi)
 				  float nx = -dy/length * size * glow_scale;
 				  float ny = dx/length * size * glow_scale;
 
-				  //glColor4f(color[0], color[1], color[2], glow_alpha); // yes?
+				  glColor4f(glow_color[0], glow_color[1], glow_color[2], glow_alpha); // Needed?
 				  glVertex3f(p[0].x + nx, p[0].y + ny, p[0].z);
 				  glVertex3f(p[0].x - nx, p[0].y - ny, p[0].z);
 				  glVertex3f(p[3].x + nx, p[3].y + ny, p[3].z);
@@ -631,12 +642,12 @@ draw_hexagons (ModeInfo *mi)
 				  glEnd();
 				}
 
-				if (debug_counter == 100) {
+				if (debug_now) {
 				  err = glGetError();
 				  if (err != GL_NO_ERROR) {
 					printf("GL Error after glow drawing: %d\n", err);
 				  }
-				  debug_counter = 0;
+				  debug_time = current_time;
 				}
 
                 glDisable(GL_BLEND);
