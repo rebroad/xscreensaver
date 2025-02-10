@@ -574,7 +574,8 @@ draw_hexagons (ModeInfo *mi)
 
 				const int glow_layers = 4;
                 for (int layer = 0; layer < glow_layers; layer++) {
-                  GLfloat glow_scale = 1.0 + (layer * 0.5);
+                  GLfloat glow_scale = 1.0 + (layer * 0.2);
+                  //GLfloat glow_scale = 1.0 + (layer * 0.5);
                   //GLfloat glow_scale = 1.0 + ((layer + 1) * 0.5);
 				  GLfloat glow_alpha = 0.3 / ((layer + 1) * (layer + 1));
 				  //GLfloat glow_alpha = 0.8 / (layer + 1);
@@ -605,10 +606,10 @@ draw_hexagons (ModeInfo *mi)
 				  glBegin(GL_TRIANGLE_FAN);
 				  glColor4f(glow_color[0], glow_color[1], glow_color[2], glow_alpha);
 				  glVertex3f(p[0].x, p[0].y, p[0].z);
-				  //for (int g = 0; g <= 16; g++) {
-				  for (int g = 0; g <= 8; g++) {
-					  //float angle = g * M_PI / 8;
-					  float angle = g * M_PI / 4;
+				  for (int g = 0; g <= 16; g++) {
+				  //for (int g = 0; g <= 8; g++) {
+					  float angle = g * M_PI / 8;
+					  //float angle = g * M_PI / 4;
 					  float x = p[0].x + cos(angle) * size * glow_scale;
                       float y = p[0].y + sin(angle) * size * glow_scale;
 					  glVertex3f(x, y, p[0].z);
@@ -619,10 +620,10 @@ draw_hexagons (ModeInfo *mi)
 				  glBegin(GL_TRIANGLE_FAN);
 				  //glColor4f(glow_color[0], glow_color[1], glow_color[2], glow_alpha); // Needed?
 				  glVertex3f(p[3].x, p[3].y, p[3].z);
-				  //for (int g = 0; g <= 16; g++) {
-				  for (int g = 0; g <= 8; g++) {
-					//float angle = g * M_PI / 8;
-					float angle = g * M_PI / 4;
+				  for (int g = 0; g <= 16; g++) {
+				  //for (int g = 0; g <= 8; g++) {
+					float angle = g * M_PI / 8;
+					//float angle = g * M_PI / 4;
 					float x = p[3].x + cos(angle) * size * glow_scale;
 					float y = p[3].y + sin(angle) * size * glow_scale;
 					glVertex3f(x, y, p[3].z);
