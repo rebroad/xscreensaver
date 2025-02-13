@@ -1158,7 +1158,7 @@ teeth_dxf::
 hextrail: hextrail.o normals.o $(HACK_TRACK_OBJS)
 	$(CC_HACK) -o $@ $^ $(HACK_LIBS)
 
-hextrail-sdl: hextrail.sdl.o normals.sdl.o
+hextrail-sdl: hextrail.sdl.o normals.sdl.o $(HACK_TRACK_OBJS)
 	$(CC_HACK) -o $@ $^ $(HACK_LIBS) $(SDL3_LIBS)
 
 #hextrail.exe: hextrail.o normals.o $(HACK_TRACK_OBJS)
