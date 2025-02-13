@@ -25,10 +25,9 @@ HACKDIR		= ${libexecdir}/xscreensaver
 HACK_CONF_DIR	= ${datadir}/xscreensaver/config
 
 MINGW_PREFIX = x86_64-w64-mingw32-
-WINDOWS_INCLUDE = -I../../hacks -I../../utils -I/usr/x86_64-w64-mingw32/include
+WINDOWS_INCLUDE = -I../../hacks -I../../utils -I/usr/local/include -I/usr/x86_64-w64-mingw32/include
 WINDOWS_LIBS = -L/usr/x86_64-w64-mingw32/lib -lopengl32 -lglut -lglu32 -lwinmm
-SDL2_CFLAGS = $(shell $(MINGW_PREFIX)sdl2-config --cflags) -DUSE_SDL
-SDL2_LIBS = $(shell $(MINGW_PREFIX)sdl2-config --libs) -lopengl32
+SDL3_LIBS = -L/usr/local/lib -lSDL3 -lopengl32
 
 CC		= gcc -std=gnu99 -pedantic -Wall -Wnested-externs -Wstrict-prototypes -Wmissing-prototypes -Wno-overlength-strings
 CFLAGS		= -g -O2
@@ -613,9 +612,9 @@ HACK_CFLAGS_BASE=$(INCLUDES) $(DEFS) $(CPPFLAGS) $(CFLAGS) $(X_CFLAGS)
 .c.o: 
 	$(CC) -c $(HACK_CFLAGS_BASE) $<
 
-WINDOWS_CFLAGS = $(WINDOWS_INCLUDE) $(SDL2_CFLAGS)
+WINDOWS_CFLAGS = $(WINDOWS_INCLUDE) -DUSE_SDL
 %.win.o: %.c
-	$(MINGW_PREFIX)gcc -c $(WINDOWS_CFLAGS) -o $@ $
+	$(MINGW_PREFIX)gcc -c $(WINDOWS_CFLAGS) -o $@ $<
 
 # Make sure the images have been packaged. This is the first one hit.
 #
@@ -1152,7 +1151,7 @@ hextrail: hextrail.o normals.o $(HACK_TRACK_OBJS)
 #hextrail.exe: hextrail.o normals.o $(HACK_TRACK_OBJS)
 #	$(MINGW_PREFIX)$(CC_HACK) $(WINDOWS_INCLUDE) -o $@ $@.o  normals.o $(HACK_TRACK_OBJS) $(WINDOWS_LIBS)
 hextrail.exe: hextrail.win.o normals.win.o
-	$(MINGW_PREFIX)gcc $(SDL2_CFLAGS) -o $@ $^ $(SDL2_LIBS)
+	$(MINGW_PREFIX)gcc -o $@ $^ $(SDL3_LIBS)
 
 papercube:	papercube.o	$(HACK_TRACK_OBJS)
 	$(CC_HACK) -o $@ $@.o	$(HACK_TRACK_OBJS) $(HACK_LIBS)
