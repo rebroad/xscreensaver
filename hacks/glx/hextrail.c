@@ -17,7 +17,12 @@
 
 # define release_hextrail 0
 
+#ifdef USE_SDL
+#include <SDL3/SDL.h>
+#include <SDL3/SDL_opengl.h>
+#else
 #include "xlockmore.h"
+#endif
 #include "colors.h"
 #include "normals.h"
 #include "rotator.h"
@@ -29,25 +34,35 @@
 #ifdef USE_GL /* whole file */
 
 #ifdef USE_SDL
-#include <SDL2/SDL.h>
-#include <SDL2/SDL_opengl.h>
-
 SDL_Window* window;
 SDL_GLContext glContext;
 
-void init_sdl_gl() {
-  SDL_Init(SDL_INIT_VIDEO);
+static Bool init_sdl(ModeInfo *mi) {
+  hextrail_configuration *bp = &bps[MI_SCREEN(mi)];
+
+  if (SDL_Init(SDL_INIT_VIDEO) < 0) {
+	return False;
+  }
 
   SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 2);
   SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 1);
   SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
   SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
 
-  window = SDL_CreateWindow("HexTrail",
+  bp->window = SDL_CreateWindow("HexTrail",
     SDL_WINDOWPOS_CENTERED, SDL_WINDOWSPOS_CENTERED,
-	800, 600, SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN);
+	MI_WIDTH(mi), MI_HEIGHT(mi), SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE);
 
-  glContext = SDL_GL_CreateContext(window);
+  if (!bp->window) {
+	return False;
+  }
+
+  bp->glContext = SDL_GL_CreateContext(bp->window);
+  if (!bp->gl_context) {
+	return False;
+  }
+
+  return True;
 }
 #endif
 
@@ -79,7 +94,10 @@ struct hexagon {
 };
 
 typedef struct {
-#ifndef USE_SDL
+#ifdef USE_SDL
+  SDL_Window *window;
+  SDL_GLContext gl_contet;
+#else
   GLXContext *glx_context;
 #endif
   rotator *rot;
@@ -790,7 +808,34 @@ reshape_hextrail (ModeInfo *mi, int width, int height)
   glClear(GL_COLOR_BUFFER_BIT);
 }
 
+#ifdef USE_SDL
+Bool hextrail_handle_event(ModeInfo *mi) {
+  hextrail_configuration *bp = &bps[MI_SCREEN(mi)];
+  SDL_Event event;
 
+  while (SDL_PollEvent(&event)) {
+	switch (event.type) {
+	  case SDL_QUIT:
+		return False;
+	  case SDL_KEYDOWN:
+		switch (event.key.keysym.sym) {
+		  case SDLK_SPACE:
+	      case SDLK_TABL:
+			// TODO - Handle eset
+			break;
+		  // TODO - add other key handlers
+		}
+		break;
+	  case SDL_MOUSEBUTTONDOWN:
+	  case SDL_MOUSEBUTTONUP:
+	  case SDL_MOUSEMOTION:
+		// TODO - convert to trackball events
+		break;
+	}
+  }
+  return True;
+}
+#else
 ENTRYPOINT Bool
 hextrail_handle_event (ModeInfo *mi, XEvent *event)
 {
@@ -834,7 +879,7 @@ hextrail_handle_event (ModeInfo *mi, XEvent *event)
 
   return False;
 }
-
+#endif
 
 ENTRYPOINT void 
 init_hextrail (ModeInfo *mi)
@@ -846,7 +891,7 @@ init_hextrail (ModeInfo *mi)
   bp = &bps[MI_SCREEN(mi)];
 
 #ifdef USE_SDL
-  init_sdl_gl();
+  init_sdl();
 #else
   bp->glx_context = init_GL(mi);
 #endif
