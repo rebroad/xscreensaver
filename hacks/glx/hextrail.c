@@ -808,6 +808,17 @@ reshape_hextrail (ModeInfo *mi, int width, int height)
   glClear(GL_COLOR_BUFFER_BIT);
 }
 
+static void reset_hextrail(ModeInfo *mi) {
+  hextrail_configuration *bp = &bps[MI_SCREEN(mi)];
+  if (MI_COUNT(mi) < 1) MI_COUNT(mi) = 1;
+  free (bp->hexagons);
+  bp->hexagons = 0;
+  bp->state = FIRST;
+  bp->fade_ratio = 1;
+  bp->live_count = 0;
+  make_plane (mi);
+}
+
 #ifdef USE_SDL
 Bool hextrail_handle_event(ModeInfo *mi) {
   hextrail_configuration *bp = &bps[MI_SCREEN(mi)];
@@ -821,7 +832,7 @@ Bool hextrail_handle_event(ModeInfo *mi) {
 		switch (event.key.keysym.sym) {
 		  case SDLK_SPACE:
 	      case SDLK_TABL:
-			// TODO - Handle reset
+            reset_hextrail(mi);
 			break;
 		  // TODO - Add other key handlers
 		}
@@ -865,13 +876,7 @@ hextrail_handle_event (ModeInfo *mi, XEvent *event)
         return False;
 
     RESET:
-      if (MI_COUNT(mi) < 1) MI_COUNT(mi) = 1;
-      free (bp->hexagons);
-      bp->hexagons = 0;
-      bp->state = FIRST;
-      bp->fade_ratio = 1;
-      bp->live_count = 0;
-      make_plane (mi);
+      reset_hextrail(mi);
       return True;
     }
   else if (screenhack_event_helper (MI_DISPLAY(mi), MI_WINDOW(mi), event))
@@ -931,13 +936,14 @@ ENTRYPOINT void
 draw_hextrail (ModeInfo *mi)
 {
   hextrail_configuration *bp = &bps[MI_SCREEN(mi)];
-  Display *dpy = MI_DISPLAY(mi);
-  Window window = MI_WINDOW(mi);
 
 #ifdef USE_SDL
   if (!np->gl_Context) return;
+  SDL_GL_MakeCurrent(bp->window, bp->gl_context);
 #else
   if (!bp->glx_context) return;
+  Display *dpy = MI_DISPLAY(mi);
+  Window window = MI_WINDOW(mi);
   glXMakeCurrent(MI_DISPLAY(mi), MI_WINDOW(mi), *bp->glx_context);
 #endif
 
@@ -980,7 +986,7 @@ draw_hextrail (ModeInfo *mi)
   if (mi->fps_p) do_fps (mi);
   glFinish();
 
-#ifdef USE_DSL
+#ifdef USE_SDL
   SDL_GL_SwapWindow(bp->window);
 #else
   glXSwapBuffers(dpy, window);
@@ -994,14 +1000,7 @@ free_hextrail (ModeInfo *mi)
   hextrail_configuration *bp = &bps[MI_SCREEN(mi)];
 
 #ifdef USE_SDL
-  if (bp->gl_Context) {
-	SDL_GL_DeleteContext(bp->gl_context);
-  }
-  if (bp->window) {
-	SDL_DestroyWindow(bp->window);
-  }
-  // TODO - rest of cleanup
-  SDL_Quit();
+  if (!bp->gl_Context) return;
 #else
   if (!bp->glx_context) return;
   glXMakeCurrent(MI_DISPLAY(mi), MI_WINDOW(mi), *bp->glx_context);
@@ -1011,6 +1010,14 @@ free_hextrail (ModeInfo *mi)
   if (bp->rot) free_rotator (bp->rot);
   if (bp->colors) free (bp->colors);
   free (bp->hexagons);
+
+#ifdef USE_SDL
+  if (bp->gl_Context)
+	SDL_GL_DeleteContext(bp->gl_context);
+  if (bp->window)
+	SDL_DestroyWindow(bp->window);
+  SDL_Quit();
+#endif
 }
 
 XSCREENSAVER_MODULE ("HexTrail", hextrail)

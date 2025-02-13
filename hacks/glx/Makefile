@@ -610,8 +610,12 @@ $(HACKDIR_OBJS):
 
 # How we build object files in this directory.
 HACK_CFLAGS_BASE=$(INCLUDES) $(DEFS) $(CPPFLAGS) $(CFLAGS) $(X_CFLAGS)
-.c.o:
+.c.o: 
 	$(CC) -c $(HACK_CFLAGS_BASE) $<
+
+WINDOWS_CFLAGS = $(WINDOWS_INCLUDE) $(SDL2_CFLAGS)
+%.win.o: %.c
+	$(MINGW_PREFIX)gcc -c $(WINDOWS_CFLAGS) -o $@ $
 
 # Make sure the images have been packaged. This is the first one hit.
 #
@@ -1142,12 +1146,12 @@ chompytower:	chompytower.o	$(CHOBJS) $(HACK_TRACK_OBJS)
 teeth_dxf::
 	./dxf2gl.pl --layers --smooth --normalize teeth.dxf teeth_model.c
 
-hextrail:	hextrail.o	 normals.o $(HACK_TRACK_OBJS)
-	$(CC_HACK) -o $@ $@.o	 normals.o $(HACK_TRACK_OBJS) $(HACK_LIBS)
+hextrail: hextrail.o normals.o $(HACK_TRACK_OBJS)
+	$(CC_HACK) -o $@ $^ $(HACK_LIBS)
 
 #hextrail.exe: hextrail.o normals.o $(HACK_TRACK_OBJS)
 #	$(MINGW_PREFIX)$(CC_HACK) $(WINDOWS_INCLUDE) -o $@ $@.o  normals.o $(HACK_TRACK_OBJS) $(WINDOWS_LIBS)
-hextrail.exe: hextrail.o normals.o
+hextrail.exe: hextrail.win.o normals.win.o
 	$(MINGW_PREFIX)gcc $(SDL2_CFLAGS) -o $@ $^ $(SDL2_LIBS)
 
 papercube:	papercube.o	$(HACK_TRACK_OBJS)
