@@ -18,9 +18,7 @@
 # define release_hextrail 0
 
 #ifdef USE_SDL
-#define SDL_MAIN_HANDLED
 #include <SDL3/SDL.h>
-#include <SDL3/SDL_main.h>
 #define Bool int
 #ifdef _Win32
 #include <windows.h>
@@ -43,30 +41,6 @@
 #ifdef USE_SDL
 SDL_Window* window;
 SDL_GLContext glContext;
-
-#ifdef USE_SDL
-#ifdef _WIN32
-#undef ENTRYPOINT
-#define ENTRYPOINT
-int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
-                   LPSTR lpCmdLine, int nCmdShow)
-{
-  ModeInfo mi;
-  // Initialize mi as needed
-  memset(&mi, 0, sizeof(mi));
-
-  init_hextrail(&mi);
-
-  while (1) {
-    draw_hextrail(&mi);
-    // Add event handling here
-  }
-
-  free_hextrail(&mi);
-  return 0;
-}
-#endif
-#endif
 
 static Bool init_sdl(ModeInfo *mi) {
   hextrail_configuration *bp = &bps[MI_SCREEN(mi)];

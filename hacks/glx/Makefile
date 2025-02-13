@@ -34,7 +34,8 @@ SDL3_LIBS = -L/usr/local/lib -lSDL3 -lGL
 # SDL3 paths for Windows cross-compile
 WIN_SDL3_PATH = /usr/x86_64-w64-mingw32
 WIN_SDL3_INCLUDE = -I$(WIN_SDL3_PATH)/include/SDL3
-WIN_SDL3_LIBS = -L$(WIN_SDL3_PATH)/lib -lSDL3 -lSDL3main -lopengl32 -mwindows
+WIN_SDL3_LIBS = -L$(WIN_SDL3_PATH)/lib -lSDL3 -lopengl32 -lmingw32 -mwindows
+#WIN_SDL3_LIBS = -L$(WIN_SDL3_PATH)/lib -lSDL3 -lopengl32
 
 CC		= gcc -std=gnu99 -pedantic -Wall -Wnested-externs -Wstrict-prototypes -Wmissing-prototypes -Wno-overlength-strings
 CFLAGS		= -g -O2
