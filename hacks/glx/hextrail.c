@@ -821,9 +821,9 @@ Bool hextrail_handle_event(ModeInfo *mi) {
 		switch (event.key.keysym.sym) {
 		  case SDLK_SPACE:
 	      case SDLK_TABL:
-			// TODO - Handle eset
+			// TODO - Handle reset
 			break;
-		  // TODO - add other key handlers
+		  // TODO - Add other key handlers
 		}
 		break;
 	  case SDL_MOUSEBUTTONDOWN:
@@ -981,7 +981,11 @@ draw_hextrail (ModeInfo *mi)
   if (mi->fps_p) do_fps (mi);
   glFinish();
 
+#ifdef USE_DSL
+  SDL_GL_SwapWindow(bp->window);
+#else
   glXSwapBuffers(dpy, window);
+#endif
 }
 
 
@@ -991,8 +995,14 @@ free_hextrail (ModeInfo *mi)
   hextrail_configuration *bp = &bps[MI_SCREEN(mi)];
 
 #ifdef USE_SDL
-  if (!glContext) return;
-  // TODO
+  if (bp->gl_Context) {
+	SDL_GL_DeleteContext(bp->gl_context);
+  }
+  if (bp->window) {
+	SDL_DestroyWindow(bp->window);
+  }
+  // TODO - rest of cleanup
+  SDL_Quit();
 #else
   if (!bp->glx_context) return;
   glXMakeCurrent(MI_DISPLAY(mi), MI_WINDOW(mi), *bp->glx_context);
