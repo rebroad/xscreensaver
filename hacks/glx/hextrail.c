@@ -20,10 +20,16 @@
 #ifdef USE_SDL
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_opengl.h>
+#define Bool int
+#ifdef _Win32
+#include <windows.h>
+#endif
+#include <GL/gl.h>
+#include <GL/glu.h>
 #else
 #include "xlockmore.h"
-#endif
 #include "colors.h"
+#endif
 #include "normals.h"
 #include "rotator.h"
 #include "gltrackball.h"

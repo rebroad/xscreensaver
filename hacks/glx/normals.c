@@ -11,7 +11,15 @@
  * Compute normal vectors for arbitrary triangles.
  */
 
+#ifdef USE_SDL
+#ifdef _WIN32
+#include <windows.h>
+#endif
+#include <GL/gl.h>
+#include <GL/glu.h>
+#else
 #include "screenhackI.h"
+#endif
 #include "normals.h"
 
 /* Calculate the unit normal at p given two other points p1,p2 on the
