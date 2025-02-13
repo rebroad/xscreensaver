@@ -935,8 +935,7 @@ draw_hextrail (ModeInfo *mi)
   Window window = MI_WINDOW(mi);
 
 #ifdef USE_SDL
-  if (!glContext) return;
-  // TODO
+  if (!np->gl_Context) return;
 #else
   if (!bp->glx_context) return;
   glXMakeCurrent(MI_DISPLAY(mi), MI_WINDOW(mi), *bp->glx_context);
