@@ -119,6 +119,11 @@
 
 #define DEBUG_PAIR
 
+#ifdef USE_SDL
+#define SDL_MAIN_HANDLED
+#include <SDL3/SDL_main.h>
+#endif
+
 #include <stdio.h>
 #include <X11/Intrinsic.h>
 #include <X11/IntrinsicP.h>
@@ -761,7 +766,6 @@ main (int argc, char **argv)
   Widget toplevel;
   Display *dpy;
   Window window;
-#endif
 # ifdef DEBUG_PAIR
   Window window2 = 0;
   Widget toplevel2 = 0;
@@ -773,6 +777,7 @@ main (int argc, char **argv)
   Bool root_p;
   Window on_window = 0;
   XEvent event;
+#endif
   Boolean dont_clear;
   char version[255];
 
@@ -1105,3 +1110,24 @@ main (int argc, char **argv)
 
   return 0;
 }
+
+#ifdef _WIN32
+int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
+{
+  /*ModeInfo mi;
+  // Initialize mi as needed
+  memset(&mi, 0, sizeof(mi));
+
+  init_hextrail(&mi);
+
+  while (1) {
+    draw_hextrail(&mi);
+    // Add event handling here
+  }
+
+  free_hextrail(&mi);
+  return 0;*/
+
+  return SDL_main(0, NULL);
+}
+#endif
