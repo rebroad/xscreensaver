@@ -27,7 +27,14 @@ HACK_CONF_DIR	= ${datadir}/xscreensaver/config
 MINGW_PREFIX = x86_64-w64-mingw32-
 WINDOWS_INCLUDE = -I../../hacks -I../../utils -I/usr/local/include -I/usr/x86_64-w64-mingw32/include
 WINDOWS_LIBS = -L/usr/x86_64-w64-mingw32/lib -lopengl32 -lglut -lglu32 -lwinmm
-SDL3_LIBS = -L/usr/local/lib -lSDL3 -lopengl32
+
+# SDL3 paths for Linux build
+SDL3_LIBS = -L/usr/local/lib -lSDL3 -lGL
+
+# SDL3 paths for Windows cross-compile
+WIN_SDL3_PATH = /usr/x86_64-w64-mingw32
+WIN_SDL3_INCLUDE = -I$(WIN_SDL3_PATH)/include/SDL3
+WIN_SDL3_LIBS = -L$(WIN_SDL3_PATH)/lib -lSDL3 -lopengl32
 
 CC		= gcc -std=gnu99 -pedantic -Wall -Wnested-externs -Wstrict-prototypes -Wmissing-prototypes -Wno-overlength-strings
 CFLAGS		= -g -O2
@@ -80,7 +87,7 @@ JWXYZ_SRC	= $(HACK_SRC)/../jwxyz
 UTILS_BIN	= $(HACK_BIN)/../utils
 JWXYZ_BIN	= $(HACK_BIN)/../jwxyz
 
-INCLUDES_1	= -I. -I$(srcdir) -I$(UTILS_SRC) -I$(JWXYZ_SRC) -I$(HACK_SRC) -I$(HACK_BIN) -I../..
+INCLUDES_1	= -I. -I$(srcdir) -I$(UTILS_SRC) -I$(JWXYZ_SRC) -I$(HACK_SRC) -I$(HACK_BIN) -I../.. -I/usr/local/include
 INCLUDES	= $(INCLUDES_1)   -I/usr/include/gtk-3.0 -I/usr/include/pango-1.0 -I/usr/include/glib-2.0 -I/usr/lib/x86_64-linux-gnu/glib-2.0/include -I/usr/include/harfbuzz -I/usr/include/freetype2 -I/usr/include/libpng16 -I/usr/include/libmount -I/usr/include/blkid -I/usr/include/fribidi -I/usr/include/cairo -I/usr/include/pixman-1 -I/usr/include/gdk-pixbuf-2.0 -I/usr/include/x86_64-linux-gnu -I/usr/include/webp -I/usr/include/gio-unix-2.0 -I/usr/include/atk-1.0 -I/usr/include/at-spi2-atk/2.0 -I/usr/include/at-spi-2.0 -I/usr/include/dbus-1.0 -I/usr/lib/x86_64-linux-gnu/dbus-1.0/include -I/usr/include/libxml2 -pthread  -I/usr/include/gdk-pixbuf-2.0 -I/usr/include/glib-2.0 -I/usr/lib/x86_64-linux-gnu/glib-2.0/include -I/usr/include/libpng16 -I/usr/include/x86_64-linux-gnu -I/usr/include/webp -I/usr/include/libmount -I/usr/include/blkid -pthread  -I/usr/include/freetype2 -I/usr/include/libpng16 
 
 UTILDIR_OBJS	= $(UTILS_BIN)/colors.o $(UTILS_BIN)/grabclient.o \
@@ -612,7 +619,10 @@ HACK_CFLAGS_BASE=$(INCLUDES) $(DEFS) $(CPPFLAGS) $(CFLAGS) $(X_CFLAGS)
 .c.o: 
 	$(CC) -c $(HACK_CFLAGS_BASE) $<
 
-WINDOWS_CFLAGS = $(WINDOWS_INCLUDE) -DUSE_SDL
+%.sdl.o: %.c
+	$(CC) -c $(HACK_CFLAGS_BASE) -DUSR_SDL -o $@ $<
+
+WINDOWS_CFLAGS = $(WINDOWS_INCLUDE) $(WIN_SDL3_INCLUDE) -DUSE_SDL
 %.win.o: %.c
 	$(MINGW_PREFIX)gcc -c $(WINDOWS_CFLAGS) -o $@ $<
 
@@ -1148,10 +1158,13 @@ teeth_dxf::
 hextrail: hextrail.o normals.o $(HACK_TRACK_OBJS)
 	$(CC_HACK) -o $@ $^ $(HACK_LIBS)
 
+hextrail-sdl: hextrail.sdl.o normals.sdl.o
+	$(CC_HACK) -o $@ $^ $(HACK_LIBS) $(SDL3_LIBS)
+
 #hextrail.exe: hextrail.o normals.o $(HACK_TRACK_OBJS)
 #	$(MINGW_PREFIX)$(CC_HACK) $(WINDOWS_INCLUDE) -o $@ $@.o  normals.o $(HACK_TRACK_OBJS) $(WINDOWS_LIBS)
 hextrail.exe: hextrail.win.o normals.win.o
-	$(MINGW_PREFIX)gcc -o $@ $^ $(SDL3_LIBS)
+	$(MINGW_PREFIX)gcc -o $@ $^ $(WIN_SDL3_LIBS)
 
 papercube:	papercube.o	$(HACK_TRACK_OBJS)
 	$(CC_HACK) -o $@ $@.o	$(HACK_TRACK_OBJS) $(HACK_LIBS)
