@@ -34,7 +34,7 @@ SDL3_LIBS = -L/usr/local/lib -lSDL3 -lGL
 # SDL3 paths for Windows cross-compile
 WIN_SDL3_PATH = /usr/x86_64-w64-mingw32
 WIN_SDL3_INCLUDE = -I$(WIN_SDL3_PATH)/include/SDL3
-WIN_SDL3_LIBS = -L$(WIN_SDL3_PATH)/lib -lSDL3 -lopengl32
+WIN_SDL3_LIBS = -L$(WIN_SDL3_PATH)/lib -lSDL3 -lSDL3main -lopengl32 -mwindows
 
 CC		= gcc -std=gnu99 -pedantic -Wall -Wnested-externs -Wstrict-prototypes -Wmissing-prototypes -Wno-overlength-strings
 CFLAGS		= -g -O2
@@ -1164,7 +1164,7 @@ hextrail-sdl: hextrail.sdl.o normals.sdl.o $(HACK_TRACK_OBJS)
 #hextrail.exe: hextrail.o normals.o $(HACK_TRACK_OBJS)
 #	$(MINGW_PREFIX)$(CC_HACK) $(WINDOWS_INCLUDE) -o $@ $@.o  normals.o $(HACK_TRACK_OBJS) $(WINDOWS_LIBS)
 hextrail.exe: hextrail.win.o normals.win.o
-	$(MINGW_PREFIX)gcc -o $@ $^ $(WIN_SDL3_LIBS)
+	$(MINGW_PREFIX)gcc -mconsole -o $@ $^ $(WIN_SDL3_LIBS)
 
 papercube:	papercube.o	$(HACK_TRACK_OBJS)
 	$(CC_HACK) -o $@ $@.o	$(HACK_TRACK_OBJS) $(HACK_LIBS)
