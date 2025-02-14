@@ -65,9 +65,7 @@ typedef struct {
 #ifdef USE_SDL
   SDL_Window *window;
   SDL_GLContext gl_contet;
-  struct {
-	float r, g, b, a;
-  } *colors;
+  SDLColor *colors;
 #else
   GLXContext *glx_context;
   XColor *colors;
@@ -128,8 +126,6 @@ static argtype vars[] = {
 
 ENTRYPOINT ModeSpecOpt hextrail_opts = {countof(opts), opts, countof(vars), vars, NULL};
 
-
-
 static void make_plane (ModeInfo *mi) {
   hextrail_configuration *bp = &bps[MI_SCREEN(mi)];
   int x, y;
@@ -147,8 +143,7 @@ static void make_plane (ModeInfo *mi) {
   bp->ncolors = 8;
   if (! bp->colors)
 #ifdef USE_SDL
-	bp->colors = (struct { float r, g, b, a; } *)
-  calloc(bp->ncolors, sizeof(*bp->colors));
+	bp->colors = (SDLColor *) calloc(bp->ncolors, sizeof(*bp->colors));
   make_smooth_colormap(bp->colors, &bp->ncolors);
 #else
     bp->colors = (XColor *) calloc(bp->ncolors, sizeof(XColor));
