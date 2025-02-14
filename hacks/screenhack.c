@@ -164,7 +164,6 @@
  */
 extern struct xscreensaver_function_table *xscreensaver_function_table;
 
-
 const char *progname;   /* used by hacks in error messages */
 const char *progclass;  /* used by ../utils/resources.c */
 Bool mono_p;		/* used by hacks */
@@ -215,9 +214,7 @@ static int merged_options_size;
 static char **merged_defaults;
 
 
-static void
-merge_options (void)
-{
+static void merge_options (void) {
   struct xscreensaver_function_table *ft = xscreensaver_function_table;
 
   const XrmOptionDescRec *options = ft->options;
@@ -362,9 +359,7 @@ screenhack_handle_event_1 (Display *dpy, XEvent *event)
 }
 
 
-static Visual *
-pick_visual (Screen *screen)
-{
+static Visual * pick_visual (Screen *screen) {
   struct xscreensaver_function_table *ft = xscreensaver_function_table;
 
   if (ft->pick_visual_hook)
@@ -798,10 +793,57 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 }
 #endif
 
-int main (int argc, char **argv)
-{
+int main (int argc, char **argv) {
   printf("%s: %s\n", __FILE__, __func__);
   struct xscreensaver_function_table *ft = xscreensaver_function_table;
+
+  fix_fds();
+
+  progname = argv[0];   /* reset later */
+  progclass = ft->progclass;
+
+  if (ft->setup_cb)
+    ft->setup_cb (ft, ft->setup_arg);
+
+  merge_options ();
+
+  /* Xt and xscreensaver predate the "--arg" convention, so convert
+     double dashes to single. */
+  {
+    int i;
+    for (i = 1; i < argc; i++)
+      if (argv[i][0] == '-' && argv[i][1] == '-')
+        argv[i]++;
+  }
+
+  if (argc > 1) {
+    int i;
+    int x = 18;
+    int end = 78;
+    Bool help_p = (!strcmp(argv[1], "-help") || !strcmp(argv[1], "--help"));
+    fprintf (stderr, "%s\n", version);
+    fprintf (stderr, "\n\thttps://www.jwz.org/xscreensaver/\n\n");
+
+    if (!help_p)
+      fprintf(stderr, "Unrecognised option: %s\n", argv[1]);
+    fprintf (stderr, "Options include: ");
+    for (i = 0; i < merged_options_size; i++) {
+	  char *sw = merged_options [i].option;
+	  Bool argp = (merged_options [i].argKind == XrmoptionSepArg);
+	  int size = strlen (sw) + (argp ? 6 : 0) + 2;
+	  if (x + size >= end) {
+	    fprintf (stderr, "\n\t\t ");
+	    x = 18;
+	  }
+	  x += size;
+	  fprintf (stderr, "-%s", sw);  /* two dashes */
+	  if (argp) fprintf (stderr, " <arg>");
+	  if (i != merged_options_size - 1) fprintf (stderr, ", ");
+    }
+    fprintf (stderr, ".\n");
+
+    exit (help_p ? 0 : 1);
+  }
 
 #ifdef USE_SDL
   if (SDL_Init(SDL_INIT_VIDEO) < 0) {
@@ -856,16 +898,6 @@ int main (int argc, char **argv)
   Boolean dont_clear;
   char version[255];
 
-  fix_fds();
-
-  progname = argv[0];   /* reset later */
-  progclass = ft->progclass;
-
-  if (ft->setup_cb)
-    ft->setup_cb (ft, ft->setup_arg);
-
-  merge_options ();
-
 #ifdef __sgi
   /* We have to do this on SGI to prevent the background color from being
      overridden by the current desktop color scheme (we'd like our backgrounds
@@ -877,15 +909,6 @@ int main (int argc, char **argv)
    */
   SgiUseSchemes ("none"); 
 #endif /* __sgi */
-
-  /* Xt and xscreensaver predate the "--arg" convention, so convert
-     double dashes to single. */
-  {
-    int i;
-    for (i = 1; i < argc; i++)
-      if (argv[i][0] == '-' && argv[i][1] == '-')
-        argv[i]++;
-  }
 
   toplevel = XtAppInitialize (&app, progclass, merged_options,
 			      merged_options_size, &argc, argv,
@@ -924,37 +947,6 @@ int main (int argc, char **argv)
 	     progclass, s1, s3);
     free(v);
   }
-
-  if (argc > 1) {
-      int i;
-      int x = 18;
-      int end = 78;
-      Bool help_p = (!strcmp(argv[1], "-help") || !strcmp(argv[1], "--help"));
-      fprintf (stderr, "%s\n", version);
-      fprintf (stderr, "\n\thttps://www.jwz.org/xscreensaver/\n\n");
-
-      if (!help_p)
-        fprintf(stderr, "Unrecognised option: %s\n", argv[1]);
-      fprintf (stderr, "Options include: ");
-      for (i = 0; i < merged_options_size; i++)
-        {
-	  char *sw = merged_options [i].option;
-	  Bool argp = (merged_options [i].argKind == XrmoptionSepArg);
-	  int size = strlen (sw) + (argp ? 6 : 0) + 2;
-	  if (x + size >= end) {
-	      fprintf (stderr, "\n\t\t ");
-	      x = 18;
-	  }
-	  x += size;
-	  fprintf (stderr, "-%s", sw);  /* two dashes */
-	  if (argp) fprintf (stderr, " <arg>");
-	  if (i != merged_options_size - 1) fprintf (stderr, ", ");
-  }
-
-      fprintf (stderr, ".\n");
-
-      exit (help_p ? 0 : 1);
-    }
 
   {
     char **s;
