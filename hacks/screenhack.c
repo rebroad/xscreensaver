@@ -821,6 +821,34 @@ int main (int argc, char **argv) {
         argv[i]++;
   }
 
+#ifndef USE_SDL
+  Display *dpy;
+  Widget toplevel;
+  XtAppContext app;
+  toplevel = XtAppInitialize (&app, progclass, merged_options,
+			      merged_options_size, &argc, argv,
+			      merged_defaults, 0, 0);
+  dpy = XtDisplay (toplevel);
+#endif
+  char version[255];
+  {
+    char *v = (char *) strdup(strchr(screensaver_id, ' '));
+    char *s1, *s2, *s3, *s4;
+    const char *ot = get_string_resource (dpy, "title", "Title");
+    s1 = (char *) strchr(v,  ' '); s1++;
+    s2 = (char *) strchr(s1, ' ');
+    s3 = (char *) strchr(v,  '('); s3++;
+    s4 = (char *) strchr(s3, ')');
+    *s2 = 0;
+    *s4 = 0;
+    if (ot && !*ot) ot = 0;
+    sprintf (version, "%.50s%s%s: from the XScreenSaver %s distribution (%s)",
+             (ot ? ot : ""),
+             (ot ? ": " : ""),
+	     progclass, s1, s3);
+    free(v);
+  }
+
   if (argc > 1) {
     int i;
     int x = 18;
@@ -886,8 +914,6 @@ int main (int argc, char **argv) {
   SDL_Quit();
 #else
   XWindowAttributes xgwa;
-  Widget toplevel;
-  Display *dpy;
   Window window;
 # ifdef DEBUG_PAIR
   Window window2 = 0;
@@ -896,12 +922,10 @@ int main (int argc, char **argv) {
 # ifdef HAVE_RECORD_ANIM
   record_anim_state *anim_state = 0;
 # endif
-  XtAppContext app;
   Bool root_p;
   Window on_window = 0;
   XEvent event;
   Boolean dont_clear;
-  char version[255];
 
 #ifdef __sgi
   /* We have to do this on SGI to prevent the background color from being
@@ -914,12 +938,6 @@ int main (int argc, char **argv) {
    */
   SgiUseSchemes ("none"); 
 #endif /* __sgi */
-
-  toplevel = XtAppInitialize (&app, progclass, merged_options,
-			      merged_options_size, &argc, argv,
-			      merged_defaults, 0, 0);
-
-  dpy = XtDisplay (toplevel);
 
   XtGetApplicationNameAndClass (dpy,
                                 (char **) &progname,
@@ -934,24 +952,6 @@ int main (int argc, char **argv) {
   XA_WM_DELETE_WINDOW = XInternAtom (dpy, "WM_DELETE_WINDOW", False);
   XA_NET_WM_PID = XInternAtom (dpy, "_NET_WM_PID", False);
   XA_NET_WM_PING = XInternAtom (dpy, "_NET_WM_PING", False);
-
-  {
-    char *v = (char *) strdup(strchr(screensaver_id, ' '));
-    char *s1, *s2, *s3, *s4;
-    const char *ot = get_string_resource (dpy, "title", "Title");
-    s1 = (char *) strchr(v,  ' '); s1++;
-    s2 = (char *) strchr(s1, ' ');
-    s3 = (char *) strchr(v,  '('); s3++;
-    s4 = (char *) strchr(s3, ')');
-    *s2 = 0;
-    *s4 = 0;
-    if (ot && !*ot) ot = 0;
-    sprintf (version, "%.50s%s%s: from the XScreenSaver %s distribution (%s)",
-             (ot ? ot : ""),
-             (ot ? ": " : ""),
-	     progclass, s1, s3);
-    free(v);
-  }
 
   {
     char **s;
