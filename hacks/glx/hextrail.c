@@ -445,19 +445,20 @@ draw_hexagons (ModeInfo *mi)
       }
       
 #ifdef USE_SDL
-       # define HEXAGON_COLOR(V,H) do { \
-         (V)[0] = bp->colors[(H)->ccolor].r * bp->fade_ratio; \
-         (V)[1] = bp->colors[(H)->ccolor].g * bp->fade_ratio; \
-         (V)[2] = bp->colors[(H)->ccolor].b * bp->fade_ratio; \
-         (V)[3] = bo->colors[(H)->ccolor].a;
-       } while (0)
+      # define HEXAGON_COLOR(V,H) do { \
+		int idx = (H)->ccolor; \
+        (V)[0] = bp->colors[idx].r / 255.0f * bp->fade_ratio; \
+        (V)[1] = bp->colors[idx].g / 255.0f * bp->fade_ratio; \
+        (V)[2] = bp->colors[idx].b / 255.0f * bp->fade_ratio; \
+        (V)[3] = bp->colors[idx].a / 255.0f; \
+      } while (0)
 #else
-       # define HEXAGON_COLOR(V,H) do { \
-         (V)[0] = bp->colors[(H)->ccolor].red   / 65535.0 * bp->fade_ratio; \
-         (V)[1] = bp->colors[(H)->ccolor].green / 65535.0 * bp->fade_ratio; \
-         (V)[2] = bp->colors[(H)->ccolor].blue  / 65535.0 * bp->fade_ratio; \
-         (V)[3] = 1; \
-       } while (0)
+      # define HEXAGON_COLOR(V,H) do { \
+        (V)[0] = bp->colors[(H)->ccolor].red   / 65535.0 * bp->fade_ratio; \
+        (V)[1] = bp->colors[(H)->ccolor].green / 65535.0 * bp->fade_ratio; \
+        (V)[2] = bp->colors[(H)->ccolor].blue  / 65535.0 * bp->fade_ratio; \
+        (V)[3] = 1; \
+      } while (0)
 #endif
 
       HEXAGON_COLOR (color, h);
