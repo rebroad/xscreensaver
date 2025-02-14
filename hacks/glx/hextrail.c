@@ -103,17 +103,10 @@ static Bool do_neon;
 static GLfloat thickness;
 
 #ifdef USE_SDL
-typedef struct {
-  const char *option;
-  const char *resource;
-  int arg_type;
-  const char *value;
-} SDLOptionsDescRec;
-
 #define XrmoptionNoArg 0
 #define XrmoptionSepArg 1
 
-static SDLOptionsDescRec opts[] = {
+static SDLOptionDescRec opts[] = {
 #else
 static XrmOptionDescRec opts[] = {
 #endif
