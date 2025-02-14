@@ -1066,7 +1066,7 @@ int main (int argc, char **argv) {
 
   XtDestroyWidget (toplevel);
   XtDestroyApplicationContext (app);
-#endif
+#endif /* USE_SDL */
 
   return 0;
 }
