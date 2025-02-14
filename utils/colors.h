@@ -86,11 +86,7 @@ extern void make_color_loop (Screen *, Visual *, Colormap,
    If allocate_p is false, screen, visual and cmap are unused (OpenGL usage).
  */
 #ifdef USE_SDL
-typedef struct {
-  float r, g, b, a;
-} SDLColor;
-
-extern void make_smooth_colormap(SDLColor *colors, int *ncolors);
+extern void make_smooth_colormap(SDL_Color *colors, int *ncolors);
 #else
 extern void make_smooth_colormap (Screen *, Visual *, Colormap,
 				  XColor *colors, int *ncolorsP,

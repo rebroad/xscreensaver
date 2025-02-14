@@ -65,7 +65,7 @@ typedef struct {
 #ifdef USE_SDL
   SDL_Window *window;
   SDL_GLContext gl_contet;
-  SDLColor *colors;
+  SDL_Color *colors;
 #else
   GLXContext *glx_context;
   XColor *colors;
@@ -141,14 +141,15 @@ static void make_plane (ModeInfo *mi) {
   memset (grid, 0, bp->grid_w * bp->grid_h * sizeof(*grid));
 
   bp->ncolors = 8;
-  if (! bp->colors)
+  if (!bp->colors) {
 #ifdef USE_SDL
-	bp->colors = (SDLColor *) calloc(bp->ncolors, sizeof(*bp->colors));
-  make_smooth_colormap(bp->colors, &bp->ncolors);
+	bp->colors = (SDL_Color *) calloc(bp->ncolors, sizeof(SDL_Color));
+    make_smooth_colormap(bp->colors, &bp->ncolors);
 #else
     bp->colors = (XColor *) calloc(bp->ncolors, sizeof(XColor));
-  make_smooth_colormap (0, 0, 0, bp->colors, &bp->ncolors, False, 0, False);
+    make_smooth_colormap (0, 0, 0, bp->colors, &bp->ncolors, False, 0, False);
 #endif
+  }
 
   size = 2.0 / bp->grid_w;
   w = size;
