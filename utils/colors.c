@@ -492,7 +492,7 @@ make_color_loop (Screen *screen, Visual *visual, Colormap cmap,
 
 #ifdef USE_SDL
 // TODO - Claude did not look at the original function before creating this!
-void make_smooth_colormap(struct { float r, g, b, a; } *colors, int *ncolors) {
+void make_smooth_colormap(SDLColor *colors, int *ncolors) {
   // Similar logic to make_smooth_colormap but using floating point values
   int i;
   int n = *ncolors;

@@ -85,11 +85,19 @@ extern void make_color_loop (Screen *, Visual *, Colormap,
 
    If allocate_p is false, screen, visual and cmap are unused (OpenGL usage).
  */
+#ifdef USE_SDL
+typedef struct {
+  float r, g, b, a;
+} SDLColor;
+
+extern void make_smooth_colormap(SDLColor *colors, int *ncolors);
+#else
 extern void make_smooth_colormap (Screen *, Visual *, Colormap,
 				  XColor *colors, int *ncolorsP,
 				  Bool allocate_p,
 				  Bool *writable_pP,
 				  Bool verbose_p);
+#endif
 
 /* Allocates a uniform colormap which touches each hue of the spectrum,
    evenly spaced.  The saturation and intensity are chosen randomly, but
