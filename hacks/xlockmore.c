@@ -395,7 +395,9 @@ xlockmore_init (Display *dpy, Window window,
 
   mi->dpy = dpy;
   mi->window = window;
+#ifndef USE_SDL
   XGetWindowAttributes (dpy, window, &mi->xgwa);
+#endif
   
   /* In Cocoa and Android-based xscreensaver, as well as with DEBUG_PAIR,
      hacks run in the same address space, so each one needs to get its own
