@@ -25,10 +25,9 @@
 #endif
 #include <GL/gl.h>
 #include <GL/glu.h>
-#else
+#endif
 #include "xlockmore.h"
 #include "colors.h"
-#endif
 #include "normals.h"
 #include "rotator.h"
 #include "gltrackball.h"
@@ -109,13 +108,15 @@ typedef struct {
   const char *resource;
   int arg_type;
   const char *value;
-} XrmOptionsDescRec;
+} SDLOptionsDescRec;
 
 #define XrmoptionNoArg 0
 #define XrmoptionSepArg 1
-#endif
 
+static SDLOptionsDescRec opts[] = {
+#else
 static XrmOptionDescRec opts[] = {
+#endif
   { "-spin",   ".spin",   XrmoptionNoArg, "True" },
   { "+spin",   ".spin",   XrmoptionNoArg, "False" },
   { "-speed",  ".speed",  XrmoptionSepArg, 0 },
