@@ -121,16 +121,18 @@
 
 #ifdef USE_SDL
 #define SDL_MAIN_HANDLED
+#include <SDL3/SDL.h>
 #include <SDL3/SDL_main.h>
-#endif
-
-#include <stdio.h>
+#else
 #include <X11/Intrinsic.h>
 #include <X11/IntrinsicP.h>
 #include <X11/CoreP.h>
 #include <X11/Shell.h>
 #include <X11/StringDefs.h>
 #include <X11/keysym.h>
+#endif
+
+#include <stdio.h>
 
 #ifdef __sgi
 # include <X11/SGIScheme.h>	/* for SgiUseSchemes() */
@@ -585,7 +587,38 @@ screenhack_do_fps (Display *dpy, Window w, fps_state *fpst, void *closure)
   fps_draw (fpst);
 }
 
+#ifdef USE_SDL
+static void run_screenhack_table_sdl(SDL_Window *window,
+                                    const struct xscreensaver_function_table *ft) {
+  void *closure = ft->init_cb(NULL, (Window)SDL_GetWindowID(window), ft->setup_arg);
+  fps_state *fpst = fps_init(NULL, (Window)SDL_GetWindowID(window));
+  unsigned long delay = 0;
 
+  SDL_Event event;
+  Bool running = True;
+
+  while (running) {
+    while (SDL_PollEvent(&event)) {
+      if (!ft->event_cb(NULL, (Window)SDL_GetWindowID(window), closure, &event))
+        running = False;
+    }
+
+    if (!running) break;
+
+    delay = ft->draw_cb(NULL, (Window)SDL_GetWindowID(window), closure);
+
+    if (fpst) {
+      ft->fps_cb(NULL, (Window)SDL_GetWindowID(window), fpst, closure);
+    }
+
+    SDL_GL_SwapWindow(window);
+    SDL_Delay(delay/1000); // Convert microseconds to milliseconds
+  }
+
+  if (fpst) ft->fps_free(fpst);
+  ft->free_cb(NULL, (Window)SDL_GetWindowID(window), closure);
+}
+#else
 static void
 run_screenhack_table (Display *dpy, 
                       Window window,
@@ -664,6 +697,7 @@ run_screenhack_table (Display *dpy,
   if (window2) ft->free_cb (dpy, window2, closure2);
 #endif
 }
+#endif
 
 
 static Widget
@@ -752,15 +786,52 @@ init_window (Display *dpy, Widget toplevel, const char *title)
                    PropModeReplace, (unsigned char *)&pid, 1);
 }
 
+#ifdef USE_SDL
+SDL_Window *window = NULL;
+SDL_GLContext glContext = NULL;
+#endif
 
-int
-main (int argc, char **argv)
+#ifdef _WIN32
+int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
+				LPSTR lpCmdLine, int nCmdShow) {
+  return SDL_main(__argc, __argv);
+}
+#endif
+
+int main (int argc, char **argv)
 {
   printf("%s: %s\n", __FILE__, __func__);
   struct xscreensaver_function_table *ft = xscreensaver_function_table;
 
 #ifdef USE_SDL
-  init_sdl_gl();
+  if (SDL_Init(SDL_INIT_VIDEO) < 0) {
+	fprintf(stderr, "SDL initialization failed: %s\n", SDL_GetError());
+	return 1;
+  }
+
+  SDL_Window *window = SDL_CreateWindow(
+    ft->progclass, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
+	1280, 720, SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE);
+
+  if (!window) {
+	fprintf(stderr, "Window creation failed: %s\n", SDL_GetError());
+	SDL_Quit();
+	return 1;
+  }
+
+  SDL_GLContext gl_context = SDL_GL_CreateContent(window);
+  if (!gl_context) {
+	fprintf(stderr, "OpenGL context creation failed: %s\n", SDL_GetError());
+	SDL_DestroyWindow(window);
+	SDL_Quit();
+	return 1;
+  }
+
+  run_screenhack_table_sdl(window, ft);
+
+  SDL_GL_DeleteContext(gl_context);
+  SDL_DestroyWindow(window);
+  SDL_Quit();
 #else
   XWindowAttributes xgwa;
   Widget toplevel;
@@ -777,7 +848,6 @@ main (int argc, char **argv)
   Bool root_p;
   Window on_window = 0;
   XEvent event;
-#endif
   Boolean dont_clear;
   char version[255];
 
@@ -877,41 +947,6 @@ main (int argc, char **argv)
   }
 
       fprintf (stderr, ".\n");
-
-#if 0
-      if (help_p)
-        {
-          fprintf (stderr, "\nResources:\n\n");
-          for (i = 0; i < merged_options_size; i++)
-            {
-              const char *opt = merged_options [i].option;
-              const char *res = merged_options [i].specifier + 1;
-              const char *val = merged_options [i].value;
-              char *s = get_string_resource (dpy, (char *) res, (char *) res);
-
-              if (s)
-                {
-                  int L = strlen(s);
-                while (L > 0 && (s[L-1] == ' ' || s[L-1] == '\t'))
-                  s[--L] = 0;
-                }
-
-              fprintf (stderr, "    %-16s %-18s ", opt, res);
-              if (merged_options [i].argKind == XrmoptionSepArg)
-                {
-                  fprintf (stderr, "[%s]", (s ? s : "?"));
-                }
-              else
-                {
-                  fprintf (stderr, "%s", (val ? val : "(null)"));
-                  if (val && s && !strcasecmp (val, s))
-                    fprintf (stderr, " [default]");
-                }
-              fprintf (stderr, "\n");
-            }
-          fprintf (stderr, "\n");
-        }
-#endif
 
       exit (help_p ? 0 : 1);
     }
@@ -1099,35 +1134,9 @@ main (int argc, char **argv)
   if (anim_state) screenhack_record_anim_free (anim_state);
 #endif
 
-#ifdef USE_SDL
-  SDL_GL_DeleteContext(glContext);
-  SDL_DestroyWindow(window);
-  SDL_Quit();
-#else
   XtDestroyWidget (toplevel);
   XtDestroyApplicationContext (app);
 #endif
 
   return 0;
 }
-
-#ifdef _WIN32
-int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
-{
-  /*ModeInfo mi;
-  // Initialize mi as needed
-  memset(&mi, 0, sizeof(mi));
-
-  init_hextrail(&mi);
-
-  while (1) {
-    draw_hextrail(&mi);
-    // Add event handling here
-  }
-
-  free_hextrail(&mi);
-  return 0;*/
-
-  return SDL_main(0, NULL);
-}
-#endif

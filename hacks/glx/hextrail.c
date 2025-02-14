@@ -64,8 +64,11 @@ static Bool init_sdl(ModeInfo *mi) {
 
   bp->glContext = SDL_GL_CreateContext(bp->window);
   if (!bp->gl_context) {
+	SDL_DestroyWindow(bp->window);
 	return False;
   }
+
+  SDL_GL_SetSwapInterval(1); // Enable vsync
 
   return True;
 }
@@ -825,29 +828,36 @@ static void reset_hextrail(ModeInfo *mi) {
 }
 
 #ifdef USE_SDL
-Bool hextrail_handle_event(ModeInfo *mi) {
+Bool hextrail_handle_event(ModeInfo *mi, SDL_Event *event) {
   hextrail_configuration *bp = &bps[MI_SCREEN(mi)];
-  SDL_Event event;
 
-  while (SDL_PollEvent(&event)) {
-	switch (event.type) {
-	  case SDL_QUIT:
-		return False;
-	  case SDL_KEYDOWN:
-		switch (event.key.keysym.sym) {
-		  case SDLK_SPACE:
-	      case SDLK_TABL:
-            reset_hextrail(mi);
-			break;
-		  // TODO - Add other key handlers
-		}
-		break;
-	  case SDL_MOUSEBUTTONDOWN:
+  switch (event.type) {
+    case SDL_QUIT:
+      return False;
+    case SDL_KEYDOWN:
+      switch (event.key.keysym.sym) {
+        case SDLK_SPACE:
+        case SDLK_TABL:
+          reset_hextrail(mi);
+          break;
+        case SDLK_q:
+		  return False;
+      }
+      break;
+      case SDL_MOUSEBUTTONDOWN:
 	  case SDL_MOUSEBUTTONUP:
 	  case SDL_MOUSEMOTION:
 		// TODO - convert to trackball events
 		break;
-	}
+      case SDL_WINDOWEVENT:
+		if (event->window.event == SDL_WINDOWEVENT_RESIZED) {
+		  if (event->window.WindowID == SDL_GetWindowID(bp->window)) {
+			int width = event->window.data1;
+			int height = event->window.data2;
+			reshape_hextrail(mi, width, height);
+          }
+		}
+		break;
   }
   return True;
 }
