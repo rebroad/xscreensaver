@@ -450,7 +450,7 @@ draw_hexagons (ModeInfo *mi)
         (V)[0] = bp->colors[idx].r / 255.0f * bp->fade_ratio; \
         (V)[1] = bp->colors[idx].g / 255.0f * bp->fade_ratio; \
         (V)[2] = bp->colors[idx].b / 255.0f * bp->fade_ratio; \
-        (V)[3] = bo->colors[idx].a / 255.0f; \
+        (V)[3] = bp->colors[idx].a / 255.0f; \
       } while (0)
 #else
       # define HEXAGON_COLOR(V,H) do { \
