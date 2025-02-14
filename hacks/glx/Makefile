@@ -506,7 +506,7 @@ uninstall-xml:
 	done
 
 clean::
-	-rm -f ../*.o *.o a.out core $(EXES) $(RETIRED_EXES) molecules.h
+	-rm -f ../../utils/*.o ../*.o *.o a.out core $(EXES) $(RETIRED_EXES) molecules.h
 
 distclean: clean
 	-rm -f Makefile TAGS *~ "#"*
