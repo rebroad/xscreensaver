@@ -70,7 +70,7 @@ XFT_LIBS	= -lXft
 
 # Note: see comment in ../../driver/Makefile.in for explanation of X_LIBS, etc.
 #
-HACK_PRE	= $(LIBS) $(X_LIBS)
+HACK_PRE	= $(LIBS)
 HACK_POST     = $(X_PRE_LIBS) -lm
 HACK_POST2	= -lEGL -lGLU -lGL   $(HACK_POST)
 HACK_LIBS	= $(HACK_PRE)                        $(HACK_POST2)
@@ -641,7 +641,7 @@ WINDOWS_CFLAGS = $(WINDOWS_INCLUDE) $(WIN_SDL3_INCLUDE) -DUSE_SDL
 GLH1=xscreensaver-gl-visual.o $(UTILS_BIN)/visual-gl.o
 GLH2=$(UTILS_BIN)/visual.o $(UTILS_BIN)/resources.o
 xscreensaver-gl-visual:        $(GLH1) $(GLH2)
-	$(CC) $(LDFLAGS) -o $@ $(GLH1) $(GLH2) $(LIBS) $(X_LIBS) $(HACK_POST2)
+	$(CC) $(LDFLAGS) -o $@ $(GLH1) $(GLH2) $(LIBS) $(HACK_POST2)
 
 
 # These hacks use a slightly-differently-compiled variant of recanim.c.
