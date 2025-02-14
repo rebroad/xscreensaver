@@ -801,11 +801,15 @@ static void reset_hextrail(ModeInfo *mi) {
 ENTRYPOINT Bool hextrail_handle_event(ModeInfo *mi, SDL_Event *event) {
   hextrail_configuration *bp = &bps[MI_SCREEN(mi)];
 
+  // TODO - I guess the calling function is doing this?
+  // while (SDL_PollEvent(event)) {
+
   switch (event->type) {
     case SDL_EVENT_QUIT:
       return False;
     case SDL_EVENT_KEY_DOWN:
-      switch (event->keysym.sym) {
+	  SDL_Keycode key = event->key.key;
+      switch (key) {
         case SDLK_SPACE:
         case SDLK_TAB:
           reset_hextrail(mi);
@@ -818,16 +822,19 @@ ENTRYPOINT Bool hextrail_handle_event(ModeInfo *mi, SDL_Event *event) {
 	case SDL_EVENT_MOUSE_BUTTON_UP:
 	case SDL_EVENT_MOUSE_MOTION:
       // TODO - convert to trackball events
+	  SDL_Log("We got a motion event.");
+	  SDL_Log("Current mouse position is: (%f, %f)", event->motion.x, event->motion.y);
       break;
-	case SDL_EVENT_WINDOW:
-      if (event->window.type == SDL_EVENT_WINDOW_RESIZED) {
-        if (event->window.windowID == SDL_GetWindowID(bp->window)) {
-          int width = event->window.data1;
-          int height = event->window.data2;
-          reshape_hextrail(mi, width, height);
-        }
+	case SDL_EVENT_WINDOW_RESIZED:
+      if (event->window.windowID == SDL_GetWindowID(bp->window)) {
+        int width = event->window.data1;
+        int height = event->window.data2;
+        reshape_hextrail(mi, width, height);
       }
       break;
+	default:
+	  SDL_Log("Unhandled Event!");
+	  break;
   }
   return True;
 }
@@ -878,9 +885,7 @@ init_hextrail (ModeInfo *mi)
 
   bp = &bps[MI_SCREEN(mi)];
 
-#ifdef USE_SDL
-  init_sdl();
-#else
+#ifndef USE_SDL
   bp->glx_context = init_GL(mi);
 #endif
 
@@ -921,7 +926,7 @@ draw_hextrail (ModeInfo *mi)
   hextrail_configuration *bp = &bps[MI_SCREEN(mi)];
 
 #ifdef USE_SDL
-  if (!np->gl_Context) return;
+  if (!bp->gl_context) return;
   SDL_GL_MakeCurrent(bp->window, bp->gl_context);
 #else
   if (!bp->glx_context) return;
@@ -977,13 +982,11 @@ draw_hextrail (ModeInfo *mi)
 }
 
 
-ENTRYPOINT void
-free_hextrail (ModeInfo *mi)
-{
+ENTRYPOINT void free_hextrail (ModeInfo *mi) {
   hextrail_configuration *bp = &bps[MI_SCREEN(mi)];
 
 #ifdef USE_SDL
-  if (!bp->gl_Context) return;
+  if (!bp->gl_context) return;
 #else
   if (!bp->glx_context) return;
   glXMakeCurrent(MI_DISPLAY(mi), MI_WINDOW(mi), *bp->glx_context);
@@ -995,7 +998,7 @@ free_hextrail (ModeInfo *mi)
   free (bp->hexagons);
 
 #ifdef USE_SDL
-  if (bp->gl_Context)
+  if (bp->gl_context)
 	SDL_GL_DeleteContext(bp->gl_context);
   if (bp->window)
 	SDL_DestroyWindow(bp->window);
