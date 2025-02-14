@@ -65,8 +65,12 @@ typedef struct {
 #ifdef USE_SDL
   SDL_Window *window;
   SDL_GLContext gl_contet;
+  struct {
+	float r, g, b, a;
+  } *colors;
 #else
   GLXContext *glx_context;
+  XColor *colors;
 #endif
   rotator *rot;
   trackball_state *trackball;
@@ -79,10 +83,6 @@ typedef struct {
   GLfloat fade_ratio;
 
   int ncolors;
-#ifndef USE_SDL
-  XColor *colors;
-#endif
-
 } hextrail_configuration;
 
 static hextrail_configuration *bps = NULL;
