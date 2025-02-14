@@ -88,7 +88,9 @@ typedef struct {
   GLfloat fade_ratio;
 
   int ncolors;
+#ifndef USE_SDL
   XColor *colors;
+#endif
 
 } hextrail_configuration;
 
@@ -101,6 +103,18 @@ static Bool do_glow;
 static Bool do_neon;
 static GLfloat thickness;
 
+#ifdef USE_SDL
+typedef struct {
+  const char *option;
+  const char *resource;
+  int arg_type;
+  const char *value;
+} XrmOptionsDescRec;
+
+#define XrmoptionNoArg 0
+#define XrmoptionSepArg 1
+#endif
+
 static XrmOptionDescRec opts[] = {
   { "-spin",   ".spin",   XrmoptionNoArg, "True" },
   { "+spin",   ".spin",   XrmoptionNoArg, "False" },
@@ -112,6 +126,9 @@ static XrmOptionDescRec opts[] = {
   { "-neon",   ".neon",   XrmoptionNoArg, "True" },
   { "+neon",   ".neon",   XrmoptionNoArg, "False" },
   { "-thickness", ".thickness", XrmoptionSepArg, 0 },
+#ifdef USE_SDL
+  { 0, 0, 0, 0 }
+#endif
 };
 
 static argtype vars[] = {
