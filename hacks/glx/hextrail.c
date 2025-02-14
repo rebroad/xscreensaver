@@ -1000,7 +1000,7 @@ ENTRYPOINT void free_hextrail (ModeInfo *mi) {
 
 #ifdef USE_SDL
   if (bp->gl_context)
-	SDL_GL_DeleteContext(bp->gl_context);
+	SDL_GL_DestroyContext(bp->gl_context);
   if (bp->window)
 	SDL_DestroyWindow(bp->window);
   SDL_Quit();
