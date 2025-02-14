@@ -64,7 +64,7 @@ struct hexagon {
 typedef struct {
 #ifdef USE_SDL
   SDL_Window *window;
-  SDL_GLContext gl_contet;
+  SDL_GLContext gl_context;
   SDL_Color *colors;
 #else
   GLXContext *glx_context;
@@ -798,43 +798,41 @@ static void reset_hextrail(ModeInfo *mi) {
 }
 
 #ifdef USE_SDL
-Bool hextrail_handle_event(ModeInfo *mi, SDL_Event *event) {
+ENTRYPOINT Bool hextrail_handle_event(ModeInfo *mi, SDL_Event *event) {
   hextrail_configuration *bp = &bps[MI_SCREEN(mi)];
 
-  switch (event.type) {
-    case SDL_QUIT:
+  switch (event->type) {
+    case SDL_EVENT_QUIT:
       return False;
-    case SDL_KEYDOWN:
-      switch (event.key.keysym.sym) {
+    case SDL_EVENT_KEY_DOWN:
+      switch (event->keysym.sym) {
         case SDLK_SPACE:
-        case SDLK_TABL:
+        case SDLK_TAB:
           reset_hextrail(mi);
           break;
-        case SDLK_q:
+        case SDLK_Q:
 		  return False;
       }
       break;
-      case SDL_MOUSEBUTTONDOWN:
-	  case SDL_MOUSEBUTTONUP:
-	  case SDL_MOUSEMOTION:
-		// TODO - convert to trackball events
-		break;
-      case SDL_WINDOWEVENT:
-		if (event->window.event == SDL_WINDOWEVENT_RESIZED) {
-		  if (event->window.WindowID == SDL_GetWindowID(bp->window)) {
-			int width = event->window.data1;
-			int height = event->window.data2;
-			reshape_hextrail(mi, width, height);
-          }
-		}
-		break;
+	case SDL_EVENT_MOUSE_BUTTON_DOWN:
+	case SDL_EVENT_MOUSE_BUTTON_UP:
+	case SDL_EVENT_MOUSE_MOTION:
+      // TODO - convert to trackball events
+      break;
+	case SDL_EVENT_WINDOW:
+      if (event->window.type == SDL_EVENT_WINDOW_RESIZED) {
+        if (event->window.windowID == SDL_GetWindowID(bp->window)) {
+          int width = event->window.data1;
+          int height = event->window.data2;
+          reshape_hextrail(mi, width, height);
+        }
+      }
+      break;
   }
   return True;
 }
 #else
-ENTRYPOINT Bool
-hextrail_handle_event (ModeInfo *mi, XEvent *event)
-{
+ENTRYPOINT Bool hextrail_handle_event (ModeInfo *mi, XEvent *event) {
   hextrail_configuration *bp = &bps[MI_SCREEN(mi)];
   if (gltrackball_event_handler (event, bp->trackball,
                                  MI_WIDTH (mi), MI_HEIGHT (mi),
