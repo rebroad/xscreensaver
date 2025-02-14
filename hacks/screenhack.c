@@ -47,7 +47,7 @@
 #include <X11/Shell.h>
 #include <X11/StringDefs.h>
 #include <X11/keysym.h>
-#endif
+#endif /* USE_SDL */
 
 #include <stdio.h>
 
@@ -192,6 +192,7 @@ static void merge_options (void) {
    clue which one has a bug when they die under the screensaver.
  */
 
+#ifndef USE_SDL
 static int
 screenhack_ehandler (Display *dpy, XErrorEvent *error)
 {
@@ -209,7 +210,6 @@ MapNotify_event_p (Display *dpy, XEvent *event, XPointer window)
   return (event->xany.type == MapNotify &&
 	  event->xvisibility.window == (Window) window);
 }
-
 
 static Atom XA_WM_PROTOCOLS, XA_WM_DELETE_WINDOW, XA_NET_WM_PID;
 
@@ -346,6 +346,7 @@ visual_warning (Screen *screen, Window window, Visual *visual, Colormap cmap,
         exit (1);
     }
 }
+#endif
 
 
 static void
@@ -377,7 +378,7 @@ fix_fds (void)
   if (fd2 > 2) close (fd2);
 }
 
-
+#ifndef USE_SDL
 static Boolean
 screenhack_table_handle_events (Display *dpy,
                                 const struct xscreensaver_function_table *ft,
@@ -483,13 +484,14 @@ usleep_and_process_events (Display *dpy,
   return True;
 }
 
-
 static void
 screenhack_do_fps (Display *dpy, Window w, fps_state *fpst, void *closure)
 {
   fps_compute (fpst, 0, -1);
   fps_draw (fpst);
 }
+#endif
+
 
 #ifdef USE_SDL
 static void run_screenhack_table_sdl(SDL_Window *window, SDL_GLContext gl_context,
@@ -675,9 +677,10 @@ make_shell (Screen *screen, Widget toplevel, int width, int height)
 static void
 init_window (Display *dpy, Widget toplevel, const char *title)
 {
+  long pid = getpid();
+#ifndef USE_SDL
   Window window;
   XWindowAttributes xgwa;
-  long pid = getpid();
   XtPopup (toplevel, XtGrabNone);
   XtVaSetValues (toplevel, XtNtitle, title, NULL);
 
@@ -693,6 +696,7 @@ init_window (Display *dpy, Widget toplevel, const char *title)
                    (unsigned char *) &XA_WM_DELETE_WINDOW, 1);
   XChangeProperty (dpy, window, XA_NET_WM_PID, XA_CARDINAL, 32,
                    PropModeReplace, (unsigned char *)&pid, 1);
+#endif
 }
 
 #ifdef USE_SDL
@@ -821,7 +825,7 @@ int main (int argc, char **argv) {
   SDL_GL_DeleteContext(gl_context);
   SDL_DestroyWindow(window);
   SDL_Quit();
-#else
+#else /* ! USE_SDL */
   XWindowAttributes xgwa;
   Window window;
 # ifdef DEBUG_PAIR
@@ -927,7 +931,7 @@ int main (int argc, char **argv) {
     }
   else
     {
-      Widget new = make_shell (XtScreen (toplevel), toplevel,
+      Widget new = make_shell (XtScreen (toplevel), toplevel, // TODO - SDLify
                                toplevel->core.width,
                                toplevel->core.height);
       if (new != toplevel)
