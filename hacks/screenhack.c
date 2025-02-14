@@ -864,7 +864,7 @@ int main (int argc, char **argv) {
      does work when passed as an -xrm arg on the command line.  So screw it,
      turn them off from C instead.
    */
-  SgiUseSchemes ("none"); 
+  SgiUseSchemes ("none");
 #endif /* __sgi */
 
   XtGetApplicationNameAndClass (dpy,

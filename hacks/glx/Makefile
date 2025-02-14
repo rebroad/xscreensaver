@@ -41,15 +41,15 @@ CC		= gcc -std=gnu99 -pedantic -Wall -Wnested-externs -Wstrict-prototypes -Wmiss
 CFLAGS		= -g -O2
 LDFLAGS		=  -L${exec_prefix}/lib
 DEFS		= -DSTANDALONE -DUSE_GL -DHAVE_CONFIG_H
-LIBS		= 
+LIBS		=
 PERL		= /usr/bin/perl
 
 THREAD_LIBS	= -lpthread
 THREAD_CFLAGS	= -pthread
 
 DEPEND		= makedepend
-DEPEND_FLAGS	= 
-DEPEND_DEFINES	= 
+DEPEND_FLAGS	=
+DEPEND_DEFINES	=
 
 SHELL		= /bin/sh
 INSTALL		= /usr/bin/install -c
@@ -59,14 +59,14 @@ INSTALL_SCRIPT  = ${INSTALL}
 INSTALL_SETUID	= $(INSTALL_PROGRAM) $(SUID_FLAGS)
 INSTALL_DATA	= ${INSTALL} -m 644
 INSTALL_DIRS	= ${INSTALL} -d
-PROG_SETCAP	= 
+PROG_SETCAP	=
 SETCAP_FLAGS	= cap_net_raw=p
 
-X_CFLAGS	= 
-X_LIBS		= 
+X_CFLAGS	=
+X_LIBS		=
 X_PRE_LIBS	=  -lSM -lICE
-X_EXTRA_LIBS	= 
-XFT_LIBS	= -lXft 
+X_EXTRA_LIBS	=
+XFT_LIBS	= -lXft
 
 # Note: see comment in ../../driver/Makefile.in for explanation of X_LIBS, etc.
 #
@@ -78,8 +78,8 @@ PNG_LIBS	= $(HACK_PRE)            -lgdk_pixbuf-2.0 -lgio-2.0 -lgobject-2.0 -lgli
 GLE_LIBS	= $(HACK_PRE)  -lgdk_pixbuf-2.0 -lgio-2.0 -lgobject-2.0 -lglib-2.0   $(HACK_POST2)
 TEXT_LIBS	= -lutil
 #### Is LIBCAP_CFLAGS necessary?
-LIBCAP_CFLAGS	= 
-LIBCAP_LIBS	= 
+LIBCAP_CFLAGS	=
+LIBCAP_LIBS	=
 
 HACK_SRC	= $(srcdir)/..
 HACK_BIN	= ..
@@ -247,8 +247,8 @@ GLE_EXES	= extrusion
 SUID_EXES	= sonar
 SETCAP_EXES	= sonar
 GL_UTIL_EXES	= xscreensaver-gl-visual
-JWZGLES_OBJS	= 
-HACK_EXES_1	= $(GL_EXES) 
+JWZGLES_OBJS	=
+HACK_EXES_1	= $(GL_EXES)
 HACK_EXES	= $(HACK_EXES_1) $(SUID_EXES)
 XSHM_OBJS	= $(UTILS_BIN)/xshm.o $(UTILS_BIN)/aligned_malloc.o
 GRAB_OBJS	= $(UTILS_BIN)/grabclient.o grab-ximage.o $(XSHM_OBJS)
@@ -259,7 +259,7 @@ RETIRED_EXES	= $(RETIRED_GL_EXES)
 RETIRED_GL_EXES	= glforestfire
 
 FPS_OBJS	= texfont.o $(HACK_BIN)/fps.o fps-gl.o \
-		  
+
 HACK_GLSL_OBJS  = glsl-utils.o
 HACK_OBJS	= $(HACK_BIN)/screenhack.o $(HACK_BIN)/xlockmore.o \
 		  xlock-gl-utils.o erase-gl.o \
@@ -617,7 +617,7 @@ $(HACKDIR_OBJS):
 
 # How we build object files in this directory.
 HACK_CFLAGS_BASE=$(INCLUDES) $(DEFS) $(CPPFLAGS) $(CFLAGS) $(X_CFLAGS)
-.c.o: 
+.c.o:
 	$(CC) -c $(HACK_CFLAGS_BASE) $<
 
 %.sdl.o: %.c
