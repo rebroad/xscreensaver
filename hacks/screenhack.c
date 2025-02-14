@@ -583,9 +583,14 @@ screenhack_do_fps (Display *dpy, Window w, fps_state *fpst, void *closure)
 }
 
 #ifdef USE_SDL
-static void run_screenhack_table_sdl(SDL_Window *window,
+static void run_screenhack_table_sdl(SDL_Window *window, SDL_GLContext gl_context,
                                     const struct xscreensaver_function_table *ft) {
-  void *closure = ft->init_cb(NULL, (Window)SDL_GetWindowID(window), ft->setup_arg);
+  struct sdl_state {
+	SDL_Window *window;
+	SDL_GLContext gl_context;
+  } state = {window, gl_context);
+
+  void *closure = ft->init_cb(NULL, (Window)SDL_GetWindowID(window), &state);
   fps_state *fpst = fps_init(NULL, (Window)SDL_GetWindowID(window));
   unsigned long delay = 0;
 
@@ -874,7 +879,7 @@ int main (int argc, char **argv) {
 	return 1;
   }
 
-  run_screenhack_table_sdl(window, ft);
+  run_screenhack_table_sdl(window, gl_context, ft);
 
   SDL_GL_DeleteContext(gl_context);
   SDL_DestroyWindow(window);
