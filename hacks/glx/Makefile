@@ -63,7 +63,7 @@ PROG_SETCAP	=
 SETCAP_FLAGS	= cap_net_raw=p
 
 X_CFLAGS	=
-X_LIBS		=
+X_LIBS		= -lXt -lX11 -lXext -lXft
 X_PRE_LIBS	=  -lSM -lICE
 X_EXTRA_LIBS	=
 XFT_LIBS	= -lXft
@@ -71,7 +71,7 @@ XFT_LIBS	= -lXft
 # Note: see comment in ../../driver/Makefile.in for explanation of X_LIBS, etc.
 #
 HACK_PRE	= $(LIBS) $(X_LIBS)
-HACK_POST     = $(X_PRE_LIBS) $(XFT_LIBS) -lXt -lX11 -lXext $(X_EXTRA_LIBS) -lm
+HACK_POST     = $(X_PRE_LIBS) -lm
 HACK_POST2	= -lEGL -lGLU -lGL   $(HACK_POST)
 HACK_LIBS	= $(HACK_PRE)                        $(HACK_POST2)
 PNG_LIBS	= $(HACK_PRE)            -lgdk_pixbuf-2.0 -lgio-2.0 -lgobject-2.0 -lglib-2.0   $(HACK_POST2)
@@ -1157,7 +1157,7 @@ teeth_dxf::
 	./dxf2gl.pl --layers --smooth --normalize teeth.dxf teeth_model.c
 
 hextrail: hextrail.o normals.o $(HACK_TRACK_OBJS)
-	$(CC_HACK) -o $@ $^ $(HACK_LIBS)
+	$(CC_HACK) -o $@ $^ $(HACK_LIBS) $(X_LIBS)
 
 hextrail-sdl: hextrail.sdl.o normals.sdl.o $(HACK_TRACK_OBJS)
 	$(CC_HACK) -o $@ $^ $(HACK_LIBS) $(SDL3_LIBS)
