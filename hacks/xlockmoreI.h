@@ -76,6 +76,11 @@ extern Bool xlockmore_no_events (ModeInfo *, XEvent *);
 
 /* The xlockmore RNG API is implemented in utils/yarandom.h. */
 
+#ifdef USE_SDL
+typedef SDL_Event EventType;
+#else
+typedef XEvent EventType;
+#endif
 
 struct ModeInfo {
   struct xlockmore_function_table *xlmft;
@@ -171,7 +176,7 @@ struct xlockmore_function_table {
   void (*hack_reshape) (ModeInfo *, int, int);
   void (*hack_release) (ModeInfo *);
   void (*hack_free) (ModeInfo *);
-  Bool (*hack_handle_events) (ModeInfo *, XEvent *);
+  Bool (*hack_handle_events) (ModeInfo*, EventType*);
   ModeSpecOpt *opts;
 
 # ifdef HAVE_JWZGLES    /* set in xlock-gl-utils.c */
