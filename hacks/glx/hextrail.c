@@ -11,6 +11,7 @@
 
 #ifdef USE_SDL
 #include <SDL3/SDL.h>
+#include <SDL3/SDL_keycode.h>
 #define Bool int
 #ifdef _Win32
 #include <windows.h>
@@ -803,13 +804,13 @@ ENTRYPOINT Bool hextrail_handle_event(ModeInfo *mi, SDL_Event *event) {
 
   // TODO - I guess the calling function is doing this?
   // while (SDL_PollEvent(event)) {
+  // while (SDL_WaitEvent(event)) {
 
   switch (event->type) {
     case SDL_EVENT_QUIT:
       return False;
     case SDL_EVENT_KEY_DOWN:
-	  SDL_Keycode key = event->key.key;
-      switch (key) {
+      switch (event->key.key) {
         case SDLK_SPACE:
         case SDLK_TAB:
           reset_hextrail(mi);
