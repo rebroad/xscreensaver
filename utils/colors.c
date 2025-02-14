@@ -492,7 +492,7 @@ make_color_loop (Screen *screen, Visual *visual, Colormap cmap,
 
 #ifdef USE_SDL
 // TODO - Claude did not look at the original function before creating this!
-void make_smooth_colormap(SDLColor *colors, int *ncolors) {
+void make_smooth_colormap(SDL_Color *colors, int *ncolors) {
   // Similar logic to make_smooth_colormap but using floating point values
   int i;
   int n = *ncolors;
@@ -511,27 +511,20 @@ void make_smooth_colormap(SDLColor *colors, int *ncolors) {
     float q = value * (1.0f - saturation * f);
     float t = value * (1.0f - saturation * (1.0f - f));
 
+	float r = 0, g = 0, b = 0;
     switch (sector) {
-      case 0:
-        colors[i].r = value; colors[i].g = t; colors[i].b = p;
-        break;
-      case 1:
-        colors[i].r = q; colors[i].g = value; colors[i].b = p;
-        break;
-      case 2:
-        colors[i].r = p; colors[i].g = value; colors[i].b = t;
-        break;
-      case 3:
-        colors[i].r = p; colors[i].g = q; colors[i].b = value;
-        break;
-      case 4:
-        colors[i].r = t; colors[i].g = p; colors[i].b = value;
-        break;
-      default:
-        colors[i].r = value; colors[i].g = p; colors[i].b = q;
-        break;
+      case 0: r = value; g = t; b = p; break;
+      case 1: r = q; g = value; b = p; break;
+      case 2: r = p; g = value; b = t; break;
+      case 3: r = p; g = q; b = value; break;
+      case 4: r = t; g = p; b = value; break;
+      default: r = value; g = p; b = q; break;
     }
-    colors[i].a = 1.0f;
+
+    colors[i].r = (Uint8)(r * 255);
+	colors[i].g = (Uint8)(g * 255);
+	colors[i].b = (Uint8)(b * 255);
+	colors[i].a = 255;  // Full opacity
   }
 }
 #else
