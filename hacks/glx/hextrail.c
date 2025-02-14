@@ -432,19 +432,17 @@ draw_hexagons (ModeInfo *mi)
   glBegin (wire ? GL_LINES : GL_TRIANGLES);
   glNormal3f (0, 0, 1);
 
-  for (i = 0; i < bp->grid_w * bp->grid_h; i++)
-    {
+  for (i = 0; i < bp->grid_w * bp->grid_h; i++) {
       hexagon *h = &bp->hexagons[i];
       int total_arms = 0;
       GLfloat color[4];
       int j;
 
-      for (j = 0; j < 6; j++)
-        {
-          arm *a = &h->arms[j];
-          if (a->state == OUT || a->state == DONE)
-            total_arms++;
-        }
+      for (j = 0; j < 6; j++) {
+        arm *a = &h->arms[j];
+        if (a->state == OUT || a->state == DONE)
+          total_arms++;
+      }
       
 #ifdef USE_SDL
        # define HEXAGON_COLOR(V,H) do { \
@@ -464,8 +462,7 @@ draw_hexagons (ModeInfo *mi)
 
       HEXAGON_COLOR (color, h);
 
-      for (j = 0; j < 6; j++)
-        {
+      for (j = 0; j < 6; j++) {
           arm *a = &h->arms[j];
           GLfloat margin = thickness * 0.4;
           GLfloat size1 = size * (1 - margin * 2);
@@ -473,8 +470,7 @@ draw_hexagons (ModeInfo *mi)
           int k = (j + 1) % 6;
           XYZ p[6];
 
-          if (h->border_state != EMPTY)
-            {
+          if (h->border_state != EMPTY) {
               GLfloat color1[3];
               memcpy (color1, color, sizeof(color1));
               color1[0] *= h->border_ratio;
@@ -512,12 +508,11 @@ draw_hexagons (ModeInfo *mi)
               if (! wire)
                 glVertex3f (p[0].x, p[0].y, p[0].z);
               mi->polygon_count++;
-            }
+          }
 
           /* Line from center to edge, or edge to center.
            */
-          if (a->state == IN || a->state == OUT || a->state == DONE)
-            {
+          if (a->state == IN || a->state == OUT || a->state == DONE) {
               GLfloat x   = (corners[j].x + corners[k].x) / 2;
               GLfloat y   = (corners[j].y + corners[k].y) / 2;
               GLfloat xoff = corners[k].x - corners[j].x;
@@ -536,23 +531,19 @@ draw_hexagons (ModeInfo *mi)
               ncolor[2] = (ncolor[2] + color[2]) / 2;
               ncolor[3] = (ncolor[3] + color[3]) / 2;
 
-              if (a->state == OUT)
-                {
-                  start = 0;
-                  end = size * line_length;
-                  memcpy (color1, color,  sizeof(color1));
-                  memcpy (color2, ncolor, sizeof(color1));
-                }
-              else
-                {
-                  start = size;
-                  end = size * (1 - line_length);
-                  memcpy (color1, ncolor, sizeof(color1));
-                  memcpy (color2, color,  sizeof(color1));
-                }
+              if (a->state == OUT) {
+                start = 0;
+                end = size * line_length;
+                memcpy (color1, color,  sizeof(color1));
+                memcpy (color2, ncolor, sizeof(color1));
+              } else {
+                start = size;
+                end = size * (1 - line_length);
+                memcpy (color1, ncolor, sizeof(color1));
+                memcpy (color2, color,  sizeof(color1));
+              }
 
               if (! h->neighbors[j]) abort();  /* arm/neighbor mismatch */
-
 
               /* Center */
               p[0].x = h->pos.x + xoff * size2 * thick2 + x * start;
@@ -723,12 +714,11 @@ draw_hexagons (ModeInfo *mi)
               if (! wire)
                 glVertex3f (p[3].x, p[3].y, p[3].z);
               mi->polygon_count++;
-            }
+          }
 
           /* Hexagon (one triangle of) in center to hide line miter/bevels.
            */
-          if (total_arms)
-            {
+          if (total_arms) {
               GLfloat size3 = size * thick2 * 0.8;
               if (total_arms == 1)
                 size3 *= 2;
@@ -751,9 +741,9 @@ draw_hexagons (ModeInfo *mi)
               glVertex3f (p[1].x, p[1].y, p[1].z);
               glVertex3f (p[2].x, p[2].y, p[2].z);
               mi->polygon_count++;
-            }
-        }
-    }
+          }
+      }
+  }
 
   glEnd();
 }
