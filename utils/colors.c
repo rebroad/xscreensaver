@@ -490,14 +490,56 @@ make_color_loop (Screen *screen, Visual *visual, Colormap cmap,
                    allocate_p, writable_pP);
 }
 
+#ifdef USE_SDL
+// TODO - Claude did not look at the original function before creating this!
+void make_smooth_colormap(struct { float r, g, b, a; } *colors, int *ncolors) {
+  // Similar logic to make_smooth_colormap but using floating point values
+  int i;
+  int n = *ncolors;
 
-void
-make_smooth_colormap (Screen *screen, Visual *visual, Colormap cmap,
+  for (i = 0; i < n; i++) {
+    // Create a rainbow gradient
+    float hue = (float)i / n;
+    float saturation = 1.0f;
+    float value = 1.0f;
+
+    // Convert HSV to RGB
+    float h = hue * 6.0f;
+    int sector = (int)h;
+    float f = h - sector;
+    float p = value * (1.0f - saturation);
+    float q = value * (1.0f - saturation * f);
+    float t = value * (1.0f - saturation * (1.0f - f));
+
+    switch (sector) {
+      case 0:
+        colors[i].r = value; colors[i].g = t; colors[i].b = p;
+        break;
+      case 1:
+        colors[i].r = q; colors[i].g = value; colors[i].b = p;
+        break;
+      case 2:
+        colors[i].r = p; colors[i].g = value; colors[i].b = t;
+        break;
+      case 3:
+        colors[i].r = p; colors[i].g = q; colors[i].b = value;
+        break;
+      case 4:
+        colors[i].r = t; colors[i].g = p; colors[i].b = value;
+        break;
+      default:
+        colors[i].r = value; colors[i].g = p; colors[i].b = q;
+        break;
+    }
+    colors[i].a = 1.0f;
+  }
+}
+#else
+void make_smooth_colormap (Screen *screen, Visual *visual, Colormap cmap,
 		      XColor *colors, int *ncolorsP,
 		      Bool allocate_p,
 		      Bool *writable_pP,
-		      Bool verbose_p)
-{
+		      Bool verbose_p) {
   int npoints;
   int ncolors = *ncolorsP;
   Bool wanted_writable = (allocate_p && writable_pP && *writable_pP);
@@ -580,7 +622,7 @@ make_smooth_colormap (Screen *screen, Visual *visual, Colormap cmap,
 
   *ncolorsP = ncolors;
 }
-
+#endif
 
 void
 make_uniform_colormap (Screen *screen, Visual *visual, Colormap cmap,

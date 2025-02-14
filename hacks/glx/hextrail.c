@@ -130,9 +130,7 @@ ENTRYPOINT ModeSpecOpt hextrail_opts = {countof(opts), opts, countof(vars), vars
 
 
 
-static void
-make_plane (ModeInfo *mi)
-{
+static void make_plane (ModeInfo *mi) {
   hextrail_configuration *bp = &bps[MI_SCREEN(mi)];
   int x, y;
   GLfloat size, w, h;
@@ -148,10 +146,14 @@ make_plane (ModeInfo *mi)
 
   bp->ncolors = 8;
   if (! bp->colors)
+#ifdef USE_SDL
+	bp->colors = (struct { float r, g, b, a; } *)
+  calloc(bp->ncolors, sizeof(*bp->colors));
+  make_smooth_colormap(bp->colors, &bp->ncolors);
+#else
     bp->colors = (XColor *) calloc(bp->ncolors, sizeof(XColor));
-  make_smooth_colormap (0, 0, 0,
-                        bp->colors, &bp->ncolors,
-                        False, 0, False);
+  make_smooth_colormap (0, 0, 0, bp->colors, &bp->ncolors, False, 0, False);
+#endif
 
   size = 2.0 / bp->grid_w;
   w = size;
@@ -448,13 +450,22 @@ draw_hexagons (ModeInfo *mi)
             total_arms++;
         }
       
+#ifdef USE_SDL
+       # define HEXAGON_COLOR(V,H) do { \
+         (V)[0] = bp->colors[(H)->ccolor].r * bp->fade_ratio; \
+         (V)[1] = bp->colors[(H)->ccolor].g * bp->fade_ratio; \
+         (V)[2] = bp->colors[(H)->ccolor].b * bp->fade_ratio; \
+         (V)[3] = bo->colors[(H)->ccolor].a;
+       } while (0)
+#else
+       # define HEXAGON_COLOR(V,H) do { \
+         (V)[0] = bp->colors[(H)->ccolor].red   / 65535.0 * bp->fade_ratio; \
+         (V)[1] = bp->colors[(H)->ccolor].green / 65535.0 * bp->fade_ratio; \
+         (V)[2] = bp->colors[(H)->ccolor].blue  / 65535.0 * bp->fade_ratio; \
+         (V)[3] = 1; \
+       } while (0)
+#endif
 
-# define HEXAGON_COLOR(V,H) do { \
-          (V)[0] = bp->colors[(H)->ccolor].red   / 65535.0 * bp->fade_ratio; \
-          (V)[1] = bp->colors[(H)->ccolor].green / 65535.0 * bp->fade_ratio; \
-          (V)[2] = bp->colors[(H)->ccolor].blue  / 65535.0 * bp->fade_ratio; \
-          (V)[3] = 1; \
-        } while (0)
       HEXAGON_COLOR (color, h);
 
       for (j = 0; j < 6; j++)
