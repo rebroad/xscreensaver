@@ -501,7 +501,10 @@ static void run_screenhack_table_sdl(SDL_Window *window, SDL_GLContext gl_contex
 	SDL_GLContext gl_context;
   } state = {window, gl_context};
 
-  void *closure = ft->init_cb(NULL, (Window)SDL_GetWindowID(window), &state);
+  void *(*init_cb)(Display *, Window, void *) =
+    (void *(*)(Display *, Window, void *)) ft->init_cb;
+
+  void *closure = init_cb(NULL, (Window)SDL_GetWindowID(window), &state);
   fps_state *fpst = fps_init(NULL, (Window)SDL_GetWindowID(window));
   unsigned long delay = 0;
 
@@ -610,10 +613,8 @@ run_screenhack_table (Display *dpy,
 }
 #endif
 
-
-static Widget
-make_shell (Screen *screen, Widget toplevel, int width, int height)
-{
+#ifndef USE_SDL
+static Widget make_shell (Screen *screen, Widget toplevel, int width, int height) {
   Display *dpy = DisplayOfScreen (screen);
   Visual *visual = pick_visual (screen);
   Boolean def_visual_p = (toplevel && 
@@ -673,13 +674,12 @@ make_shell (Screen *screen, Widget toplevel, int width, int height)
 
   return toplevel;
 }
+#endif
 
-static void
-init_window (Display *dpy, Widget toplevel, const char *title)
-{
+static void init_window (Display *dpy, Widget toplevel, const char *title) {
   long pid = getpid();
-#ifndef USE_SDL
   Window window;
+#ifndef USE_SDL
   XWindowAttributes xgwa;
   XtPopup (toplevel, XtGrabNone);
   XtVaSetValues (toplevel, XtNtitle, title, NULL);
