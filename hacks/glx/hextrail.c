@@ -11,7 +11,7 @@
 
 #ifdef USE_SDL
 #include <SDL3/SDL.h>
-#include <SDL3/SDL_keycode.h>
+//#include <SDL3/SDL_keycode.h>
 #define Bool int
 #ifdef _Win32
 #include <windows.h>
@@ -30,10 +30,10 @@
 
 #ifdef USE_GL /* whole file */
 
-#ifdef USE_SDL
+/*#ifdef USE_SDL
 SDL_Window* window;
 SDL_GLContext glContext;
-#endif
+#endif*/
 
 #define DEF_SPIN        "True"
 #define DEF_WANDER      "True"
@@ -987,10 +987,9 @@ ENTRYPOINT void free_hextrail (ModeInfo *mi) {
 #else
   if (!bp->glx_context) return;
   glXMakeCurrent(MI_DISPLAY(mi), MI_WINDOW(mi), *bp->glx_context);
-#endif
-
   if (bp->trackball) gltrackball_free (bp->trackball);
   if (bp->rot) free_rotator (bp->rot);
+#endif
   if (bp->colors) free (bp->colors);
   free (bp->hexagons);
 

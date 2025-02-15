@@ -69,16 +69,20 @@
 #include "screenhackI.h"
 #include "xmu.h"
 #include "version.h"
+#ifndef USE_SDL
 #include "vroot.h"
+#endif
 #include "fps.h"
 
 #ifdef HAVE_RECORD_ANIM
 # include "recanim.h"
 #endif
 
+#ifndef USE_SDL
 #ifndef _XSCREENSAVER_VROOT_H_
 # error Error!  You have an old version of vroot.h!  Check -I args.
 #endif /* _XSCREENSAVER_VROOT_H_ */
+#endif
 
 #ifndef isupper
 # define isupper(c)  ((c) >= 'A' && (c) <= 'Z')
@@ -696,10 +700,7 @@ static Widget make_shell (Screen *screen, Widget toplevel, int width, int height
 }
 #endif
 
-#ifdef USE_SDL
-static void init_window (SDL_Window *window, const char *title) {
-  SDL_SetWindowTitle(window, title);
-#else
+#ifndef USE_SDL
 static void init_window (Display *dpy, Widget toplevel, const char *title) {
   long pid = getpid();
   Window window;
@@ -719,10 +720,8 @@ static void init_window (Display *dpy, Widget toplevel, const char *title) {
                    (unsigned char *) &XA_WM_DELETE_WINDOW, 1);
   XChangeProperty (dpy, window, XA_NET_WM_PID, XA_CARDINAL, 32,
                    PropModeReplace, (unsigned char *)&pid, 1);
-#endif
 }
-
-#ifdef USE_SDL
+#else
 SDL_Window *window = NULL;
 SDL_GLContext glContext = NULL;
 #endif
@@ -819,7 +818,7 @@ int main (int argc, char **argv) {
   }
 
 #ifdef USE_SDL
-  if (SDL_Init(SDL_INIT_VIDEO) < 0) {
+  if (SDL_Init(SDL_INIT_VIDEO) != 0) {
 	fprintf(stderr, "SDL initialization failed: %s\n", SDL_GetError());
 	return 1;
   }
@@ -831,8 +830,7 @@ int main (int argc, char **argv) {
   SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
 
   SDL_Window *window = SDL_CreateWindow(
-    ft->progclass, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
-	1280, 720, SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE);
+    ft->progclass, 1280, 720, SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE);
 
   if (!window) {
 	fprintf(stderr, "Window creation failed: %s\n", SDL_GetError());
