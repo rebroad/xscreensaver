@@ -436,7 +436,7 @@ static void make_color_path (Screen *screen, Visual *visual, Colormap cmap,
 #endif
     for (i = 0; i < *ncolorsP; i++)
 #ifdef USE_SDL
-      SDL_SetPaletteColors(surface->format->palette, &colors[i], i, 1)l
+      SDL_SetPaletteColors(surface->format->palette, &colors[i], i, 1);
 #else
       colors[i].pixel = pixels[i];
     free (pixels);
@@ -474,15 +474,24 @@ static void make_color_path (Screen *screen, Visual *visual, Colormap cmap,
 }
 
 
-void
-make_color_loop (Screen *screen, Visual *visual, Colormap cmap,
+void make_color_loop (
+#ifdef USE_SDL
+		SDL_Surface *surface,
+#else
+		Screen *screen, Visual *visual, Colormap cmap,
+#endif
 		 int h0, double s0, double v0,   /* 0-360, 0-1.0, 0-1.0 */
 		 int h1, double s1, double v1,   /* 0-360, 0-1.0, 0-1.0 */
 		 int h2, double s2, double v2,   /* 0-360, 0-1.0, 0-1.0 */
-		 XColor *colors, int *ncolorsP,
-		 Bool allocate_p,
-		 Bool *writable_pP) {
+#ifdef USE_SDL
+		 SDL_Color *colors,
+#else
+		 XColor *colors,
+#endif
+		 int *ncolorsP, Bool allocate_p, Bool *writable_pP) {
+#ifndef USE_SDL
   Bool wanted_writable = (allocate_p && writable_pP && *writable_pP);
+#endif
 
   int h[3];
   double s[3], v[3];
@@ -490,22 +499,26 @@ make_color_loop (Screen *screen, Visual *visual, Colormap cmap,
   s[0] = s0; s[1] = s1; s[2] = s2;
   v[0] = v0; v[1] = v1; v[2] = v2;
 
-  /* If this visual doesn't support writable cells, don't bother trying.
-   */
-  if (wanted_writable && !has_writable_cells(screen, visual))
-    *writable_pP = False;
+  /* If this visual doesn't support writable cells, don't bother trying.  */
+#ifndef USE_SDL
+  if (wanted_writable && !has_writable_cells(screen, visual)) *writable_pP = False;
+#endif
 
+#ifdef USE_SDL
+  make_color_path (surface,
+#else
   make_color_path (screen, visual, cmap,
-                   3, h, s, v,
-                   colors, ncolorsP,
-                   allocate_p, writable_pP);
+#endif
+                   3, h, s, v, colors, ncolorsP, allocate_p, writable_pP);
 }
 
-void make_smooth_colormap (Screen *screen, Visual *visual, Colormap cmap,
-		      XColor *colors, int *ncolorsP,
-		      Bool allocate_p,
-		      Bool *writable_pP,
-		      Bool verbose_p) {
+void make_smooth_colormap (
+#ifdef USE_SDL
+              SDL_Surface *surface, SDL_Color *colors,
+#else
+              Screen *screen, Visual *visual, Colormap cmap, XColor *colors,
+#endif
+			  int *ncolorsP, Bool allocate_p, Bool *writable_pP, Bool verbose_p) {
   int npoints;
   int ncolors = *ncolorsP;
   Bool wanted_writable = (allocate_p && writable_pP && *writable_pP);
@@ -560,11 +573,17 @@ void make_smooth_colormap (Screen *screen, Visual *visual, Colormap cmap,
   if (total_v / npoints < 0.3) goto REPICK_ALL_COLORS;
 
   /* If this visual doesn't support writable cells, don't bother trying.  */
+#ifndef USE_SDL
   if (wanted_writable && !has_writable_cells(screen, visual)) *writable_pP = False;
+#endif
 
  RETRY_NON_WRITABLE:
-  make_color_path (screen, visual, cmap, npoints, h, s, v, colors, &ncolors,
-		   allocate_p, writable_pP);
+#ifdef USE_SDL
+  make_color_path (surface,
+#else
+  make_color_path (screen, visual, cmap,
+#endif
+		  npoints, h, s, v, colors, &ncolors, allocate_p, writable_pP);
 
   /* If we tried for writable cells and got none, try for non-writable. */
   if (allocate_p && *ncolorsP == 0 && writable_pP && *writable_pP) {

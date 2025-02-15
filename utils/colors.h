@@ -74,13 +74,20 @@ extern void make_color_ramp (Screen *, Visual *, Colormap,
 
    If allocate_p is false, screen, visual and cmap are unused (OpenGL usage).
  */
+#ifdef USE_SDL
+extern void make_color_loop (SDL_Surface *surface,
+#else
 extern void make_color_loop (Screen *, Visual *, Colormap,
+#endif
 			     int h1, double s1, double v1,
 			     int h2, double s2, double v2,
 			     int h3, double s3, double v3,
-			     XColor *colors, int *ncolorsP,
-			     Bool allocate_p,
-			     Bool *writable_pP);
+#ifdef USE_SDL
+				 SDL_Color *colors,
+#else
+			     XColor *colors,
+#endif
+				 int *ncolorsP, Bool allocate_p, Bool *writable_pP);
 
 
 /* Allocates a hopefully-interesting colormap, which will be a closed loop
