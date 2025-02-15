@@ -136,7 +136,7 @@ void make_color_ramp (Screen *screen, Visual *visual, Colormap cmap,
 
   for (i = 0; i < ncolors; i++) {
 #ifdef USE_SDL
-    int r_int, g_int, b_int;
+    short unsigned int r_int, g_int, b_int;
 #else
     colors[i].flags = DoRed|DoGreen|DoBlue;
 #endif
