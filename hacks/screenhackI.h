@@ -207,7 +207,11 @@ struct xscreensaver_function_table {
   unsigned long  (*draw_cb)    (Display *, Window, void *);
   void           (*reshape_cb) (Display *, Window, void *,
                                 unsigned int w, unsigned int h);
+#ifdef USE_SDL
+  Bool           (*event_cb)   (Display *, Window, void *, void *);
+#else
   Bool           (*event_cb)   (Display *, Window, void *, XEvent *);
+#endif
   void           (*free_cb)    (Display *, Window, void *);
   void           (*fps_cb)     (Display *, Window, fps_state *, void *);
   void           (*fps_free)   (fps_state *);

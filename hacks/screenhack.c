@@ -696,10 +696,13 @@ static Widget make_shell (Screen *screen, Widget toplevel, int width, int height
 }
 #endif
 
+#ifdef USE_SDL
+static void init_window (SDL_Window *window, const char *title) {
+  SDL_SetWindowTitle(window, title);
+#else
 static void init_window (Display *dpy, Widget toplevel, const char *title) {
   long pid = getpid();
   Window window;
-#ifndef USE_SDL
   XWindowAttributes xgwa;
   XtPopup (toplevel, XtGrabNone);
   XtVaSetValues (toplevel, XtNtitle, title, NULL);
@@ -767,7 +770,11 @@ int main (int argc, char **argv) {
   {
     char *v = (char *) strdup(strchr(screensaver_id, ' '));
     char *s1, *s2, *s3, *s4;
+#ifdef USE_SDL
+	const char *ot = NULL;
+#else
     const char *ot = get_string_resource (dpy, "title", "Title");
+#endif
     s1 = (char *) strchr(v,  ' '); s1++;
     s2 = (char *) strchr(s1, ' ');
     s3 = (char *) strchr(v,  '('); s3++;
