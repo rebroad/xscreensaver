@@ -21,27 +21,22 @@
 
 extern char *progname;
 
-void
-free_colors (Screen *screen, Colormap cmap, XColor *colors, int ncolors)
-{
+void free_colors (Screen *screen, Colormap cmap, XColor *colors, int ncolors) {
+#ifndef USE_SDL
   Display *dpy = screen ? DisplayOfScreen (screen) : 0;
   int i;
-  if (ncolors > 0)
-    {
-      unsigned long *pixels = (unsigned long *)
-	malloc(sizeof(*pixels) * ncolors);
-      for (i = 0; i < ncolors; i++)
-	pixels[i] = colors[i].pixel;
-      XFreeColors (dpy, cmap, pixels, ncolors, 0L);
-      free(pixels);
-    }
+  if (ncolors > 0) {
+    unsigned long *pixels = (unsigned long *) malloc(sizeof(*pixels) * ncolors);
+    for (i = 0; i < ncolors; i++) pixels[i] = colors[i].pixel;
+    XFreeColors (dpy, cmap, pixels, ncolors, 0L);
+    free(pixels);
+  }
+#endif
 }
 
 
-void
-allocate_writable_colors (Screen *screen, Colormap cmap,
-			  unsigned long *pixels, int *ncolorsP)
-{
+void allocate_writable_colors (Screen *screen, Colormap cmap,
+			  unsigned long *pixels, int *ncolorsP) {
   Display *dpy = screen ? DisplayOfScreen (screen) : 0;
   int desired = *ncolorsP;
   int got = 0;
@@ -91,26 +86,38 @@ complain (int wanted_colors, int got_colors,
 }
 
 
-
+#ifdef USE_SDL
+void make_color_ramp (SDL_Surface *surface,
+#else
 void make_color_ramp (Screen *screen, Visual *visual, Colormap cmap,
+#endif
 		 int h1, double s1, double v1,   /* 0-360, 0-1.0, 0-1.0 */
 		 int h2, double s2, double v2,   /* 0-360, 0-1.0, 0-1.0 */
-		 XColor *colors, int *ncolorsP,
-		 Bool closed_p, Bool allocate_p, Bool *writable_pP) {
+#ifdef USE_SDL
+		 SDL_Color *colors,
+#else
+		 XColor *colors,
+#endif
+		 int *ncolorsP, Bool closed_p, Bool allocate_p, Bool *writable_pP) {
+#ifdef USE_SDL
+  if (!surface || !ncolorsP || !colors) return;
+#else
   Display *dpy = screen ? DisplayOfScreen (screen) : 0;
   Bool verbose_p = True;  /* argh. */
-  int i;
-  int total_ncolors = *ncolorsP;
-  int ncolors, wanted;
   Bool wanted_writable = (allocate_p && writable_pP && *writable_pP);
+#endif
+  int total_ncolors = *ncolorsP;
+  int wanted = total_ncolors;
+  int i, ncolors;
   double dh, ds, dv;		/* deltas */
 
-  wanted = total_ncolors;
   if (closed_p) wanted = (wanted / 2) + 1;
 
+#ifndef USE_SDL
   /* If this visual doesn't support writable cells, don't bother trying.  */
   if (wanted_writable && !has_writable_cells(screen, visual))
     *writable_pP = False;
+#endif
 
  AGAIN:
   ncolors = total_ncolors;
@@ -128,9 +135,16 @@ void make_color_ramp (Screen *screen, Visual *visual, Colormap cmap,
   dv = (v2 - v1) / ncolors;
 
   for (i = 0; i < ncolors; i++) {
+#ifndef USE_SDL
     colors[i].flags = DoRed|DoGreen|DoBlue;
+#endif
     hsv_to_rgb ((int) (h1 + (i*dh)), (s1 + (i*ds)), (v1 + (i*dv)),
+#ifdef USE_SDL
+		&colors[i[.r,   &colors[i].g,     &colors[i[.b);
+	    colors[i].a = 255;
+#else
         &colors[i].red, &colors[i].green, &colors[i].blue);
+#endif
   }
 
   if (closed_p)
@@ -139,6 +153,10 @@ void make_color_ramp (Screen *screen, Visual *visual, Colormap cmap,
 
   if (!allocate_p) return;
 
+#ifdef USE_SDL
+  if (SDL_ISPIXELFORMAT_INDEXED(surface->format->format)) {
+	// Indexed color mode
+#else
   if (writable_pP && *writable_pP) {
     unsigned long *pixels = (unsigned long *) malloc(sizeof(*pixels) * ((*ncolorsP) + 1));
 
@@ -148,8 +166,13 @@ void make_color_ramp (Screen *screen, Visual *visual, Colormap cmap,
 	  free(pixels);
 	  goto FAIL;
 	}
-
-    for (i = 0; i < *ncolorsP; i++) colors[i].pixel = pixels[i];
+#endif
+    for (i = 0; i < *ncolorsP; i++)
+#ifdef USE_SDL
+      SDL_SetPaletteColors(surface->format->palette, &colors[i], i, 1);
+  }
+#else
+      colors[i].pixel = pixels[i];
     free (pixels);
 
     XStoreColors (dpy, cmap, colors, *ncolorsP);
@@ -189,6 +212,7 @@ void make_color_ramp (Screen *screen, Visual *visual, Colormap cmap,
       (ncolors != 0 || !wanted_writable))
     complain (wanted, ncolors, wanted_writable, 
               (wanted_writable && writable_pP && *writable_pP));
+#endif
 }
 
 
