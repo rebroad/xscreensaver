@@ -501,44 +501,6 @@ make_color_loop (Screen *screen, Visual *visual, Colormap cmap,
                    allocate_p, writable_pP);
 }
 
-#ifdef USE_SDL
-// TODO - Claude did not look at the original function before creating this!
-void make_smooth_colormap(SDL_Color *colors, int *ncolors) {
-  // Similar logic to make_smooth_colormap but using floating point values
-  int i;
-  int n = *ncolors;
-
-  for (i = 0; i < n; i++) {
-    // Create a rainbow gradient
-    float hue = (float)i / n;
-    float saturation = 1.0f;
-    float value = 1.0f;
-
-    // Convert HSV to RGB
-    float h = hue * 6.0f;
-    int sector = (int)h;
-    float f = h - sector;
-    float p = value * (1.0f - saturation);
-    float q = value * (1.0f - saturation * f);
-    float t = value * (1.0f - saturation * (1.0f - f));
-
-	float r = 0, g = 0, b = 0;
-    switch (sector) {
-      case 0: r = value; g = t; b = p; break;
-      case 1: r = q; g = value; b = p; break;
-      case 2: r = p; g = value; b = t; break;
-      case 3: r = p; g = q; b = value; break;
-      case 4: r = t; g = p; b = value; break;
-      default: r = value; g = p; b = q; break;
-    }
-
-    colors[i].r = (Uint8)(r * 255);
-	colors[i].g = (Uint8)(g * 255);
-	colors[i].b = (Uint8)(b * 255);
-	colors[i].a = 255;  // Full opacity
-  }
-}
-#else
 void make_smooth_colormap (Screen *screen, Visual *visual, Colormap cmap,
 		      XColor *colors, int *ncolorsP,
 		      Bool allocate_p,
@@ -566,19 +528,16 @@ void make_smooth_colormap (Screen *screen, Visual *visual, Colormap cmap,
   }
 
  REPICK_ALL_COLORS:
-  for (i = 0; i < npoints; i++)
-    {
+  for (i = 0; i < npoints; i++) {
     REPICK_THIS_COLOR:
-      if (++loop > 10000) abort();
-      h[i] = random() % 360;
-      s[i] = frand(1.0);
-      v[i] = frand(0.8) + 0.2;
+    if (++loop > 10000) abort();
+    h[i] = random() % 360;
+    s[i] = frand(1.0);
+    v[i] = frand(0.8) + 0.2;
 
-      /* Make sure that no two adjascent colors are *too* close together.
-	 If they are, try again.
-       */
-      if (i > 0)
-	{
+    /* Make sure that no two adjascent colors are *too* close together.
+	   If they are, try again.  */
+    if (i > 0) {
 	  int j = (i+1 == npoints) ? 0 : (i-1);
 	  double hi = ((double) h[i]) / 360;
 	  double hj = ((double) h[j]) / 360;
@@ -589,52 +548,40 @@ void make_smooth_colormap (Screen *screen, Visual *visual, Colormap cmap,
 	  distance = sqrt ((dh * dh) +
 			   ((s[j] - s[i]) * (s[j] - s[i])) +
 			   ((v[j] - v[i]) * (v[j] - v[i])));
-	  if (distance < 0.2)
-	    goto REPICK_THIS_COLOR;
+	  if (distance < 0.2) goto REPICK_THIS_COLOR;
 	}
-      total_s += s[i];
-      total_v += v[i];
-    }
+    total_s += s[i];
+    total_v += v[i];
+  }
 
   /* If the average saturation or intensity are too low, repick the colors,
-     so that we don't end up with a black-and-white or too-dark map.
-   */
-  if (total_s / npoints < 0.2)
-    goto REPICK_ALL_COLORS;
-  if (total_v / npoints < 0.3)
-    goto REPICK_ALL_COLORS;
+     so that we don't end up with a black-and-white or too-dark map.  */
+  if (total_s / npoints < 0.2) goto REPICK_ALL_COLORS;
+  if (total_v / npoints < 0.3) goto REPICK_ALL_COLORS;
 
-  /* If this visual doesn't support writable cells, don't bother trying.
-   */
-  if (wanted_writable && !has_writable_cells(screen, visual))
-    *writable_pP = False;
+  /* If this visual doesn't support writable cells, don't bother trying.  */
+  if (wanted_writable && !has_writable_cells(screen, visual)) *writable_pP = False;
 
  RETRY_NON_WRITABLE:
   make_color_path (screen, visual, cmap, npoints, h, s, v, colors, &ncolors,
 		   allocate_p, writable_pP);
 
   /* If we tried for writable cells and got none, try for non-writable. */
-  if (allocate_p && *ncolorsP == 0 && writable_pP && *writable_pP)
-    {
-      *writable_pP = False;
-      goto RETRY_NON_WRITABLE;
-    }
+  if (allocate_p && *ncolorsP == 0 && writable_pP && *writable_pP) {
+    *writable_pP = False;
+    goto RETRY_NON_WRITABLE;
+  }
 
-  if (verbose_p)
-    complain(*ncolorsP, ncolors, wanted_writable,
-	     wanted_writable && *writable_pP);
+  if (verbose_p) complain(*ncolorsP, ncolors, wanted_writable, wanted_writable && *writable_pP);
 
   *ncolorsP = ncolors;
 }
-#endif
 
-void
-make_uniform_colormap (Screen *screen, Visual *visual, Colormap cmap,
+void make_uniform_colormap (Screen *screen, Visual *visual, Colormap cmap,
 		       XColor *colors, int *ncolorsP,
 		       Bool allocate_p,
 		       Bool *writable_pP,
-		       Bool verbose_p)
-{
+		       Bool verbose_p) {
   int ncolors = *ncolorsP;
   Bool wanted_writable = (allocate_p && writable_pP && *writable_pP);
 
