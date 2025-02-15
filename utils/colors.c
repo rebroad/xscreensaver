@@ -117,9 +117,9 @@ void make_color_ramp (Screen *screen, Visual *visual, Colormap cmap,
   /* If this visual doesn't support writable cells, don't bother trying.  */
   if (wanted_writable && !has_writable_cells(screen, visual))
     *writable_pP = False;
-#endif
 
  AGAIN:
+#endif
   ncolors = total_ncolors;
 
   memset (colors, 0, (*ncolorsP) * sizeof(*colors));
@@ -223,12 +223,21 @@ void make_color_ramp (Screen *screen, Visual *visual, Colormap cmap,
 
 #define MAXPOINTS 50	/* yeah, so I'm lazy */
 
-
+#ifdef USE_SDL
+static void make_color_path (SDL_Surface *surface,
+#else
 static void make_color_path (Screen *screen, Visual *visual, Colormap cmap,
+#endif
 		 int npoints, int *h, double *s, double *v,
-		 XColor *colors, int *ncolorsP,
-		 Bool allocate_p, Bool *writable_pP) {
+#ifdef USE_SDL
+		 SDL_Color *colors,
+#else
+		 XColor *colors,
+#endif
+		 int *ncolorsP, Bool allocate_p, Bool *writable_pP) {
+#ifndef USE_SDL
   Display *dpy = screen ? DisplayOfScreen (screen) : 0;
+#endif
   int i, j, k;
   int total_ncolors = *ncolorsP;
 
@@ -237,24 +246,23 @@ static void make_color_path (Screen *screen, Visual *visual, Colormap cmap,
   double ds[MAXPOINTS];    /* distance between pixels, per edge (0 - 1.0) */
   double dv[MAXPOINTS];    /* distance between pixels, per edge (0 - 1.0) */
 
-  if (npoints == 0)
-    {
+  if (npoints == 0) {
       *ncolorsP = 0;
       return;
-    }
-  else if (npoints == 2)	/* using make_color_ramp() will be faster */
-    {
+  } else if (npoints == 2) { /* using make_color_ramp() will be faster */
+#ifdef USE_SDL
+      make_color_ramp (surface,
+#else
       make_color_ramp (screen, visual, cmap,
+#endif
 		       h[0], s[0], v[0], h[1], s[1], v[1],
 		       colors, ncolorsP,
 		       True,  /* closed_p */
 		       allocate_p, writable_pP);
       return;
-    }
-  else if (npoints >= MAXPOINTS)
-    {
+  } else if (npoints >= MAXPOINTS) {
       npoints = MAXPOINTS-1;
-    }
+  }
 
  AGAIN:
 
@@ -345,22 +353,20 @@ static void make_color_path (Screen *screen, Visual *visual, Colormap cmap,
   memset (colors, 0, (*ncolorsP) * sizeof(*colors));
 
   k = 0;
-  for (i = 0; i < npoints; i++)
-    {
-      int distance = h[(i+1) % npoints] - h[i];
-      int direction = (distance >= 0 ? -1 : 1);
+  for (i = 0; i < npoints; i++) {
+    int distance = h[(i+1) % npoints] - h[i];
+    int direction = (distance >= 0 ? -1 : 1);
 
-      if (distance <= 180 && distance >= -180)
-        direction = -direction;
+    if (distance <= 180 && distance >= -180)
+      direction = -direction;
 
 #ifdef DEBUG
-      fprintf (stderr, "point %d: %3d %.2f %.2f\n",
-	       i, h[i], s[i], v[i]);
-      fprintf(stderr, "  h[i]=%d  dh[i]=%.2f  ncolors[i]=%d\n",
-	      h[i], dh[i], ncolors[i]);
+    fprintf (stderr, "point %d: %3d %.2f %.2f\n",
+      i, h[i], s[i], v[i]);
+    fprintf(stderr, "  h[i]=%d  dh[i]=%.2f  ncolors[i]=%d\n",
+     h[i], dh[i], ncolors[i]);
 #endif /* DEBUG */
-      for (j = 0; j < ncolors[i]; j++, k++)
-	{
+    for (j = 0; j < ncolors[i]; j++, k++) {
 	  double hh = (h[i] + (j * dh[i] * direction));
 	  if (hh < 0) hh += 360;
 	  else if (hh > 360) hh -= 0;
@@ -379,77 +385,63 @@ static void make_color_path (Screen *screen, Visual *visual, Colormap cmap,
 		   colors[k].red, colors[k].green, colors[k].blue);
 #endif /* DEBUG */
 	}
-    }
+  }
 
   /* Floating-point round-off can make us decide to use fewer colors. */
-  if (k < *ncolorsP)
-    {
-      /* We used to just return the smaller set of colors, but that meant
-         that after re-generating the color map repeatedly, the number of
-         colors in use would tend toward 0, which not only looked bad but
-         also often caused crashes. So instead, just duplicate the last
-         color to pad things out. */
+  if (k < *ncolorsP) {
+    /* We used to just return the smaller set of colors, but that meant
+       that after re-generating the color map repeatedly, the number of
+       colors in use would tend toward 0, which not only looked bad but
+       also often caused crashes. So instead, just duplicate the last
+       color to pad things out. */
 # if 0
-      *ncolorsP = k;
-      if (k <= 0)
-	return;
+    *ncolorsP = k;
+    if (k <= 0) return;
 # else
-      if (k <= 0)
-	return;
-      for (i = k; i < *ncolorsP; i++)
-        /* #### Should duplicate the allocation of the color cell here
-           to avoid a double-color-free on PseudoColor, but it's 2018
-           and I don't care, */
-        colors[i] = colors[i-1];
+    if (k <= 0) return;
+    for (i = k; i < *ncolorsP; i++)
+      /* #### Should duplicate the allocation of the color cell here
+         to avoid a double-color-free on PseudoColor, but it's 2018
+         and I don't care, */
+      colors[i] = colors[i-1];
 # endif
-    }
+  }
 
-  if (!allocate_p)
-    return;
+  if (!allocate_p) return;
 
-  if (writable_pP && *writable_pP)
-    {
-      unsigned long *pixels = (unsigned long *)
-	malloc(sizeof(*pixels) * ((*ncolorsP) + 1));
+  if (writable_pP && *writable_pP) {
+    unsigned long *pixels = (unsigned long *)
+        malloc(sizeof(*pixels) * ((*ncolorsP) + 1));
 
-      /* allocate_writable_colors() won't do here, because we need exactly this
-	 number of cells, or the color sequence we've chosen won't fit. */
-      if (! XAllocColorCells(dpy, cmap, False, 0, 0, pixels, *ncolorsP))
-	{
+    /* allocate_writable_colors() won't do here, because we need exactly this
+        number of cells, or the color sequence we've chosen won't fit. */
+    if (! XAllocColorCells(dpy, cmap, False, 0, 0, pixels, *ncolorsP)) {
 	  free(pixels);
 	  goto FAIL;
 	}
 
-      for (i = 0; i < *ncolorsP; i++)
-	colors[i].pixel = pixels[i];
+    for (i = 0; i < *ncolorsP; i++) colors[i].pixel = pixels[i];
       free (pixels);
 
-      XStoreColors (dpy, cmap, colors, *ncolorsP);
-    }
-  else
-    {
-      for (i = 0; i < *ncolorsP; i++)
-	{
+    XStoreColors (dpy, cmap, colors, *ncolorsP);
+  } else {
+    for (i = 0; i < *ncolorsP; i++) {
 	  XColor color;
 	  color = colors[i];
-	  if (XAllocColor (dpy, cmap, &color))
-	    {
-	      colors[i].pixel = color.pixel;
-	    }
-	  else
-	    {
-	      free_colors (screen, cmap, colors, i);
-	      goto FAIL;
-	    }
+	  if (XAllocColor (dpy, cmap, &color)) {
+	    colors[i].pixel = color.pixel;
+	  } else {
+	    free_colors (screen, cmap, colors, i);
+	    goto FAIL;
+	  }
 	}
-    }
+  }
 
   return;
 
  FAIL:
   /* we weren't able to allocate all the colors we wanted;
-     decrease the requested number and try again.
-   */
+     decrease the requested number and try again.  */
   total_ncolors = (total_ncolors > 170 ? total_ncolors - 20 :
 		   total_ncolors > 100 ? total_ncolors - 10 :
 		   total_ncolors >  75 ? total_ncolors -  5 :
@@ -458,8 +450,7 @@ static void make_color_path (Screen *screen, Visual *visual, Colormap cmap,
 		   total_ncolors >   2 ? total_ncolors -  1 :
 		   0);
   *ncolorsP = total_ncolors;
-  if (total_ncolors > 0)
-    goto AGAIN;
+  if (total_ncolors > 0) goto AGAIN;
 }
 
 
