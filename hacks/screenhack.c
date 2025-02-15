@@ -519,7 +519,7 @@ static void run_screenhack_table_sdl(SDL_Window *window, SDL_GLContext gl_contex
   struct sdl_state {
 	SDL_Window *window;
 	SDL_GLContext gl_context;
-  } state = {window, gl_context);
+  } state = {window, gl_context};
 
   void *closure = ft->init_cb(NULL, (Window)SDL_GetWindowID(window), &state);
   fps_state *fpst = fps_init(NULL, (Window)SDL_GetWindowID(window));
