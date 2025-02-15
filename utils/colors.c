@@ -135,13 +135,18 @@ void make_color_ramp (Screen *screen, Visual *visual, Colormap cmap,
   dv = (v2 - v1) / ncolors;
 
   for (i = 0; i < ncolors; i++) {
-#ifndef USE_SDL
+#ifdef USE_SDL
+    int r_int, g_int, b_int;
+#else
     colors[i].flags = DoRed|DoGreen|DoBlue;
 #endif
     hsv_to_rgb ((int) (h1 + (i*dh)), (s1 + (i*ds)), (v1 + (i*dv)),
 #ifdef USE_SDL
-		&colors[i].r,   &colors[i].g,     &colors[i].b);
-	    colors[i].a = 255;
+		&r_int, &g_int, &b_int);
+    colors[i].r = (Uint8)r_int;
+    colors[i].g = (Uint8)g_int;
+    colors[i].b = (Uint8)b_int;
+    colors[i].a = 255;
 #else
         &colors[i].red, &colors[i].green, &colors[i].blue);
 #endif
