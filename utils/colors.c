@@ -55,21 +55,18 @@ allocate_writable_colors (Screen *screen, Colormap cmap,
       if (desired - got < requested)
 	requested = desired - got;
 
-      if (XAllocColorCells (dpy, cmap, False, 0, 0, new_pixels, requested))
-	{
-	  /* Got all the pixels we asked for. */
-	  new_pixels += requested;
-	  got += requested;
-	}
-      else
-	{
-	  /* We didn't get all/any of the pixels we asked for.  This time, ask
-	     for half as many.  (If we do get all that we ask for, we ask for
-	     the same number again next time, so we only do O(log(n)) server
-	     roundtrips.)
-	  */
-	  requested = requested / 2;
-	}
+      if (XAllocColorCells (dpy, cmap, False, 0, 0, new_pixels, requested)) {
+	    /* Got all the pixels we asked for. */
+	    new_pixels += requested;
+	    got += requested;
+      } else {
+	    /* We didn't get all/any of the pixels we asked for.  This time, ask
+	       for half as many.  (If we do get all that we ask for, we ask for
+	       the same number again next time, so we only do O(log(n)) server
+	       roundtrips.)
+	    */
+	    requested = requested / 2;
+	  }
     }
   *ncolorsP += got;
 }
@@ -95,15 +92,11 @@ complain (int wanted_colors, int got_colors,
 
 
 
-void
-make_color_ramp (Screen *screen, Visual *visual, Colormap cmap,
+void make_color_ramp (Screen *screen, Visual *visual, Colormap cmap,
 		 int h1, double s1, double v1,   /* 0-360, 0-1.0, 0-1.0 */
 		 int h2, double s2, double v2,   /* 0-360, 0-1.0, 0-1.0 */
 		 XColor *colors, int *ncolorsP,
-		 Bool closed_p,
-		 Bool allocate_p,
-		 Bool *writable_pP)
-{
+		 Bool closed_p, Bool allocate_p, Bool *writable_pP) {
   Display *dpy = screen ? DisplayOfScreen (screen) : 0;
   Bool verbose_p = True;  /* argh. */
   int i;
@@ -113,11 +106,9 @@ make_color_ramp (Screen *screen, Visual *visual, Colormap cmap,
   double dh, ds, dv;		/* deltas */
 
   wanted = total_ncolors;
-  if (closed_p)
-    wanted = (wanted / 2) + 1;
+  if (closed_p) wanted = (wanted / 2) + 1;
 
-  /* If this visual doesn't support writable cells, don't bother trying.
-   */
+  /* If this visual doesn't support writable cells, don't bother trying.  */
   if (wanted_writable && !has_writable_cells(screen, visual))
     *writable_pP = False;
 
@@ -126,75 +117,60 @@ make_color_ramp (Screen *screen, Visual *visual, Colormap cmap,
 
   memset (colors, 0, (*ncolorsP) * sizeof(*colors));
 
-  if (closed_p)
-    ncolors = (ncolors / 2) + 1;
+  if (closed_p) ncolors = (ncolors / 2) + 1;
 
   /* Note: unlike other routines in this module, this function assumes that
      if h1 and h2 are more than 180 degrees apart, then the desired direction
      is always from h1 to h2 (rather than the shorter path.)  make_uniform
-     depends on this.
-   */
+     depends on this.  */
   dh = ((double)h2 - (double)h1) / ncolors;
   ds = (s2 - s1) / ncolors;
   dv = (v2 - v1) / ncolors;
 
-  for (i = 0; i < ncolors; i++)
-    {
-      colors[i].flags = DoRed|DoGreen|DoBlue;
-      hsv_to_rgb ((int) (h1 + (i*dh)), (s1 + (i*ds)), (v1 + (i*dv)),
-		  &colors[i].red, &colors[i].green, &colors[i].blue);
-    }
+  for (i = 0; i < ncolors; i++) {
+    colors[i].flags = DoRed|DoGreen|DoBlue;
+    hsv_to_rgb ((int) (h1 + (i*dh)), (s1 + (i*ds)), (v1 + (i*dv)),
+        &colors[i].red, &colors[i].green, &colors[i].blue);
+  }
 
   if (closed_p)
     for (i = ncolors; i < *ncolorsP; i++)
       colors[i] = colors[(*ncolorsP)-i];
 
-  if (!allocate_p)
-    return;
+  if (!allocate_p) return;
 
-  if (writable_pP && *writable_pP)
-    {
-      unsigned long *pixels = (unsigned long *)
-	malloc(sizeof(*pixels) * ((*ncolorsP) + 1));
+  if (writable_pP && *writable_pP) {
+    unsigned long *pixels = (unsigned long *) malloc(sizeof(*pixels) * ((*ncolorsP) + 1));
 
-      /* allocate_writable_colors() won't do here, because we need exactly this
-	 number of cells, or the color sequence we've chosen won't fit. */
-      if (! XAllocColorCells(dpy, cmap, False, 0, 0, pixels, *ncolorsP))
-	{
+    /* allocate_writable_colors() won't do here, because we need exactly this
+       number of cells, or the color sequence we've chosen won't fit. */
+    if (! XAllocColorCells(dpy, cmap, False, 0, 0, pixels, *ncolorsP)) {
 	  free(pixels);
 	  goto FAIL;
 	}
 
-      for (i = 0; i < *ncolorsP; i++)
-	colors[i].pixel = pixels[i];
-      free (pixels);
+    for (i = 0; i < *ncolorsP; i++) colors[i].pixel = pixels[i];
+    free (pixels);
 
-      XStoreColors (dpy, cmap, colors, *ncolorsP);
-    }
-  else
-    {
-      for (i = 0; i < *ncolorsP; i++)
-	{
+    XStoreColors (dpy, cmap, colors, *ncolorsP);
+  } else {
+    for (i = 0; i < *ncolorsP; i++) {
 	  XColor color;
 	  color = colors[i];
-	  if (XAllocColor (dpy, cmap, &color))
-	    {
-	      colors[i].pixel = color.pixel;
-	    }
-	  else
-	    {
-	      free_colors (screen, cmap, colors, i);
-	      goto FAIL;
-	    }
+	  if (XAllocColor (dpy, cmap, &color)) {
+	    colors[i].pixel = color.pixel;
+	  } else {
+	    free_colors (screen, cmap, colors, i);
+	    goto FAIL;
+	  }
 	}
-    }
+  }
 
   goto WARN;
 
  FAIL:
   /* we weren't able to allocate all the colors we wanted;
-     decrease the requested number and try again.
-   */
+     decrease the requested number and try again.  */
   total_ncolors = (total_ncolors > 170 ? total_ncolors - 20 :
                    total_ncolors > 100 ? total_ncolors - 10 :
                    total_ncolors >  75 ? total_ncolors -  5 :
@@ -204,8 +180,7 @@ make_color_ramp (Screen *screen, Visual *visual, Colormap cmap,
                    0);
   *ncolorsP = total_ncolors;
   ncolors = total_ncolors;
-  if (total_ncolors > 0)
-    goto AGAIN;
+  if (total_ncolors > 0) goto AGAIN;
 
  WARN:
   
@@ -220,13 +195,10 @@ make_color_ramp (Screen *screen, Visual *visual, Colormap cmap,
 #define MAXPOINTS 50	/* yeah, so I'm lazy */
 
 
-static void
-make_color_path (Screen *screen, Visual *visual, Colormap cmap,
+static void make_color_path (Screen *screen, Visual *visual, Colormap cmap,
 		 int npoints, int *h, double *s, double *v,
 		 XColor *colors, int *ncolorsP,
-		 Bool allocate_p,
-		 Bool *writable_pP)
-{
+		 Bool allocate_p, Bool *writable_pP) {
   Display *dpy = screen ? DisplayOfScreen (screen) : 0;
   int i, j, k;
   int total_ncolors = *ncolorsP;
@@ -776,7 +748,9 @@ rotate_colors (Screen *screen, Colormap cmap,
       colors2[i].pixel = colors[i].pixel;
     }
   XStoreColors (dpy, cmap, colors2, ncolors);
+#ifndef USE_SDL
   XFlush(dpy);
+#endif
   memcpy(colors, colors2, sizeof(*colors) * ncolors);
   free(colors2);
 }
