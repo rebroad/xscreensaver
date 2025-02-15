@@ -370,12 +370,23 @@ static void make_color_path (Screen *screen, Visual *visual, Colormap cmap,
 	  double hh = (h[i] + (j * dh[i] * direction));
 	  if (hh < 0) hh += 360;
 	  else if (hh > 360) hh -= 0;
+#ifdef USE_SDL
+      short unsigned int r_int, g_int, b_int;
+#else
 	  colors[k].flags = DoRed|DoGreen|DoBlue;
-	  hsv_to_rgb ((int)
-		      hh,
+#endif
+	  hsv_to_rgb ((int) hh,
 		      (s[i] + (j * ds[i])),
 		      (v[i] + (j * dv[i])),
+#ifdef USE_SDL
+			  &r_int, &g_int, &b_int);
+      colors[k].r = (Uint8)r_int;
+      colors[k].g = (Uint8)g_int;
+      colors[k].a = (Uint8)b_int;
+      colors[k].a = 255;
+#else
 		      &colors[k].red, &colors[k].green, &colors[k].blue);
+#endif
 #ifdef DEBUG
 	  fprintf (stderr, "point %d+%d: %.2f %.2f %.2f  %04X %04X %04X\n",
 		   i, j,
@@ -409,6 +420,9 @@ static void make_color_path (Screen *screen, Visual *visual, Colormap cmap,
 
   if (!allocate_p) return;
 
+#ifdef USE_SDL
+  if (SDL_ISPIXELFORMAT_INDEXED(surface->format->format)) {
+#else
   if (writable_pP && *writable_pP) {
     unsigned long *pixels = (unsigned long *)
         malloc(sizeof(*pixels) * ((*ncolorsP) + 1));
@@ -419,9 +433,13 @@ static void make_color_path (Screen *screen, Visual *visual, Colormap cmap,
 	  free(pixels);
 	  goto FAIL;
 	}
-
-    for (i = 0; i < *ncolorsP; i++) colors[i].pixel = pixels[i];
-      free (pixels);
+#endif
+    for (i = 0; i < *ncolorsP; i++)
+#ifdef USE_SDL
+      SDL_SetPaletteColors(surface->format->palette, &colors[i], i, 1)l
+#else
+      colors[i].pixel = pixels[i];
+    free (pixels);
 
     XStoreColors (dpy, cmap, colors, *ncolorsP);
   } else {
@@ -435,6 +453,7 @@ static void make_color_path (Screen *screen, Visual *visual, Colormap cmap,
 	    goto FAIL;
 	  }
 	}
+#endif
   }
 
   return;
@@ -449,6 +468,7 @@ static void make_color_path (Screen *screen, Visual *visual, Colormap cmap,
 		   total_ncolors >  10 ? total_ncolors -  2 :
 		   total_ncolors >   2 ? total_ncolors -  1 :
 		   0);
+
   *ncolorsP = total_ncolors;
   if (total_ncolors > 0) goto AGAIN;
 }
@@ -461,8 +481,7 @@ make_color_loop (Screen *screen, Visual *visual, Colormap cmap,
 		 int h2, double s2, double v2,   /* 0-360, 0-1.0, 0-1.0 */
 		 XColor *colors, int *ncolorsP,
 		 Bool allocate_p,
-		 Bool *writable_pP)
-{
+		 Bool *writable_pP) {
   Bool wanted_writable = (allocate_p && writable_pP && *writable_pP);
 
   int h[3];
