@@ -65,9 +65,12 @@ extern void gltrackball_reset (trackball_state *ts, float x, float y);
    Handles the various motion and click events related to trackballs.
    Returns True if the event was handled.
  */
-extern Bool gltrackball_event_handler (XEvent *,
-                                       trackball_state *,
-                                       int window_width, int window_height,
-                                       Bool *button_down_p);
+extern Bool gltrackball_event_handler (
+#ifdef USE_SDL
+		SDL_Event *,
+#else
+	    XEvent *,
+#endif
+        trackball_state *, int window_width, int window_height, Bool *button_down_p);
 
 #endif /* __GLTRACKBALL_H__ */
