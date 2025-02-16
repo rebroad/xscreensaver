@@ -19,9 +19,7 @@
 #include <GL/gl.h>
 #include <GL/glu.h>
 #endif
-#ifndef USE_SDL
 #include "xlockmore.h"
-#endif
 #include "colors.h"
 #include "normals.h"
 #include "rotator.h"
