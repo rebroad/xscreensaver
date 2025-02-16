@@ -159,10 +159,7 @@ void make_color_ramp (
 
   if (!allocate_p) return;
 
-#ifdef USE_SDL
-  if (SDL_ISPIXELFORMAT_INDEXED(surface->format->format)) {
-	// Indexed color mode
-#else
+#ifndef USE_SDL
   if (writable_pP && *writable_pP) {
     unsigned long *pixels = (unsigned long *) malloc(sizeof(*pixels) * ((*ncolorsP) + 1));
 
@@ -172,12 +169,7 @@ void make_color_ramp (
 	  free(pixels);
 	  goto FAIL;
 	}
-#endif
     for (i = 0; i < *ncolorsP; i++)
-#ifdef USE_SDL
-      SDL_SetPaletteColors(surface->format->palette, &colors[i], i, 1);
-  }
-#else
       colors[i].pixel = pixels[i];
     free (pixels);
 
@@ -278,77 +270,63 @@ static void make_color_path (Screen *screen, Visual *visual, Colormap cmap,
     double circum = 0;
     double one_point_oh = 0;	/* (debug) */
 
-    for (i = 0; i < npoints; i++)
-      {
-	int j = (i+1) % npoints;
-	double d = ((double) (h[i] - h[j])) / 360;
-	if (d < 0) d = -d;
-	if (d > 0.5) d = 0.5 - (d - 0.5);
-	DH[i] = d;
-      }
+    for (i = 0; i < npoints; i++) {
+	  int j = (i+1) % npoints;
+	  double d = ((double) (h[i] - h[j])) / 360;
+	  if (d < 0) d = -d;
+	  if (d > 0.5) d = 0.5 - (d - 0.5);
+	  DH[i] = d;
+    }
 
-    for (i = 0; i < npoints; i++)
-      {
-	int j = (i+1) % npoints;
-	edge[i] = sqrt((DH[i] * DH[j]) +
+    for (i = 0; i < npoints; i++) {
+	  int j = (i+1) % npoints;
+	  edge[i] = sqrt((DH[i] * DH[j]) +
 		       ((s[j] - s[i]) * (s[j] - s[i])) +
 		       ((v[j] - v[i]) * (v[j] - v[i])));
-	circum += edge[i];
-      }
+	  circum += edge[i];
+    }
 
 #ifdef DEBUG
     fprintf(stderr, "\ncolors:");
-    for (i=0; i < npoints; i++)
-      fprintf(stderr, " (%d, %.3f, %.3f)", h[i], s[i], v[i]);
+    for (i=0; i < npoints; i++) fprintf(stderr, " (%d, %.3f, %.3f)", h[i], s[i], v[i]);
     fprintf(stderr, "\nlengths:");
-    for (i=0; i < npoints; i++)
-      fprintf(stderr, " %.3f", edge[i]);
+    for (i=0; i < npoints; i++) fprintf(stderr, " %.3f", edge[i]);
 #endif /* DEBUG */
 
-    if (circum < 0.0001)
-      goto FAIL;
+    if (circum < 0.0001) goto FAIL;
 
-    for (i = 0; i < npoints; i++)
-      {
-	ratio[i] = edge[i] / circum;
-	one_point_oh += ratio[i];
-      }
+    for (i = 0; i < npoints; i++) {
+	  ratio[i] = edge[i] / circum;
+	  one_point_oh += ratio[i];
+    }
 
 #ifdef DEBUG
     fprintf(stderr, "\nratios:");
-    for (i=0; i < npoints; i++)
-      fprintf(stderr, " %.3f", ratio[i]);
+    for (i=0; i < npoints; i++) fprintf(stderr, " %.3f", ratio[i]);
 #endif /* DEBUG */
 
-    if (one_point_oh < 0.99999 || one_point_oh > 1.00001)
-      abort();
+    if (one_point_oh < 0.99999 || one_point_oh > 1.00001) abort();
 
     /* space the colors evenly along the circumference -- that means that the
        number of pixels on a edge is proportional to the length of that edge
-       (relative to the lengths of the other edges.)
-     */
-    for (i = 0; i < npoints; i++)
-      ncolors[i] = total_ncolors * ratio[i];
-
+       (relative to the lengths of the other edges.) */
+    for (i = 0; i < npoints; i++) ncolors[i] = total_ncolors * ratio[i];
 
 #ifdef DEBUG
     fprintf(stderr, "\npixels:");
-    for (i=0; i < npoints; i++)
-      fprintf(stderr, " %d", ncolors[i]);
+    for (i=0; i < npoints; i++) fprintf(stderr, " %d", ncolors[i]);
     fprintf(stderr, "  (%d)\n", total_ncolors);
 #endif /* DEBUG */
 
-    for (i = 0; i < npoints; i++)
-      {
-	int j = (i+1) % npoints;
+    for (i = 0; i < npoints; i++) {
+	  int j = (i+1) % npoints;
 
-	if (ncolors[i] > 0)
-	  {
+	  if (ncolors[i] > 0) {
 	    dh[i] = 360 * (DH[i] / ncolors[i]);
 	    ds[i] = (s[j] - s[i]) / ncolors[i];
 	    dv[i] = (v[j] - v[i]) / ncolors[i];
 	  }
-      }
+    }
   }
 
   memset (colors, 0, (*ncolorsP) * sizeof(*colors));
@@ -421,9 +399,7 @@ static void make_color_path (Screen *screen, Visual *visual, Colormap cmap,
 
   if (!allocate_p) return;
 
-#ifdef USE_SDL
-  if (SDL_ISPIXELFORMAT_INDEXED(surface->format->format)) {
-#else
+#ifndef USE_SDL
   if (writable_pP && *writable_pP) {
     unsigned long *pixels = (unsigned long *)
         malloc(sizeof(*pixels) * ((*ncolorsP) + 1));
@@ -434,11 +410,7 @@ static void make_color_path (Screen *screen, Visual *visual, Colormap cmap,
 	  free(pixels);
 	  goto FAIL;
 	}
-#endif
     for (i = 0; i < *ncolorsP; i++)
-#ifdef USE_SDL
-      SDL_SetPaletteColors(surface->format->palette, &colors[i], i, 1);
-#else
       colors[i].pixel = pixels[i];
     free (pixels);
 
@@ -454,8 +426,8 @@ static void make_color_path (Screen *screen, Visual *visual, Colormap cmap,
 	    goto FAIL;
 	  }
 	}
-#endif
   }
+#endif
 
   return;
 
@@ -644,14 +616,12 @@ void make_uniform_colormap (
 }
 
 
-void
-make_random_colormap (Screen *screen, Visual *visual, Colormap cmap,
+void make_random_colormap (Screen *screen, Visual *visual, Colormap cmap,
 		      XColor *colors, int *ncolorsP,
 		      Bool bright_p,
 		      Bool allocate_p,
 		      Bool *writable_pP,
-		      Bool verbose_p)
-{
+		      Bool verbose_p) {
   Display *dpy = screen ? DisplayOfScreen (screen) : 0;
   Bool wanted_writable = (allocate_p && writable_pP && *writable_pP);
   int ncolors = *ncolorsP;
@@ -664,79 +634,60 @@ make_random_colormap (Screen *screen, Visual *visual, Colormap cmap,
     *writable_pP = False;
 
  RETRY_ALL:
-  for (i = 0; i < ncolors; i++)
-    {
-      colors[i].flags = DoRed|DoGreen|DoBlue;
-      if (bright_p)
-	{
+  for (i = 0; i < ncolors; i++) {
+    colors[i].flags = DoRed|DoGreen|DoBlue;
+    if (bright_p) {
 	  int H = random() % 360;			   /* range 0-360    */
 	  double S = ((double) (random()%70) + 30)/100.0;  /* range 30%-100% */
 	  double V = ((double) (random()%34) + 66)/100.0;  /* range 66%-100% */
 	  hsv_to_rgb (H, S, V,
 		      &colors[i].red, &colors[i].green, &colors[i].blue);
-	}
-      else
-	{
+	} else {
 	  colors[i].red   = random() % 0xFFFF;
 	  colors[i].green = random() % 0xFFFF;
 	  colors[i].blue  = random() % 0xFFFF;
 	}
-    }
+  }
 
   /* If there are a small number of colors, make sure at least the first
-     two contrast well.
-  */
-  if (!bright_p && ncolors <= 4)
-    {
-      int h0, h1;
-      double s0, s1, v0, v1;
-      rgb_to_hsv (colors[0].red, colors[0].green, colors[0].blue, &h0,&s0,&v0);
-      rgb_to_hsv (colors[1].red, colors[1].green, colors[1].blue, &h1,&s1,&v1);
-      if (fabs (v1-v0) < 0.5)
-        goto RETRY_ALL;
-    }
+     two contrast well.  */
+  if (!bright_p && ncolors <= 4) {
+    int h0, h1;
+    double s0, s1, v0, v1;
+    rgb_to_hsv (colors[0].red, colors[0].green, colors[0].blue, &h0,&s0,&v0);
+    rgb_to_hsv (colors[1].red, colors[1].green, colors[1].blue, &h1,&s1,&v1);
+    if (fabs (v1-v0) < 0.5) goto RETRY_ALL;
+  }
 
-  if (!allocate_p)
-    return;
+  if (!allocate_p) return;
 
  RETRY_NON_WRITABLE:
-  if (writable_pP && *writable_pP)
-    {
-      unsigned long *pixels = (unsigned long *)
-	malloc(sizeof(*pixels) * (ncolors + 1));
-
-      allocate_writable_colors (screen, cmap, pixels, &ncolors);
-      if (ncolors > 0)
-	for (i = 0; i < ncolors; i++)
-	  colors[i].pixel = pixels[i];
-      free (pixels);
-      if (ncolors > 0)
-	XStoreColors (dpy, cmap, colors, ncolors);
-    }
-  else
-    {
-      for (i = 0; i < ncolors; i++)
-	{
+  if (writable_pP && *writable_pP) {
+    unsigned long *pixels = (unsigned long *) malloc(sizeof(*pixels) * (ncolors + 1));
+    allocate_writable_colors (screen, cmap, pixels, &ncolors);
+    if (ncolors > 0)
+	  for (i = 0; i < ncolors; i++) colors[i].pixel = pixels[i];
+    free (pixels);
+    if (ncolors > 0) XStoreColors (dpy, cmap, colors, ncolors);
+  } else {
+    for (i = 0; i < ncolors; i++) {
 	  XColor color;
 	  color = colors[i];
-	  if (!XAllocColor (dpy, cmap, &color))
-	    break;
+	  if (!XAllocColor (dpy, cmap, &color)) break;
 	  colors[i].pixel = color.pixel;
 	}
-      ncolors = i;
-    }
+    ncolors = i;
+  }
 
   /* If we tried for writable cells and got none, try for non-writable. */
-  if (allocate_p && ncolors == 0 && writable_pP && *writable_pP)
-    {
-      ncolors = *ncolorsP;
-      *writable_pP = False;
-      goto RETRY_NON_WRITABLE;
-    }
+  if (allocate_p && ncolors == 0 && writable_pP && *writable_pP) {
+    ncolors = *ncolorsP;
+    *writable_pP = False;
+    goto RETRY_NON_WRITABLE;
+  }
 
   if (verbose_p)
-    complain(*ncolorsP, ncolors, wanted_writable,
-	     wanted_writable && *writable_pP);
+    complain(*ncolorsP, ncolors, wanted_writable, wanted_writable && *writable_pP);
 
   *ncolorsP = ncolors;
 }
