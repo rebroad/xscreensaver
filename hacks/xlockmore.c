@@ -438,80 +438,66 @@ xlockmore_init (Display *dpy, Window window,
 
   color.flags = DoRed|DoGreen|DoBlue;
   color.red = color.green = color.blue = 0;
-  if (!XAllocColor(dpy, mi->xgwa.colormap, &color))
-    abort();
+  if (!XAllocColor(dpy, mi->xgwa.colormap, &color)) abort();
   mi->black = color.pixel;
   color.red = color.green = color.blue = 0xFFFF;
-  if (!XAllocColor(dpy, mi->xgwa.colormap, &color))
-    abort();
+  if (!XAllocColor(dpy, mi->xgwa.colormap, &color)) abort();
   mi->white = color.pixel;
 
-  if (mono_p)
-    {
-      static XColor colors[2];
-    MONO:
-      mi->npixels = 2;
-      if (! mi->pixels)
-        mi->pixels = (unsigned long *) 
-          calloc (mi->npixels, sizeof (*mi->pixels));
+  if (mono_p) {
+    static XColor colors[2];
+  MONO:
+    mi->npixels = 2;
+    if (! mi->pixels)
+      mi->pixels = (unsigned long *) calloc (mi->npixels, sizeof (*mi->pixels));
       if (!mi->colors)
-        mi->colors = (XColor *) 
-          calloc (mi->npixels, sizeof (*mi->colors));
+        mi->colors = (XColor *) calloc (mi->npixels, sizeof (*mi->colors));
       colors[0].flags = DoRed|DoGreen|DoBlue;
       colors[1].flags = DoRed|DoGreen|DoBlue;
       colors[0].red = colors[0].green = colors[0].blue = 0;
       colors[1].red = colors[1].green = colors[1].blue = 0xFFFF;
       mi->writable_p = False;
-    }
-  else
-    {
-      mi->npixels = get_integer_resource (dpy, "ncolors", "Integer");
-      if (mi->npixels <= 0)
-	mi->npixels = 64;
-      else if (mi->npixels > MAX_COLORS)
-	mi->npixels = MAX_COLORS;
+  } else {
+    mi->npixels = get_integer_resource (dpy, "ncolors", "Integer");
+    if (mi->npixels <= 0) mi->npixels = 64;
+    else if (mi->npixels > MAX_COLORS) mi->npixels = MAX_COLORS;
 
-      mi->colors = (XColor *) calloc (mi->npixels, sizeof (*mi->colors));
+    mi->colors = (XColor *) calloc (mi->npixels, sizeof (*mi->colors));
 
-      mi->writable_p = mi->xlmft->want_writable_colors;
+    mi->writable_p = mi->xlmft->want_writable_colors;
 
-      switch (mi->xlmft->desired_color_scheme)
-        {
-        case color_scheme_uniform:
-          make_uniform_colormap (mi->xgwa.screen, mi->xgwa.visual,
-                                 mi->xgwa.colormap,
-                                 mi->colors, &mi->npixels,
-                                 True, &mi->writable_p, True);
-          break;
-        case color_scheme_smooth:
-          make_smooth_colormap (mi->xgwa.screen, mi->xgwa.visual,
-                                mi->xgwa.colormap,
-                                mi->colors, &mi->npixels,
+    switch (mi->xlmft->desired_color_scheme) {
+      case color_scheme_uniform:
+        make_uniform_colormap (
+#ifdef USE_SDL
+				  SDL_Color *colors,
+#else
+				  mi->xgwa.screen, mi->xgwa.visual, mi->xgwa.colormap, mi->colors,
+#endif
+				  &mi->npixels, True, &mi->writable_p, True);
+        break;
+      case color_scheme_smooth:
+        make_smooth_colormap (mi->xgwa.screen, mi->xgwa.visual,
+                                mi->xgwa.colormap, mi->colors, &mi->npixels,
                                 True, &mi->writable_p, True);
-          break;
-        case color_scheme_bright:
-        case color_scheme_default:
-          make_random_colormap (mi->xgwa.screen, mi->xgwa.visual,
-                                mi->xgwa.colormap,
-                                mi->colors, &mi->npixels,
+        break;
+      case color_scheme_bright:
+      case color_scheme_default:
+        make_random_colormap (mi->xgwa.screen, mi->xgwa.visual,
+                                mi->xgwa.colormap, mi->colors, &mi->npixels,
                                 (mi->xlmft->desired_color_scheme ==
-                                 color_scheme_bright),
-                                True, &mi->writable_p, True);
-          break;
-        default:
-          abort();
-        }
-
-      if (mi->npixels <= 2)
-	goto MONO;
-      else
-	{
-	  mi->pixels = (unsigned long *)
-	    calloc (mi->npixels, sizeof (*mi->pixels));
-	  for (i = 0; i < mi->npixels; i++)
-	    mi->pixels[i] = mi->colors[i].pixel;
-	}
+                                 color_scheme_bright), True, &mi->writable_p, True);
+        break;
+      default:
+        abort();
     }
+
+    if (mi->npixels <= 2) goto MONO;
+    else {
+	  mi->pixels = (unsigned long *) calloc (mi->npixels, sizeof (*mi->pixels));
+	  for (i = 0; i < mi->npixels; i++) mi->pixels[i] = mi->colors[i].pixel;
+	}
+  }
 
   gcv.foreground = mi->white;
   gcv.background = mi->black;
@@ -541,10 +527,8 @@ xlockmore_init (Display *dpy, Window window,
   mi->fps_p = get_boolean_resource (dpy, "doFPS", "DoFPS");
   mi->recursion_depth = -1;  /* see fps.c */
 
-  if (mi->pause < 0)
-    mi->pause = 0;
-  else if (mi->pause > 100000000)
-    mi->pause = 100000000;
+  if (mi->pause < 0) mi->pause = 0;
+  else if (mi->pause > 100000000) mi->pause = 100000000;
   
   xlockmore_read_resources (mi);
 
@@ -552,9 +536,7 @@ xlockmore_init (Display *dpy, Window window,
 }
 
 
-static void
-xlockmore_clear (ModeInfo *mi)
-{
+static void xlockmore_clear (ModeInfo *mi) {
 # ifndef HAVE_ANDROID
   /* TODO: Clear the window for Xlib hacks on Android. */
   XClearWindow (mi->dpy, mi->window);
@@ -562,9 +544,7 @@ xlockmore_clear (ModeInfo *mi)
 }
 
 
-static void
-xlockmore_do_init (ModeInfo *mi)
-{
+static void xlockmore_do_init (ModeInfo *mi) {
 # ifdef HAVE_JWZGLES
   if (mi->xlmft->jwzgles_make_current && mi->jwzgles_state)
     mi->xlmft->jwzgles_make_current (mi->jwzgles_state);
@@ -578,9 +558,7 @@ xlockmore_do_init (ModeInfo *mi)
 }
 
 
-static void
-xlockmore_abort_erase (ModeInfo *mi)
-{
+static void xlockmore_abort_erase (ModeInfo *mi) {
   if (mi->eraser) {
     eraser_free (mi->eraser);
     mi->eraser = NULL;
@@ -589,9 +567,7 @@ xlockmore_abort_erase (ModeInfo *mi)
 }
 
 
-static void
-xlockmore_check_init (ModeInfo *mi)
-{
+static void xlockmore_check_init (ModeInfo *mi) {
   if (! xlockmore_got_init (mi)) {
     xlockmore_abort_erase (mi);
     xlockmore_do_init (mi);
@@ -599,9 +575,7 @@ xlockmore_check_init (ModeInfo *mi)
 }
 
 
-static unsigned long
-xlockmore_draw (Display *dpy, Window window, void *closure)
-{
+static unsigned long xlockmore_draw (Display *dpy, Window window, void *closure) {
   ModeInfo *mi = (ModeInfo *) closure;
   unsigned long orig_pause = mi->pause;
   unsigned long this_pause;
@@ -625,8 +599,7 @@ xlockmore_draw (Display *dpy, Window window, void *closure)
   }
 
   xlockmore_check_init (mi);
-  if (mi->needs_clear)
-    return 0;
+  if (mi->needs_clear) return 0;
   mi->xlmft->hack_draw (mi);
 
   this_pause = mi->pause;
@@ -637,17 +610,14 @@ xlockmore_draw (Display *dpy, Window window, void *closure)
 
 static void
 xlockmore_reshape (Display *dpy, Window window, void *closure, 
-                 unsigned int w, unsigned int h)
-{
+                 unsigned int w, unsigned int h) {
   ModeInfo *mi = (ModeInfo *) closure;
   if (mi) {
     /* Ignore spurious resize events, because xlockmore_do_init usually clears
-       the screen, and there's no reason to do that if we don't have to.
-     */
+       the screen, and there's no reason to do that if we don't have to.  */
 # ifndef HAVE_MOBILE
     /* These are not spurious on mobile: they are rotations. */
-    if (mi->xgwa.width == w && mi->xgwa.height == h)
-      return;
+    if (mi->xgwa.width == w && mi->xgwa.height == h) return;
 # endif
     mi->xgwa.width = w;
     mi->xgwa.height = h;
@@ -658,8 +628,7 @@ xlockmore_reshape (Display *dpy, Window window, void *closure,
       xlockmore_clear (mi);
     }
 
-    /* If there hasn't been an init yet, init now, but don't call reshape_##.
-     */
+    /* If there hasn't been an init yet, init now, but don't call reshape_##.  */
     if (xlockmore_got_init (mi) && mi->xlmft->hack_reshape) {
       mi->xlmft->hack_reshape (mi, mi->xgwa.width, mi->xgwa.height);
     } else {
@@ -670,8 +639,7 @@ xlockmore_reshape (Display *dpy, Window window, void *closure,
 }
 
 static Bool
-xlockmore_event (Display *dpy, Window window, void *closure, XEvent *event)
-{
+xlockmore_event (Display *dpy, Window window, void *closure, XEvent *event) {
   ModeInfo *mi = (ModeInfo *) closure;
 
 # ifdef HAVE_JWZGLES
@@ -688,8 +656,7 @@ xlockmore_event (Display *dpy, Window window, void *closure, XEvent *event)
     if (screenhack_event_helper (mi->dpy, mi->window, event)) {
       /* If a clear is in progress, don't interrupt or restart it. */
       if (mi->needs_clear) {
-        if (mi->xlmft->hack_free)
-          mi->xlmft->hack_free (mi);
+        if (mi->xlmft->hack_free) mi->xlmft->hack_free (mi);
         mi->xlmft->got_init &= ~(1ul << mi->screen_number);
       } else {
         mi->xlmft->hack_init (mi);
@@ -701,8 +668,7 @@ xlockmore_event (Display *dpy, Window window, void *closure, XEvent *event)
 }
 
 void
-xlockmore_do_fps (Display *dpy, Window w, fps_state *fpst, void *closure)
-{
+xlockmore_do_fps (Display *dpy, Window w, fps_state *fpst, void *closure) {
   ModeInfo *mi = (ModeInfo *) closure;
   fps_compute (fpst, 0, mi ? mi->recursion_depth : -1);
   fps_draw (fpst);
@@ -710,8 +676,7 @@ xlockmore_do_fps (Display *dpy, Window w, fps_state *fpst, void *closure)
 
 
 static void
-xlockmore_free (Display *dpy, Window window, void *closure)
-{
+xlockmore_free (Display *dpy, Window window, void *closure) {
   ModeInfo *mi = (ModeInfo *) closure;
 
 # ifdef HAVE_JWZGLES
@@ -719,14 +684,12 @@ xlockmore_free (Display *dpy, Window window, void *closure)
     mi->xlmft->jwzgles_make_current (mi->jwzgles_state);
 # endif
 
-  if (mi->eraser)
-    eraser_free (mi->eraser);
+  if (mi->eraser) eraser_free (mi->eraser);
 
   /* Some hacks may need to do things with their Display * on cleanup. And
      under JWXYZ, the Display * for this hack gets cleaned up right after
      xlockmore_free returns. Thus, hack_free has to happen now, rather than
-     after the final screen has been released.
-   */
+     after the final screen has been released.  */
   if (mi->xlmft->hack_free && xlockmore_got_init(mi)) {
     mi->xlmft->hack_free (mi);
     mi->xlmft->got_init &= ~(1ul << mi->screen_number);
@@ -735,8 +698,7 @@ xlockmore_free (Display *dpy, Window window, void *closure)
   /* Find us in live_displays and clear that slot. */
   assert (mi->xlmft->live_displays & (1ul << mi->screen_number));
   mi->xlmft->live_displays &= ~(1ul << mi->screen_number);
-  if (!mi->xlmft->live_displays)
-    xlockmore_release_screens (mi);
+  if (!mi->xlmft->live_displays) xlockmore_release_screens (mi);
 
   XFreeGC (dpy, mi->gc);
   free_colors (mi->xgwa.screen, mi->xgwa.colormap, mi->colors, mi->npixels);
@@ -744,8 +706,7 @@ xlockmore_free (Display *dpy, Window window, void *closure)
   free (mi->pixels);
 
 # ifdef HAVE_JWZGLES
-  if (mi->xlmft->jwzgles_free)
-    mi->xlmft->jwzgles_free();
+  if (mi->xlmft->jwzgles_free) mi->xlmft->jwzgles_free();
 # endif /* HAVE_JWZGLES */
 
   free (mi);
@@ -753,16 +714,13 @@ xlockmore_free (Display *dpy, Window window, void *closure)
 
 
 void
-xlockmore_mi_init (ModeInfo *mi, size_t state_size, void **state_array)
-{
+xlockmore_mi_init (ModeInfo *mi, size_t state_size, void **state_array) {
   struct xlockmore_function_table *xlmft = mi->xlmft;
 
   /* Steal the state_array for safe keeping.
      Only necessary when the screenhack isn't a once per process deal.
-     (i.e. macOS, iOS, Android)
-   */
-  assert ((!xlmft->state_array && !*state_array) ||
-          xlmft->state_array == state_array);
+     (i.e. macOS, iOS, Android) */
+  assert ((!xlmft->state_array && !*state_array) || xlmft->state_array == state_array);
   xlmft->state_array = state_array;
 
   if (!*xlmft->state_array) {
@@ -789,8 +747,6 @@ xlockmore_mi_init (ModeInfo *mi, size_t state_size, void **state_array)
 }
 
 
-Bool
-xlockmore_no_events (ModeInfo *mi, XEvent *event)
-{
+Bool xlockmore_no_events (ModeInfo *mi, XEvent *event) {
   return False;
 }

@@ -437,9 +437,7 @@ static void make_color_path (Screen *screen, Visual *visual, Colormap cmap,
 
 
 void make_color_loop (
-#ifdef USE_SDL
-		SDL_Surface *surface,
-#else
+#ifndef USE_SDL
 		Screen *screen, Visual *visual, Colormap cmap,
 #endif
 		 int h0, double s0, double v0,   /* 0-360, 0-1.0, 0-1.0 */
@@ -560,7 +558,7 @@ void make_smooth_colormap (
 
 void make_uniform_colormap (
 #ifdef USE_SDL
-	           SDL_Surface *surface, SDL_Color *colors,
+	           SDL_Color *colors,
 #else
 	           Screen *screen, Visual *visual, Colormap cmap, XColor *colors,
 #endif
