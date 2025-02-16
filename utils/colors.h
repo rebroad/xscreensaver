@@ -18,8 +18,8 @@
 
 /* Like XFreeColors, but works on `XColor *' instead of `unsigned long *'
  */
+#ifndef USE_SDL
 extern void free_colors (Screen *, Colormap, XColor *, int ncolors);
-
 
 /* Allocates writable, non-contiguous color cells.  The number requested is
    passed in *ncolorsP, and the number actually allocated is returned there.
@@ -29,6 +29,7 @@ extern void free_colors (Screen *, Colormap, XColor *, int ncolors);
 extern void allocate_writable_colors (Screen *, Colormap,
 				      unsigned long *pixels, int *ncolorsP);
 
+#endif
 
 /* Generates a sequence of colors evenly spaced between the given pair
    of HSV coordinates.
@@ -152,19 +153,22 @@ extern void make_uniform_colormap (
 
    If allocate_p is false, screen, visual and cmap are unused (OpenGL usage).
  */
+#ifndef USE_SDL
 extern void make_random_colormap (Screen *, Visual *, Colormap,
 				  XColor *colors, int *ncolorsP,
 				  Bool bright_p,
 				  Bool allocate_p,
 				  Bool *writable_pP,
 				  Bool verbose_p);
-
+#endif
 
 /* Assuming that the array of colors indicates the current state of a set
    of writable color cells, this rotates the contents of the array by
    `distance' steps, moving the colors of cell N to cell (N - distance).
  */
+#ifndef USE_SDL
 extern void rotate_colors (Screen *, Colormap,
 			   XColor *, int ncolors, int distance);
+#endif
 
 #endif /* __COLORS_H__ */
