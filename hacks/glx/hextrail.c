@@ -93,14 +93,7 @@ static Bool do_glow;
 static Bool do_neon;
 static GLfloat thickness;
 
-#ifdef USE_SDL
-#define XrmoptionNoArg 0
-#define XrmoptionSepArg 1
-
-static SDLOptionDescRec opts[] = {
-#else
 static XrmOptionDescRec opts[] = {
-#endif
   { "-spin",   ".spin",   XrmoptionNoArg, "True" },
   { "+spin",   ".spin",   XrmoptionNoArg, "False" },
   { "-speed",  ".speed",  XrmoptionSepArg, 0 },
