@@ -87,9 +87,7 @@ complain (int wanted_colors, int got_colors,
 
 
 void make_color_ramp (
-#ifdef USE_SDL
-         SDL_Surface *surface,
-#else
+#ifndef USE_SDL
          Screen *screen, Visual *visual, Colormap cmap,
 #endif
 		 int h1, double s1, double v1,   /* 0-360, 0-1.0, 0-1.0 */
@@ -100,9 +98,7 @@ void make_color_ramp (
 		 XColor *colors,
 #endif
 		 int *ncolorsP, Bool closed_p, Bool allocate_p, Bool *writable_pP) {
-#ifdef USE_SDL
-  if (!surface || !ncolorsP || !colors) return;
-#else
+#ifndef USE_SDL
   Display *dpy = screen ? DisplayOfScreen (screen) : 0;
   Bool verbose_p = True;  /* argh. */
   Bool wanted_writable = (allocate_p && writable_pP && *writable_pP);
@@ -217,7 +213,7 @@ void make_color_ramp (
 #define MAXPOINTS 50	/* yeah, so I'm lazy */
 
 #ifdef USE_SDL
-static void make_color_path (SDL_Surface *surface,
+static void make_color_path (
 #else
 static void make_color_path (Screen *screen, Visual *visual, Colormap cmap,
 #endif
@@ -244,7 +240,7 @@ static void make_color_path (Screen *screen, Visual *visual, Colormap cmap,
       return;
   } else if (npoints == 2) { /* using make_color_ramp() will be faster */
 #ifdef USE_SDL
-      make_color_ramp (surface,
+      make_color_ramp (
 #else
       make_color_ramp (screen, visual, cmap,
 #endif
@@ -478,7 +474,7 @@ void make_color_loop (
 #endif
 
 #ifdef USE_SDL
-  make_color_path (surface,
+  make_color_path (
 #else
   make_color_path (screen, visual, cmap,
 #endif
@@ -487,7 +483,7 @@ void make_color_loop (
 
 void make_smooth_colormap (
 #ifdef USE_SDL
-              SDL_Surface *surface, SDL_Color *colors,
+              SDL_Color *colors,
 #else
               Screen *screen, Visual *visual, Colormap cmap, XColor *colors,
 #endif
@@ -552,7 +548,7 @@ void make_smooth_colormap (
 
  RETRY_NON_WRITABLE:
 #ifdef USE_SDL
-  make_color_path (surface,
+  make_color_path (
 #else
   make_color_path (screen, visual, cmap,
 #endif
@@ -593,7 +589,7 @@ void make_uniform_colormap (
 
  RETRY_NON_WRITABLE:
 #ifdef USE_SDL
-  make_color_ramp(surface,
+  make_color_ramp(
 #else
   make_color_ramp(screen, visual, cmap,
 #endif

@@ -46,7 +46,7 @@ extern void allocate_writable_colors (Screen *, Colormap,
    If allocate_p is false, screen and cmap are unused (OpenGL usage).
  */
 #ifdef USE_SDL
-extern void make_color_ramp (SDL_Surface *surface,
+extern void make_color_ramp (
 #else
 extern void make_color_ramp (Screen *, Visual *, Colormap,
 #endif
@@ -107,7 +107,7 @@ extern void make_color_loop (Screen *, Visual *, Colormap,
  */
 extern void make_smooth_colormap(
 #ifdef USE_SDL
-                  SDL_Surface *, SDL_Color *,
+                  SDL_Color *,
 #else
                   Screen *, Visual *, Colormap, XColor *,
 #endif
