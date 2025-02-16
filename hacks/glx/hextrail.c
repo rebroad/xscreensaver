@@ -839,28 +839,22 @@ ENTRYPOINT Bool hextrail_handle_event(ModeInfo *mi, SDL_Event *event) {
 ENTRYPOINT Bool hextrail_handle_event (ModeInfo *mi, XEvent *event) {
   hextrail_configuration *bp = &bps[MI_SCREEN(mi)];
   if (gltrackball_event_handler (event, bp->trackball,
-                                 MI_WIDTH (mi), MI_HEIGHT (mi),
-                                 &bp->button_down_p))
-    return True;
-  else if (event->xany.type == KeyPress)
-    {
-      KeySym keysym;
-      char c = 0;
-      XLookupString (&event->xkey, &c, 1, &keysym, 0);
+			  MI_WIDTH (mi), MI_HEIGHT (mi), &bp->button_down_p)) return True;
+  else if (event->xany.type == KeyPress) {
+    KeySym keysym;
+    char c = 0;
+    XLookupString (&event->xkey, &c, 1, &keysym, 0);
 
-      if (c == ' ' || c == '\t' || c == '\r' || c == '\n')
-        ;
-      else if (c == '>' || c == '.' || c == '+' || c == '=' ||
+    if (c == ' ' || c == '\t' || c == '\r' || c == '\n') ;
+    else if (c == '>' || c == '.' || c == '+' || c == '=' ||
                keysym == XK_Right || keysym == XK_Up || keysym == XK_Next)
-        MI_COUNT(mi)++;
-      else if (c == '<' || c == ',' || c == '-' || c == '_' ||
+      MI_COUNT(mi)++;
+    else if (c == '<' || c == ',' || c == '-' || c == '_' ||
                c == '\010' || c == '\177' ||
                keysym == XK_Left || keysym == XK_Down || keysym == XK_Prior)
-        MI_COUNT(mi)--;
-      else if (screenhack_event_helper (MI_DISPLAY(mi), MI_WINDOW(mi), event))
-        ;
-      else
-        return False;
+      MI_COUNT(mi)--;
+    else if (screenhack_event_helper (MI_DISPLAY(mi), MI_WINDOW(mi), event)) ;
+    else return False;
 
     RESET:
       reset_hextrail(mi);
