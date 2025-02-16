@@ -21,8 +21,8 @@
 
 extern char *progname;
 
-void free_colors (Screen *screen, Colormap cmap, XColor *colors, int ncolors) {
 #ifndef USE_SDL
+void free_colors (Screen *screen, Colormap cmap, XColor *colors, int ncolors) {
   Display *dpy = screen ? DisplayOfScreen (screen) : 0;
   int i;
   if (ncolors > 0) {
@@ -31,7 +31,6 @@ void free_colors (Screen *screen, Colormap cmap, XColor *colors, int ncolors) {
     XFreeColors (dpy, cmap, pixels, ncolors, 0L);
     free(pixels);
   }
-#endif
 }
 
 
@@ -44,33 +43,27 @@ void allocate_writable_colors (Screen *screen, Colormap cmap,
   unsigned long *new_pixels = pixels;
 
   *ncolorsP = 0;
-  while (got < desired
-	 && requested > 0)
-    {
-      if (desired - got < requested)
-	requested = desired - got;
+  while (got < desired && requested > 0) {
+    if (desired - got < requested) requested = desired - got;
 
-      if (XAllocColorCells (dpy, cmap, False, 0, 0, new_pixels, requested)) {
-	    /* Got all the pixels we asked for. */
-	    new_pixels += requested;
-	    got += requested;
-      } else {
-	    /* We didn't get all/any of the pixels we asked for.  This time, ask
-	       for half as many.  (If we do get all that we ask for, we ask for
-	       the same number again next time, so we only do O(log(n)) server
-	       roundtrips.)
-	    */
-	    requested = requested / 2;
-	  }
-    }
+    if (XAllocColorCells (dpy, cmap, False, 0, 0, new_pixels, requested)) {
+      /* Got all the pixels we asked for. */
+      new_pixels += requested;
+      got += requested;
+    } else {
+	  /* We didn't get all/any of the pixels we asked for.  This time, ask
+	     for half as many.  (If we do get all that we ask for, we ask for
+	     the same number again next time, so we only do O(log(n)) server
+	     roundtrips.) */
+	  requested = requested / 2;
+	}
+  }
   *ncolorsP += got;
 }
+#endif
 
-
-static void
-complain (int wanted_colors, int got_colors,
-	  Bool wanted_writable, Bool got_writable)
-{
+static void complain (int wanted_colors, int got_colors,
+	  Bool wanted_writable, Bool got_writable) {
   if (got_colors > wanted_colors - 10)
     /* don't bother complaining if we're within ten pixels. */
     return;
@@ -611,7 +604,7 @@ void make_uniform_colormap (
   *ncolorsP = ncolors;
 }
 
-
+#ifndef USE_SDL
 void make_random_colormap (Screen *screen, Visual *visual, Colormap cmap,
 		      XColor *colors, int *ncolorsP,
 		      Bool bright_p,
@@ -688,11 +681,8 @@ void make_random_colormap (Screen *screen, Visual *visual, Colormap cmap,
   *ncolorsP = ncolors;
 }
 
-
-void
-rotate_colors (Screen *screen, Colormap cmap,
-	       XColor *colors, int ncolors, int distance)
-{
+void rotate_colors (Screen *screen, Colormap cmap,
+	       XColor *colors, int ncolors, int distance) {
   Display *dpy = screen ? DisplayOfScreen (screen) : 0;
   int i;
   XColor *colors2;
@@ -708,9 +698,8 @@ rotate_colors (Screen *screen, Colormap cmap,
       colors2[i].pixel = colors[i].pixel;
     }
   XStoreColors (dpy, cmap, colors2, ncolors);
-#ifndef USE_SDL
   XFlush(dpy);
-#endif
   memcpy(colors, colors2, sizeof(*colors) * ncolors);
   free(colors2);
 }
+#endif
