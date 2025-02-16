@@ -73,10 +73,12 @@
 # include "jwxyz.h"
 # include <string.h> /* X11/Xos.h brings this in. */
 #else  /* real X11 */
+#ifndef USE_SDL
 # include <X11/Xlib.h>
 # include <X11/Xutil.h>
 # include <X11/Xresource.h>
 # include <X11/Xos.h>
+#endif
 #endif /* !HAVE_JWXYZ */
 
 #ifdef HAVE_JWXYZ
