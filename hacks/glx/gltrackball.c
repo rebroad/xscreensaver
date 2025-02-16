@@ -249,26 +249,43 @@ Bool gltrackball_event_handler (
         XEvent *event,
 #endif
         trackball_state *ts, int window_width, int window_height, Bool *button_down_p) {
+#ifdef USE_SDL
+  if (event->type == SDL_EVENT_MOUSE_BUTTON_DOWN && event->button.button == SDL_BUTTON_LEFT) {
+#else
   if (event->xany.type == ButtonPress && event->xbutton.button == Button1) {
+#endif
     *button_down_p = True;
     gltrackball_start (ts, event->xbutton.x, event->xbutton.y,
                          window_width, window_height);
     return True;
+#ifdef USE_SDL
+  } else if (event->type == SDL_EVENT_MOUSE_BUTTON_UP && event->button.button == SDL_BUTTON_LEFT) {
+#else
   } else if (event->xany.type == ButtonRelease && event->xbutton.button == Button1) {
+#endif
     *button_down_p = False;
     gltrackball_stop (ts);
     return True;
+#ifdef USE_SDL
+  } else if (event->type == SDL_EVENT_MOUSE_BUTTON_DOWN &&
+		  (event->button.button == SDL_BUTTON_MIDDLE ||
+		   event->button.button == SDL_BUTTON_RIGHT)) {
+	gltrackball_track(ts, event->motion.x, event->motion.y, window_width, window_height);
+#else
   } else if (event->xany.type == ButtonPress && (event->xbutton.button == Button4 ||
             event->xbutton.button == Button5 || event->xbutton.button == Button6 ||
-            event->xbutton.button == Button7))
-  {
+            event->xbutton.button == Button7)) {
     gltrackball_mousewheel (ts, event->xbutton.button, 1, !!event->xbutton.state);
+#endif
     return True;
-  } else if (event->xany.type == MotionNotify && *button_down_p) {
+  }
+#ifndef USE_SDL
+  else if (event->xany.type == MotionNotify && *button_down_p) {
     gltrackball_track (ts, event->xmotion.x, event->xmotion.y,
                          window_width, window_height);
     return True;
   }
+#endif
 
   return False;
 }
