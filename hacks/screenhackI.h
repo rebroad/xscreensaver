@@ -195,11 +195,24 @@
 
 extern Bool mono_p;
 
+#ifdef USE_SDL
+typedef struct {
+    const char *option;     // Command line option
+    const char *resource;   // Resource name                                                                         
+    int arg_type;          // 0 = no arg, 1 = requires arg
+    const char *value;     // Default value
+} SDLOptionDescRec;
+#endif
+
 struct xscreensaver_function_table {
 
   const char *progclass;
   const char * const *defaults;
+#ifdef USE_SDL
+  const SDLOptionDescRec *options;
+#else
   const XrmOptionDescRec *options;
+#endif
 
   void           (*setup_cb)   (struct xscreensaver_function_table *, void *);
   void *         setup_arg;

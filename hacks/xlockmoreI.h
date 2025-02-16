@@ -143,15 +143,6 @@ typedef struct {
   char *desc;
 } OptionStruct;
 
-#ifdef USE_SDL
-typedef struct {
-    const char *option;     // Command line option
-    const char *resource;   // Resource name
-    int arg_type;          // 0 = no arg, 1 = requires arg
-    const char *value;     // Default value
-} SDLOptionDescRec;
-#endif
-
 typedef struct {
   int numopts;
 #ifdef USE_SDL
