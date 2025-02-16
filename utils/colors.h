@@ -107,7 +107,7 @@ extern void make_color_loop (Screen *, Visual *, Colormap,
  */
 extern void make_smooth_colormap(
 #ifdef USE_SDL
-                  SDL_Surface *, SDL_Color *,
+                  SDL_Color *,
 #else
                   Screen *, Visual *, Colormap, XColor *,
 #endif

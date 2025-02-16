@@ -487,7 +487,7 @@ void make_color_loop (
 
 void make_smooth_colormap (
 #ifdef USE_SDL
-              SDL_Surface *surface, SDL_Color *colors,
+              SDL_Color *colors,
 #else
               Screen *screen, Visual *visual, Colormap cmap, XColor *colors,
 #endif
