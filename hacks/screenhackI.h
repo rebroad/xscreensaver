@@ -61,6 +61,7 @@
 #include <stdlib.h>
 #include <math.h>
 #include <time.h>
+#include <SDL3/SDL.h>
 
 #ifdef __hpux
  /* Which of the ten billion standards does values.h belong to?
