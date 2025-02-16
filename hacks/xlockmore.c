@@ -34,18 +34,20 @@ extern const char *progclass;
 
 extern struct xlockmore_function_table xlockmore_function_table;
 
-static void *xlockmore_init (Display *, Window, 
-                             struct xlockmore_function_table *);
+static void *xlockmore_init (Display *, Window, struct xlockmore_function_table *);
 static unsigned long xlockmore_draw (Display *, Window, void *);
-static void xlockmore_reshape (Display *, Window, void *, 
-                               unsigned int w, unsigned int h);
-static Bool xlockmore_event (Display *, Window, void *, XEvent *);
+static void xlockmore_reshape (Display *, Window, void *, unsigned int w, unsigned int h);
+static Bool xlockmore_event (Display *, Window, void *,
+#ifdef USE_SDL
+        SDL_Event *
+#else
+        XEvent *
+#endif
+		);
 static void xlockmore_free (Display *, Window, void *);
 
 
-void
-xlockmore_setup (struct xscreensaver_function_table *xsft, void *arg)
-{
+void xlockmore_setup (struct xscreensaver_function_table *xsft, void *arg) {
   struct xlockmore_function_table *xlmft = 
     (struct xlockmore_function_table *) arg;
   int i, j;
@@ -589,7 +591,13 @@ static void xlockmore_reshape (Display *dpy, Window window, void *closure,
   }
 }
 
-static Bool xlockmore_event (Display *dpy, Window window, void *closure, XEvent *event) {
+static Bool xlockmore_event (Display *dpy, Window window, void *closure,
+#ifdef USE_SDL
+		SDL_Event *event
+#else
+		XEvent *event
+#endif
+		) {
   ModeInfo *mi = (ModeInfo *) closure;
 
 # ifdef HAVE_JWZGLES

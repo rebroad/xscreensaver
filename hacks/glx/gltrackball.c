@@ -242,9 +242,13 @@ void gltrackball_get_quaternion (trackball_state *ts, float q[4]) {
 /* A utility function for event-handler functions:
    Handles the various motion and click events related to trackballs.
    Returns True if the event was handled.  */
-Bool gltrackball_event_handler (XEvent *event,
-                           trackball_state *ts, int window_width, int window_height,
-                           Bool *button_down_p) {
+Bool gltrackball_event_handler (
+#ifdef USE_SDL
+        SDL_Event *event,
+#else
+        XEvent *event,
+#endif
+        trackball_state *ts, int window_width, int window_height, Bool *button_down_p) {
   if (event->xany.type == ButtonPress && event->xbutton.button == Button1) {
     *button_down_p = True;
     gltrackball_start (ts, event->xbutton.x, event->xbutton.y,
