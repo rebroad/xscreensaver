@@ -105,15 +105,13 @@ extern void make_color_loop (Screen *, Visual *, Colormap,
 
    If allocate_p is false, screen, visual and cmap are unused (OpenGL usage).
  */
+extern void make_smooth_colormap(
 #ifdef USE_SDL
-extern void make_smooth_colormap(SDL_Color *colors, int *ncolors);
+                  SDL_Surface *, SDL_Color *,
 #else
-extern void make_smooth_colormap (Screen *, Visual *, Colormap,
-				  XColor *colors, int *ncolorsP,
-				  Bool allocate_p,
-				  Bool *writable_pP,
-				  Bool verbose_p);
+                  Screen *, Visual *, Colormap, XColor *,
 #endif
+				  int *, Bool, Bool *, Bool);
 
 /* Allocates a uniform colormap which touches each hue of the spectrum,
    evenly spaced.  The saturation and intensity are chosen randomly, but
@@ -131,11 +129,13 @@ extern void make_smooth_colormap (Screen *, Visual *, Colormap,
 
    If allocate_p is false, screen, visual and cmap are unused (OpenGL usage).
  */
-extern void make_uniform_colormap (Screen *, Visual *, Colormap,
-				   XColor *colors, int *ncolorsP,
-				   Bool allocate_p,
-				   Bool *writable_pP,
-				   Bool verbose_p);
+extern void make_uniform_colormap (
+#ifdef USE_SDL
+                   SDL_Surface *, SDL_Color *,
+#else
+		           Screen *, Visual *, Colormap, XColor *,
+#endif
+				   int *, Bool, Bool *, Bool);
 
 /* Allocates a random colormap (the colors are unrelated to one another.)
    If `bright_p' is false, the colors will be completely random; if it is

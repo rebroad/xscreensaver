@@ -86,10 +86,11 @@ complain (int wanted_colors, int got_colors,
 }
 
 
+void make_color_ramp (
 #ifdef USE_SDL
-void make_color_ramp (SDL_Surface *surface,
+         SDL_Surface *surface,
 #else
-void make_color_ramp (Screen *screen, Visual *visual, Colormap cmap,
+         Screen *screen, Visual *visual, Colormap cmap,
 #endif
 		 int h1, double s1, double v1,   /* 0-360, 0-1.0, 0-1.0 */
 		 int h2, double s2, double v2,   /* 0-360, 0-1.0, 0-1.0 */
@@ -596,11 +597,14 @@ void make_smooth_colormap (
   *ncolorsP = ncolors;
 }
 
-void make_uniform_colormap (Screen *screen, Visual *visual, Colormap cmap,
-		       XColor *colors, int *ncolorsP,
-		       Bool allocate_p,
-		       Bool *writable_pP,
-		       Bool verbose_p) {
+void make_uniform_colormap (
+#ifdef USE_SDL
+	           SDL_Surface *surface, SDL_Color *colors,
+#else
+	           Screen *screen, Visual *visual, Colormap cmap, XColor *colors,
+#endif
+		       int *ncolorsP, Bool allocate_p,
+		       Bool *writable_pP, Bool verbose_p) {
   int ncolors = *ncolorsP;
   Bool wanted_writable = (allocate_p && writable_pP && *writable_pP);
 
@@ -609,16 +613,20 @@ void make_uniform_colormap (Screen *screen, Visual *visual, Colormap cmap,
 
   if (*ncolorsP <= 0) return;
 
+#ifndef USE_SDL
   /* If this visual doesn't support writable cells, don't bother trying. */
   if (wanted_writable && !has_writable_cells(screen, visual))
     *writable_pP = False;
+#endif
 
  RETRY_NON_WRITABLE:
+#ifdef USE_SDL
+  make_color_ramp(surface,
+#else
   make_color_ramp(screen, visual, cmap,
-		  0,   S, V,
-		  359, S, V,
-		  colors, &ncolors,
-		  False, allocate_p, writable_pP);
+#endif
+		  0,   S, V, 359, S, V,
+		  colors, &ncolors, False, allocate_p, writable_pP);
 
   /* If we tried for writable cells and got none, try for non-writable. */
   if (allocate_p && *ncolorsP == 0 && writable_pP && *writable_pP)
