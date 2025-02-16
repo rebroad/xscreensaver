@@ -145,11 +145,7 @@ typedef struct {
 
 typedef struct {
   int numopts;
-#ifdef USE_SDL
-  SDLOptionDescRec *opts;
-#else
   XrmOptionDescRec *opts;
-#endif
   int numvarsdesc;
   argtype *vars;
   OptionStruct *desc;
