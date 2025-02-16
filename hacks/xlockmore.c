@@ -71,46 +71,40 @@ xlockmore_setup (struct xscreensaver_function_table *xsft, void *arg)
      screenhack.c expects.
 
      Some of the strings in here are leaked at exit, but since this code
-     only runs on X11, that doesn't matter.
-   */
+     only runs on X11, that doesn't matter.  */
   new_options = (XrmOptionDescRec *) 
     calloc (xlockmore_opts->numopts*3 + 100, sizeof (*new_options));
 
-  for (i = 0; i < xlockmore_opts->numopts; i++)
-    {
-      XrmOptionDescRec *old = &xlockmore_opts->opts[i];
-      XrmOptionDescRec *new = &new_options[i];
+  for (i = 0; i < xlockmore_opts->numopts; i++) {
+    XrmOptionDescRec *old = &xlockmore_opts->opts[i];
+    XrmOptionDescRec *new = &new_options[i];
 
-      if (old->option[0] == '-')
-	new->option = old->option;
-      else
-	{
+    if (old->option[0] == '-') new->option = old->option;
+    else {
 	  /* Convert "+foo" to "-no-foo". */
 	  new->option = (char *) malloc (strlen(old->option) + 5);
 	  strcpy (new->option, "-no-");
 	  strcat (new->option, old->option + 1);
 	}
 
-      new->specifier = strrchr (old->specifier, '.');
-      if (!new->specifier) abort();
+    new->specifier = strrchr (old->specifier, '.');
+    if (!new->specifier) abort();
 
-      new->argKind = old->argKind;
-      new->value = old->value;
-    }
+    new->argKind = old->argKind;
+    new->value = old->value;
+  }
 
   /* Add extra args, if they're mentioned in the defaults... */
   {
     char *args[] = { "-count", "-cycles", "-delay", "-ncolors",
 		     "-size", "-font", "-wireframe", "-use3d", "-useSHM" };
     for (j = 0; j < countof(args); j++)
-      if (strstr(xlockmore_defaults, args[j]+1))
-	{
-	  XrmOptionDescRec *new = &new_options[i++];
-	  new->option = args[j];
-	  new->specifier = strdup(args[j]);
-	  new->specifier[0] = '.';
-	  if (!strcmp(new->option, "-wireframe"))
-	    {
+      if (strstr(xlockmore_defaults, args[j]+1)) {
+	    XrmOptionDescRec *new = &new_options[i++];
+	    new->option = args[j];
+	    new->specifier = strdup(args[j]);
+	    new->specifier[0] = '.';
+	    if (!strcmp(new->option, "-wireframe")) {
 	      new->argKind = XrmoptionNoArg;
 	      new->value = "True";
 	      new = &new_options[i++];
@@ -118,9 +112,7 @@ xlockmore_setup (struct xscreensaver_function_table *xsft, void *arg)
 	      new->specifier = new_options[i-2].specifier;
 	      new->argKind = XrmoptionNoArg;
 	      new->value = "False";
-	    }
-	  else if (!strcmp(new->option, "-use3d"))
-	    {
+	    } else if (!strcmp(new->option, "-use3d")) {
 	      new->option = "-3d";
 	      new->argKind = XrmoptionNoArg;
 	      new->value = "True";
@@ -129,9 +121,7 @@ xlockmore_setup (struct xscreensaver_function_table *xsft, void *arg)
 	      new->specifier = new_options[i-2].specifier;
 	      new->argKind = XrmoptionNoArg;
 	      new->value = "False";
-	    }
-	  else if (!strcmp(new->option, "-useSHM"))
-	    {
+	    } else if (!strcmp(new->option, "-useSHM")) {
 	      new->option = "-shm";
 	      new->argKind = XrmoptionNoArg;
 	      new->value = "True";
@@ -140,20 +130,16 @@ xlockmore_setup (struct xscreensaver_function_table *xsft, void *arg)
 	      new->specifier = new_options[i-2].specifier;
 	      new->argKind = XrmoptionNoArg;
 	      new->value = "False";
-	    }
-	  else
-	    {
+	    } else {
 	      new->argKind = XrmoptionSepArg;
 	      new->value = 0;
 	    }
-	}
+	  }
   }
 
 
-
   /* Construct the kind of `defaults' that screenhack.c expects from
-     the xlockmore `vars[]' argument.
-   */
+     the xlockmore `vars[]' argument.  */
   i = 0;
 
   new_defaults = (char **) calloc (1, xlockmore_opts->numvarsdesc * 10 + 1000);
@@ -177,59 +163,49 @@ xlockmore_setup (struct xscreensaver_function_table *xsft, void *arg)
 
   /* Copy the lines out of the `xlockmore_defaults' var and into this array. */
   s = strdup (xlockmore_defaults);
-  while (s && *s)
-    {
-      new_defaults [i++] = s;
-      s = strchr(s, '\n');
-      if (s)
-	*s++ = 0;
-    }
+  while (s && *s) {
+    new_defaults [i++] = s;
+    s = strchr(s, '\n');
+    if (s) *s++ = 0;
+  }
 
   /* Copy the defaults out of the `xlockmore_opts->' variable. */
-  for (j = 0; j < xlockmore_opts->numvarsdesc; j++)
+  for (j = 0; j < xlockmore_opts->numvarsdesc; j++) {
+    const char *def = xlockmore_opts->vars[j].def;
+
+    if (!def) abort();
+    if (!*def) abort();
+    if (strlen(def) > 1000) abort();
+
+    s = (char *) malloc (strlen (xlockmore_opts->vars[j].name) + strlen (def) + 10);
+    strcpy (s, "*");
+    strcat (s, xlockmore_opts->vars[j].name);
+    strcat (s, ": ");
+    strcat (s, def);
+    new_defaults [i++] = s;
+
+    /* Go through the list of resources and print a warning if there are any duplicates.  */
     {
-      const char *def = xlockmore_opts->vars[j].def;
-
-      if (!def) abort();
-      if (!*def) abort();
-      if (strlen(def) > 1000) abort();
-
-      s = (char *) malloc (strlen (xlockmore_opts->vars[j].name) +
-			   strlen (def) + 10);
-      strcpy (s, "*");
-      strcat (s, xlockmore_opts->vars[j].name);
-      strcat (s, ": ");
-      strcat (s, def);
-      new_defaults [i++] = s;
-
-      /* Go through the list of resources and print a warning if there
-         are any duplicates.
-       */
-      {
-        char *onew = strdup (xlockmore_opts->vars[j].name);
-        const char *new = onew;
-        int k;
-        if ((s = strrchr (new, '.'))) new = s+1;
-        if ((s = strrchr (new, '*'))) new = s+1;
-        for (k = 0; k < i-1; k++)
-          {
-            char *oold = strdup (new_defaults[k]);
-            const char *old = oold;
-            if ((s = strchr (oold, ':'))) *s = 0;
-            if ((s = strrchr (old, '.'))) old = s+1;
-            if ((s = strrchr (old, '*'))) old = s+1;
-            if (!strcasecmp (old, new))
-              {
-                fprintf (stderr,
-                         "%s: duplicate resource \"%s\": "
-                         "set in both DEFAULTS and vars[]\n",
-                         progname, old);
-              }
-            free (oold);
-          }
-        free (onew);
+      char *onew = strdup (xlockmore_opts->vars[j].name);
+      const char *new = onew;
+      int k;
+      if ((s = strrchr (new, '.'))) new = s+1;
+      if ((s = strrchr (new, '*'))) new = s+1;
+      for (k = 0; k < i-1; k++) {
+        char *oold = strdup (new_defaults[k]);
+        const char *old = oold;
+        if ((s = strchr (oold, ':'))) *s = 0;
+        if ((s = strrchr (old, '.'))) old = s+1;
+        if ((s = strrchr (old, '*'))) old = s+1;
+        if (!strcasecmp (old, new)) {
+          fprintf (stderr, "%s: duplicate resource \"%s\": "
+                         "set in both DEFAULTS and vars[]\n", progname, old);
+        }
+        free (oold);
       }
+      free (onew);
     }
+  }
 
   new_defaults [i] = 0;
 
@@ -239,14 +215,11 @@ xlockmore_setup (struct xscreensaver_function_table *xsft, void *arg)
 }
 
 
-static void
-xlockmore_release_screens (ModeInfo *mi)
-{
+static void xlockmore_release_screens (ModeInfo *mi) {
   struct xlockmore_function_table *xlmft = mi->xlmft;
 
   /* 2. Call release_##, if it exists. */
-  if (xlmft->hack_release)
-    xlmft->hack_release (mi);
+  if (xlmft->hack_release) xlmft->hack_release (mi);
 
   /* 3. Free the state array. */
   if (xlmft->state_array) {
@@ -261,29 +234,23 @@ xlockmore_release_screens (ModeInfo *mi)
 }
 
 
-static Bool
-xlockmore_got_init (ModeInfo *mi)
-{
+static Bool xlockmore_got_init (ModeInfo *mi) {
   return mi->xlmft->got_init & (1ul << mi->screen_number);
 }
 
 
-static void
-xlockmore_free_screens (ModeInfo *mi)
-{
+static void xlockmore_free_screens (ModeInfo *mi) {
   struct xlockmore_function_table *xlmft = mi->xlmft;
 
   /* Optimization: xlockmore_read_resources calls this lots on first start. */
-  if (!xlmft->got_init)
-    return;
+  if (!xlmft->got_init) return;
 
   /* Order is important here: */
 
   /* 1. Call free_## for all screens. */
   if (xlmft->hack_free) {
     int old_screen = mi->screen_number;
-    for (mi->screen_number = 0; mi->screen_number < XLOCKMORE_NUM_SCREENS;
-         ++mi->screen_number) {
+    for (mi->screen_number = 0; mi->screen_number < XLOCKMORE_NUM_SCREENS; ++mi->screen_number) {
       if (xlockmore_got_init(mi))
         xlmft->hack_free (mi); /* got_init is reset in xlockmore_release_screens. */
     }
@@ -294,71 +261,62 @@ xlockmore_free_screens (ModeInfo *mi)
 }
 
 
-static void
-xlockmore_read_resources (ModeInfo *mi)
-{
+static void xlockmore_read_resources (ModeInfo *mi) {
   Display *dpy = mi->dpy;
   ModeSpecOpt *xlockmore_opts = mi->xlmft->opts;
   int i;
-  for (i = 0; i < xlockmore_opts->numvarsdesc; i++)
-    {
-      void  *var   = xlockmore_opts->vars[i].var;
-      Bool  *var_b = (Bool *)  var;
-      char **var_c = (char **) var;
-      int   *var_i = (int *) var;
-      float *var_f = (float *) var;
+  for (i = 0; i < xlockmore_opts->numvarsdesc; i++) {
+    void  *var   = xlockmore_opts->vars[i].var;
+    Bool  *var_b = (Bool *)  var;
+    char **var_c = (char **) var;
+    int   *var_i = (int *) var;
+    float *var_f = (float *) var;
 
-      /* If any of the options changed, stop this hack's other instances. */
-      switch (xlockmore_opts->vars[i].type)
-        {
-        case t_String:
-          {
-            char *c = get_string_resource (dpy, xlockmore_opts->vars[i].name,
+    /* If any of the options changed, stop this hack's other instances. */
+    switch (xlockmore_opts->vars[i].type) {
+      case t_String: {
+          char *c = get_string_resource (dpy, xlockmore_opts->vars[i].name,
                                            xlockmore_opts->vars[i].classname);
-            if ((!c && !*var_c) || (c && *var_c && !strcmp(c, *var_c))) {
-              free (c);
-            } else {
-              xlockmore_free_screens (mi);
-              if (*var_c) free (*var_c);
-              *var_c = c;
-            }
+          if ((!c && !*var_c) || (c && *var_c && !strcmp(c, *var_c))) {
+            free (c);
+          } else {
+            xlockmore_free_screens (mi);
+            if (*var_c) free (*var_c);
+            *var_c = c;
           }
-          break;
-        case t_Float:
-          {
-            float f = get_float_resource (dpy, xlockmore_opts->vars[i].name,
-                                          xlockmore_opts->vars[i].classname);
-            float frac = fabsf(*var_f) * (1.0f / (1l << (FLT_MANT_DIG - 4)));
-            if (f < *var_f - frac || f > *var_f + frac) {
-              xlockmore_free_screens (mi);
-              *var_f = f;
-            }
-          }
-          break;
-        case t_Int:
-          {
-            int ii = get_integer_resource (dpy, xlockmore_opts->vars[i].name,
-                                          xlockmore_opts->vars[i].classname);
-            if (ii != *var_i) {
-              xlockmore_free_screens (mi);
-              *var_i = ii;
-            }
-          }
-          break;
-        case t_Bool:
-          {
-            Bool b = get_boolean_resource (dpy, xlockmore_opts->vars[i].name,
-                                           xlockmore_opts->vars[i].classname);
-            if (b != *var_b) {
-              xlockmore_free_screens (mi);
-              *var_b = b;
-            }
-          }
-          break;
-        default:
-          abort ();
         }
-    }
+        break;
+      case t_Float: {
+          float f = get_float_resource (dpy, xlockmore_opts->vars[i].name,
+                                          xlockmore_opts->vars[i].classname);
+          float frac = fabsf(*var_f) * (1.0f / (1l << (FLT_MANT_DIG - 4)));
+          if (f < *var_f - frac || f > *var_f + frac) {
+            xlockmore_free_screens (mi);
+            *var_f = f;
+          }
+        }
+        break;
+      case t_Int: {
+          int ii = get_integer_resource (dpy, xlockmore_opts->vars[i].name,
+                                          xlockmore_opts->vars[i].classname);
+          if (ii != *var_i) {
+            xlockmore_free_screens (mi);
+            *var_i = ii;
+          }
+        }
+        break;
+      case t_Bool: {
+          Bool b = get_boolean_resource (dpy, xlockmore_opts->vars[i].name,
+                                           xlockmore_opts->vars[i].classname);
+          if (b != *var_b) {
+            xlockmore_free_screens (mi);
+            *var_b = b;
+          }
+        }
+        break;
+      default: abort ();
+	}
+  }
 }
 
 
@@ -375,22 +333,18 @@ xlockmore_read_resources (ModeInfo *mi)
    Note that xlockmore-style savers tend to allocate big structures, so
    setting XLOCKMORE_NUM_SCREENS to 1000 will waste a few megabytes.  Also
    most (all?) of them assume that the number of screens never changes, so
-   dynamically expanding this array won't work.
- */
+   dynamically expanding this array won't work.  */
 
 
-static void *
-xlockmore_init (Display *dpy, Window window, 
-                struct xlockmore_function_table *xlmft)
-{
+static void * xlockmore_init (Display *dpy, Window window, 
+                struct xlockmore_function_table *xlmft) {
   ModeInfo *mi = (ModeInfo *) calloc (1, sizeof(*mi));
   XGCValues gcv;
   XColor color;
   int i;
   Bool root_p;
 
-  if (! xlmft)
-    abort();
+  if (! xlmft) abort();
   mi->xlmft = xlmft;
 
   mi->dpy = dpy;
@@ -403,14 +357,12 @@ xlockmore_init (Display *dpy, Window window,
      hacks run in the same address space, so each one needs to get its own
      screen number.
 
-     Find the first empty slot in live_displays and plug us in.
-   */
+     Find the first empty slot in live_displays and plug us in.  */
   {
     const int size = XLOCKMORE_NUM_SCREENS;
     int i;
     for (i = 0; i < size; i++) {
-      if (! (xlmft->live_displays & (1ul << i)))
-        break;
+      if (! (xlmft->live_displays & (1ul << i))) break;
     }
     if (i >= size) abort();
     xlmft->live_displays |= 1ul << i;
