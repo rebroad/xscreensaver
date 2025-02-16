@@ -1158,7 +1158,7 @@ teeth_dxf::
 hextrail: hextrail.o normals.o $(HACK_TRACK_OBJS)
 	$(CC_HACK) -o $@ $^ $(HACK_LIBS) $(X_LIBS)
 
-hextrail-sdl: hextrail.sdl.o normals.sdl.o rotator.sdl.o $(HACK_BIN)/screenhack.sdl.o ${HACK_BIN}/xlockmore.sdl.o $(UTILS_BIN)/yarandom.sdl.o $(UTILS_BIN)/colors.sdl.o
+hextrail-sdl: hextrail.sdl.o normals.sdl.o rotator.sdl.o $(HACK_BIN)/screenhack.sdl.o $(UTILS_BIN)/yarandom.sdl.o $(UTILS_BIN)/colors.sdl.o
 	$(CC_HACK) -o $@ $^ $(HACK_LIBS) $(SDL3_LIBS)
 
 #hextrail.exe: hextrail.o normals.o $(HACK_TRACK_OBJS)
