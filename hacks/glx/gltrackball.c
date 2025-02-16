@@ -59,20 +59,15 @@ gltrackball_init (int ignore_device_rotation_p)
   return ts;
 }
 
-void
-gltrackball_free (trackball_state *ts)
-{
+void gltrackball_free (trackball_state *ts) {
   free (ts);
 }
 
 
 /* Device rotation interacts very strangely with mouse positions.
-   I'm not entirely sure this is the right fix.
- */
-static void
-adjust_for_device_rotation (trackball_state *ts,
-                            double *x, double *y, double *w, double *h)
-{
+   I'm not entirely sure this is the right fix.  */
+static void adjust_for_device_rotation (trackball_state *ts,
+                            double *x, double *y, double *w, double *h) {
   int rot = (int) current_device_rotation();
   int swap;
 
@@ -81,33 +76,25 @@ adjust_for_device_rotation (trackball_state *ts,
   while (rot <= -180) rot += 360;
   while (rot >   180) rot -= 360;
 
-  if (rot > 135 || rot < -135)		/* 180 */
-    {
-      *x = *w - *x;
-      *y = *h - *y;
-    }
-  else if (rot > 45)			/* 90 */
-    {
-      swap = *x; *x = *y; *y = swap;
-      swap = *w; *w = *h; *h = swap;
-      *x = *w - *x;
-    }
-  else if (rot < -45)			/* 270 */
-    {
-      swap = *x; *x = *y; *y = swap;
-      swap = *w; *w = *h; *h = swap;
-      *y = *h - *y;
-    }
+  if (rot > 135 || rot < -135) {		/* 180 */
+    *x = *w - *x;
+    *y = *h - *y;
+  } else if (rot > 45) {			/* 90 */
+    swap = *x; *x = *y; *y = swap;
+    swap = *w; *w = *h; *h = swap;
+    *x = *w - *x;
+  } else if (rot < -45) {			/* 270 */
+    swap = *x; *x = *y; *y = swap;
+    swap = *w; *w = *h; *h = swap;
+    *y = *h - *y;
+  }
 }
 
 
 /* Begin tracking the mouse: Call this when the mouse button goes down.
    x and y are the mouse position relative to the window.
-   w and h are the size of the window.
- */
-void
-gltrackball_start (trackball_state *ts, int x, int y, int w, int h)
-{
+   w and h are the size of the window.  */
+void gltrackball_start (trackball_state *ts, int x, int y, int w, int h) {
   ts->x = x;
   ts->y = y;
   ts->button_down_p = 1;
@@ -117,18 +104,14 @@ gltrackball_start (trackball_state *ts, int x, int y, int w, int h)
 
 /* Stop tracking the mouse: Call this when the mouse button goes up.
  */
-void
-gltrackball_stop (trackball_state *ts)
-{
+void gltrackball_stop (trackball_state *ts) {
   ts->button_down_p = 0;
 }
 
-static void
-gltrackball_track_1 (trackball_state *ts,
+static void gltrackball_track_1 (trackball_state *ts,
                      double x, double y,
                      int w, int h,
-                     int ignore_device_rotation_p)
-{
+                     int ignore_device_rotation_p) {
   double X = x;
   double Y = y;
   double W = w, W2 = w;
@@ -140,16 +123,12 @@ gltrackball_track_1 (trackball_state *ts,
   ts->x = x;
   ts->y = y;
 
-  if (! ignore_device_rotation_p)
-    {
-      adjust_for_device_rotation (ts, &ox, &oy, &W,  &H);
-      adjust_for_device_rotation (ts, &X,  &Y,  &W2, &H2);
-    }
-  trackball (q2,
-             (2 * ox - W) / W,
-             (H - 2 * oy) / H,
-             (2 * X - W)  / W,
-             (H - 2 * Y)  / H);
+  if (! ignore_device_rotation_p) {
+    adjust_for_device_rotation (ts, &ox, &oy, &W,  &H);
+    adjust_for_device_rotation (ts, &X,  &Y,  &W2, &H2);
+  }
+  trackball (q2, (2 * ox - W) / W, (H - 2 * oy) / H,
+             (2 * X - W)  / W, (H - 2 * Y)  / H);
 
   add_quats (q2, ts->q, ts->q);
 }
@@ -157,11 +136,8 @@ gltrackball_track_1 (trackball_state *ts,
 
 /* Track the mouse: Call this each time the mouse moves with the button down.
    x and y are the new mouse position relative to the window.
-   w and h are the size of the window.
- */
-void
-gltrackball_track (trackball_state *ts, int x, int y, int w, int h)
-{
+   w and h are the size of the window.  */
+void gltrackball_track (trackball_state *ts, int x, int y, int w, int h) {
   double dampen = 0.01;  /* This keeps it going for about 3 sec */
   ts->dx = x - ts->x;
   ts->dy = y - ts->y;
@@ -173,22 +149,16 @@ gltrackball_track (trackball_state *ts, int x, int y, int w, int h)
 }
 
 
-static void
-gltrackball_dampen (double *n, double *dn)
-{
+static void gltrackball_dampen (double *n, double *dn) {
   int pos = (*n > 0);
   *n -= *dn;
-  if (pos != (*n > 0))
-    *n = *dn = 0;
+  if (pos != (*n > 0)) *n = *dn = 0;
 }
 
 
 /* Reset the trackball to the default unrotated state,
-   plus an optional initial rotation.
- */
-void
-gltrackball_reset (trackball_state *ts, float x, float y)
-{
+   plus an optional initial rotation.  */
+void gltrackball_reset (trackball_state *ts, float x, float y) {
   int bd = ts->button_down_p;
   int ig = ts->ignore_device_rotation_p;
   memset (ts, 0, sizeof(*ts));
@@ -199,27 +169,18 @@ gltrackball_reset (trackball_state *ts, float x, float y)
 
 
 /* Execute the rotations current encapsulated in the trackball_state:
-   this does something analogous to glRotatef().
- */
-void
-gltrackball_rotate (trackball_state *ts)
-{
+   this does something analogous to glRotatef().  */
+void gltrackball_rotate (trackball_state *ts) {
   GLfloat m[4][4];
-  if (!ts->button_down_p &&
-      (ts->ddx != 0 ||
-       ts->ddy != 0))
-    {
-      /* Apply inertia: keep moving in the same direction as the last move. */
-      gltrackball_track_1 (ts, 
-                           ts->x + ts->dx,
-                           ts->y + ts->dy,
-                           ts->ow, ts->oh,
-                           False);
+  if (!ts->button_down_p && (ts->ddx != 0 || ts->ddy != 0)) {
+    /* Apply inertia: keep moving in the same direction as the last move. */
+    gltrackball_track_1 (ts, ts->x + ts->dx, ts->y + ts->dy,
+                           ts->ow, ts->oh, False);
 
-      /* Dampen inertia: gradually stop spinning. */
-      gltrackball_dampen (&ts->dx, &ts->ddx);
-      gltrackball_dampen (&ts->dy, &ts->ddy);
-    }
+    /* Dampen inertia: gradually stop spinning. */
+    gltrackball_dampen (&ts->dx, &ts->ddx);
+    gltrackball_dampen (&ts->dy, &ts->ddy);
+  }
 
   build_rotmatrix (m, ts->q);
 
@@ -238,12 +199,9 @@ gltrackball_rotate (trackball_state *ts)
    Percent is the length of the drag as a percentage of the screen size.
    Button is 'Button4' or 'Button5' (for the vertical wheel)
    or 'Button5' or 'Button6' (for the horizontal wheel).
-   If `flip_p' is true, swap the horizontal and vertical axes.
- */
-void
-gltrackball_mousewheel (trackball_state *ts,
-                        int button, int percent, int flip_p)
-{
+   If `flip_p' is true, swap the horizontal and vertical axes.  */
+void gltrackball_mousewheel (trackball_state *ts,
+                        int button, int percent, int flip_p) {
   int up_p;
   int horizontal_p;
   int mx, my, move, scale;
@@ -253,18 +211,17 @@ gltrackball_mousewheel (trackball_state *ts,
 #endif
 
   switch (button) {
-  case Button4: up_p = 1; horizontal_p = 0; break;
-  case Button5: up_p = 0; horizontal_p = 0; break;
-  case Button6: up_p = 1; horizontal_p = 1; break;
-  case Button7: up_p = 0; horizontal_p = 1; break;
-  default: abort(); break;
+    case Button4: up_p = 1; horizontal_p = 0; break;
+    case Button5: up_p = 0; horizontal_p = 0; break;
+    case Button6: up_p = 1; horizontal_p = 1; break;
+    case Button7: up_p = 0; horizontal_p = 1; break;
+    default: abort(); break;
   }
 
-  if (flip_p)
-    {
-      horizontal_p = !horizontal_p;
-      up_p = !up_p;
-    }
+  if (flip_p) {
+    horizontal_p = !horizontal_p;
+    up_p = !up_p;
+  }
 
   scale = mx = my = 1000;
   move = (up_p
@@ -276,59 +233,38 @@ gltrackball_mousewheel (trackball_state *ts,
   gltrackball_track (ts, mx, my, scale*2, scale*2);
 }
 
-void
-gltrackball_get_quaternion (trackball_state *ts, float q[4])
-{
+void gltrackball_get_quaternion (trackball_state *ts, float q[4]) {
   int i;
-  for (i=0; i<4; i++)
-    q[i] = ts->q[i];
+  for (i=0; i<4; i++) q[i] = ts->q[i];
 }
 
 
 /* A utility function for event-handler functions:
    Handles the various motion and click events related to trackballs.
-   Returns True if the event was handled.
- */
-Bool
-gltrackball_event_handler (XEvent *event,
-                           trackball_state *ts,
-                           int window_width, int window_height,
-                           Bool *button_down_p)
-{
-  if (event->xany.type == ButtonPress &&
-      event->xbutton.button == Button1)
-    {
-      *button_down_p = True;
-      gltrackball_start (ts,
-                         event->xbutton.x, event->xbutton.y,
+   Returns True if the event was handled.  */
+Bool gltrackball_event_handler (XEvent *event,
+                           trackball_state *ts, int window_width, int window_height,
+                           Bool *button_down_p) {
+  if (event->xany.type == ButtonPress && event->xbutton.button == Button1) {
+    *button_down_p = True;
+    gltrackball_start (ts, event->xbutton.x, event->xbutton.y,
                          window_width, window_height);
-      return True;
-    }
-  else if (event->xany.type == ButtonRelease &&
-           event->xbutton.button == Button1)
-    {
-      *button_down_p = False;
-      gltrackball_stop (ts);
-      return True;
-    }
-  else if (event->xany.type == ButtonPress &&
-           (event->xbutton.button == Button4 ||
-            event->xbutton.button == Button5 ||
-            event->xbutton.button == Button6 ||
+    return True;
+  } else if (event->xany.type == ButtonRelease && event->xbutton.button == Button1) {
+    *button_down_p = False;
+    gltrackball_stop (ts);
+    return True;
+  } else if (event->xany.type == ButtonPress && (event->xbutton.button == Button4 ||
+            event->xbutton.button == Button5 || event->xbutton.button == Button6 ||
             event->xbutton.button == Button7))
-    {
-      gltrackball_mousewheel (ts, event->xbutton.button, 1,
-                              !!event->xbutton.state);
-      return True;
-    }
-  else if (event->xany.type == MotionNotify &&
-           *button_down_p)
-    {
-      gltrackball_track (ts,
-                         event->xmotion.x, event->xmotion.y,
+  {
+    gltrackball_mousewheel (ts, event->xbutton.button, 1, !!event->xbutton.state);
+    return True;
+  } else if (event->xany.type == MotionNotify && *button_down_p) {
+    gltrackball_track (ts, event->xmotion.x, event->xmotion.y,
                          window_width, window_height);
-      return True;
-    }
+    return True;
+  }
 
   return False;
 }
