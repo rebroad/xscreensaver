@@ -787,6 +787,7 @@ reshape_hextrail (ModeInfo *mi, int width, int height)
   glClear(GL_COLOR_BUFFER_BIT);
 }
 
+#ifndef USE_SDL
 static void reset_hextrail(ModeInfo *mi) {
   hextrail_configuration *bp = &bps[MI_SCREEN(mi)];
   if (MI_COUNT(mi) < 1) MI_COUNT(mi) = 1;
@@ -797,6 +798,7 @@ static void reset_hextrail(ModeInfo *mi) {
   bp->live_count = 0;
   make_plane (mi);
 }
+#endif
 
 ENTRYPOINT Bool hextrail_handle_event (ModeInfo *mi,
 #ifdef USE_SDL
@@ -811,8 +813,8 @@ ENTRYPOINT Bool hextrail_handle_event (ModeInfo *mi,
 			  MI_WIDTH (mi), MI_HEIGHT (mi), &bp->button_down_p)) return True;
 #ifdef USE_SDL
   else if (event->type == SDL_EVENT_KEY_DOWN) {
-	SDL_Keycode keysym = event->key.keysym.sym;
-	char c = (char)event->key.keysym.sym;
+	SDL_Keycode keysym = event->key.key;
+	char c = (char)event->key.key;
 #else
   else if (event->xany.type == KeyPress) {
     KeySym keysym;
@@ -823,18 +825,20 @@ ENTRYPOINT Bool hextrail_handle_event (ModeInfo *mi,
     if (c == ' ' || c == '\t' || c == '\r' || c == '\n') ;
     else if (c == '>' || c == '.' || c == '+' || c == '=' ||
 #ifdef USE_SDL
-			keysym == SDLK_RIGHT || keysym == SDLK_UP || keysym == SDLK_PAGEDOWN)
+			keysym == SDLK_RIGHT || keysym == SDLK_UP || keysym == SDLK_PAGEDOWN
 #else
-            keysym == XK_Right || keysym == XK_Up || keysym == XK_Next)
+            keysym == XK_Right || keysym == XK_Up || keysym == XK_Next
 #endif
+			)
       MI_COUNT(mi)++;
     else if (c == '<' || c == ',' || c == '-' || c == '_' ||
-#ifdef USE_SDL
-			keysrm == SDLK_LEFT || keysym == SDLK_DOWN || keysym == SDLK_PAGEUP)
-#else
                c == '\010' || c == '\177' ||
-               keysym == XK_Left || keysym == XK_Down || keysym == XK_Prior)
+#ifdef USE_SDL
+			keysym == SDLK_LEFT || keysym == SDLK_DOWN || keysym == SDLK_PAGEUP
+#else
+            keysym == XK_Left || keysym == XK_Down || keysym == XK_Prior
 #endif
+			)
       MI_COUNT(mi)--;
 #ifdef USE_SDL
 	else if (event->type == SDL_EVENT_QUIT) ;
@@ -843,9 +847,11 @@ ENTRYPOINT Bool hextrail_handle_event (ModeInfo *mi,
 #endif
     else return False;
 
+#ifndef USE_SDL
   RESET:
     reset_hextrail(mi);
     return True;
+#endif
   }
 #ifndef USE_SDL
   else if (screenhack_event_helper (MI_DISPLAY(mi), MI_WINDOW(mi), event))
