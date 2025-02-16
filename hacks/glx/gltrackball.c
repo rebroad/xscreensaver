@@ -255,7 +255,11 @@ Bool gltrackball_event_handler (
   if (event->xany.type == ButtonPress && event->xbutton.button == Button1) {
 #endif
     *button_down_p = True;
+#ifdef USE_SDL
+	gltrackball_start (ts, event->button.x, event->button.y,
+#else
     gltrackball_start (ts, event->xbutton.x, event->xbutton.y,
+#endif
                          window_width, window_height);
     return True;
 #ifdef USE_SDL
