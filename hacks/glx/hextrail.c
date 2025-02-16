@@ -145,7 +145,7 @@ static void make_plane (ModeInfo *mi) {
   if (!bp->colors) {
 #ifdef USE_SDL
 	bp->colors = (SDL_Color *) calloc(bp->ncolors, sizeof(SDL_Color));
-    make_smooth_colormap(bp->colors, &bp->ncolors);
+    make_smooth_colormap(bp->colors, &bp->ncolors, False, 0, False);
 #else
     bp->colors = (XColor *) calloc(bp->ncolors, sizeof(XColor));
     make_smooth_colormap (0, 0, 0, bp->colors, &bp->ncolors, False, 0, False);
