@@ -61,7 +61,6 @@ INSTALL_DIRS	= ${INSTALL} -d
 PROG_SETCAP	=
 SETCAP_FLAGS	= cap_net_raw=p
 
-X_CFLAGS	=
 X_LIBS		= -lXt -lX11 -lXext -lXft
 X_PRE_LIBS	=  -lSM -lICE
 X_EXTRA_LIBS	=
@@ -71,10 +70,10 @@ XFT_LIBS	= -lXft
 #
 HACK_PRE	= $(LIBS)
 HACK_POST     = $(X_PRE_LIBS) -lm
-HACK_POST2	= -lEGL -lGLU -lGL   $(HACK_POST)
-HACK_LIBS	= $(HACK_PRE)                        $(HACK_POST2)
-PNG_LIBS	= $(HACK_PRE)            -lgdk_pixbuf-2.0 -lgio-2.0 -lgobject-2.0 -lglib-2.0   $(HACK_POST2)
-GLE_LIBS	= $(HACK_PRE)  -lgdk_pixbuf-2.0 -lgio-2.0 -lgobject-2.0 -lglib-2.0   $(HACK_POST2)
+HACK_POST2	= -lEGL -lGLU -lGL $(HACK_POST)
+HACK_LIBS	= $(HACK_PRE) $(HACK_POST2)
+PNG_LIBS	= $(HACK_PRE) -lgdk_pixbuf-2.0 -lgio-2.0 -lgobject-2.0 -lglib-2.0 $(HACK_POST2)
+GLE_LIBS	= $(HACK_PRE) -lgdk_pixbuf-2.0 -lgio-2.0 -lgobject-2.0 -lglib-2.0 $(HACK_POST2)
 TEXT_LIBS	= -lutil
 #### Is LIBCAP_CFLAGS necessary?
 LIBCAP_CFLAGS	=
@@ -514,7 +513,7 @@ distclean: clean
 depend:
 	$(DEPEND) -s '# DO NOT DELETE: updated by make depend'		    \
 	$(DEPEND_FLAGS) --						    \
-	$(INCLUDES) $(DEFS) $(DEPEND_DEFINES) $(CFLAGS) $(X_CFLAGS) --	    \
+	$(INCLUDES) $(DEFS) $(DEPEND_DEFINES) $(CFLAGS) --	    \
 	$(SRCS)
 
 # Adds some dependencies to Makefile.in -- not totally accurate, but pretty
@@ -525,7 +524,7 @@ distdepend:: molecules.h
 	@echo updating dependencies in `pwd`/Makefile.in... ;		    \
 	$(DEPEND) -w 0 -f - 						    \
 	-s '# DO NOT DELETE: updated by make distdepend' $(DEPEND_FLAGS) -- \
-	$(INCLUDES_1) $(DEFS) $(DEPEND_DEFINES) $(CFLAGS) $(X_CFLAGS) --    \
+	$(INCLUDES_1) $(DEFS) $(DEPEND_DEFINES) $(CFLAGS) --    \
 	$(SRCS) 2>/dev/null |						    \
 	sort -d |							    \
 	(								    \
@@ -615,7 +614,7 @@ $(HACKDIR_OBJS):
 
 
 # How we build object files in this directory.
-HACK_CFLAGS_BASE=$(INCLUDES) $(DEFS) $(CPPFLAGS) $(CFLAGS) $(X_CFLAGS)
+HACK_CFLAGS_BASE=$(INCLUDES) $(DEFS) $(CPPFLAGS) $(CFLAGS)
 .c.o:
 	$(CC) -c $(HACK_CFLAGS_BASE) $<
 
@@ -646,7 +645,7 @@ xscreensaver-gl-visual:        $(GLH1) $(GLH2)
 # These hacks use a slightly-differently-compiled variant of recanim.c.
 # This is how to make the the other .o file from it.
 #
-XLM_CFLAGS=-DUSE_GL $(INCLUDES) $(DEFS) $(CPPFLAGS) $(CFLAGS) $(X_CFLAGS)
+XLM_CFLAGS=-DUSE_GL $(INCLUDES) $(DEFS) $(CPPFLAGS) $(CFLAGS)
 recanim-gl.o: $(HACK_SRC)/recanim.c
 	$(CC) -o $@ -c $(XLM_CFLAGS) $(HACK_SRC)/recanim.c
 
@@ -1161,9 +1160,7 @@ hextrail: hextrail.o normals.o $(HACK_TRACK_OBJS)
 hextrail-sdl: hextrail.sdl.o normals.sdl.o rotator.sdl.o gltrackball.sdl.o $(HACK_BIN)/screenhack.sdl.o ${HACK_BIN}/xlockmore.sdl.o $(UTILS_BIN)/yarandom.sdl.o $(UTILS_BIN)/colors.sdl.o
 	$(CC_HACK) -o $@ $^ $(HACK_LIBS) $(SDL3_LIBS)
 
-#hextrail.exe: hextrail.o normals.o $(HACK_TRACK_OBJS)
-#	$(MINGW_PREFIX)$(CC_HACK) $(WINDOWS_INCLUDE) -o $@ $@.o  normals.o $(HACK_TRACK_OBJS) $(WINDOWS_LIBS)
-hextrail.exe: hextrail.win.o normals.win.o
+hextrail.exe: hextrail.win.o normals.win.o rotator.win.o gltrackball.win.o ${HACK_BIN}/screenhack.win.o ${HACK_DIR}/xlockmore.win.o ${UTILS_BIN}/yarandom.win.o ${UTILS_BIN}/colors.win.o
 	$(MINGW_PREFIX)gcc -mconsole -o $@ $^ $(WIN_SDL3_LIBS)
 
 papercube:	papercube.o	$(HACK_TRACK_OBJS)
