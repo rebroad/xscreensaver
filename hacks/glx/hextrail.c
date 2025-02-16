@@ -873,9 +873,7 @@ ENTRYPOINT Bool hextrail_handle_event (ModeInfo *mi, XEvent *event) {
 }
 #endif
 
-ENTRYPOINT void 
-init_hextrail (ModeInfo *mi)
-{
+ENTRYPOINT void init_hextrail (ModeInfo *mi) {
   hextrail_configuration *bp;
 
   MI_INIT (mi, bps);

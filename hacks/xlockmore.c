@@ -560,8 +560,7 @@ static unsigned long xlockmore_draw (Display *dpy, Window window, void *closure)
 }
 
 
-static void
-xlockmore_reshape (Display *dpy, Window window, void *closure, 
+static void xlockmore_reshape (Display *dpy, Window window, void *closure,
                  unsigned int w, unsigned int h) {
   ModeInfo *mi = (ModeInfo *) closure;
   if (mi) {
@@ -590,8 +589,7 @@ xlockmore_reshape (Display *dpy, Window window, void *closure,
   }
 }
 
-static Bool
-xlockmore_event (Display *dpy, Window window, void *closure, XEvent *event) {
+static Bool xlockmore_event (Display *dpy, Window window, void *closure, XEvent *event) {
   ModeInfo *mi = (ModeInfo *) closure;
 
 # ifdef HAVE_JWZGLES
@@ -619,16 +617,14 @@ xlockmore_event (Display *dpy, Window window, void *closure, XEvent *event) {
   return False;
 }
 
-void
-xlockmore_do_fps (Display *dpy, Window w, fps_state *fpst, void *closure) {
+void xlockmore_do_fps (Display *dpy, Window w, fps_state *fpst, void *closure) {
   ModeInfo *mi = (ModeInfo *) closure;
   fps_compute (fpst, 0, mi ? mi->recursion_depth : -1);
   fps_draw (fpst);
 }
 
 
-static void
-xlockmore_free (Display *dpy, Window window, void *closure) {
+static void xlockmore_free (Display *dpy, Window window, void *closure) {
   ModeInfo *mi = (ModeInfo *) closure;
 
 # ifdef HAVE_JWZGLES
@@ -665,8 +661,7 @@ xlockmore_free (Display *dpy, Window window, void *closure) {
 }
 
 
-void
-xlockmore_mi_init (ModeInfo *mi, size_t state_size, void **state_array) {
+void xlockmore_mi_init (ModeInfo *mi, size_t state_size, void **state_array) {
   struct xlockmore_function_table *xlmft = mi->xlmft;
 
   /* Steal the state_array for safe keeping.
