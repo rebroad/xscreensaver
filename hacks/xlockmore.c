@@ -52,7 +52,11 @@ void xlockmore_setup (struct xscreensaver_function_table *xsft, void *arg) {
     (struct xlockmore_function_table *) arg;
   int i, j;
   char *s;
+#ifdef USE_SDL
+  SDLOptionDescRec *new_options;
+#else
   XrmOptionDescRec *new_options;
+#endif
   char **new_defaults;
   const char *xlockmore_defaults;
   ModeSpecOpt *xlockmore_opts = xlmft->opts;
@@ -74,12 +78,21 @@ void xlockmore_setup (struct xscreensaver_function_table *xsft, void *arg) {
 
      Some of the strings in here are leaked at exit, but since this code
      only runs on X11, that doesn't matter.  */
+#ifdef USE_SDL
+  new_options = (SDLOptionDescRec *)
+#else
   new_options = (XrmOptionDescRec *) 
+#endif
     calloc (xlockmore_opts->numopts*3 + 100, sizeof (*new_options));
 
   for (i = 0; i < xlockmore_opts->numopts; i++) {
+#ifdef USE_SDL
+    SDLOptionDescRec *old = &xlockmore_opts->opts[i];
+    SDLOptionDescRec *new = &new_options[i];
+#else
     XrmOptionDescRec *old = &xlockmore_opts->opts[i];
     XrmOptionDescRec *new = &new_options[i];
+#endif
 
     if (old->option[0] == '-') new->option = old->option;
     else {
@@ -102,7 +115,11 @@ void xlockmore_setup (struct xscreensaver_function_table *xsft, void *arg) {
 		     "-size", "-font", "-wireframe", "-use3d", "-useSHM" };
     for (j = 0; j < countof(args); j++)
       if (strstr(xlockmore_defaults, args[j]+1)) {
+#ifdef USE_SDL
+	    SDLOptionDescRec *new = &new_options[i++];
+#else
 	    XrmOptionDescRec *new = &new_options[i++];
+#endif
 	    new->option = args[j];
 	    new->specifier = strdup(args[j]);
 	    new->specifier[0] = '.';

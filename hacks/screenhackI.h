@@ -196,11 +196,20 @@
 extern Bool mono_p;
 
 #ifdef USE_SDL
+typedef enum {
+    SDL_Option_NoArg,    /* Equivalent to XrmoptionNoArg */
+    SDL_Option_SepArg,   /* Equivalent to XrmoptionSepArg */
+    SDL_Option_ResArg,   /* Equivalent to XrmoptionResArg */
+    SDL_Option_SkipArg,  /* Equivalent to XrmoptionSkipArg */
+    SDL_Option_SkipLine, /* Equivalent to XrmoptionSkipLine */
+    SDL_Option_SkipNArgs /* Equivalent to XrmoptionSkipNArgs */
+} SDLOptionKind;
+
 typedef struct {
-    const char *option;     // Command line option
-    const char *resource;   // Resource name                                                                         
-    int arg_type;          // 0 = no arg, 1 = requires arg
-    const char *value;     // Default value
+    char *option;          // Command line option
+    char *specifier;       // Resource specifier
+    SDLOptionKind argKind; // Type of argument
+    const char *value;     // Value or default
 } SDLOptionDescRec;
 #endif
 
@@ -222,7 +231,7 @@ struct xscreensaver_function_table {
   void           (*reshape_cb) (Display *, Window, void *,
                                 unsigned int w, unsigned int h);
 #ifdef USE_SDL
-  Bool           (*event_cb)   (Display *, Window, void *, void *);
+  Bool           (*event_cb)   (Display *, Window, void *, SDL_Event *);
 #else
   Bool           (*event_cb)   (Display *, Window, void *, XEvent *);
 #endif
