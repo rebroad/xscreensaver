@@ -798,74 +798,62 @@ static void reset_hextrail(ModeInfo *mi) {
   make_plane (mi);
 }
 
+ENTRYPOINT Bool hextrail_handle_event (ModeInfo *mi,
 #ifdef USE_SDL
-ENTRYPOINT Bool hextrail_handle_event(ModeInfo *mi, SDL_Event *event) {
+		SDL_Event *event
+#else
+		XEvent *event
+#endif
+		) {
   hextrail_configuration *bp = &bps[MI_SCREEN(mi)];
 
-  switch (event->type) {
-    case SDL_EVENT_QUIT:
-      return False;
-    case SDL_EVENT_KEY_DOWN:
-      switch (event->key.key) {
-        case SDLK_SPACE:
-        case SDLK_TAB:
-          reset_hextrail(mi);
-          break;
-        case SDLK_Q:
-          return False;
-      }
-      break;
-    case SDL_EVENT_MOUSE_BUTTON_DOWN:
-    case SDL_EVENT_MOUSE_BUTTON_UP:
-    case SDL_EVENT_MOUSE_MOTION:
-      // TODO - convert to trackball events
-      SDL_Log("We got a motion event.");
-      SDL_Log("Current mouse position is: (%f, %f)", event->motion.x, event->motion.y);
-      break;
-    case SDL_EVENT_WINDOW_RESIZED:
-      if (event->window.windowID == SDL_GetWindowID(bp->window)) {
-        int width = event->window.data1;
-        int height = event->window.data2;
-        reshape_hextrail(mi, width, height);
-      }
-      break;
-    default:
-      SDL_Log("Unhandled Event!");
-      break;
-  }
-  return True;
-}
-#else
-ENTRYPOINT Bool hextrail_handle_event (ModeInfo *mi, XEvent *event) {
-  hextrail_configuration *bp = &bps[MI_SCREEN(mi)];
   if (gltrackball_event_handler (event, bp->trackball,
 			  MI_WIDTH (mi), MI_HEIGHT (mi), &bp->button_down_p)) return True;
+#ifdef USE_SDL
+  else if (event->type == SDL_EVENT_KEY_DOWN) {
+	SDL_Keycode keysym = event->key.keysym.sym;
+	char c = (char)event->key.keysym.sym;
+#else
   else if (event->xany.type == KeyPress) {
     KeySym keysym;
     char c = 0;
     XLookupString (&event->xkey, &c, 1, &keysym, 0);
+#endif
 
     if (c == ' ' || c == '\t' || c == '\r' || c == '\n') ;
     else if (c == '>' || c == '.' || c == '+' || c == '=' ||
-               keysym == XK_Right || keysym == XK_Up || keysym == XK_Next)
+#ifdef USE_SDL
+			keysym == SDLK_RIGHT || keysym == SDLK_UP || keysym == SDLK_PAGEDOWN)
+#else
+            keysym == XK_Right || keysym == XK_Up || keysym == XK_Next)
+#endif
       MI_COUNT(mi)++;
     else if (c == '<' || c == ',' || c == '-' || c == '_' ||
+#ifdef USE_SDL
+			keysrm == SDLK_LEFT || keysym == SDLK_DOWN || keysym == SDLK_PAGEUP)
+#else
                c == '\010' || c == '\177' ||
                keysym == XK_Left || keysym == XK_Down || keysym == XK_Prior)
+#endif
       MI_COUNT(mi)--;
+#ifdef USE_SDL
+	else if (event->type == SDL_EVENT_QUIT) ;
+#else
     else if (screenhack_event_helper (MI_DISPLAY(mi), MI_WINDOW(mi), event)) ;
+#endif
     else return False;
 
-    RESET:
-      reset_hextrail(mi);
-      return True;
-    }
+  RESET:
+    reset_hextrail(mi);
+    return True;
+  }
+#ifndef USE_SDL
   else if (screenhack_event_helper (MI_DISPLAY(mi), MI_WINDOW(mi), event))
     goto RESET;
+#endif
 
   return False;
 }
-#endif
 
 ENTRYPOINT void init_hextrail (ModeInfo *mi) {
   hextrail_configuration *bp;
