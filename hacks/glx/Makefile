@@ -30,25 +30,26 @@ WINDOWS_LIBS = -L/usr/x86_64-w64-mingw32/lib -lopengl32 -lglut -lglu32 -lwinmm
 
 # SDL3 paths for Linux build
 SDL3_LIBS = -L/usr/local/lib -lSDL3 -lGL
+SDL3_INCLUDE = -I/usr/local/include
 
 # SDL3 paths for Windows cross-compile
 WIN_SDL3_PATH = /usr/x86_64-w64-mingw32
-WIN_SDL3_INCLUDE = -I$(WIN_SDL3_PATH)/include/SDL3
+WIN_SDL3_INCLUDE = -I$(WIN_SDL3_PATH)/include
 WIN_SDL3_LIBS = -L$(WIN_SDL3_PATH)/lib -lSDL3 -lopengl32 -lglu32 -lmingw32 -mwindows -lm
 
 CC		= gcc -std=gnu99 -pedantic -Wall -Wnested-externs -Wstrict-prototypes -Wmissing-prototypes -Wno-overlength-strings
 CFLAGS		= -g -O2
 LDFLAGS		=  -L${exec_prefix}/lib
 DEFS		= -DSTANDALONE -DUSE_GL -DHAVE_CONFIG_H
-LIBS		=
+LIBS		= 
 PERL		= /usr/bin/perl
 
 THREAD_LIBS	= -lpthread
 THREAD_CFLAGS	= -pthread
 
 DEPEND		= makedepend
-DEPEND_FLAGS	=
-DEPEND_DEFINES	=
+DEPEND_FLAGS	= 
+DEPEND_DEFINES	= 
 
 SHELL		= /bin/sh
 INSTALL		= /usr/bin/install -c
@@ -58,26 +59,27 @@ INSTALL_SCRIPT  = ${INSTALL}
 INSTALL_SETUID	= $(INSTALL_PROGRAM) $(SUID_FLAGS)
 INSTALL_DATA	= ${INSTALL} -m 644
 INSTALL_DIRS	= ${INSTALL} -d
-PROG_SETCAP	=
+PROG_SETCAP	= 
 SETCAP_FLAGS	= cap_net_raw=p
 
-X_LIBS		= -lXt -lX11 -lXext -lXft
+X_CFLAGS	= 
+X_LIBS		= 
 X_PRE_LIBS	=  -lSM -lICE
-X_EXTRA_LIBS	=
-XFT_LIBS	= -lXft
+X_EXTRA_LIBS	= 
+XFT_LIBS	= -lXft 
 
 # Note: see comment in ../../driver/Makefile.in for explanation of X_LIBS, etc.
 #
-HACK_PRE	= $(LIBS)
-HACK_POST     = $(X_PRE_LIBS) -lm
-HACK_POST2	= -lEGL -lGLU -lGL $(HACK_POST)
-HACK_LIBS	= $(HACK_PRE) $(HACK_POST2)
-PNG_LIBS	= $(HACK_PRE) -lgdk_pixbuf-2.0 -lgio-2.0 -lgobject-2.0 -lglib-2.0 $(HACK_POST2)
-GLE_LIBS	= $(HACK_PRE) -lgdk_pixbuf-2.0 -lgio-2.0 -lgobject-2.0 -lglib-2.0 $(HACK_POST2)
+HACK_PRE	= $(LIBS) $(X_LIBS)
+HACK_POST     = $(X_PRE_LIBS) $(XFT_LIBS) -lXt -lX11 -lXext $(X_EXTRA_LIBS) -lm
+HACK_POST2	= -lEGL -lGLU -lGL   $(HACK_POST)
+HACK_LIBS	= $(HACK_PRE)                        $(HACK_POST2)
+PNG_LIBS	= $(HACK_PRE)            -lgdk_pixbuf-2.0 -lgio-2.0 -lgobject-2.0 -lglib-2.0   $(HACK_POST2)
+GLE_LIBS	= $(HACK_PRE)  -lgdk_pixbuf-2.0 -lgio-2.0 -lgobject-2.0 -lglib-2.0   $(HACK_POST2)
 TEXT_LIBS	= -lutil
 #### Is LIBCAP_CFLAGS necessary?
-LIBCAP_CFLAGS	=
-LIBCAP_LIBS	=
+LIBCAP_CFLAGS	= 
+LIBCAP_LIBS	= 
 
 HACK_SRC	= $(srcdir)/..
 HACK_BIN	= ..
@@ -86,7 +88,7 @@ JWXYZ_SRC	= $(HACK_SRC)/../jwxyz
 UTILS_BIN	= $(HACK_BIN)/../utils
 JWXYZ_BIN	= $(HACK_BIN)/../jwxyz
 
-INCLUDES_1	= -I. -I$(srcdir) -I$(UTILS_SRC) -I$(JWXYZ_SRC) -I$(HACK_SRC) -I$(HACK_BIN) -I../.. -I/usr/local/include
+INCLUDES_1	= -I. -I$(srcdir) -I$(UTILS_SRC) -I$(JWXYZ_SRC) -I$(HACK_SRC) -I$(HACK_BIN) -I../..
 INCLUDES	= $(INCLUDES_1)   -I/usr/include/gtk-3.0 -I/usr/include/pango-1.0 -I/usr/include/glib-2.0 -I/usr/lib/x86_64-linux-gnu/glib-2.0/include -I/usr/include/harfbuzz -I/usr/include/freetype2 -I/usr/include/libpng16 -I/usr/include/libmount -I/usr/include/blkid -I/usr/include/fribidi -I/usr/include/cairo -I/usr/include/pixman-1 -I/usr/include/gdk-pixbuf-2.0 -I/usr/include/x86_64-linux-gnu -I/usr/include/webp -I/usr/include/gio-unix-2.0 -I/usr/include/atk-1.0 -I/usr/include/at-spi2-atk/2.0 -I/usr/include/at-spi-2.0 -I/usr/include/dbus-1.0 -I/usr/lib/x86_64-linux-gnu/dbus-1.0/include -I/usr/include/libxml2 -pthread  -I/usr/include/gdk-pixbuf-2.0 -I/usr/include/glib-2.0 -I/usr/lib/x86_64-linux-gnu/glib-2.0/include -I/usr/include/libpng16 -I/usr/include/x86_64-linux-gnu -I/usr/include/webp -I/usr/include/libmount -I/usr/include/blkid -pthread  -I/usr/include/freetype2 -I/usr/include/libpng16 
 
 UTILDIR_OBJS	= $(UTILS_BIN)/colors.o $(UTILS_BIN)/grabclient.o \
@@ -245,8 +247,8 @@ GLE_EXES	= extrusion
 SUID_EXES	= sonar
 SETCAP_EXES	= sonar
 GL_UTIL_EXES	= xscreensaver-gl-visual
-JWZGLES_OBJS	=
-HACK_EXES_1	= $(GL_EXES)
+JWZGLES_OBJS	= 
+HACK_EXES_1	= $(GL_EXES) 
 HACK_EXES	= $(HACK_EXES_1) $(SUID_EXES)
 XSHM_OBJS	= $(UTILS_BIN)/xshm.o $(UTILS_BIN)/aligned_malloc.o
 GRAB_OBJS	= $(UTILS_BIN)/grabclient.o grab-ximage.o $(XSHM_OBJS)
@@ -257,7 +259,7 @@ RETIRED_EXES	= $(RETIRED_GL_EXES)
 RETIRED_GL_EXES	= glforestfire
 
 FPS_OBJS	= texfont.o $(HACK_BIN)/fps.o fps-gl.o \
-
+		  
 HACK_GLSL_OBJS  = glsl-utils.o
 HACK_OBJS	= $(HACK_BIN)/screenhack.o $(HACK_BIN)/xlockmore.o \
 		  xlock-gl-utils.o erase-gl.o \
@@ -513,7 +515,7 @@ distclean: clean
 depend:
 	$(DEPEND) -s '# DO NOT DELETE: updated by make depend'		    \
 	$(DEPEND_FLAGS) --						    \
-	$(INCLUDES) $(DEFS) $(DEPEND_DEFINES) $(CFLAGS) --	    \
+	$(INCLUDES) $(DEFS) $(DEPEND_DEFINES) $(CFLAGS) $(X_CFLAGS) --	    \
 	$(SRCS)
 
 # Adds some dependencies to Makefile.in -- not totally accurate, but pretty
@@ -524,7 +526,7 @@ distdepend:: molecules.h
 	@echo updating dependencies in `pwd`/Makefile.in... ;		    \
 	$(DEPEND) -w 0 -f - 						    \
 	-s '# DO NOT DELETE: updated by make distdepend' $(DEPEND_FLAGS) -- \
-	$(INCLUDES_1) $(DEFS) $(DEPEND_DEFINES) $(CFLAGS) --    \
+	$(INCLUDES_1) $(DEFS) $(DEPEND_DEFINES) $(CFLAGS) $(X_CFLAGS) --    \
 	$(SRCS) 2>/dev/null |						    \
 	sort -d |							    \
 	(								    \
@@ -612,14 +614,15 @@ $(JWXYZ_OBJS):
 $(HACKDIR_OBJS):
 	$(MAKE2CC) -C $(HACK_BIN)  $(@F)
 
+HACK_CFLAGS_BASE=$(INCLUDES) $(DEFS) $(CPPFLAGS) $(CFLAGS) $(X_CFLAGS)
+SDL_CFLAGS_BASE=$(SDL3_INCLUDES_ $(INCLUDES) $(DEFS) $(CPPFLGAS) $(CFLAGS)
 
 # How we build object files in this directory.
-HACK_CFLAGS_BASE=$(INCLUDES) $(DEFS) $(CPPFLAGS) $(CFLAGS)
 .c.o:
 	$(CC) -c $(HACK_CFLAGS_BASE) $<
 
 %.sdl.o: %.c
-	$(CC) -c $(HACK_CFLAGS_BASE) -DUSE_SDL -o $@ $<
+	$(CC) -c $(SDL_CFLAGS_BASE) -DUSE_SDL -o $@ $<
 
 WINDOWS_CFLAGS = $(WINDOWS_INCLUDE) $(WIN_SDL3_INCLUDE) -DUSE_SDL
 %.win.o: %.c
@@ -639,13 +642,13 @@ WINDOWS_CFLAGS = $(WINDOWS_INCLUDE) $(WIN_SDL3_INCLUDE) -DUSE_SDL
 GLH1=xscreensaver-gl-visual.o $(UTILS_BIN)/visual-gl.o
 GLH2=$(UTILS_BIN)/visual.o $(UTILS_BIN)/resources.o
 xscreensaver-gl-visual:        $(GLH1) $(GLH2)
-	$(CC) $(LDFLAGS) -o $@ $(GLH1) $(GLH2) $(LIBS) $(HACK_POST2)
+	$(CC) $(LDFLAGS) -o $@ $(GLH1) $(GLH2) $(LIBS) $(X_LIBS) $(HACK_POST2)
 
 
 # These hacks use a slightly-differently-compiled variant of recanim.c.
 # This is how to make the the other .o file from it.
 #
-XLM_CFLAGS=-DUSE_GL $(INCLUDES) $(DEFS) $(CPPFLAGS) $(CFLAGS)
+XLM_CFLAGS=-DUSE_GL $(INCLUDES) $(DEFS) $(CPPFLAGS) $(CFLAGS) $(X_CFLAGS)
 recanim-gl.o: $(HACK_SRC)/recanim.c
 	$(CC) -o $@ -c $(XLM_CFLAGS) $(HACK_SRC)/recanim.c
 
@@ -1154,8 +1157,8 @@ chompytower:	chompytower.o	$(CHOBJS) $(HACK_TRACK_OBJS)
 teeth_dxf::
 	./dxf2gl.pl --layers --smooth --normalize teeth.dxf teeth_model.c
 
-hextrail: hextrail.o normals.o $(HACK_TRACK_OBJS)
-	$(CC_HACK) -o $@ $^ $(HACK_LIBS) $(X_LIBS)
+hextrail:	hextrail.o	 normals.o $(HACK_TRACK_OBJS)
+	$(CC_HACK) -o $@ $^ $(HACK_TRACK_OBJS) $(HACK_LIBS)
 
 hextrail-sdl: hextrail.sdl.o normals.sdl.o rotator.sdl.o gltrackball.sdl.o $(HACK_BIN)/screenhack.sdl.o ${HACK_BIN}/xlockmore.sdl.o $(UTILS_BIN)/yarandom.sdl.o $(UTILS_BIN)/colors.sdl.o
 	$(CC_HACK) -o $@ $^ $(HACK_LIBS) $(SDL3_LIBS)
