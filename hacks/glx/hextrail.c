@@ -557,10 +557,13 @@ draw_hexagons (ModeInfo *mi)
               p[3].z = h->pos.z;
 
               if (do_glow || do_neon) {
-				static time_t debug_time = 0;
-				time_t current_time = time(NULL);
 				Bool debug_now = False;
-				if (current_time != debug_time) debug_now = True;
+				/*static time_t debug_time = 0;
+				time_t current_time = time(NULL);
+				if (current_time != debug_time) {
+				  debug_now = True;
+				  debug_time = current_time;
+				}*/
 
 				if (debug_now) {
 				  printf("\nGLOW DEBUG:\n");
@@ -572,18 +575,16 @@ draw_hexagons (ModeInfo *mi)
 				}
 
                 GLenum err = glGetError();
-				if (err != GL_NO_ERROR && debug_now) {
+				if (err != GL_NO_ERROR && debug_now)
 				  printf("GL Error before glow: %d\n", err);
-				}
 
 				glEnd();
 
 				glEnable(GL_BLEND);
 				if (debug_now) {
 				  err = glGetError();
-				  if (err != GL_NO_ERROR) {
+				  if (err != GL_NO_ERROR)
 					printf("GL Error after enable blend: %d\n", err);
-				  }
 
 				  GLboolean blend_enabled;
 				  glGetBooleanv(GL_BLEND, &blend_enabled);
@@ -639,11 +640,11 @@ draw_hexagons (ModeInfo *mi)
 				  glVertex3f(p[0].x, p[0].y, p[0].z);
 				  for (int g = 0; g <= 16; g++) {
 				  //for (int g = 0; g <= 8; g++) {
-					  float angle = g * M_PI / 8;
-					  //float angle = g * M_PI / 4;
-					  float x = p[0].x + cos(angle) * size * glow_scale;
-                      float y = p[0].y + sin(angle) * size * glow_scale;
-					  glVertex3f(x, y, p[0].z);
+				    float angle = g * M_PI / 8;
+				    //float angle = g * M_PI / 4;
+					float x = p[0].x + cos(angle) * size * glow_scale;
+                    float y = p[0].y + sin(angle) * size * glow_scale;
+					glVertex3f(x, y, p[0].z);
 				  }
 				  glEnd();
 
@@ -684,7 +685,6 @@ draw_hexagons (ModeInfo *mi)
 				  if (err != GL_NO_ERROR) {
 					printf("GL Error after glow drawing: %d\n", err);
 				  }
-				  debug_time = current_time;
 				}
 
                 glDisable(GL_BLEND);
