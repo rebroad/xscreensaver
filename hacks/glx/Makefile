@@ -71,11 +71,11 @@ XFT_LIBS	= -lXft
 # Note: see comment in ../../driver/Makefile.in for explanation of X_LIBS, etc.
 #
 HACK_PRE	= $(LIBS) $(X_LIBS)
-HACK_POST     = $(X_PRE_LIBS) $(XFT_LIBS) -lXt -lX11 -lXext $(X_EXTRA_LIBS) -lm
-HACK_POST2	= -lEGL -lGLU -lGL   $(HACK_POST)
-HACK_LIBS	= $(HACK_PRE)                        $(HACK_POST2)
-PNG_LIBS	= $(HACK_PRE)            -lgdk_pixbuf-2.0 -lgio-2.0 -lgobject-2.0 -lglib-2.0   $(HACK_POST2)
-GLE_LIBS	= $(HACK_PRE)  -lgdk_pixbuf-2.0 -lgio-2.0 -lgobject-2.0 -lglib-2.0   $(HACK_POST2)
+HACK_POST   = $(X_PRE_LIBS) $(XFT_LIBS) -lXt -lX11 -lXext $(X_EXTRA_LIBS) -lm
+HACK_POST2	= -lEGL -lGLU -lGL $(HACK_POST)
+HACK_LIBS	= $(HACK_PRE) $(HACK_POST2)
+PNG_LIBS	= $(HACK_PRE) -lgdk_pixbuf-2.0 -lgio-2.0 -lgobject-2.0 -lglib-2.0   $(HACK_POST2)
+GLE_LIBS	= $(HACK_PRE) -lgdk_pixbuf-2.0 -lgio-2.0 -lgobject-2.0 -lglib-2.0   $(HACK_POST2)
 TEXT_LIBS	= -lutil
 #### Is LIBCAP_CFLAGS necessary?
 LIBCAP_CFLAGS	= 
@@ -506,7 +506,7 @@ uninstall-xml:
 	done
 
 clean::
-	-rm -f ../../utils/*.o ../*.o *.o a.out core $(EXES) $(RETIRED_EXES) molecules.h
+	-rm -f ../../utils/*.o ../*.o *.o a.out core molecules.h
 
 distclean: clean
 	-rm -f Makefile TAGS *~ "#"*
@@ -1157,8 +1157,8 @@ chompytower:	chompytower.o	$(CHOBJS) $(HACK_TRACK_OBJS)
 teeth_dxf::
 	./dxf2gl.pl --layers --smooth --normalize teeth.dxf teeth_model.c
 
-hextrail:	hextrail.o	 normals.o $(HACK_TRACK_OBJS)
-	$(CC_HACK) -o $@ $^ $(HACK_TRACK_OBJS) $(HACK_LIBS)
+hextrail: hextrail.o normals.o $(HACK_TRACK_OBJS)
+	$(CC_HACK) -o $@ $^ $(HACK_LIBS) ${X_LIBS}
 
 hextrail-sdl: hextrail.sdl.o normals.sdl.o rotator.sdl.o gltrackball.sdl.o $(HACK_BIN)/screenhack.sdl.o ${HACK_BIN}/xlockmore.sdl.o $(UTILS_BIN)/yarandom.sdl.o $(UTILS_BIN)/colors.sdl.o
 	$(CC_HACK) -o $@ $^ $(HACK_LIBS) $(SDL3_LIBS)
