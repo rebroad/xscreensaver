@@ -814,6 +814,7 @@ ENTRYPOINT Bool hextrail_handle_event (ModeInfo *mi,
     char c = 0;
     XLookupString (&event->xkey, &c, 1, &keysym, 0);
 #endif
+	printf("%s: c=%c (%d)\n", __func__, c, c);
 
     if (c == ' ' || c == '\t' || c == '\r' || c == '\n') ;
     else if (c == '>' || c == '.' || c == '+' || c == '=' ||
