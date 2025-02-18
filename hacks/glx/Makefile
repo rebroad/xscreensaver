@@ -11,7 +11,7 @@ top_srcdir	= ../..
 top_builddir	= ..
 
 install_prefix	=
-prefix		= /usr
+prefix		= /usr/local
 exec_prefix	= ${prefix}
 bindir		= ${exec_prefix}/bin
 datarootdir	= ${prefix}/share
@@ -41,15 +41,15 @@ CC		= gcc -std=gnu99 -pedantic -Wall -Wnested-externs -Wstrict-prototypes -Wmiss
 CFLAGS		= -g -O2
 LDFLAGS		=  -L${exec_prefix}/lib
 DEFS		= -DSTANDALONE -DUSE_GL -DHAVE_CONFIG_H
-LIBS		= 
+LIBS		=
 PERL		= /usr/bin/perl
 
 THREAD_LIBS	= -lpthread
 THREAD_CFLAGS	= -pthread
 
 DEPEND		= makedepend
-DEPEND_FLAGS	= 
-DEPEND_DEFINES	= 
+DEPEND_FLAGS	=
+DEPEND_DEFINES	=
 
 SHELL		= /bin/sh
 INSTALL		= /usr/bin/install -c
@@ -59,27 +59,27 @@ INSTALL_SCRIPT  = ${INSTALL}
 INSTALL_SETUID	= $(INSTALL_PROGRAM) $(SUID_FLAGS)
 INSTALL_DATA	= ${INSTALL} -m 644
 INSTALL_DIRS	= ${INSTALL} -d
-PROG_SETCAP	= 
+PROG_SETCAP	=
 SETCAP_FLAGS	= cap_net_raw=p
 
-X_CFLAGS	= 
-X_LIBS		= 
+X_CFLAGS	=
+X_LIBS		=
 X_PRE_LIBS	=  -lSM -lICE
-X_EXTRA_LIBS	= 
-XFT_LIBS	= -lXft 
+X_EXTRA_LIBS	=
+XFT_LIBS	= -lXft
 
 # Note: see comment in ../../driver/Makefile.in for explanation of X_LIBS, etc.
 #
 HACK_PRE	= $(LIBS) $(X_LIBS)
 HACK_POST   = $(X_PRE_LIBS) $(XFT_LIBS) -lXt -lX11 -lXext $(X_EXTRA_LIBS) -lm
 HACK_POST2	= -lEGL -lGLU -lGL $(HACK_POST)
-HACK_LIBS	= $(HACK_PRE) $(HACK_POST2)
-PNG_LIBS	= $(HACK_PRE) -lgdk_pixbuf-2.0 -lgio-2.0 -lgobject-2.0 -lglib-2.0   $(HACK_POST2)
-GLE_LIBS	= $(HACK_PRE) -lgdk_pixbuf-2.0 -lgio-2.0 -lgobject-2.0 -lglib-2.0   $(HACK_POST2)
+HACK_LIBS	= $(HACK_PRE) -lavutil -lavcodec -lavformat -lswscale -lswresample $(HACK_POST2)
+PNG_LIBS	= $(HACK_PRE) -lgdk_pixbuf-2.0 -lgio-2.0 -lgobject-2.0 -lglib-2.0 -lavutil -lavcodec -lavformat -lswscale -lswresample $(HACK_POST2)
+GLE_LIBS	= $(HACK_PRE) -lgdk_pixbuf-2.0 -lgio-2.0 -lgobject-2.0 -lglib-2.0 -lavutil -lavcodec -lavformat -lswscale -lswresample $(HACK_POST2)
 TEXT_LIBS	= -lutil
 #### Is LIBCAP_CFLAGS necessary?
-LIBCAP_CFLAGS	= 
-LIBCAP_LIBS	= 
+LIBCAP_CFLAGS	=
+LIBCAP_LIBS	=
 
 HACK_SRC	= $(srcdir)/..
 HACK_BIN	= ..
@@ -89,7 +89,7 @@ UTILS_BIN	= $(HACK_BIN)/../utils
 JWXYZ_BIN	= $(HACK_BIN)/../jwxyz
 
 INCLUDES_1	= -I. -I$(srcdir) -I$(UTILS_SRC) -I$(JWXYZ_SRC) -I$(HACK_SRC) -I$(HACK_BIN) -I../..
-INCLUDES	= $(INCLUDES_1)   -I/usr/include/gtk-3.0 -I/usr/include/pango-1.0 -I/usr/include/glib-2.0 -I/usr/lib/x86_64-linux-gnu/glib-2.0/include -I/usr/include/harfbuzz -I/usr/include/freetype2 -I/usr/include/libpng16 -I/usr/include/libmount -I/usr/include/blkid -I/usr/include/fribidi -I/usr/include/cairo -I/usr/include/pixman-1 -I/usr/include/gdk-pixbuf-2.0 -I/usr/include/x86_64-linux-gnu -I/usr/include/webp -I/usr/include/gio-unix-2.0 -I/usr/include/atk-1.0 -I/usr/include/at-spi2-atk/2.0 -I/usr/include/at-spi-2.0 -I/usr/include/dbus-1.0 -I/usr/lib/x86_64-linux-gnu/dbus-1.0/include -I/usr/include/libxml2 -pthread  -I/usr/include/gdk-pixbuf-2.0 -I/usr/include/glib-2.0 -I/usr/lib/x86_64-linux-gnu/glib-2.0/include -I/usr/include/libpng16 -I/usr/include/x86_64-linux-gnu -I/usr/include/webp -I/usr/include/libmount -I/usr/include/blkid -pthread  -I/usr/include/freetype2 -I/usr/include/libpng16 
+INCLUDES	= $(INCLUDES_1)   -I/usr/include/gtk-3.0 -I/usr/include/pango-1.0 -I/usr/include/glib-2.0 -I/usr/lib/x86_64-linux-gnu/glib-2.0/include -I/usr/include/harfbuzz -I/usr/include/freetype2 -I/usr/include/libpng16 -I/usr/include/libmount -I/usr/include/blkid -I/usr/include/fribidi -I/usr/include/cairo -I/usr/include/pixman-1 -I/usr/include/gdk-pixbuf-2.0 -I/usr/include/x86_64-linux-gnu -I/usr/include/webp -I/usr/include/gio-unix-2.0 -I/usr/include/atk-1.0 -I/usr/include/at-spi2-atk/2.0 -I/usr/include/at-spi-2.0 -I/usr/include/dbus-1.0 -I/usr/lib/x86_64-linux-gnu/dbus-1.0/include -I/usr/include/libxml2 -pthread  -I/usr/include/gdk-pixbuf-2.0 -I/usr/include/glib-2.0 -I/usr/lib/x86_64-linux-gnu/glib-2.0/include -I/usr/include/libpng16 -I/usr/include/x86_64-linux-gnu -I/usr/include/webp -I/usr/include/libmount -I/usr/include/blkid -pthread  -I/usr/include/freetype2 -I/usr/include/libpng16
 
 UTILDIR_OBJS	= $(UTILS_BIN)/colors.o $(UTILS_BIN)/grabclient.o \
 		  $(UTILS_BIN)/hsv.o $(UTILS_BIN)/resources.o \
@@ -179,7 +179,7 @@ OBJS		= xscreensaver-gl-visual.o normals.o erase-gl.o fps-gl.o \
 		  stonerview-view.o starwars.o glut_stroke.o glut_swidth.o \
 		  gltext.o molecule.o dangerball.o sphere.o tube.o circuit.o \
 		  menger.o engine.o flipscreen3d.o dnalogo.o \
-	          grab-ximage.o glsnake.o boxed.o glforestfire.o sballs.o \
+			  grab-ximage.o glsnake.o boxed.o glforestfire.o sballs.o \
 		  cubenetic.o spheremonics.o marching.o lavalite.o rotator.o \
 		  trackball.o gltrackball.o queens.o endgame.o chessmodels.o \
 		  glblur.o gllist.o flurry.o flurry-smoke.o flurry-spark.o \
@@ -247,8 +247,8 @@ GLE_EXES	= extrusion
 SUID_EXES	= sonar
 SETCAP_EXES	= sonar
 GL_UTIL_EXES	= xscreensaver-gl-visual
-JWZGLES_OBJS	= 
-HACK_EXES_1	= $(GL_EXES) 
+JWZGLES_OBJS	=
+HACK_EXES_1	= $(GL_EXES)
 HACK_EXES	= $(HACK_EXES_1) $(SUID_EXES)
 XSHM_OBJS	= $(UTILS_BIN)/xshm.o $(UTILS_BIN)/aligned_malloc.o
 GRAB_OBJS	= $(UTILS_BIN)/grabclient.o grab-ximage.o $(XSHM_OBJS)
@@ -259,7 +259,7 @@ RETIRED_EXES	= $(RETIRED_GL_EXES)
 RETIRED_GL_EXES	= glforestfire
 
 FPS_OBJS	= texfont.o $(HACK_BIN)/fps.o fps-gl.o \
-		  
+
 HACK_GLSL_OBJS  = glsl-utils.o
 HACK_OBJS	= $(HACK_BIN)/screenhack.o $(HACK_BIN)/xlockmore.o \
 		  xlock-gl-utils.o erase-gl.o \
@@ -274,7 +274,7 @@ HACK_OBJS	= $(HACK_BIN)/screenhack.o $(HACK_BIN)/xlockmore.o \
 		  $(UTILS_BIN)/usleep.o \
 		  $(UTILS_BIN)/xmu.o \
 		  $(UTILS_BIN)/yarandom.o \
-		  ${FPS_OBJS} $(JWZGLES_OBJS) $(HACK_GLSL_OBJS) 
+		  ${FPS_OBJS} $(JWZGLES_OBJS) $(HACK_GLSL_OBJS)
 
 HDRS		= atlantis.h bubble3d.h buildlwo.h e_textures.h \
 		  grab-ximage.h tube.h sphere.h boxed.h \
@@ -349,50 +349,50 @@ install-program:: $(EXES)
 	 idir="$(install_prefix)$(HACKDIR)" ;				\
 	 if ( echo $$exes | grep -q . ); then				\
 	   if [ ! -d $$idir ]; then					\
-	     $(INSTALL_DIRS) $$idir ;					\
+		 $(INSTALL_DIRS) $$idir ;					\
 	   fi ;								\
 	   for program in $$exes; do					\
-	     echo $(INSTALL_PROGRAM) $$program $$idir/$$program ;	\
+		 echo $(INSTALL_PROGRAM) $$program $$idir/$$program ;	\
 		  $(INSTALL_PROGRAM) $$program $$idir/$$program ;	\
 	   done ;							\
 									\
 	   exes="$(SUID_EXES)" ;					\
 	   if [ yes = yes ]; then				\
-	     sinst="$(INSTALL_SETUID)" ;				\
+		 sinst="$(INSTALL_SETUID)" ;				\
 	   else								\
-	     sinst="$(INSTALL_PROGRAM)" ;				\
+		 sinst="$(INSTALL_PROGRAM)" ;				\
 	   fi ;								\
 	   for program in $$exes; do					\
-	     echo $$sinst $$program $$idir/$$program ;			\
-	     if   $$sinst $$program $$idir/$$program ; then		\
-	        true ;							\
-	     elif [ yes = yes ]; then			\
-	       echo $(INSTALL_PROGRAM) $$program $$idir/$$program ;	\
-	       if   $(INSTALL_PROGRAM) $$program $$idir/$$program ; then\
-	         echo "" ;						\
-	         echo "WARNING: unable to install $$program setuid:"	\
-	              "installed non-setuid instead." ;			\
-	         echo "" ;						\
-	       else							\
-	         exit 1 ;						\
-	       fi ;							\
-	     else							\
-	       exit 1 ;							\
-	     fi ;							\
+		 echo $$sinst $$program $$idir/$$program ;			\
+		 if   $$sinst $$program $$idir/$$program ; then		\
+			true ;							\
+		 elif [ yes = yes ]; then			\
+		   echo $(INSTALL_PROGRAM) $$program $$idir/$$program ;	\
+		   if   $(INSTALL_PROGRAM) $$program $$idir/$$program ; then\
+			 echo "" ;						\
+			 echo "WARNING: unable to install $$program setuid:"	\
+				  "installed non-setuid instead." ;			\
+			 echo "" ;						\
+		   else							\
+			 exit 1 ;						\
+		   fi ;							\
+		 else							\
+		   exit 1 ;							\
+		 fi ;							\
 	   done ;							\
 									\
 	   exes="${SETCAP_EXES}" ;					\
 	   if [ no = yes ]; then				\
-	     for program in $$exes; do					\
-	       echo $(PROG_SETCAP) $(SETCAP_FLAGS) $$idir/$$program ;	\
-	       if   $(PROG_SETCAP) $(SETCAP_FLAGS) $$idir/$$program ; then \
-	         true ;							\
-	       else							\
-	         echo "" ;						\
-	         echo "WARNING: unable to setcap $$program" ;		\
-	         echo "" ;						\
-	       fi ;							\
-	     done ;							\
+		 for program in $$exes; do					\
+		   echo $(PROG_SETCAP) $(SETCAP_FLAGS) $$idir/$$program ;	\
+		   if   $(PROG_SETCAP) $(SETCAP_FLAGS) $$idir/$$program ; then \
+			 true ;							\
+		   else							\
+			 echo "" ;						\
+			 echo "WARNING: unable to setcap $$program" ;		\
+			 echo "" ;						\
+		   fi ;							\
+		 done ;							\
 	   fi ;								\
 	 fi
 
@@ -405,14 +405,14 @@ install-scripts: $(SCRIPTS) munge-scripts
 	 fi ;								\
 	for program in $(SCRIPTS); do					\
 	  if [ -r $$program ] ; then					\
-	    p=$$program ;						\
+		p=$$program ;						\
 	  else								\
-	    p=$(srcdir)/$$program ;					\
+		p=$(srcdir)/$$program ;					\
 	  fi ;								\
 	  echo $(INSTALL_SCRIPT) $$p					\
-	    $(install_prefix)$(HACKDIR)/$$program ;			\
+		$(install_prefix)$(HACKDIR)/$$program ;			\
 	  $(INSTALL_SCRIPT) $$p						\
-	    $(install_prefix)$(HACKDIR)/$$program ;			\
+		$(install_prefix)$(HACKDIR)/$$program ;			\
 	done
 
 munge-scripts: $(SCRIPTS)
@@ -421,10 +421,10 @@ munge-scripts: $(SCRIPTS)
 	rm -f $$tmp ;							\
 	for program in $(SCRIPTS); do					\
 	  sed "s@^\(#!\)\(/[^ ]*/perl[^ ]*\)\(.*\)\$$@\1$$perl\3@"	\
-	      < $(srcdir)/$$program > $$tmp ;				\
+		  < $(srcdir)/$$program > $$tmp ;				\
 	  if ! cmp -s $(srcdir)/$$program $$tmp ; then			\
-	    echo "$$program: setting interpreter to $$perl" >&2 ;	\
-	    cat $$tmp > ./$$program ;					\
+		echo "$$program: setting interpreter to $$perl" >&2 ;	\
+		cat $$tmp > ./$$program ;					\
 	  fi ;								\
 	done ;								\
 	rm -f $$tmp
@@ -455,12 +455,12 @@ install-man: $(MEN)
 	  manbase=`echo $$man | sed 's/\.man$$//'` ;    \
 	  TH=".TH $$manbase $(mansuffix) \"$$V\" \"X Version 11\" \"XScreenSaver manual\"" ;   \
 	  sed -e "s/^\.TH.*/$$TH/"					\
-	      -e 's@(MANSUFFIX)@($(mansuffix))@g'			\
-	    < $(srcdir)/$$man > $$T ;					\
+		  -e 's@(MANSUFFIX)@($(mansuffix))@g'			\
+		< $(srcdir)/$$man > $$T ;					\
 	  echo $(INSTALL_DATA) $(srcdir)/$$man				\
 	   $(install_prefix)$(manNdir)/$$instname ;			\
 	  $(INSTALL_DATA) $$T						\
-	    $(install_prefix)$(manNdir)/$$instname ;			\
+		$(install_prefix)$(manNdir)/$$instname ;			\
 	done ;								\
 	rm -f $$T
 
@@ -472,8 +472,8 @@ install-xml:
 	 src=$(srcdir)/../config ;					\
 	 for file in $(EXES) $(SCRIPTS) ; do				\
 	   if [ -f $$src/$$file.xml ]; then				\
-	     echo $(INSTALL_DATA) $$src/$$file.xml $$dest/$$file.xml ;	\
-	          $(INSTALL_DATA) $$src/$$file.xml $$dest/$$file.xml ;	\
+		 echo $(INSTALL_DATA) $$src/$$file.xml $$dest/$$file.xml ;	\
+			  $(INSTALL_DATA) $$src/$$file.xml $$dest/$$file.xml ;	\
 	   fi ;								\
 	done
 
@@ -495,17 +495,18 @@ uninstall-man:
 	for man in $$men; do						\
 	  instname=`echo $$man | sed 's/\.man$$/\.$(mansuffix)/'` ;	\
 	  echo rm -f $(install_prefix)$(manNdir)/$$instname* ;		\
-	       rm -f $(install_prefix)$(manNdir)/$$instname* ;		\
+		   rm -f $(install_prefix)$(manNdir)/$$instname* ;		\
 	done
 
 uninstall-xml:
 	@dest=$(install_prefix)$(HACK_CONF_DIR) ;			\
 	 for file in $(EXES) $(RETIRED_EXES) $(SCRIPTS) ; do		\
-	     echo rm -f $$dest/$$file.xml ;				\
-	          rm -f $$dest/$$file.xml ;				\
+		 echo rm -f $$dest/$$file.xml ;				\
+			  rm -f $$dest/$$file.xml ;				\
 	done
 
 clean::
+#	-rm -f *.o a.out core $(EXES) $(RETIRED_EXES) molecules.h
 	-rm -f ../../utils/*.o ../*.o *.o a.out core molecules.h
 
 distclean: clean
@@ -532,17 +533,17 @@ distdepend:: molecules.h
 	(								    \
 	  awk '/^# .*Makefile.in ---/,/^# DO .*distdepend/' < Makefile.in ; \
 	  sed -e '/^#.*/d'						    \
-	      -e 's@ \./@ @g;s@ /[^ ]*@@g;/^.*:$$/d'			    \
-	      -e 's@\.\./\.\./utils@$$(UTILS_SRC)@g'			    \
-	      -e 's@\.\./\.\./jwxyz@$$(JWXYZ_SRC)@g'			    \
-	      -e 's@\.\./glx/@@g'					    \
-	      -e 's@ \.\./@ $$(HACK_SRC)/@g'				    \
-	      -e 's@ \([^$$]\)@ $$(srcdir)/\1@g'			    \
-	      -e 's@ $$(srcdir)/\(.*config.h\)@ \1@g'			    \
-	      -e 's@ $$(HACK_SRC)/\(.*config.h\)@ ../\1@g'		    \
-	      -e 's@ $$(srcdir)/\(.*molecules.h\)@ \1@g'		    \
-	      -e 's@ $$(srcdir)/\(images/gen/\)@ ../\1@g'		    \
-	      -e 's@ $$(HACK_SRC)/\(images/gen/\)@ ../\1@g' ;		    \
+		  -e 's@ \./@ @g;s@ /[^ ]*@@g;/^.*:$$/d'			    \
+		  -e 's@\.\./\.\./utils@$$(UTILS_SRC)@g'			    \
+		  -e 's@\.\./\.\./jwxyz@$$(JWXYZ_SRC)@g'			    \
+		  -e 's@\.\./glx/@@g'					    \
+		  -e 's@ \.\./@ $$(HACK_SRC)/@g'				    \
+		  -e 's@ \([^$$]\)@ $$(srcdir)/\1@g'			    \
+		  -e 's@ $$(srcdir)/\(.*config.h\)@ \1@g'			    \
+		  -e 's@ $$(HACK_SRC)/\(.*config.h\)@ ../\1@g'		    \
+		  -e 's@ $$(srcdir)/\(.*molecules.h\)@ \1@g'		    \
+		  -e 's@ $$(srcdir)/\(images/gen/\)@ ../\1@g'		    \
+		  -e 's@ $$(HACK_SRC)/\(images/gen/\)@ ../\1@g' ;		    \
 	  echo ''							    \
 	) > /tmp/distdepend.$$$$ &&					    \
 	mv /tmp/distdepend.$$$$ Makefile.in
@@ -559,7 +560,7 @@ check_men:
 	@badmen="" ;							\
 	 for exe in $(EXES); do						\
 	   if ! [ -f $(srcdir)/$$exe.man ]; then			\
-	     badmen="$$badmen $$exe" ;					\
+		 badmen="$$badmen $$exe" ;					\
 	   fi ;								\
 	 done ;								\
 	 if [ -n "$$badmen" ]; then					\
@@ -567,7 +568,7 @@ check_men:
 	   echo "Warning: The following programs have no manuals:" ;	\
 	   echo "" ;							\
 	   for m in $$badmen ; do					\
-	     echo "    $$m" ;						\
+		 echo "    $$m" ;						\
 	   done ;							\
 	 fi
 
@@ -873,7 +874,7 @@ etruscanvenus:	etruscanvenus.o	$(HACK_TRACK_OBJS)
 	$(CC_HACK) -o $@ $@.o	$(HACK_TRACK_OBJS) $(HACK_LIBS)
 
 SPHEREEV_OBJS=sphereeversion-analytic.o sphereeversion-corrugations.o \
-              $(PNG) $(HACK_TRACK_OBJS)
+			  $(PNG) $(HACK_TRACK_OBJS)
 sphereeversion:	sphereeversion.o $(SPHEREEV_OBJS)
 	$(CC_HACK) -o $@ $@.o	 $(SPHEREEV_OBJS) $(HACK_LIBS) $(PNG_LIBS)
 
@@ -1003,8 +1004,8 @@ skytentacles:	skytentacles.o	$(TENTACLE_OBJS)
 	$(CC_HACK) -o $@ $@.o	$(TENTACLE_OBJS) $(PNG_LIBS)
 
 SONAR_OBJS = sonar-sim.o sonar-icmp.o $(UTILS_BIN)/async_netdb.o \
-	     $(THREAD_OBJS) $(UTILS_BIN)/aligned_malloc.o \
-	     $(HACK_TRACK_OBJS)
+		 $(THREAD_OBJS) $(UTILS_BIN)/aligned_malloc.o \
+		 $(HACK_TRACK_OBJS)
 sonar-icmp.o: sonar-icmp.c
 	$(CC) -c $(HACK_CFLAGS_BASE) $(THREAD_CFLAGS) $<
 sonar:		sonar.o		$(SONAR_OBJS)
@@ -1129,7 +1130,7 @@ covid19:	covid19.o	$(DB_OBJS)
 	$(CC_HACK) -o $@ $@.o	$(DB_OBJS) $(HACK_LIBS)
 
 HEADROOM_OBJS=gllist.o headroom_model.o skull_model.o normals.o \
-	      $(HACK_TRACK_OBJS)
+		  $(HACK_TRACK_OBJS)
 headroom:	headroom.o	 $(HEADROOM_OBJS)
 	$(CC_HACK) -o $@ $@.o	 $(HEADROOM_OBJS) $(HACK_LIBS)
 
