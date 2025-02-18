@@ -404,13 +404,13 @@ static void * xlockmore_init (Display *dpy, Window window,
     mi->npixels = 2;
     if (! mi->pixels)
       mi->pixels = (unsigned long *) calloc (mi->npixels, sizeof (*mi->pixels));
-      if (!mi->colors)
-        mi->colors = (XColor *) calloc (mi->npixels, sizeof (*mi->colors));
-      colors[0].flags = DoRed|DoGreen|DoBlue;
-      colors[1].flags = DoRed|DoGreen|DoBlue;
-      colors[0].red = colors[0].green = colors[0].blue = 0;
-      colors[1].red = colors[1].green = colors[1].blue = 0xFFFF;
-      mi->writable_p = False;
+    if (!mi->colors)
+      mi->colors = (XColor *) calloc (mi->npixels, sizeof (*mi->colors));
+    colors[0].flags = DoRed|DoGreen|DoBlue;
+    colors[1].flags = DoRed|DoGreen|DoBlue;
+    colors[0].red = colors[0].green = colors[0].blue = 0;
+    colors[1].red = colors[1].green = colors[1].blue = 0xFFFF;
+    mi->writable_p = False;
   } else {
     mi->npixels = get_integer_resource (dpy, "ncolors", "Integer");
     if (mi->npixels <= 0) mi->npixels = 64;
