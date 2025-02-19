@@ -125,6 +125,34 @@ static argtype vars[] = {
 
 ENTRYPOINT ModeSpecOpt hextrail_opts = {countof(opts), opts, countof(vars), vars, NULL};
 
+static void update_neighbors(ModeInfo *mi) {
+  hextrail_configuration *bp = &bps[MI_SCREEN(mi)];
+  int x, y;
+
+  for (y = 0; y < bp->grid_h; y++)
+    for (x = 0; x < bp->grid_w; x++) {
+      hexagon *h0 = &bp->hexagons[y * bp->grid_w + x];
+
+# define NEIGHBOR(I,XE,XO,Y) do {                                     \
+        int x1 = x + (y & 1 ? (XO) : (XE));                           \
+        int y1 = y + (Y);                                             \
+        if (x1 >= 0 && x1 < bp->grid_w && y1 >= 0 && y1 < bp->grid_h) \
+          h0->neighbors[(I)] = &bp->hexagons[y1 * bp->grid_w + x1];   \
+        else                                                          \
+          h0->neighbors[(I)] = NULL;                                  \
+      } while (0)
+
+      NEIGHBOR (0,  0,  1, -1);
+      NEIGHBOR (1,  1,  1,  0);
+      NEIGHBOR (2,  0,  1,  1);
+      NEIGHBOR (3, -1,  0,  1);
+      NEIGHBOR (4, -1, -1,  0);
+      NEIGHBOR (5, -1,  0, -1);
+
+# undef NEIGHBOR
+	}
+}
+
 static void make_plane (ModeInfo *mi) {
   hextrail_configuration *bp = &bps[MI_SCREEN(mi)];
   int x, y;
@@ -157,48 +185,19 @@ static void make_plane (ModeInfo *mi) {
   bp->hexagons = grid;
 
   for (y = 0; y < bp->grid_h; y++)
-    for (x = 0; x < bp->grid_w; x++)
-      {
-        hexagon *h0 = &grid[y * bp->grid_w + x];
-        h0->pos.x = (x - bp->grid_w/2) * w;
-        h0->pos.y = (y - bp->grid_h/2) * h;
-        h0->border_state = EMPTY;
-        h0->border_ratio = 0;
+    for (x = 0; x < bp->grid_w; x++) {
+      hexagon *h0 = &grid[y * bp->grid_w + x];
+      h0->pos.x = (x - bp->grid_w/2) * w;
+      h0->pos.y = (y - bp->grid_h/2) * h;
+      h0->border_state = EMPTY;
+      h0->border_ratio = 0;
 
-        if (y & 1)
-          h0->pos.x += w / 2;
+      if (y & 1) h0->pos.x += w / 2;
 
-        h0->ccolor = random() % bp->ncolors;
-      }
+      h0->ccolor = random() % bp->ncolors;
+    }
 
-  for (y = 0; y < bp->grid_h; y++)
-    for (x = 0; x < bp->grid_w; x++)
-      {
-        hexagon *h0 = &grid[y * bp->grid_w + x];
-# undef NEIGHBOR
-# define NEIGHBOR(I,XE,XO,Y) do {                                        \
-          int x1 = x + (y & 1 ? (XO) : (XE));                            \
-          int y1 = y + (Y);                                              \
-          if (x1 >= 0 && x1 < bp->grid_w && y1 >= 0 && y1 < bp->grid_h)  \
-            h0->neighbors[(I)] = &grid [y1 * bp->grid_w + x1];           \
-        } while (0)
-
-        /*   0,0   1,0   2,0   3,0   4,0   5,0
-                0,1   1,1   2,1   3,1   4,1   5,1
-             0,2   1,2   2,2   3,2   4,2   5,2
-                0,3   1,3   2,3   3,3   4,3   5,3
-             0,4   1,4   2,4   3,4   4,4   5,4
-                0,5   1,5   2,5   3,5   4,5   5,5
-         */
-        NEIGHBOR (0,  0,  1, -1);
-        NEIGHBOR (1,  1,  1,  0);
-        NEIGHBOR (2,  0,  1,  1);
-        NEIGHBOR (3, -1,  0,  1);
-        NEIGHBOR (4, -1, -1,  0);
-        NEIGHBOR (5, -1,  0, -1);
-
-# undef NEIGHBOR
-      }
+    update_neighbors(mi);
 }
 
 
@@ -212,9 +211,7 @@ empty_hexagon_p (hexagon *h)
   return True;
 }
 
-static int
-add_arms (ModeInfo *mi, hexagon *h0, Bool out_p)
-{
+static int add_arms (ModeInfo *mi, hexagon *h0, Bool out_p) {
   hextrail_configuration *bp = &bps[MI_SCREEN(mi)];
   int i;
   int added = 0;
@@ -223,18 +220,16 @@ add_arms (ModeInfo *mi, hexagon *h0, Bool out_p)
   int idx[6];				/* Traverse in random order */
   for (i = 0; i < 6; i++)
     idx[i] = i;
-  for (i = 0; i < 6; i++)
-    {
+  for (i = 0; i < 6; i++) {
       int j = random() % 6;
       int swap = idx[j];
       idx[j] = idx[i];
       idx[i] = swap;
-    }
+  }
 
   if (out_p) target--;
 
-  for (i = 0; i < 6; i++)
-    {
+  for (i = 0; i < 6; i++) {
       int j = idx[i];
       hexagon *h1 = h0->neighbors[j];
       arm *a0 = &h0->arms[j];
@@ -253,21 +248,19 @@ add_arms (ModeInfo *mi, hexagon *h0, Bool out_p)
       a0->speed = 0.05 * speed * (0.8 + frand(1.0));
       a1->speed = a0->speed;
 
-      if (h1->border_state == EMPTY)
-        {
+      if (h1->border_state == EMPTY) {
           h1->border_state = IN;
 
           /* Mostly keep the same color */
           h1->ccolor = h0->ccolor;
           if (! (random() % 5))
             h1->ccolor = (h0->ccolor + 1) % bp->ncolors;
-        }
+      }
 
       bp->live_count++;
       added++;
-      if (added >= target)
-        break;
-    }
+      if (added >= target) break;
+  }
   return added;
 }
 
@@ -350,8 +343,8 @@ static void expand_grid(ModeInfo *mi, int direction) {
       *new_h = *old_h;
 
       /* Adjust position for offset */
-      new_h->pos.x += x_offset * 2.0 / old_w;
-      new_h->pos.y += y_offset * 2.0 / old_h;
+      new_h->pos.x += x_offset * (2.0 / old_w);
+      new_h->pos.y += y_offset * (2.0 / old_h);
     }
 
   /* Initialize new hexagons */
@@ -372,14 +365,12 @@ static void expand_grid(ModeInfo *mi, int direction) {
       h0->border_ratio = 0;
       h0->activity_state = ACTIVE;
 
-      if (y & 1)
-        h0->pos.x += size / 2;
+      if (y & 1) h0->pos.x += size / 2;
 
       h0->ccolor = random() % bp->ncolors;
     }
 
-  /* Update neighbor connections */
-  update_neighbors(mi);  /* You'll need to modify the existing neighbor code */
+  update_neighbors(mi);
 
   free(old_grid);
 }
@@ -488,8 +479,7 @@ static void tick_hexagons (ModeInfo *mi) {
             h0->border_state = EMPTY;
         }
       case WAIT:
-        if (! (random() % 50))
-          h0->border_state = OUT;
+        if (! (random() % 50)) h0->border_state = OUT;
         break;
       case EMPTY:
 /*
@@ -498,8 +488,7 @@ static void tick_hexagons (ModeInfo *mi) {
  */
         break;
       default:
-        abort();
-        break;
+        abort(); break;
       }
   }
 
@@ -518,8 +507,7 @@ static void tick_hexagons (ModeInfo *mi) {
             y = random() % bp->grid_h;
         }
         h0 = &bp->hexagons[y * bp->grid_w + x];
-        if (empty_hexagon_p (h0) && add_arms (mi, h0, True))
-          break;
+        if (empty_hexagon_p (h0) && add_arms (mi, h0, True)) break;
     }
 
   if (bp->live_count <= 0 && bp->state != FADE) {
