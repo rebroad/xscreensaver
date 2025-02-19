@@ -167,6 +167,7 @@ static void make_plane (ModeInfo *mi) {
   memset (grid, 0, bp->grid_w * bp->grid_h * sizeof(*grid));
 
   bp->ncolors = 8;
+  printf("Setting button_pressed to False\n");
   bp->button_pressed = False;
   if (!bp->colors) {
 #ifdef USE_SDL
@@ -282,15 +283,15 @@ static Bool point_visible(ModeInfo *mi, Bool active, XYZ point) {
           winY >= viewport[1] && winY <= viewport[1] + viewport[3] &&
           winZ > 0 && winZ < 1);
 
-  if (current_time != debug_time && ((is_visible && !active) || (!is_visible && active))) {
+  //if (current_time != debug_time && ((is_visible && !active) || (!is_visible && active))) {
+  if (current_time != debug_time) {
 	debug_time = current_time;
-	printf("\n%s hexagon %s\n", active ? "Active" : "Sleeping",
-			active ? "going offscreen" : "becoming visible");
+	printf("\n%s hexagon is o%sscreen\n", active ? "Active" : "Sleeping",
+			is_visible ? "n" : "ff");
     printf("World coords (x,y,z): %.2f, %.2f, %.2f\n", point.x, point.y, point.z);
     printf("Screen coords (x,y,z): %.2f, %.2f, %.2f\n", winX, winY, winZ);
     printf("Viewport: x=%d, y=%d, w=%d, h=%d\n", 
            viewport[0], viewport[1], viewport[2], viewport[3]);
-    printf("Is visible: %s\n", is_visible ? "YES" : "NO");
   }
 
   return is_visible;
@@ -396,12 +397,7 @@ static void tick_hexagons (ModeInfo *mi) {
       }
 
       /* Update activity state based on visibility */
-      if (point_visible(mi, h0->active, h0->pos)) {
-        if (!h0->active)
-          h0->active = True;
-      } else if (h0->active) {
-        h0->active = False;
-      }
+      h0->active = point_visible(mi, h0->active, h0->pos);
     }
 
     if (needs_expansion && dir >= 0) {
@@ -1062,7 +1058,10 @@ ENTRYPOINT void draw_hextrail (ModeInfo *mi) {
   }
 
   if (! bp->button_down_p) tick_hexagons (mi);
-  else bp->button_pressed = True;
+  else {
+	  if (!bp->button_pressed) printf("Button pressed\n");
+	  bp->button_pressed = True;
+  }
   draw_hexagons (mi);
 
   glPopMatrix ();
