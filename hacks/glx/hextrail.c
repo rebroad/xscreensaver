@@ -2,10 +2,10 @@
  */
 
 #define DEFAULTS	"*delay:	30000       \n" \
-			"*showFPS:      False       \n" \
-			"*wireframe:    False       \n" \
-			"*count:        20          \n" \
-			"*suppressRotationAnimation: True\n" \
+            "*showFPS:      False       \n" \
+            "*wireframe:    False       \n" \
+            "*count:        20          \n" \
+            "*suppressRotationAnimation: True\n" \
 
 # define release_hextrail 0
 
@@ -19,6 +19,7 @@
 #include <GL/gl.h>
 #include <GL/glu.h>
 #endif
+#include <string.h>
 #include "xlockmore.h"
 #include "colors.h"
 #include "normals.h"
@@ -52,7 +53,10 @@ typedef struct {
   GLfloat speed;
 } arm;
 
+typedef enum { ACTIVE, SLEEPING, AWAKENING } activity_state_t;
+
 typedef struct hexagon hexagon;
+
 struct hexagon {
   XYZ pos;
   hexagon *neighbors[6];
@@ -60,6 +64,7 @@ struct hexagon {
   int ccolor;
   state_t border_state;
   GLfloat border_ratio;
+  activity_state_t activity_state;
 };
 
 typedef struct {
@@ -137,7 +142,7 @@ static void make_plane (ModeInfo *mi) {
   bp->ncolors = 8;
   if (!bp->colors) {
 #ifdef USE_SDL
-	bp->colors = (SDL_Color *) calloc(bp->ncolors, sizeof(SDL_Color));
+    bp->colors = (SDL_Color *) calloc(bp->ncolors, sizeof(SDL_Color));
     make_smooth_colormap(bp->colors, &bp->ncolors, False, 0, False);
 #else
     bp->colors = (XColor *) calloc(bp->ncolors, sizeof(XColor));
@@ -266,27 +271,176 @@ add_arms (ModeInfo *mi, hexagon *h0, Bool out_p)
   return added;
 }
 
+/* Check if a point is within the visible frustum */
+static Bool point_visible(ModeInfo *mi, XYZ point) {
+  hextrail_configuration *bp = &bps[MI_SCREEN(mi)];
+  GLfloat model[16], proj[16];
+  GLint viewport[4];
+  GLfloat winX, winY, winZ;
 
-static void
-tick_hexagons (ModeInfo *mi)
-{
+  /* Get current matrices and viewport */
+  glGetFloatv(GL_MODELVIEW_MATRIX, model);
+  glGetFloatv(GL_PROJECTION_MATRIX, proj);
+  glGetIntegerv(GL_VIEWPORT, viewport);
+
+  /* Project point to screen coordinates */
+  gluProject(point.x, point.y, point.z,
+             model, proj, viewport,
+             &winX, &winY, &winZ);
+
+  /* Check if point is in viewport and not behind camera */
+  return (winX >= viewport[0] && winX <= viewport[0] + viewport[2] &&
+          winY >= viewport[1] && winY <= viewport[1] + viewport[3] &&
+          winZ > 0 && winZ < 1);
+}
+
+/* Check if a hexagon is visible */
+static Bool hexagon_visible(ModeInfo *mi, hexagon *h) {
+  /* Check center point and a few corners for visibility */
+  XYZ corners[3];
+  GLfloat size = 2.0 / bps[MI_SCREEN(mi)].grid_w;
+
+  corners[0] = h->pos;  /* Center */
+
+  /* Two opposite corners */
+  corners[1].x = h->pos.x + size;
+  corners[1].y = h->pos.y + size * sqrt(3)/2;
+  corners[1].z = h->pos.z;
+
+  corners[2].x = h->pos.x - size;
+  corners[2].y = h->pos.y - size * sqrt(3)/2;
+  corners[2].z = h->pos.z;
+
+  return (point_visible(mi, corners[0]) ||
+          point_visible(mi, corners[1]) ||
+          point_visible(mi, corners[2]));
+}
+
+/* Expand grid in a given direction */
+static void expand_grid(ModeInfo *mi, int direction) {
+  hextrail_configuration *bp = &bps[MI_SCREEN(mi)];
+  int old_w = bp->grid_w;
+  int old_h = bp->grid_h;
+  hexagon *old_grid = bp->hexagons;
+  int expansion = MI_COUNT(mi);  /* Amount to expand by */
+  int x, y;
+
+  /* Increase grid size */
+  switch(direction) {
+    case 0: /* Right */
+    case 3: /* Left */
+      bp->grid_w += expansion;
+      break;
+    case 1: /* Top */
+    case 4: /* Bottom */
+      bp->grid_h += expansion;
+      break;
+  }
+
+  /* Allocate new grid */
+  bp->hexagons = (hexagon *) calloc(bp->grid_w * bp->grid_h, sizeof(hexagon));
+
+  /* Copy existing hexagons to new grid with offset based on direction */
+  int x_offset = (direction == 3) ? expansion : 0;
+  int y_offset = (direction == 4) ? expansion : 0;
+
+  for (y = 0; y < old_h; y++)
+    for (x = 0; x < old_w; x++) {
+      hexagon *old_h = &old_grid[y * old_w + x];
+      hexagon *new_h = &bp->hexagons[(y + y_offset) * bp->grid_w + (x + x_offset)];
+      *new_h = *old_h;
+
+      /* Adjust position for offset */
+      new_h->pos.x += x_offset * 2.0 / old_w;
+      new_h->pos.y += y_offset * 2.0 / old_h;
+    }
+
+  /* Initialize new hexagons */
+  GLfloat size = 2.0 / bp->grid_w;
+  GLfloat h = size * sqrt(3) / 2;
+
+  for (y = 0; y < bp->grid_h; y++)
+    for (x = 0; x < bp->grid_w; x++) {
+      /* Skip existing hexagons */
+      if (x >= x_offset && x < old_w + x_offset &&
+          y >= y_offset && y < old_h + y_offset)
+        continue;
+
+      hexagon *h0 = &bp->hexagons[y * bp->grid_w + x];
+      h0->pos.x = (x - bp->grid_w/2) * size;
+      h0->pos.y = (y - bp->grid_h/2) * h;
+      h0->border_state = EMPTY;
+      h0->border_ratio = 0;
+      h0->activity_state = ACTIVE;
+
+      if (y & 1)
+        h0->pos.x += size / 2;
+
+      h0->ccolor = random() % bp->ncolors;
+    }
+
+  /* Update neighbor connections */
+  update_neighbors(mi);  /* You'll need to modify the existing neighbor code */
+
+  free(old_grid);
+}
+
+static void tick_hexagons (ModeInfo *mi) {
   hextrail_configuration *bp = &bps[MI_SCREEN(mi)];
   int i, j;
+  Bool needs_expansion = False;
+  int expand_direction = -1;
 
-  /* Enlarge any still-growing arms.
-   */
-  for (i = 0; i < bp->grid_w * bp->grid_h; i++)
-    {
+  /* Check if we need to expand the grid */
+  if (!bp->button_down_p) {  // TODO - wrong check - should be a flag set if moved ever
+    for (i = 0; i < bp->grid_w * bp->grid_h; i++) {
       hexagon *h0 = &bp->hexagons[i];
-      for (j = 0; j < 6; j++)
-        {
+
+      /* Skip non-active hexagons */
+      if (h0->activity_state != ACTIVE) continue;
+
+      /* Check if this is an edge hexagon with active arms */
+      Bool is_edge = (h0->pos.x <= -1 || h0->pos.x >= 1 ||
+                     h0->pos.y <= -1 || h0->pos.y >= 1);
+
+      if (is_edge && hexagon_visible(mi, h0)) {
+        for (int j = 0; j < 6; j++) {
+          if (h0->arms[j].state != EMPTY) {
+            needs_expansion = True;
+            /* Determine expansion direction based on position */
+            if (h0->pos.x >= 1) expand_direction = 0;      /* Right */
+            else if (h0->pos.y >= 1) expand_direction = 1; /* Top */
+            else if (h0->pos.x <= -1) expand_direction = 3;/* Left */
+            else if (h0->pos.y <= -1) expand_direction = 4;/* Bottom */
+            break;
+          }
+        }
+      }
+
+      /* Update activity state based on visibility */
+      if (hexagon_visible(mi, h0)) {
+        if (h0->activity_state == SLEEPING)
+          h0->activity_state = AWAKENING;
+      } else if (h0->activity_state == ACTIVE) {
+        h0->activity_state = SLEEPING;
+      }
+    }
+
+    if (needs_expansion && expand_direction >= 0) {
+      expand_grid(mi, expand_direction);
+    }
+  }
+
+  /* Enlarge any still-growing arms.  */
+  for (i = 0; i < bp->grid_w * bp->grid_h; i++) {
+      hexagon *h0 = &bp->hexagons[i];
+      for (j = 0; j < 6; j++) {
           arm *a0 = &h0->arms[j];
           switch (a0->state) {
           case OUT:
             if (a0->speed <= 0) abort();
             a0->ratio += a0->speed;
-            if (a0->ratio > 1)
-              {
+            if (a0->ratio > 1) {
                 /* Just finished growing from center to edge.
                    Pass the baton to this waiting neighbor. */
                 hexagon *h1 = h0->neighbors[j];
@@ -298,13 +452,12 @@ tick_hexagons (ModeInfo *mi)
                 a1->ratio = 0;
                 a1->speed = a0->speed;
                 /* bp->live_count unchanged */
-              }
+            }
             break;
           case IN:
             if (a0->speed <= 0) abort();
             a0->ratio += a0->speed;
-            if (a0->ratio > 1)
-              {
+            if (a0->ratio > 1) {
                 /* Just finished growing from edge to center.
                    Look for any available exits. */
                 a0->state = DONE;
@@ -312,31 +465,29 @@ tick_hexagons (ModeInfo *mi)
                 bp->live_count--;
                 if (bp->live_count < 0) abort();
                 add_arms (mi, h0, True);
-              }
+            }
             break;
           case EMPTY: case WAIT: case DONE:
             break;
           default:
             abort(); break;
           }
-        }
+      }
 
       switch (h0->border_state) {
       case IN:
         h0->border_ratio += 0.05 * speed;
-        if (h0->border_ratio >= 1)
-          {
+        if (h0->border_ratio >= 1) {
             h0->border_ratio = 1;
             h0->border_state = WAIT;
-          }
+        }
         break;
       case OUT:
         h0->border_ratio -= 0.05 * speed;
-        if (h0->border_ratio <= 0)
-          {
+        if (h0->border_ratio <= 0) {
             h0->border_ratio = 0;
             h0->border_state = EMPTY;
-          }
+        }
       case WAIT:
         if (! (random() % 50))
           h0->border_state = OUT;
@@ -351,55 +502,44 @@ tick_hexagons (ModeInfo *mi)
         abort();
         break;
       }
-    }
+  }
 
-  /* Start a new cell growing.
-   */
+  /* Start a new cell growing.  */
   if (bp->live_count <= 0)
-    for (i = 0; i < (bp->grid_w * bp->grid_h) / 3; i++)
-      {
+    for (i = 0; i < (bp->grid_w * bp->grid_h) / 3; i++) {
         hexagon *h0;
         int x, y;
-        if (bp->state == FIRST)
-          {
+        if (bp->state == FIRST) {
             x = bp->grid_w / 2;
             y = bp->grid_h / 2;
             bp->state = DRAW;
             bp->fade_ratio = 1;
-          }
-        else
-          {
+        } else {
             x = random() % bp->grid_w;
             y = random() % bp->grid_h;
-          }
+        }
         h0 = &bp->hexagons[y * bp->grid_w + x];
-        if (empty_hexagon_p (h0) &&
-            add_arms (mi, h0, True)) 
+        if (empty_hexagon_p (h0) && add_arms (mi, h0, True))
           break;
-      }
+    }
 
-  if (bp->live_count <= 0 && bp->state != FADE)
-    {
+  if (bp->live_count <= 0 && bp->state != FADE) {
       bp->state = FADE;
       bp->fade_ratio = 1;
 
-      for (i = 0; i < bp->grid_w * bp->grid_h; i++)
-        {
+      for (i = 0; i < bp->grid_w * bp->grid_h; i++) {
           hexagon *h = &bp->hexagons[i];
           if (h->border_state == IN || h->border_state == WAIT)
             h->border_state = OUT;
-        }
-    }
-  else if (bp->state == FADE)
-    {
+      }
+  } else if (bp->state == FADE) {
       bp->fade_ratio -= 0.01 * speed;
-      if (bp->fade_ratio <= 0)
-        {
+      if (bp->fade_ratio <= 0) {
           make_plane (mi);
           bp->state = FIRST;
           bp->fade_ratio = 1;
-        }
-    }
+      }
+  }
 }
 
 
@@ -437,10 +577,10 @@ draw_hexagons (ModeInfo *mi)
         if (a->state == OUT || a->state == DONE)
           total_arms++;
       }
-      
+
 #ifdef USE_SDL
       # define HEXAGON_COLOR(V,H) do { \
-		int idx = (H)->ccolor; \
+        int idx = (H)->ccolor; \
         (V)[0] = bp->colors[idx].r / 255.0f * bp->fade_ratio; \
         (V)[1] = bp->colors[idx].g / 255.0f * bp->fade_ratio; \
         (V)[2] = bp->colors[idx].b / 255.0f * bp->fade_ratio; \
@@ -557,138 +697,138 @@ draw_hexagons (ModeInfo *mi)
               p[3].z = h->pos.z;
 
               if (do_glow || do_neon) {
-				Bool debug_now = False;
-				/*static time_t debug_time = 0;
-				time_t current_time = time(NULL);
-				if (current_time != debug_time) {
-				  debug_now = True;
-				  debug_time = current_time;
-				}*/
+                Bool debug_now = False;
+                /*static time_t debug_time = 0;
+                time_t current_time = time(NULL);
+                if (current_time != debug_time) {
+                  debug_now = True;
+                  debug_time = current_time;
+                }*/
 
-				if (debug_now) {
-				  printf("\nGLOW DEBUG:\n");
-				  printf("Current color: %.2f, %.2f, %.2f\n",
-						 color[0], color[1], color[2]);
-				  printf("Current p[0]: %.2f, %.2f, %.2f\n", p[0].x, p[0].y, p[0].z);
-				  printf("Current p[3]: %.2f, %.2f, %.2f\n", p[3].x, p[3].y, p[3].z);
-				  printf("Size value: %.2f\n", size);
-				}
+                if (debug_now) {
+                  printf("\nGLOW DEBUG:\n");
+                  printf("Current color: %.2f, %.2f, %.2f\n",
+                         color[0], color[1], color[2]);
+                  printf("Current p[0]: %.2f, %.2f, %.2f\n", p[0].x, p[0].y, p[0].z);
+                  printf("Current p[3]: %.2f, %.2f, %.2f\n", p[3].x, p[3].y, p[3].z);
+                  printf("Size value: %.2f\n", size);
+                }
 
                 GLenum err = glGetError();
-				if (err != GL_NO_ERROR && debug_now)
-				  printf("GL Error before glow: %d\n", err);
+                if (err != GL_NO_ERROR && debug_now)
+                  printf("GL Error before glow: %d\n", err);
 
-				glEnd();
+                glEnd();
 
-				glEnable(GL_BLEND);
-				if (debug_now) {
-				  err = glGetError();
-				  if (err != GL_NO_ERROR)
-					printf("GL Error after enable blend: %d\n", err);
+                glEnable(GL_BLEND);
+                if (debug_now) {
+                  err = glGetError();
+                  if (err != GL_NO_ERROR)
+                    printf("GL Error after enable blend: %d\n", err);
 
-				  GLboolean blend_enabled;
-				  glGetBooleanv(GL_BLEND, &blend_enabled);
-				  printf("Blend enabled: %d\n", blend_enabled);
-				}
+                  GLboolean blend_enabled;
+                  glGetBooleanv(GL_BLEND, &blend_enabled);
+                  printf("Blend enabled: %d\n", blend_enabled);
+                }
 
-				if (do_neon)
-				  glBlendFunc(GL_SRC_ALPHA, GL_ONE);
-				else
-				  glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);  // More natural blending
+                if (do_neon)
+                  glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+                else
+                  glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);  // More natural blending
 
-				const int glow_layers = 4;
+                const int glow_layers = 4;
 
                 for (int layer = 0; layer < glow_layers; layer++) {
-				  GLfloat glow_scale, glow_alpha;
+                  GLfloat glow_scale, glow_alpha;
 
-				  if (do_neon) {
+                  if (do_neon) {
                     glow_scale = 1.0 + (layer * 0.2);
                     //glow_scale = 1.0 + (layer * 0.5);
-				    glow_alpha = 0.3 / ((layer + 1) * (layer + 1));
-				    //glow_alpha = 0.8 / (layer + 1);
-				  } else {
-					glow_scale = 0.1 + ((layer+1) * 0.1);
-				    //glow_alpha = 0.15 / ((layer + 1) * (layer + 1));
-				    glow_alpha = 0.15 * pow(0.5, layer);
-				  }
+                    glow_alpha = 0.3 / ((layer + 1) * (layer + 1));
+                    //glow_alpha = 0.8 / (layer + 1);
+                  } else {
+                    glow_scale = 0.1 + ((layer+1) * 0.1);
+                    //glow_alpha = 0.15 / ((layer + 1) * (layer + 1));
+                    glow_alpha = 0.15 * pow(0.5, layer);
+                  }
 
-				  /* Make the glow color brighter than the base color */
-				  GLfloat *glow_color = color;
-				  /*GLfloat glow_color[4] = {
-					fmin(color[0] * 2.0, 1.0),
-					fmin(color[1] * 2.0, 1.0),
-					fmin(color[2] * 2.0, 1.0),
-					color[3]
-				  };*/
+                  /* Make the glow color brighter than the base color */
+                  GLfloat *glow_color = color;
+                  /*GLfloat glow_color[4] = {
+                    fmin(color[0] * 2.0, 1.0),
+                    fmin(color[1] * 2.0, 1.0),
+                    fmin(color[2] * 2.0, 1.0),
+                    color[3]
+                  };*/
 
-				  float dx = p[3].x - p[0].x;
-				  float dy = p[3].y - p[0].y;
+                  float dx = p[3].x - p[0].x;
+                  float dy = p[3].y - p[0].y;
                   float length = sqrt(dx*dx + dy*dy);
 
-				  if (debug_now && layer == 2) {
-					printf("\nLayer %d:\n", layer);
+                  if (debug_now && layer == 2) {
+                    printf("\nLayer %d:\n", layer);
                     printf("Glow scale: %.2f\n", glow_scale);
-					printf("Glow alpha: %.2f\n", glow_alpha);
+                    printf("Glow alpha: %.2f\n", glow_alpha);
                     printf("Bright color: %.2f, %.2f, %.2f\n",
-						   glow_color[0], glow_color[1], glow_color[2]);
-					printf("Arm length: %.2f\n", length);
-				  }
+                           glow_color[0], glow_color[1], glow_color[2]);
+                    printf("Arm length: %.2f\n", length);
+                  }
 
                   /* Center point glow */
-				  glBegin(GL_TRIANGLE_FAN);
-				  glColor4f(glow_color[0], glow_color[1], glow_color[2], glow_alpha);
-				  glVertex3f(p[0].x, p[0].y, p[0].z);
-				  for (int g = 0; g <= 16; g++) {
-				  //for (int g = 0; g <= 8; g++) {
-				    float angle = g * M_PI / 8;
-				    //float angle = g * M_PI / 4;
-					float x = p[0].x + cos(angle) * size * glow_scale;
+                  glBegin(GL_TRIANGLE_FAN);
+                  glColor4f(glow_color[0], glow_color[1], glow_color[2], glow_alpha);
+                  glVertex3f(p[0].x, p[0].y, p[0].z);
+                  for (int g = 0; g <= 16; g++) {
+                  //for (int g = 0; g <= 8; g++) {
+                    float angle = g * M_PI / 8;
+                    //float angle = g * M_PI / 4;
+                    float x = p[0].x + cos(angle) * size * glow_scale;
                     float y = p[0].y + sin(angle) * size * glow_scale;
-					glVertex3f(x, y, p[0].z);
-				  }
-				  glEnd();
+                    glVertex3f(x, y, p[0].z);
+                  }
+                  glEnd();
 
                   /* End point glow */
-				  glBegin(GL_TRIANGLE_FAN);
-				  if (!do_neon)
-				    glColor4f(glow_color[0], glow_color[1], glow_color[2], glow_alpha); // Needed?
-				  glVertex3f(p[3].x, p[3].y, p[3].z);
-				  for (int g = 0; g <= 16; g++) {
-				  //for (int g = 0; g <= 8; g++) {
-				    float angle = g * M_PI / 8;
-					//float angle = g * M_PI / 4;
-					float x = p[3].x + cos(angle) * size * glow_scale;
-					float y = p[3].y + sin(angle) * size * glow_scale;
-					glVertex3f(x, y, p[3].z);
-				  }
-				  glEnd();
+                  glBegin(GL_TRIANGLE_FAN);
+                  if (!do_neon)
+                    glColor4f(glow_color[0], glow_color[1], glow_color[2], glow_alpha); // Needed?
+                  glVertex3f(p[3].x, p[3].y, p[3].z);
+                  for (int g = 0; g <= 16; g++) {
+                  //for (int g = 0; g <= 8; g++) {
+                    float angle = g * M_PI / 8;
+                    //float angle = g * M_PI / 4;
+                    float x = p[3].x + cos(angle) * size * glow_scale;
+                    float y = p[3].y + sin(angle) * size * glow_scale;
+                    glVertex3f(x, y, p[3].z);
+                  }
+                  glEnd();
 
-				  /* Arm glow */
-				  if (do_neon)
-					glBegin(GL_TRIANGLE_STRIP);
-				  else
-					glBegin(GL_QUADS);
-				  float nx = -dy/length * size * glow_scale;
-				  float ny = dx/length * size * glow_scale;
+                  /* Arm glow */
+                  if (do_neon)
+                    glBegin(GL_TRIANGLE_STRIP);
+                  else
+                    glBegin(GL_QUADS);
+                  float nx = -dy/length * size * glow_scale;
+                  float ny = dx/length * size * glow_scale;
 
-				  if (!do_neon)
-				    glColor4f(glow_color[0], glow_color[1], glow_color[2], glow_alpha); // Needed?
-				  glVertex3f(p[0].x + nx, p[0].y + ny, p[0].z);
-				  glVertex3f(p[0].x - nx, p[0].y - ny, p[0].z);
-				  glVertex3f(p[3].x + nx, p[3].y + ny, p[3].z);
-				  glVertex3f(p[3].x - nx, p[3].y - ny, p[3].z);
-				  glEnd();
-				}
+                  if (!do_neon)
+                    glColor4f(glow_color[0], glow_color[1], glow_color[2], glow_alpha); // Needed?
+                  glVertex3f(p[0].x + nx, p[0].y + ny, p[0].z);
+                  glVertex3f(p[0].x - nx, p[0].y - ny, p[0].z);
+                  glVertex3f(p[3].x + nx, p[3].y + ny, p[3].z);
+                  glVertex3f(p[3].x - nx, p[3].y - ny, p[3].z);
+                  glEnd();
+                }
 
-				if (debug_now) {
-				  err = glGetError();
-				  if (err != GL_NO_ERROR) {
-					printf("GL Error after glow drawing: %d\n", err);
-				  }
-				}
+                if (debug_now) {
+                  err = glGetError();
+                  if (err != GL_NO_ERROR) {
+                    printf("GL Error after glow drawing: %d\n", err);
+                  }
+                }
 
                 glDisable(GL_BLEND);
-				glBegin(wire ? GL_LINES : GL_TRIANGLES);
+                glBegin(wire ? GL_LINES : GL_TRIANGLES);
               }
 
               glColor4fv (color2);
@@ -795,47 +935,47 @@ static void reset_hextrail(ModeInfo *mi) {
 
 ENTRYPOINT Bool hextrail_handle_event (ModeInfo *mi,
 #ifdef USE_SDL
-		SDL_Event *event
+        SDL_Event *event
 #else
-		XEvent *event
+        XEvent *event
 #endif
-		) {
+        ) {
   hextrail_configuration *bp = &bps[MI_SCREEN(mi)];
 
   if (gltrackball_event_handler (event, bp->trackball,
-			  MI_WIDTH (mi), MI_HEIGHT (mi), &bp->button_down_p)) return True;
+              MI_WIDTH (mi), MI_HEIGHT (mi), &bp->button_down_p)) return True;
 #ifdef USE_SDL
   else if (event->type == SDL_EVENT_KEY_DOWN) {
-	SDL_Keycode keysym = event->key.key;
-	char c = (char)event->key.key;
+    SDL_Keycode keysym = event->key.key;
+    char c = (char)event->key.key;
 #else
   else if (event->xany.type == KeyPress) {
     KeySym keysym;
     char c = 0;
     XLookupString (&event->xkey, &c, 1, &keysym, 0);
 #endif
-	printf("%s: c=%c (%d)\n", __func__, c, c);
+    printf("%s: c=%c (%d)\n", __func__, c, c);
 
     if (c == ' ' || c == '\t' || c == '\r' || c == '\n') ;
     else if (c == '>' || c == '.' || c == '+' || c == '=' ||
 #ifdef USE_SDL
-			keysym == SDLK_RIGHT || keysym == SDLK_UP || keysym == SDLK_PAGEDOWN
+            keysym == SDLK_RIGHT || keysym == SDLK_UP || keysym == SDLK_PAGEDOWN
 #else
             keysym == XK_Right || keysym == XK_Up || keysym == XK_Next
 #endif
-			)
+            )
       MI_COUNT(mi)++;
     else if (c == '<' || c == ',' || c == '-' || c == '_' ||
                c == '\010' || c == '\177' ||
 #ifdef USE_SDL
-			keysym == SDLK_LEFT || keysym == SDLK_DOWN || keysym == SDLK_PAGEUP
+            keysym == SDLK_LEFT || keysym == SDLK_DOWN || keysym == SDLK_PAGEUP
 #else
             keysym == XK_Left || keysym == XK_Down || keysym == XK_Prior
 #endif
-			)
+            )
       MI_COUNT(mi)--;
 #ifdef USE_SDL
-	else if (event->type == SDL_EVENT_QUIT) ;
+    else if (event->type == SDL_EVENT_QUIT) ;
 #else
     else if (screenhack_event_helper (MI_DISPLAY(mi), MI_WINDOW(mi), event)) ;
 #endif
@@ -975,9 +1115,9 @@ ENTRYPOINT void free_hextrail (ModeInfo *mi) {
 
 #ifdef USE_SDL
   if (bp->gl_context)
-	SDL_GL_DestroyContext(bp->gl_context);
+    SDL_GL_DestroyContext(bp->gl_context);
   if (bp->window)
-	SDL_DestroyWindow(bp->window);
+    SDL_DestroyWindow(bp->window);
   SDL_Quit();
 #endif
 }
