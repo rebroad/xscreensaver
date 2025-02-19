@@ -276,18 +276,11 @@ static Bool point_visible(ModeInfo *mi, XYZ point) {
   GLdouble model[16], proj[16];
   GLint viewport[4];
   GLdouble winX, winY, winZ;
-  GLfloat modelf[16], projf[16];
 
   /* Get current matrices and viewport */
-  glGetFloatv(GL_MODELVIEW_MATRIX, modelf);
-  glGetFloatv(GL_PROJECTION_MATRIX, projf);
+  glGetDoublev(GL_MODELVIEW_MATRIX, model);
+  glGetDoublev(GL_PROJECTION_MATRIX, proj);
   glGetIntegerv(GL_VIEWPORT, viewport);
-
-  /* Convert GLfloat matrices to GLdouble */
-  for (int i = 0; i < 16; i++) {
-	model[i] = (GLdouble)modelf[i];
-	proj[i] = (GLdouble)projf[i];
-  }
 
   /* Project point to screen coordinates */
   gluProject((GLdouble)point.x, (GLdouble)point.y, (GLdouble)point.z,
