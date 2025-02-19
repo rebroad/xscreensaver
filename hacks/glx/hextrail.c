@@ -273,18 +273,24 @@ add_arms (ModeInfo *mi, hexagon *h0, Bool out_p)
 
 /* Check if a point is within the visible frustum */
 static Bool point_visible(ModeInfo *mi, XYZ point) {
-  hextrail_configuration *bp = &bps[MI_SCREEN(mi)];
-  GLfloat model[16], proj[16];
+  GLdouble model[16], proj[16];
   GLint viewport[4];
-  GLfloat winX, winY, winZ;
+  GLdouble winX, winY, winZ;
+  GLfloat modelf[16], projf[16];
 
   /* Get current matrices and viewport */
-  glGetFloatv(GL_MODELVIEW_MATRIX, model);
-  glGetFloatv(GL_PROJECTION_MATRIX, proj);
+  glGetFloatv(GL_MODELVIEW_MATRIX, modelf);
+  glGetFloatv(GL_PROJECTION_MATRIX, projf);
   glGetIntegerv(GL_VIEWPORT, viewport);
 
+  /* Convert GLfloat matrices to GLdouble */
+  for (int i = 0; i < 16; i++) {
+	model[i] = (GLdouble)modelf[i];
+	proj[i] = (GLdouble)projf[i];
+  }
+
   /* Project point to screen coordinates */
-  gluProject(point.x, point.y, point.z,
+  gluProject((GLdouble)point.x, (GLdouble)point.y, (GLdouble)point.z,
              model, proj, viewport,
              &winX, &winY, &winZ);
 
