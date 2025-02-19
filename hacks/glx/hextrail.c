@@ -297,10 +297,6 @@ static Bool point_visible(ModeInfo *mi, XYZ point) {
   return is_visible;
 }
 
-static Bool hexagon_visible(ModeInfo *mi, hexagon *h) {
-  return (point_visible(mi, h->pos));
-}
-
 /* Expand grid in a given direction */
 static void expand_plane(ModeInfo *mi, int direction) {
   hextrail_configuration *bp = &bps[MI_SCREEN(mi)];
@@ -386,7 +382,7 @@ static void tick_hexagons (ModeInfo *mi) {
       Bool is_edge = (h0->pos.x <= -1 || h0->pos.x >= 1 ||
                      h0->pos.y <= -1 || h0->pos.y >= 1);
 
-      if (is_edge && hexagon_visible(mi, h0)) {
+      if (is_edge && point_visible(mi, h0->pos)) {
         for (int j = 0; j < 6; j++) {
           if (h0->arms[j].state != EMPTY) {
             needs_expansion = True;
@@ -401,7 +397,7 @@ static void tick_hexagons (ModeInfo *mi) {
       }
 
       /* Update activity state based on visibility */
-      if (hexagon_visible(mi, h0)) {
+      if (point_visible(mi, h0->pos)) {
         if (h0->activity_state == SLEEPING)
           h0->activity_state = AWAKENING;
       } else if (h0->activity_state == ACTIVE) {
