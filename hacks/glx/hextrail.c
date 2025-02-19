@@ -53,8 +53,6 @@ typedef struct {
   GLfloat speed;
 } arm;
 
-typedef enum { ACTIVE, SLEEPING, AWAKENING } activity_state_t;
-
 typedef struct hexagon hexagon;
 
 struct hexagon {
@@ -64,7 +62,7 @@ struct hexagon {
   int ccolor;
   state_t border_state;
   GLfloat border_ratio;
-  activity_state_t activity_state;
+  Bool active;
 };
 
 typedef struct {
@@ -262,15 +260,13 @@ static int add_arms (ModeInfo *mi, hexagon *h0, Bool out_p) {
 }
 
 /* Check if a point is within the visible frustum */
-static Bool point_visible(ModeInfo *mi, XYZ point) {
+static Bool point_visible(ModeInfo *mi, Bool active, XYZ point) {
   GLdouble model[16], proj[16];
   GLint viewport[4];
   GLdouble winX, winY, winZ;
-  static int debug_counter = 0;
 
-  /* Only print every 60th frame to avoid flooding */
-  debug_counter = (debug_counter + 1) % 60;
-  Bool should_print = (debug_counter == 0);
+  static time_t debug_time = 0;
+  time_t current_time = time(NULL);
 
   /* Get current matrices and viewport */
   glGetDoublev(GL_MODELVIEW_MATRIX, model);
@@ -286,8 +282,11 @@ static Bool point_visible(ModeInfo *mi, XYZ point) {
           winY >= viewport[1] && winY <= viewport[1] + viewport[3] &&
           winZ > 0 && winZ < 1);
 
-  if (should_print) {
-    printf("\nWorld coords (x,y,z): %.2f, %.2f, %.2f\n", point.x, point.y, point.z);
+  if (current_time != debug_time && ((is_visible && !active) || (!is_visible && active))) {
+	debug_time = current_time;
+	printf("\n%s hexagon %s\n", active ? "Active" : "Sleeping",
+			active ? "going offscreen" : "becoming visible");
+    printf("World coords (x,y,z): %.2f, %.2f, %.2f\n", point.x, point.y, point.z);
     printf("Screen coords (x,y,z): %.2f, %.2f, %.2f\n", winX, winY, winZ);
     printf("Viewport: x=%d, y=%d, w=%d, h=%d\n", 
            viewport[0], viewport[1], viewport[2], viewport[3]);
@@ -352,7 +351,7 @@ static void expand_plane(ModeInfo *mi, int direction) {
       h0->pos.y = (y - bp->grid_h/2) * h;
       h0->border_state = EMPTY;
       h0->border_ratio = 0;
-      h0->activity_state = ACTIVE;
+      h0->active = True;
 
       if (y & 1) h0->pos.x += size / 2;
 
@@ -368,7 +367,7 @@ static void tick_hexagons (ModeInfo *mi) {
   hextrail_configuration *bp = &bps[MI_SCREEN(mi)];
   int i, j;
   Bool needs_expansion = False;
-  int expand_direction = -1;
+  int dir = -1;
 
   /* Check if we need to expand the grid */
   if (!bp->button_pressed) {
@@ -376,37 +375,43 @@ static void tick_hexagons (ModeInfo *mi) {
       hexagon *h0 = &bp->hexagons[i];
 
       /* Skip non-active hexagons */
-      if (h0->activity_state != ACTIVE) continue;
+      if (! h0->active) continue;
 
       /* Check if this is an edge hexagon with active arms */
       Bool is_edge = (h0->pos.x <= -1 || h0->pos.x >= 1 ||
                      h0->pos.y <= -1 || h0->pos.y >= 1);
 
-      if (is_edge && point_visible(mi, h0->pos)) {
+      if (is_edge && point_visible(mi, h0->active, h0->pos)) {
         for (int j = 0; j < 6; j++) {
           if (h0->arms[j].state != EMPTY) {
             needs_expansion = True;
             /* Determine expansion direction based on position */
-            if (h0->pos.x >= 1) expand_direction = 0;      /* Right */
-            else if (h0->pos.y >= 1) expand_direction = 1; /* Top */
-            else if (h0->pos.x <= -1) expand_direction = 3;/* Left */
-            else if (h0->pos.y <= -1) expand_direction = 4;/* Bottom */
+            if (h0->pos.x >= 1) dir = 0;      /* Right */
+            else if (h0->pos.y >= 1) dir = 1; /* Top */
+            else if (h0->pos.x <= -1) dir = 3;/* Left */
+            else if (h0->pos.y <= -1) dir = 4;/* Bottom */
             break;
           }
         }
       }
 
       /* Update activity state based on visibility */
-      if (point_visible(mi, h0->pos)) {
-        if (h0->activity_state == SLEEPING)
-          h0->activity_state = AWAKENING;
-      } else if (h0->activity_state == ACTIVE) {
-        h0->activity_state = SLEEPING;
+      if (point_visible(mi, h0->active, h0->pos)) {
+        if (!h0->active)
+          h0->active = True;
+      } else if (h0->active) {
+        h0->active = False;
       }
     }
 
-    if (needs_expansion && expand_direction >= 0) {
-      expand_plane(mi, expand_direction);
+    if (needs_expansion && dir >= 0) {
+	  char *str;
+	  if (dir == 0) str = "Right";
+	  else if (dir == 1) str = "Up";
+	  else if (dir == 2) str = "Left";
+	  else str = "Down";
+	  printf("Expanding plane %s\n", str);
+      expand_plane(mi, dir);
     }
   }
 
