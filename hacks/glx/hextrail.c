@@ -79,6 +79,7 @@ typedef struct {
   rotator *rot;
   trackball_state *trackball;
   Bool button_down_p;
+  Bool button_pressed;
 
   int grid_w, grid_h;
   hexagon *hexagons;
@@ -168,6 +169,7 @@ static void make_plane (ModeInfo *mi) {
   memset (grid, 0, bp->grid_w * bp->grid_h * sizeof(*grid));
 
   bp->ncolors = 8;
+  bp->button_pressed = False;
   if (!bp->colors) {
 #ifdef USE_SDL
     bp->colors = (SDL_Color *) calloc(bp->ncolors, sizeof(SDL_Color));
@@ -264,6 +266,11 @@ static Bool point_visible(ModeInfo *mi, XYZ point) {
   GLdouble model[16], proj[16];
   GLint viewport[4];
   GLdouble winX, winY, winZ;
+  static int debug_counter = 0;
+
+  /* Only print every 60th frame to avoid flooding */
+  debug_counter = (debug_counter + 1) % 60;
+  Bool should_print = (debug_counter == 0);
 
   /* Get current matrices and viewport */
   glGetDoublev(GL_MODELVIEW_MATRIX, model);
@@ -275,36 +282,27 @@ static Bool point_visible(ModeInfo *mi, XYZ point) {
              model, proj, viewport,
              &winX, &winY, &winZ);
 
-  /* Check if point is in viewport and not behind camera */
-  return (winX >= viewport[0] && winX <= viewport[0] + viewport[2] &&
+  Bool is_visible = (winX >= viewport[0] && winX <= viewport[0] + viewport[2] &&
           winY >= viewport[1] && winY <= viewport[1] + viewport[3] &&
           winZ > 0 && winZ < 1);
+
+  if (should_print) {
+    printf("\nWorld coords (x,y,z): %.2f, %.2f, %.2f\n", point.x, point.y, point.z);
+    printf("Screen coords (x,y,z): %.2f, %.2f, %.2f\n", winX, winY, winZ);
+    printf("Viewport: x=%d, y=%d, w=%d, h=%d\n", 
+           viewport[0], viewport[1], viewport[2], viewport[3]);
+    printf("Is visible: %s\n", is_visible ? "YES" : "NO");
+  }
+
+  return is_visible;
 }
 
-/* Check if a hexagon is visible */
 static Bool hexagon_visible(ModeInfo *mi, hexagon *h) {
-  /* Check center point and a few corners for visibility */
-  XYZ corners[3];
-  GLfloat size = 2.0 / bps[MI_SCREEN(mi)].grid_w;
-
-  corners[0] = h->pos;  /* Center */
-
-  /* Two opposite corners */
-  corners[1].x = h->pos.x + size;
-  corners[1].y = h->pos.y + size * sqrt(3)/2;
-  corners[1].z = h->pos.z;
-
-  corners[2].x = h->pos.x - size;
-  corners[2].y = h->pos.y - size * sqrt(3)/2;
-  corners[2].z = h->pos.z;
-
-  return (point_visible(mi, corners[0]) ||
-          point_visible(mi, corners[1]) ||
-          point_visible(mi, corners[2]));
+  return (point_visible(mi, h->pos));
 }
 
 /* Expand grid in a given direction */
-static void expand_grid(ModeInfo *mi, int direction) {
+static void expand_plane(ModeInfo *mi, int direction) {
   hextrail_configuration *bp = &bps[MI_SCREEN(mi)];
   int old_grid_w = bp->grid_w;
   int old_grid_h = bp->grid_h;
@@ -377,7 +375,7 @@ static void tick_hexagons (ModeInfo *mi) {
   int expand_direction = -1;
 
   /* Check if we need to expand the grid */
-  if (!bp->button_down_p) {  // TODO - wrong check - should be a flag set if moved ever
+  if (!bp->button_pressed) {
     for (i = 0; i < bp->grid_w * bp->grid_h; i++) {
       hexagon *h0 = &bp->hexagons[i];
 
@@ -412,7 +410,7 @@ static void tick_hexagons (ModeInfo *mi) {
     }
 
     if (needs_expansion && expand_direction >= 0) {
-      expand_grid(mi, expand_direction);
+      expand_plane(mi, expand_direction);
     }
   }
 
@@ -1019,9 +1017,7 @@ ENTRYPOINT void init_hextrail (ModeInfo *mi) {
 }
 
 
-ENTRYPOINT void
-draw_hextrail (ModeInfo *mi)
-{
+ENTRYPOINT void draw_hextrail (ModeInfo *mi) {
   hextrail_configuration *bp = &bps[MI_SCREEN(mi)];
 
 #ifdef USE_SDL
@@ -1064,8 +1060,8 @@ draw_hextrail (ModeInfo *mi)
     glScalef (s, s, s);
   }
 
-  if (! bp->button_down_p)
-    tick_hexagons (mi);
+  if (! bp->button_down_p) tick_hexagons (mi);
+  else bp->button_pressed = True;
   draw_hexagons (mi);
 
   glPopMatrix ();
