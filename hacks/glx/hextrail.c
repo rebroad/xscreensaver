@@ -381,8 +381,17 @@ static void tick_hexagons (ModeInfo *mi) {
       /* Check if this is an edge hexagon with active arms */
       Bool is_edge = (h0->pos.x <= -1 || h0->pos.x >= 1 ||
                      h0->pos.y <= -1 || h0->pos.y >= 1);
+	  Bool is_visible = point_visible(mi, h0->active, h0->pos);
 
-      if (is_edge && point_visible(mi, h0->active, h0->pos)) {
+      static time_t debug_time = 0;
+	  time_t current_time = time(NULL);
+
+	  if (is_edge && current_time != debug_time) {
+		  debug_time = current_time;
+		  printf("\nis_edge, is_visible = %d\n", is_visible);
+	  }
+
+      if (is_edge && is_visible) {
         for (int j = 0; j < 6; j++) {
           if (h0->arms[j].state != EMPTY) {
             needs_expansion = True;
