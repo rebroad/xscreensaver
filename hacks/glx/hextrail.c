@@ -266,7 +266,9 @@ static int add_arms (ModeInfo *mi, hexagon *h0, Bool out_p) {
 }
 
 /* Check if a point is within the visible frustum */
-static Bool point_visible(ModeInfo *mi, Bool frozen, XYZ point) {
+static Bool point_visible(ModeInfo *mi, int i, hexagon *h0) {
+  Bool frozen = h0->frozen;
+  XYZ point = h0->pos;
   GLdouble model[16], proj[16];
   GLint viewport[4];
   GLdouble winX, winY, winZ;
@@ -290,7 +292,7 @@ static Bool point_visible(ModeInfo *mi, Bool frozen, XYZ point) {
 
   if (current_time != debug_time) {
 	debug_time = current_time;
-	printf("\n%s hexagon is o%sscreen\n", frozen ? "Frozen" : "Wet",
+	printf("\ni=%d %s hexagon is o%sscreen\n", i, frozen ? "Frozen" : "Wet",
 			is_visible ? "n" : "ff");
     printf("World coords (x,y,z): %.2f, %.2f, %.2f\n", point.x, point.y, point.z);
     printf("Screen coords (x,y,z): %.2f, %.2f, %.2f\n", winX, winY, winZ);
@@ -382,23 +384,23 @@ static void tick_hexagons (ModeInfo *mi) {
       /* Check if this is an edge hexagon with active arms */
       Bool is_edge = (h0->pos.x <= -1 || h0->pos.x >= 1 ||
                      h0->pos.y <= -1 || h0->pos.y >= 1);
-	  Bool is_visible = point_visible(mi, h0->frozen, h0->pos);
+	  Bool is_visible = point_visible(mi, i, h0);
 
       static time_t debug_time = 0;
 	  time_t current_time = time(NULL);
 
 	  if (is_edge && current_time != debug_time) {
 		  debug_time = current_time;
-		  printf("\nis_edge, is_visible = %d\n", is_visible);
+		  printf("\ni=%d is_edge, is_visible = %d\n", i, is_visible);
 	  }
 
       /* Update activity state based on visibility */
 	  if (!is_visible && !h0->frozen && h0->doing) {
 		  bp->sleeping++;
-		  printf("sleeping %d->%d\n", bp->sleeping-1, bp->sleeping);
+		  printf("i=%d sleeping %d->%d\n", i, bp->sleeping-1, bp->sleeping);
 	  } else if (is_visible && h0->frozen && h0->doing) {
 		  bp->sleeping--;
-		  printf("sleeping %d->%d\n", bp->sleeping+1, bp->sleeping);
+		  printf("i=%d sleeping %d->%d\n", i, bp->sleeping+1, bp->sleeping);
 		  if (bp->sleeping < 0) abort();
 	  }
       h0->frozen = !is_visible; // TODO - maybe only freeze if also doing
@@ -423,7 +425,7 @@ static void tick_hexagons (ModeInfo *mi) {
         else if (dir == 1) str = "Up";
         else if (dir == 2) str = "Left";
         else str = "Down";
-        printf("Expanding plane %s\n", str);
+        printf("i=%d Expanding plane %s is_edge=%d is_visible=%d is_doing=%d\n", i, str, is_edge, is_visible, h0->doing);
         expand_plane(mi, dir);
       }
     } // Button never pressed
