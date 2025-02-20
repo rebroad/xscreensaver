@@ -62,7 +62,8 @@ struct hexagon {
   int ccolor;
   state_t border_state;
   GLfloat border_ratio;
-  Bool active;
+  Bool frozen;
+  Bool doing;
 };
 
 typedef struct {
@@ -193,7 +194,8 @@ static void make_plane (ModeInfo *mi) {
       h0->pos.y = (y - bp->grid_h/2) * h;
       h0->border_state = EMPTY;
       h0->border_ratio = 0;
-	  h0->active = True;
+	  h0->frozen = False;
+	  h0->doing = False;
 
       if (y & 1) h0->pos.x += w / 2;
 
@@ -213,7 +215,6 @@ static Bool empty_hexagon_p (hexagon *h) {
 
 static int add_arms (ModeInfo *mi, hexagon *h0, Bool out_p) {
   //if (!h0->active) return 0;
-
   hextrail_configuration *bp = &bps[MI_SCREEN(mi)];
   int i;
   int added = 0;
@@ -257,7 +258,7 @@ static int add_arms (ModeInfo *mi, hexagon *h0, Bool out_p) {
       if (! (random() % 5)) h1->ccolor = (h0->ccolor + 1) % bp->ncolors;
 	}
 
-    bp->live_count++;
+    //bp->live_count++;
     added++;
     if (added >= target) break;
   }
@@ -265,7 +266,7 @@ static int add_arms (ModeInfo *mi, hexagon *h0, Bool out_p) {
 }
 
 /* Check if a point is within the visible frustum */
-static Bool point_visible(ModeInfo *mi, Bool active, XYZ point) {
+static Bool point_visible(ModeInfo *mi, Bool frozen, XYZ point) {
   GLdouble model[16], proj[16];
   GLint viewport[4];
   GLdouble winX, winY, winZ;
@@ -289,7 +290,7 @@ static Bool point_visible(ModeInfo *mi, Bool active, XYZ point) {
 
   if (current_time != debug_time) {
 	debug_time = current_time;
-	printf("\n%s hexagon is o%sscreen\n", active ? "Active" : "Sleeping",
+	printf("\n%s hexagon is o%sscreen\n", frozen ? "Frozen" : "Wet",
 			is_visible ? "n" : "ff");
     printf("World coords (x,y,z): %.2f, %.2f, %.2f\n", point.x, point.y, point.z);
     printf("Screen coords (x,y,z): %.2f, %.2f, %.2f\n", winX, winY, winZ);
@@ -355,7 +356,8 @@ static void expand_plane(ModeInfo *mi, int direction) {
       h0->pos.y = (y - bp->grid_h/2) * h;
       h0->border_state = EMPTY;
       h0->border_ratio = 0;
-      h0->active = True;
+      h0->frozen = False;
+      h0->doing = False;
 
       if (y & 1) h0->pos.x += size / 2;
 
@@ -380,7 +382,7 @@ static void tick_hexagons (ModeInfo *mi) {
       /* Check if this is an edge hexagon with active arms */
       Bool is_edge = (h0->pos.x <= -1 || h0->pos.x >= 1 ||
                      h0->pos.y <= -1 || h0->pos.y >= 1);
-	  Bool is_visible = point_visible(mi, h0->active, h0->pos);
+	  Bool is_visible = point_visible(mi, h0->frozen, h0->pos);
 
       static time_t debug_time = 0;
 	  time_t current_time = time(NULL);
@@ -391,15 +393,15 @@ static void tick_hexagons (ModeInfo *mi) {
 	  }
 
       /* Update activity state based on visibility */
-	  if (h0->active && !is_visible) {
+	  if (!is_visible && !h0->frozen && h0->doing) {
 		  bp->sleeping++;
 		  printf("sleeping %d->%d\n", bp->sleeping-1, bp->sleeping);
-	  } else if (!h0->active && is_visible) {
+	  } else if (is_visible && h0->frozen && h0->doing) {
 		  bp->sleeping--;
 		  printf("sleeping %d->%d\n", bp->sleeping+1, bp->sleeping);
 		  if (bp->sleeping < 0) abort();
 	  }
-      h0->active = is_visible;
+      h0->frozen = !is_visible; // TODO - maybe only freeze if also doing
 
       if (is_edge && is_visible) {
         for (int j = 0; j < 6; j++) {
@@ -426,7 +428,7 @@ static void tick_hexagons (ModeInfo *mi) {
       }
     } // Button never pressed
 
-    if (!h0->active) continue;
+    if (h0->frozen) continue;
 
     /* Enlarge any still-growing arms if active.  */
     for (j = 0; j < 6; j++) {
@@ -446,7 +448,6 @@ static void tick_hexagons (ModeInfo *mi) {
             a1->state = IN;
             a1->ratio = 0;
             a1->speed = a0->speed;
-            /* bp->live_count unchanged */
 		  }
           break;
         case IN:
@@ -457,9 +458,17 @@ static void tick_hexagons (ModeInfo *mi) {
                Look for any available exits. */
             a0->state = DONE;
             a0->ratio = 1;
-            bp->live_count--;
-            if (bp->live_count < 0) abort();
-            add_arms (mi, h0, True);
+            if (add_arms(mi, h0, True)) {
+              if (!h0->doing) {
+                h0->doing = True;
+			    bp->live_count++;
+			  }
+			} else {
+			  if (h0->doing) {
+				h0->doing = False;
+				bp->live_count--;
+			  }
+			}
 		  }
           break;
         case EMPTY: case WAIT: case DONE:
@@ -980,7 +989,7 @@ ENTRYPOINT Bool hextrail_handle_event (ModeInfo *mi,
   }
 #ifndef USE_SDL
   else if (screenhack_event_helper (MI_DISPLAY(mi), MI_WINDOW(mi), event))
-    goto RESET;
+    goto RESET; // TODO - why?
 #endif
 
   return False;
