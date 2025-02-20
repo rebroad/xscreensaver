@@ -56,6 +56,7 @@ typedef struct {
 typedef struct hexagon hexagon;
 
 struct hexagon {
+  int i;
   XYZ pos;
   hexagon *neighbors[6];
   arm arms[6];
@@ -189,7 +190,9 @@ static void make_plane (ModeInfo *mi) {
 
   for (y = 0; y < bp->grid_h; y++) {
     for (x = 0; x < bp->grid_w; x++) {
-      hexagon *h0 = &grid[y * bp->grid_w + x];
+	  int i = y * bp->grid_w + x;
+      hexagon *h0 = &grid[i];
+	  h0->i = i;
       h0->pos.x = (x - bp->grid_w/2) * w;
       h0->pos.y = (y - bp->grid_h/2) * h;
       h0->border_state = EMPTY;
@@ -262,8 +265,25 @@ static int add_arms (ModeInfo *mi, hexagon *h0, Bool out_p) {
     added++;
     if (added >= target) break;
   }
+
+  if (added) {
+    if (!h0->doing) {
+      h0->doing = True;
+      bp->live_count++;
+      printf("i=%d live_count=%d->%d\n", h0->i, bp->live_count-1, bp->live_count);
+    }
+  } else {
+    if (h0->doing) {
+      h0->doing = False;
+      bp->live_count--;
+      printf("i=%d live_count=%d->%d\n", h0->i, bp->live_count+1, bp->live_count);
+    }
+  }
+
   return added;
 }
+
+static time_t debug_time = 0;
 
 /* Check if a point is within the visible frustum */
 static Bool point_visible(ModeInfo *mi, int i, hexagon *h0) {
@@ -273,7 +293,6 @@ static Bool point_visible(ModeInfo *mi, int i, hexagon *h0) {
   GLint viewport[4];
   GLdouble winX, winY, winZ;
 
-  static time_t debug_time = 0;
   time_t current_time = time(NULL);
 
   /* Get current matrices and viewport */
@@ -290,7 +309,7 @@ static Bool point_visible(ModeInfo *mi, int i, hexagon *h0) {
           winY >= viewport[1] && winY <= viewport[1] + viewport[3] &&
           winZ > 0 && winZ < 1);
 
-  if (current_time != debug_time) {
+  if (current_time > debug_time + 4) {
 	debug_time = current_time;
 	printf("\ni=%d %s hexagon is o%sscreen\n", i, frozen ? "Frozen" : "Wet",
 			is_visible ? "n" : "ff");
@@ -346,25 +365,27 @@ static void expand_plane(ModeInfo *mi, int direction) {
   GLfloat size = 2.0 / bp->grid_w;
   GLfloat h = size * sqrt(3) / 2;
 
-  for (y = 0; y < bp->grid_h; y++)
-    for (x = 0; x < bp->grid_w; x++) {
-      /* Skip existing hexagons */
-      if (x >= x_offset && x < old_grid_w + x_offset &&
-          y >= y_offset && y < old_grid_h + y_offset)
-        continue;
+  for (y = 0; y < bp->grid_h; y++) for (x = 0; x < bp->grid_w; x++) {
+    int i = y *bp->grid_w + x;
+    hexagon *h0 = &bp->hexagons[i];
+    h0->i = i;
 
-      hexagon *h0 = &bp->hexagons[y * bp->grid_w + x];
-      h0->pos.x = (x - bp->grid_w/2) * size;
-      h0->pos.y = (y - bp->grid_h/2) * h;
-      h0->border_state = EMPTY;
-      h0->border_ratio = 0;
-      h0->frozen = False;
-      h0->doing = False;
+    /* Skip existing hexagons */
+    if (x >= x_offset && x < old_grid_w + x_offset &&
+        y >= y_offset && y < old_grid_h + y_offset)
+      continue;
 
-      if (y & 1) h0->pos.x += size / 2;
+    h0->pos.x = (x - bp->grid_w/2) * size;
+    h0->pos.y = (y - bp->grid_h/2) * h;
+    h0->border_state = EMPTY;
+    h0->border_ratio = 0;
+    h0->frozen = False;
+    h0->doing = False;
 
-      h0->ccolor = random() % bp->ncolors;
-    }
+    if (y & 1) h0->pos.x += size / 2;
+
+    h0->ccolor = random() % bp->ncolors;
+  }
 
   update_neighbors(mi);
 
@@ -386,10 +407,9 @@ static void tick_hexagons (ModeInfo *mi) {
                      h0->pos.y <= -1 || h0->pos.y >= 1);
 	  Bool is_visible = point_visible(mi, i, h0);
 
-      static time_t debug_time = 0;
 	  time_t current_time = time(NULL);
 
-	  if (is_edge && current_time != debug_time) {
+	  if (is_edge && current_time > debug_time + 6) {
 		  debug_time = current_time;
 		  printf("\ni=%d is_edge, is_visible = %d\n", i, is_visible);
 	  }
@@ -460,17 +480,7 @@ static void tick_hexagons (ModeInfo *mi) {
                Look for any available exits. */
             a0->state = DONE;
             a0->ratio = 1;
-            if (add_arms(mi, h0, True)) {
-              if (!h0->doing) {
-                h0->doing = True;
-			    bp->live_count++;
-			  }
-			} else {
-			  if (h0->doing) {
-				h0->doing = False;
-				bp->live_count--;
-			  }
-			}
+            add_arms(mi, h0, True);
 		  }
           break;
         case EMPTY: case WAIT: case DONE:
@@ -509,7 +519,8 @@ static void tick_hexagons (ModeInfo *mi) {
   } // Loop through each hexagon
 
   /* Start a new cell growing.  */
-  if ((bp->live_count - bp->sleeping) <= 0)
+  if ((bp->live_count - bp->sleeping) <= 0) {
+	printf("New cell: life_count=%d, sleeping=%d\n", bp->live_count, bp->sleeping);
     for (i = 0; i < (bp->grid_w * bp->grid_h) / 3; i++) {
       hexagon *h0;
       int x, y;
@@ -525,6 +536,7 @@ static void tick_hexagons (ModeInfo *mi) {
       h0 = &bp->hexagons[y * bp->grid_w + x];
       if (empty_hexagon_p (h0) && add_arms (mi, h0, True)) break;
     }
+  }
 
   if ((bp->live_count - bp->sleeping) <= 0 && bp->state != FADE) {
     bp->state = FADE;
