@@ -192,15 +192,15 @@ static void make_plane (ModeInfo *mi) {
     for (x = 0; x < bp->grid_w; x++) {
 	  int i = y * bp->grid_w + x;
       hexagon *h0 = &grid[i];
-	  h0->i = i;
       h0->pos.x = (x - bp->grid_w/2) * w;
       h0->pos.y = (y - bp->grid_h/2) * h;
+	  h0->pos.z = 0;
       h0->border_state = EMPTY;
       h0->border_ratio = 0;
 	  h0->frozen = False;
 	  h0->doing = False;
 
-      if (y & 1) h0->pos.x += w / 2;
+      if (y & 1) h0->pos.x += w / 2; // Stagger into hex arrangement
 
       h0->ccolor = random() % bp->ncolors;
     }
@@ -217,7 +217,6 @@ static Bool empty_hexagon_p (hexagon *h) {
 }
 
 static int add_arms (ModeInfo *mi, hexagon *h0, Bool out_p) {
-  //if (!h0->active) return 0;
   hextrail_configuration *bp = &bps[MI_SCREEN(mi)];
   int i;
   int added = 0;
@@ -325,8 +324,7 @@ static Bool point_visible(ModeInfo *mi, int i, hexagon *h0) {
 /* Expand grid in a given direction */
 static void expand_plane(ModeInfo *mi, int direction) {
   hextrail_configuration *bp = &bps[MI_SCREEN(mi)];
-  int old_grid_w = bp->grid_w;
-  int old_grid_h = bp->grid_h;
+  int old_grid_w = bp->grid_w; int old_grid_h = bp->grid_h;
   hexagon *old_hexagons = bp->hexagons;
   int expansion = MI_COUNT(mi);  /* Amount to expand by */
   int x, y;
@@ -335,12 +333,10 @@ static void expand_plane(ModeInfo *mi, int direction) {
   switch(direction) {
     case 0: /* Right */
     case 3: /* Left */
-      bp->grid_w += expansion;
-      break;
+      bp->grid_w += expansion; break;
     case 1: /* Top */
     case 4: /* Bottom */
-      bp->grid_h += expansion;
-      break;
+      bp->grid_h += expansion; break;
   }
 
   /* Allocate new grid */
@@ -350,16 +346,15 @@ static void expand_plane(ModeInfo *mi, int direction) {
   int x_offset = (direction == 3) ? expansion : 0;
   int y_offset = (direction == 4) ? expansion : 0;
 
-  for (y = 0; y < old_grid_h; y++)
-    for (x = 0; x < old_grid_w; x++) {
-      hexagon *old_hex = &old_hexagons[y * old_grid_w + x];
-      hexagon *new_hex = &bp->hexagons[(y + y_offset) * bp->grid_w + (x + x_offset)];
-      *new_hex = *old_hex;
+  for (y = 0; y < old_grid_h; y++) for (x = 0; x < old_grid_w; x++) {
+    hexagon *old_hex = &old_hexagons[y * old_grid_w + x];
+    hexagon *new_hex = &bp->hexagons[(y + y_offset) * bp->grid_w + (x + x_offset)];
+    *new_hex = *old_hex;
 
-      /* Adjust position for offset */
-      new_hex->pos.x += x_offset * (2.0 / old_grid_w);
-      new_hex->pos.y += y_offset * (2.0 / old_grid_h);
-    }
+    /* Adjust position for offset */
+    new_hex->pos.x += x_offset * (2.0 / old_grid_w);
+    new_hex->pos.y += y_offset * (2.0 / old_grid_h);
+  }
 
   /* Initialize new hexagons */
   GLfloat size = 2.0 / bp->grid_w;
@@ -377,6 +372,7 @@ static void expand_plane(ModeInfo *mi, int direction) {
 
     h0->pos.x = (x - bp->grid_w/2) * size;
     h0->pos.y = (y - bp->grid_h/2) * h;
+	h0->pos.z = 0;
     h0->border_state = EMPTY;
     h0->border_ratio = 0;
     h0->frozen = False;
@@ -443,8 +439,9 @@ static void tick_hexagons (ModeInfo *mi) {
         char *str;
         if (dir == 0) str = "Right";
         else if (dir == 1) str = "Up";
-        else if (dir == 2) str = "Left";
-        else str = "Down";
+        else if (dir == 3) str = "Left";
+        else if (dir == 4) str = "Down";
+		else str = "???";
         printf("i=%d Expanding plane %s is_edge=%d is_visible=%d is_doing=%d\n", i, str, is_edge, is_visible, h0->doing);
         expand_plane(mi, dir);
       }
@@ -647,19 +644,16 @@ static void draw_hexagons (ModeInfo *mi) {
 
               glVertex3f (p[0].x, p[0].y, p[0].z);
               glVertex3f (p[1].x, p[1].y, p[1].z);
-              if (! wire)
-                glVertex3f (p[2].x, p[2].y, p[2].z);
+              if (! wire) glVertex3f (p[2].x, p[2].y, p[2].z);
               mi->polygon_count++;
 
               glVertex3f (p[2].x, p[2].y, p[2].z);
               glVertex3f (p[3].x, p[3].y, p[3].z);
-              if (! wire)
-                glVertex3f (p[0].x, p[0].y, p[0].z);
+              if (! wire) glVertex3f (p[0].x, p[0].y, p[0].z);
               mi->polygon_count++;
           }
 
-          /* Line from center to edge, or edge to center.
-           */
+          /* Line from center to edge, or edge to center.  */
           if (a->state == IN || a->state == OUT || a->state == DONE) {
               GLfloat x   = (corners[j].x + corners[k].x) / 2;
               GLfloat y   = (corners[j].y + corners[k].y) / 2;
