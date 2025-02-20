@@ -450,7 +450,7 @@ static void tick_hexagons (ModeInfo *mi) {
       }
     } // Button never pressed
 
-    if (h0->frozen) continue;
+    //if (h0->frozen) continue;
 
     /* Enlarge any still-growing arms if active.  */
     for (j = 0; j < 6; j++) {
