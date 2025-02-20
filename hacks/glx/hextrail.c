@@ -193,6 +193,7 @@ static void make_plane (ModeInfo *mi) {
       h0->pos.y = (y - bp->grid_h/2) * h;
       h0->border_state = EMPTY;
       h0->border_ratio = 0;
+	  h0->active = True;
 
       if (y & 1) h0->pos.x += w / 2;
 
@@ -526,7 +527,7 @@ static void tick_hexagons (ModeInfo *mi) {
   } else if (bp->state == FADE) {
     bp->fade_ratio -= 0.01 * speed;
     if (bp->fade_ratio <= 0) {
-      make_plane (mi);
+      make_plane (mi); // TODO - not reset_hextrail?
       bp->state = FIRST;
       bp->fade_ratio = 1;
     }
@@ -534,9 +535,7 @@ static void tick_hexagons (ModeInfo *mi) {
 }
 
 
-static void
-draw_hexagons (ModeInfo *mi)
-{
+static void draw_hexagons (ModeInfo *mi) {
   hextrail_configuration *bp = &bps[MI_SCREEN(mi)];
   int wire = MI_IS_WIREFRAME(mi);
   GLfloat length = sqrt(3) / 3;
