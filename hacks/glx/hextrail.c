@@ -82,6 +82,7 @@ typedef struct {
   int grid_w, grid_h;
   hexagon *hexagons;
   int live_count;
+  int sleeping;
   enum { FIRST, DRAW, FADE } state;
   GLfloat fade_ratio;
 
@@ -210,6 +211,8 @@ static Bool empty_hexagon_p (hexagon *h) {
 }
 
 static int add_arms (ModeInfo *mi, hexagon *h0, Bool out_p) {
+  if (!h0->active) return 0;
+
   hextrail_configuration *bp = &bps[MI_SCREEN(mi)];
   int i;
   int added = 0;
@@ -218,44 +221,44 @@ static int add_arms (ModeInfo *mi, hexagon *h0, Bool out_p) {
   int idx[6];				/* Traverse in random order */
   for (i = 0; i < 6; i++) idx[i] = i;
   for (i = 0; i < 6; i++) {
-      int j = random() % 6;
-      int swap = idx[j];
-      idx[j] = idx[i];
-      idx[i] = swap;
+    int j = random() % 6;
+    int swap = idx[j];
+    idx[j] = idx[i];
+    idx[i] = swap;
   }
 
   if (out_p) target--;
 
   for (i = 0; i < 6; i++) {
-      int j = idx[i];
-      hexagon *h1 = h0->neighbors[j];
-      arm *a0 = &h0->arms[j];
-      arm *a1;
-      if (!h1) continue;			/* No neighboring cell */
-      if (! empty_hexagon_p (h1)) continue;	/* Occupado */
-      if (a0->state != EMPTY) continue;		/* Arm already exists */
+    int j = idx[i];
+    hexagon *h1 = h0->neighbors[j];
+    arm *a0 = &h0->arms[j];
+    arm *a1;
+    if (!h1) continue;			/* No neighboring cell */
+    if (! empty_hexagon_p (h1)) continue;	/* Occupado */
+    if (a0->state != EMPTY) continue;		/* Arm already exists */
 
-      a1 = &h1->arms[(j + 3) % 6];		/* Opposite arm */
+    a1 = &h1->arms[(j + 3) % 6];		/* Opposite arm */
 
-      if (a1->state != EMPTY) abort();
-      a0->state = (out_p ? OUT : IN);
-      a1->state = WAIT;
-      a0->ratio = 0;
-      a1->ratio = 0;
-      a0->speed = 0.05 * speed * (0.8 + frand(1.0));
-      a1->speed = a0->speed;
+    if (a1->state != EMPTY) abort();
+    a0->state = (out_p ? OUT : IN);
+    a1->state = WAIT;
+    a0->ratio = 0;
+    a1->ratio = 0;
+    a0->speed = 0.05 * speed * (0.8 + frand(1.0));
+    a1->speed = a0->speed;
 
-      if (h1->border_state == EMPTY) {
-          h1->border_state = IN;
+    if (h1->border_state == EMPTY) {
+      h1->border_state = IN;
 
-          /* Mostly keep the same color */
-          h1->ccolor = h0->ccolor;
-          if (! (random() % 5)) h1->ccolor = (h0->ccolor + 1) % bp->ncolors;
-      }
+      /* Mostly keep the same color */
+      h1->ccolor = h0->ccolor;
+      if (! (random() % 5)) h1->ccolor = (h0->ccolor + 1) % bp->ncolors;
+	}
 
-      bp->live_count++;
-      added++;
-      if (added >= target) break;
+    bp->live_count++;
+    added++;
+    if (added >= target) break;
   }
   return added;
 }
@@ -283,7 +286,6 @@ static Bool point_visible(ModeInfo *mi, Bool active, XYZ point) {
           winY >= viewport[1] && winY <= viewport[1] + viewport[3] &&
           winZ > 0 && winZ < 1);
 
-  //if (current_time != debug_time && ((is_visible && !active) || (!is_visible && active))) {
   if (current_time != debug_time) {
 	debug_time = current_time;
 	printf("\n%s hexagon is o%sscreen\n", active ? "Active" : "Sleeping",
@@ -370,14 +372,10 @@ static void tick_hexagons (ModeInfo *mi) {
   Bool needs_expansion = False;
   int dir = -1;
 
-  /* Check if we need to expand the grid */
-  if (!bp->button_pressed) {
-    for (i = 0; i < bp->grid_w * bp->grid_h; i++) {
-      hexagon *h0 = &bp->hexagons[i];
-
-      /* Skip non-active hexagons */
-      if (! h0->active) continue;
-
+  for (i = 0; i < bp->grid_w * bp->grid_h; i++) {
+    hexagon *h0 = &bp->hexagons[i];
+    /* Check if we need to expand the grid */
+    if (!bp->button_pressed) {
       /* Check if this is an edge hexagon with active arms */
       Bool is_edge = (h0->pos.x <= -1 || h0->pos.x >= 1 ||
                      h0->pos.y <= -1 || h0->pos.y >= 1);
@@ -390,6 +388,11 @@ static void tick_hexagons (ModeInfo *mi) {
 		  debug_time = current_time;
 		  printf("\nis_edge, is_visible = %d\n", is_visible);
 	  }
+
+      /* Update activity state based on visibility */
+	  if (h0->active && !is_visible) bp->sleeping++;
+	  else if (!h0->active && is_visible) bp->sleeping--;
+      h0->active = is_visible;
 
       if (is_edge && is_visible) {
         for (int j = 0; j < 6; j++) {
@@ -405,77 +408,73 @@ static void tick_hexagons (ModeInfo *mi) {
         }
       }
 
-      /* Update activity state based on visibility */
-      h0->active = point_visible(mi, h0->active, h0->pos);
-    }
-
-    if (needs_expansion && dir >= 0) {
-	  char *str;
-	  if (dir == 0) str = "Right";
-	  else if (dir == 1) str = "Up";
-	  else if (dir == 2) str = "Left";
-	  else str = "Down";
-	  printf("Expanding plane %s\n", str);
-      expand_plane(mi, dir);
-    }
-  }
-
-  /* Enlarge any still-growing arms.  */
-  for (i = 0; i < bp->grid_w * bp->grid_h; i++) {
-      hexagon *h0 = &bp->hexagons[i];
-      for (j = 0; j < 6; j++) {
-          arm *a0 = &h0->arms[j];
-          switch (a0->state) {
-          case OUT:
-            if (a0->speed <= 0) abort();
-            a0->ratio += a0->speed;
-            if (a0->ratio > 1) {
-                /* Just finished growing from center to edge.
-                   Pass the baton to this waiting neighbor. */
-                hexagon *h1 = h0->neighbors[j];
-                arm *a1 = &h1->arms[(j + 3) % 6];
-                if (a1->state != WAIT) abort();
-                a0->state = DONE;
-                a0->ratio = 1;
-                a1->state = IN;
-                a1->ratio = 0;
-                a1->speed = a0->speed;
-                /* bp->live_count unchanged */
-            }
-            break;
-          case IN:
-            if (a0->speed <= 0) abort();
-            a0->ratio += a0->speed;
-            if (a0->ratio > 1) {
-                /* Just finished growing from edge to center.
-                   Look for any available exits. */
-                a0->state = DONE;
-                a0->ratio = 1;
-                bp->live_count--;
-                if (bp->live_count < 0) abort();
-                add_arms (mi, h0, True);
-            }
-            break;
-          case EMPTY: case WAIT: case DONE:
-            break;
-          default:
-            abort(); break;
-          }
+      if (needs_expansion && dir >= 0) {
+        char *str;
+        if (dir == 0) str = "Right";
+        else if (dir == 1) str = "Up";
+        else if (dir == 2) str = "Left";
+        else str = "Down";
+        printf("Expanding plane %s\n", str);
+        expand_plane(mi, dir);
       }
+    } // Button never pressed
 
-      switch (h0->border_state) {
+    if (!h0->active) continue;
+
+    /* Enlarge any still-growing arms if active.  */
+    for (j = 0; j < 6; j++) {
+      arm *a0 = &h0->arms[j];
+      switch (a0->state) {
+        case OUT:
+          if (a0->speed <= 0) abort();
+          a0->ratio += a0->speed;
+          if (a0->ratio > 1) {
+            /* Just finished growing from center to edge.
+               Pass the baton to this waiting neighbor. */
+            hexagon *h1 = h0->neighbors[j];
+            arm *a1 = &h1->arms[(j + 3) % 6];
+            if (a1->state != WAIT) abort();
+            a0->state = DONE;
+            a0->ratio = 1;
+            a1->state = IN;
+            a1->ratio = 0;
+            a1->speed = a0->speed;
+            /* bp->live_count unchanged */
+		  }
+          break;
+        case IN:
+          if (a0->speed <= 0) abort();
+          a0->ratio += a0->speed;
+          if (a0->ratio > 1) {
+            /* Just finished growing from edge to center.
+               Look for any available exits. */
+            a0->state = DONE;
+            a0->ratio = 1;
+            bp->live_count--;
+            if (bp->live_count < 0) abort();
+            add_arms (mi, h0, True);
+		  }
+          break;
+        case EMPTY: case WAIT: case DONE:
+          break;
+        default:
+          abort(); break;
+	  }
+	} // 6 arms
+
+    switch (h0->border_state) {
       case IN:
         h0->border_ratio += 0.05 * speed;
         if (h0->border_ratio >= 1) {
-            h0->border_ratio = 1;
-            h0->border_state = WAIT;
+          h0->border_ratio = 1;
+          h0->border_state = WAIT;
         }
         break;
       case OUT:
         h0->border_ratio -= 0.05 * speed;
         if (h0->border_ratio <= 0) {
-            h0->border_ratio = 0;
-            h0->border_state = EMPTY;
+          h0->border_ratio = 0;
+          h0->border_state = EMPTY;
         }
       case WAIT:
         if (! (random() % 50)) h0->border_state = OUT;
@@ -488,43 +487,43 @@ static void tick_hexagons (ModeInfo *mi) {
         break;
       default:
         abort(); break;
-      }
-  }
+	}
+  } // Loop through each hexagon
 
   /* Start a new cell growing.  */
-  if (bp->live_count <= 0)
+  if ((bp->live_count - bp->sleeping) <= 0)
     for (i = 0; i < (bp->grid_w * bp->grid_h) / 3; i++) {
-        hexagon *h0;
-        int x, y;
-        if (bp->state == FIRST) {
-            x = bp->grid_w / 2;
-            y = bp->grid_h / 2;
-            bp->state = DRAW;
-            bp->fade_ratio = 1;
-        } else {
-            x = random() % bp->grid_w;
-            y = random() % bp->grid_h;
-        }
-        h0 = &bp->hexagons[y * bp->grid_w + x];
-        if (empty_hexagon_p (h0) && add_arms (mi, h0, True)) break;
+      hexagon *h0;
+      int x, y;
+      if (bp->state == FIRST) {
+        x = bp->grid_w / 2;
+        y = bp->grid_h / 2;
+        bp->state = DRAW;
+        bp->fade_ratio = 1;
+      } else {
+        x = random() % bp->grid_w;
+        y = random() % bp->grid_h;
+      }
+      h0 = &bp->hexagons[y * bp->grid_w + x];
+      if (empty_hexagon_p (h0) && add_arms (mi, h0, True)) break;
     }
 
-  if (bp->live_count <= 0 && bp->state != FADE) {
-      bp->state = FADE;
-      bp->fade_ratio = 1;
+  if ((bp->live_count - bp->sleeping) <= 0 && bp->state != FADE) {
+    bp->state = FADE;
+    bp->fade_ratio = 1;
 
-      for (i = 0; i < bp->grid_w * bp->grid_h; i++) {
-          hexagon *h = &bp->hexagons[i];
-          if (h->border_state == IN || h->border_state == WAIT)
-            h->border_state = OUT;
-      }
+    for (i = 0; i < bp->grid_w * bp->grid_h; i++) {
+      hexagon *h = &bp->hexagons[i];
+      if (h->border_state == IN || h->border_state == WAIT)
+        h->border_state = OUT;
+	}
   } else if (bp->state == FADE) {
-      bp->fade_ratio -= 0.01 * speed;
-      if (bp->fade_ratio <= 0) {
-          make_plane (mi);
-          bp->state = FIRST;
-          bp->fade_ratio = 1;
-      }
+    bp->fade_ratio -= 0.01 * speed;
+    if (bp->fade_ratio <= 0) {
+      make_plane (mi);
+      bp->state = FIRST;
+      bp->fade_ratio = 1;
+    }
   }
 }
 
@@ -915,6 +914,7 @@ static void reset_hextrail(ModeInfo *mi) {
   bp->state = FIRST;
   bp->fade_ratio = 1;
   bp->live_count = 0;
+  bp->sleeping = 0;
   make_plane (mi);
 }
 #endif
