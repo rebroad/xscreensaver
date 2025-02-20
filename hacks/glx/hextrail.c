@@ -211,7 +211,7 @@ static Bool empty_hexagon_p (hexagon *h) {
 }
 
 static int add_arms (ModeInfo *mi, hexagon *h0, Bool out_p) {
-  if (!h0->active) return 0;
+  //if (!h0->active) return 0;
 
   hextrail_configuration *bp = &bps[MI_SCREEN(mi)];
   int i;
@@ -390,8 +390,13 @@ static void tick_hexagons (ModeInfo *mi) {
 	  }
 
       /* Update activity state based on visibility */
-	  if (h0->active && !is_visible) bp->sleeping++;
-	  else if (!h0->active && is_visible) bp->sleeping--;
+	  if (h0->active && !is_visible) {
+		  bp->sleeping++;
+		  printf("sleeping %d->%d\n", bp->sleeping-1, bp->sleeping);
+	  } else if (!h0->active && is_visible) {
+		  bp->sleeping--;
+		  printf("sleeping %d->%d\n", bp->sleeping+1, bp->sleeping);
+	  }
       h0->active = is_visible;
 
       if (is_edge && is_visible) {
