@@ -392,10 +392,10 @@ static void tick_hexagons (ModeInfo *mi) {
       /* Update activity state based on visibility */
 	  if (h0->active && !is_visible) {
 		  bp->sleeping++;
-		  printf("sleeping %d->%d\n", bp->sleeping-1, bp->sleping);
+		  printf("sleeping %d->%d\n", bp->sleeping-1, bp->sleeping);
 	  } else if (!h0->active && is_visible) {
 		  bp->sleeping--;
-		  printf("sleeping %d->%d\n", bp->sleeping+1, bp->sleping);
+		  printf("sleeping %d->%d\n", bp->sleeping+1, bp->sleeping);
 	  }
       h0->active = is_visible;
 
