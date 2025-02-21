@@ -267,7 +267,8 @@ static int add_arms (ModeInfo *mi, hexagon *h0, Bool out_p) {
     if (!h0->doing) {
       h0->doing = True;
       bp->doing++;
-      printf("pos=%.1f,%.1f ignored=%d doing=%d->%d\n", h0->pos.x, h0->pos.y, bp->ignored, bp->doing-1, bp->doing);
+      printf("%s: added=%d pos=%.1f,%.1f doing=%d->%d ignored=%d\n", __func__, added,
+			  h0->pos.x, h0->pos.y, bp->doing-1, bp->doing, bp->ignored);
     }
   } else {
     if (h0->doing) {
@@ -275,10 +276,12 @@ static int add_arms (ModeInfo *mi, hexagon *h0, Bool out_p) {
       bp->doing--;
 	  if (h0->ignore) {
 		bp->ignored--;
-        printf("pos=%.1f,%.1f ignored=%d->%d doing=%d->%d\n", h0->pos.x, h0->pos.y, bp->ignored+1,
-				bp->ignored, bp->doing+1, bp->doing);
+        printf("%s: pos=%.1f,%.1f ignored=%d->%d doing=%d->%d\n", __func__,
+				h0->pos.x, h0->pos.y, bp->ignored+1, bp->ignored, bp->doing+1, bp->doing);
+		if (bp->ignored < 2) abort();
 	  } else
-        printf("pos=%.1f,%.1f ignored=%d doing=%d->%d\n", h0->pos.x, h0->pos.y, bp->ignored, bp->doing+1, bp->doing);
+        printf("%s: pos=%.1f,%.1f ignored=%d doing=%d->%d\n", __func__, h0->pos.x, h0->pos.y,
+				bp->ignored, bp->doing+1, bp->doing);
     }
   }
 
@@ -313,7 +316,7 @@ static Bool point_visible(ModeInfo *mi, int i, hexagon *h0) {
 
   if (current_time > debug_time + 4) {
 	debug_time = current_time;
-	printf("\ni=%d %s hexagon is o%sscreen\n", i, ignore ? "ignored" : "watched",
+	printf("\npos=%.1f,%.1f %s hexagon is o%sscreen\n", h0->pos.x, h0->pos.y, ignore ? "ignored" : "watched",
 			is_visible ? "n" : "ff");
     printf("World coords (x,y,z): %.2f, %.2f, %.2f\n", point.x, point.y, point.z);
     printf("Screen coords (x,y,z): %.2f, %.2f, %.2f\n", winX, winY, winZ);
@@ -409,18 +412,20 @@ static void tick_hexagons (ModeInfo *mi) {
 
 	  if (is_edge && current_time > debug_time + 6) {
 		  debug_time = current_time;
-		  printf("\ni=%d is_edge, is_visible = %d\n", i, is_visible);
+		  printf("\npos=%.1f,%.1f is_edge, is_visible = %d\n", h0->pos.x, h0->pos.y, is_visible);
 	  }
 
       /* Update activity state based on visibility */
-	  if (!is_visible && h0->doing) {
+	  if (!is_visible && !h0->ignore && h0->doing) {
 		  bp->ignored++;
-		  printf("i=%d doing=%d ignored %d->%d\n", i, bp->doing, bp->ignored-1, bp->ignored);
-	  } else if (is_visible && h0->doing) {
+		  printf("%s: pos=%.1f,%.1f doing=%d ignored=%d->%d\n", __func__,
+				  h0->pos.x, h0->pos.y, bp->doing, bp->ignored-1, bp->ignored);
+	  } else if (is_visible && h0->ignore && h0->doing) {
 		  bp->ignored--;
-		  printf("i=%d doing=%d ignored %d->%d\n", i, bp->doing, bp->ignored+1, bp->ignored);
+		  printf("%s: pos=%.1f,%.1f doing=%d ignored=%d->%d\n", __func__,
+				  h0->pos.x, h0->pos.y, bp->doing, bp->ignored+1, bp->ignored);
 	  }
-      h0->ignore = !is_visible; // TODO - maybe only freeze if also doing
+      h0->ignore = !is_visible;
 
       if (is_edge && is_visible) {
         for (int j = 0; j < 6; j++) {
@@ -443,7 +448,8 @@ static void tick_hexagons (ModeInfo *mi) {
         else if (dir == 3) str = "Left";
         else if (dir == 4) str = "Down";
 		else str = "???";
-        printf("i=%d Expanding plane %s is_edge=%d is_visible=%d is_doing=%d\n", i, str, is_edge, is_visible, h0->doing);
+        printf("pos=%.1f,%.1f Expanding plane %s is_edge=%d is_visible=%d is_doing=%d\n",
+				h0->pos.x, h0->pos.y, str, is_edge, is_visible, h0->doing);
         expand_plane(mi, dir);
       }
     } // Button never pressed
@@ -578,314 +584,308 @@ static void draw_hexagons (ModeInfo *mi) {
   glNormal3f (0, 0, 1);
 
   for (i = 0; i < bp->grid_w * bp->grid_h; i++) {
-      hexagon *h = &bp->hexagons[i];
-      int total_arms = 0;
-      GLfloat color[4];
-      int j;
+    hexagon *h = &bp->hexagons[i];
+    int total_arms = 0;
+    GLfloat color[4];
+    int j;
 
-      for (j = 0; j < 6; j++) {
-        arm *a = &h->arms[j];
-        if (a->state == OUT || a->state == DONE)
-          total_arms++;
-      }
+    for (j = 0; j < 6; j++) {
+      arm *a = &h->arms[j];
+      if (a->state == OUT || a->state == DONE) total_arms++;
+    }
 
 #ifdef USE_SDL
-      # define HEXAGON_COLOR(V,H) do { \
-        int idx = (H)->ccolor; \
-        (V)[0] = bp->colors[idx].r / 255.0f * bp->fade_ratio; \
-        (V)[1] = bp->colors[idx].g / 255.0f * bp->fade_ratio; \
-        (V)[2] = bp->colors[idx].b / 255.0f * bp->fade_ratio; \
-        (V)[3] = bp->colors[idx].a / 255.0f; \
-      } while (0)
+    # define HEXAGON_COLOR(V,H) do { \
+      int idx = (H)->ccolor; \
+      (V)[0] = bp->colors[idx].r / 255.0f * bp->fade_ratio; \
+      (V)[1] = bp->colors[idx].g / 255.0f * bp->fade_ratio; \
+      (V)[2] = bp->colors[idx].b / 255.0f * bp->fade_ratio; \
+      (V)[3] = bp->colors[idx].a / 255.0f; \
+    } while (0)
 #else
-      # define HEXAGON_COLOR(V,H) do { \
-        (V)[0] = bp->colors[(H)->ccolor].red   / 65535.0 * bp->fade_ratio; \
-        (V)[1] = bp->colors[(H)->ccolor].green / 65535.0 * bp->fade_ratio; \
-        (V)[2] = bp->colors[(H)->ccolor].blue  / 65535.0 * bp->fade_ratio; \
-        (V)[3] = 1; \
-      } while (0)
+    # define HEXAGON_COLOR(V,H) do { \
+      (V)[0] = bp->colors[(H)->ccolor].red   / 65535.0 * bp->fade_ratio; \
+      (V)[1] = bp->colors[(H)->ccolor].green / 65535.0 * bp->fade_ratio; \
+      (V)[2] = bp->colors[(H)->ccolor].blue  / 65535.0 * bp->fade_ratio; \
+      (V)[3] = 1; \
+    } while (0)
 #endif
 
-      HEXAGON_COLOR (color, h);
+    HEXAGON_COLOR (color, h);
 
-      for (j = 0; j < 6; j++) {
-          arm *a = &h->arms[j];
-          GLfloat margin = thickness * 0.4;
-          GLfloat size1 = size * (1 - margin * 2);
-          GLfloat size2 = size * (1 - margin * 3);
-          int k = (j + 1) % 6;
-          XYZ p[6];
+    for (j = 0; j < 6; j++) {
+      arm *a = &h->arms[j];
+      GLfloat margin = thickness * 0.4;
+      GLfloat size1 = size * (1 - margin * 2);
+      GLfloat size2 = size * (1 - margin * 3);
+      int k = (j + 1) % 6;
+      XYZ p[6];
 
-          if (h->border_state != EMPTY) {
-              GLfloat color1[3];
-              memcpy (color1, color, sizeof(color1));
-              color1[0] *= h->border_ratio;
-              color1[1] *= h->border_ratio;
-              color1[2] *= h->border_ratio;
+      if (h->border_state != EMPTY) {
+        GLfloat color1[3];
+        memcpy (color1, color, sizeof(color1));
+        color1[0] *= h->border_ratio;
+        color1[1] *= h->border_ratio;
+        color1[2] *= h->border_ratio;
 
-              glColor4fv (color1);
-              glMaterialfv (GL_FRONT, GL_AMBIENT_AND_DIFFUSE, color1);
+        glColor4fv (color1);
+        glMaterialfv (GL_FRONT, GL_AMBIENT_AND_DIFFUSE, color1);
 
-              /* Outer edge of hexagon border */
-              p[0].x = h->pos.x + corners[j].x * size1;
-              p[0].y = h->pos.y + corners[j].y * size1;
-              p[0].z = h->pos.z;
+        /* Outer edge of hexagon border */
+        p[0].x = h->pos.x + corners[j].x * size1;
+        p[0].y = h->pos.y + corners[j].y * size1;
+        p[0].z = h->pos.z;
 
-              p[1].x = h->pos.x + corners[k].x * size1;
-              p[1].y = h->pos.y + corners[k].y * size1;
-              p[1].z = h->pos.z;
+        p[1].x = h->pos.x + corners[k].x * size1;
+        p[1].y = h->pos.y + corners[k].y * size1;
+        p[1].z = h->pos.z;
 
-              /* Inner edge of hexagon border */
-              p[2].x = h->pos.x + corners[k].x * size2;
-              p[2].y = h->pos.y + corners[k].y * size2;
-              p[2].z = h->pos.z;
-              p[3].x = h->pos.x + corners[j].x * size2;
-              p[3].y = h->pos.y + corners[j].y * size2;
-              p[3].z = h->pos.z;
+        /* Inner edge of hexagon border */
+        p[2].x = h->pos.x + corners[k].x * size2;
+        p[2].y = h->pos.y + corners[k].y * size2;
+        p[2].z = h->pos.z;
+        p[3].x = h->pos.x + corners[j].x * size2;
+        p[3].y = h->pos.y + corners[j].y * size2;
+        p[3].z = h->pos.z;
 
-              glVertex3f (p[0].x, p[0].y, p[0].z);
-              glVertex3f (p[1].x, p[1].y, p[1].z);
-              if (! wire) glVertex3f (p[2].x, p[2].y, p[2].z);
-              mi->polygon_count++;
+        glVertex3f (p[0].x, p[0].y, p[0].z);
+        glVertex3f (p[1].x, p[1].y, p[1].z);
+        if (! wire) glVertex3f (p[2].x, p[2].y, p[2].z);
+        mi->polygon_count++;
 
-              glVertex3f (p[2].x, p[2].y, p[2].z);
-              glVertex3f (p[3].x, p[3].y, p[3].z);
-              if (! wire) glVertex3f (p[0].x, p[0].y, p[0].z);
-              mi->polygon_count++;
-          }
-
-          /* Line from center to edge, or edge to center.  */
-          if (a->state == IN || a->state == OUT || a->state == DONE) {
-              GLfloat x   = (corners[j].x + corners[k].x) / 2;
-              GLfloat y   = (corners[j].y + corners[k].y) / 2;
-              GLfloat xoff = corners[k].x - corners[j].x;
-              GLfloat yoff = corners[k].y - corners[j].y;
-              GLfloat line_length = h->arms[j].ratio;
-              GLfloat start, end;
-              GLfloat ncolor[4];
-              GLfloat color1[4];
-              GLfloat color2[4];
-
-              /* Color of the outer point of the line is average color of
-                 this and the neighbor. */
-              HEXAGON_COLOR (ncolor, h->neighbors[j]);
-              ncolor[0] = (ncolor[0] + color[0]) / 2;
-              ncolor[1] = (ncolor[1] + color[1]) / 2;
-              ncolor[2] = (ncolor[2] + color[2]) / 2;
-              ncolor[3] = (ncolor[3] + color[3]) / 2;
-
-              if (a->state == OUT) {
-                start = 0;
-                end = size * line_length;
-                memcpy (color1, color,  sizeof(color1));
-                memcpy (color2, ncolor, sizeof(color1));
-              } else {
-                start = size;
-                end = size * (1 - line_length);
-                memcpy (color1, ncolor, sizeof(color1));
-                memcpy (color2, color,  sizeof(color1));
-              }
-
-              if (! h->neighbors[j]) abort();  /* arm/neighbor mismatch */
-
-              /* Center */
-              p[0].x = h->pos.x + xoff * size2 * thick2 + x * start;
-              p[0].y = h->pos.y + yoff * size2 * thick2 + y * start;
-              p[0].z = h->pos.z;
-              p[1].x = h->pos.x - xoff * size2 * thick2 + x * start;
-              p[1].y = h->pos.y - yoff * size2 * thick2 + y * start;
-              p[1].z = h->pos.z;
-
-              /* Edge */
-              p[2].x = h->pos.x - xoff * size2 * thick2 + x * end;
-              p[2].y = h->pos.y - yoff * size2 * thick2 + y * end;
-              p[2].z = h->pos.z;
-              p[3].x = h->pos.x + xoff * size2 * thick2 + x * end;
-              p[3].y = h->pos.y + yoff * size2 * thick2 + y * end;
-              p[3].z = h->pos.z;
-
-              if (do_glow || do_neon) {
-                Bool debug_now = False;
-                /*static time_t debug_time = 0;
-                time_t current_time = time(NULL);
-                if (current_time != debug_time) {
-                  debug_now = True;
-                  debug_time = current_time;
-                }*/
-
-                if (debug_now) {
-                  printf("\nGLOW DEBUG:\n");
-                  printf("Current color: %.2f, %.2f, %.2f\n",
-                         color[0], color[1], color[2]);
-                  printf("Current p[0]: %.2f, %.2f, %.2f\n", p[0].x, p[0].y, p[0].z);
-                  printf("Current p[3]: %.2f, %.2f, %.2f\n", p[3].x, p[3].y, p[3].z);
-                  printf("Size value: %.2f\n", size);
-                }
-
-                GLenum err = glGetError();
-                if (err != GL_NO_ERROR && debug_now)
-                  printf("GL Error before glow: %d\n", err);
-
-                glEnd();
-
-                glEnable(GL_BLEND);
-                if (debug_now) {
-                  err = glGetError();
-                  if (err != GL_NO_ERROR)
-                    printf("GL Error after enable blend: %d\n", err);
-
-                  GLboolean blend_enabled;
-                  glGetBooleanv(GL_BLEND, &blend_enabled);
-                  printf("Blend enabled: %d\n", blend_enabled);
-                }
-
-                if (do_neon)
-                  glBlendFunc(GL_SRC_ALPHA, GL_ONE);
-                else
-                  glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);  // More natural blending
-
-                const int glow_layers = 4;
-
-                for (int layer = 0; layer < glow_layers; layer++) {
-                  GLfloat glow_scale, glow_alpha;
-
-                  if (do_neon) {
-                    glow_scale = 1.0 + (layer * 0.2);
-                    //glow_scale = 1.0 + (layer * 0.5);
-                    glow_alpha = 0.3 / ((layer + 1) * (layer + 1));
-                    //glow_alpha = 0.8 / (layer + 1);
-                  } else {
-                    glow_scale = 0.1 + ((layer+1) * 0.1);
-                    //glow_alpha = 0.15 / ((layer + 1) * (layer + 1));
-                    glow_alpha = 0.15 * pow(0.5, layer);
-                  }
-
-                  /* Make the glow color brighter than the base color */
-                  GLfloat *glow_color = color;
-                  /*GLfloat glow_color[4] = {
-                    fmin(color[0] * 2.0, 1.0),
-                    fmin(color[1] * 2.0, 1.0),
-                    fmin(color[2] * 2.0, 1.0),
-                    color[3]
-                  };*/
-
-                  float dx = p[3].x - p[0].x;
-                  float dy = p[3].y - p[0].y;
-                  float length = sqrt(dx*dx + dy*dy);
-
-                  if (debug_now && layer == 2) {
-                    printf("\nLayer %d:\n", layer);
-                    printf("Glow scale: %.2f\n", glow_scale);
-                    printf("Glow alpha: %.2f\n", glow_alpha);
-                    printf("Bright color: %.2f, %.2f, %.2f\n",
-                           glow_color[0], glow_color[1], glow_color[2]);
-                    printf("Arm length: %.2f\n", length);
-                  }
-
-                  /* Center point glow */
-                  glBegin(GL_TRIANGLE_FAN);
-                  glColor4f(glow_color[0], glow_color[1], glow_color[2], glow_alpha);
-                  glVertex3f(p[0].x, p[0].y, p[0].z);
-                  for (int g = 0; g <= 16; g++) {
-                  //for (int g = 0; g <= 8; g++) {
-                    float angle = g * M_PI / 8;
-                    //float angle = g * M_PI / 4;
-                    float x = p[0].x + cos(angle) * size * glow_scale;
-                    float y = p[0].y + sin(angle) * size * glow_scale;
-                    glVertex3f(x, y, p[0].z);
-                  }
-                  glEnd();
-
-                  /* End point glow */
-                  glBegin(GL_TRIANGLE_FAN);
-                  if (!do_neon)
-                    glColor4f(glow_color[0], glow_color[1], glow_color[2], glow_alpha); // Needed?
-                  glVertex3f(p[3].x, p[3].y, p[3].z);
-                  for (int g = 0; g <= 16; g++) {
-                  //for (int g = 0; g <= 8; g++) {
-                    float angle = g * M_PI / 8;
-                    //float angle = g * M_PI / 4;
-                    float x = p[3].x + cos(angle) * size * glow_scale;
-                    float y = p[3].y + sin(angle) * size * glow_scale;
-                    glVertex3f(x, y, p[3].z);
-                  }
-                  glEnd();
-
-                  /* Arm glow */
-                  if (do_neon)
-                    glBegin(GL_TRIANGLE_STRIP);
-                  else
-                    glBegin(GL_QUADS);
-                  float nx = -dy/length * size * glow_scale;
-                  float ny = dx/length * size * glow_scale;
-
-                  if (!do_neon)
-                    glColor4f(glow_color[0], glow_color[1], glow_color[2], glow_alpha); // Needed?
-                  glVertex3f(p[0].x + nx, p[0].y + ny, p[0].z);
-                  glVertex3f(p[0].x - nx, p[0].y - ny, p[0].z);
-                  glVertex3f(p[3].x + nx, p[3].y + ny, p[3].z);
-                  glVertex3f(p[3].x - nx, p[3].y - ny, p[3].z);
-                  glEnd();
-                }
-
-                if (debug_now) {
-                  err = glGetError();
-                  if (err != GL_NO_ERROR) {
-                    printf("GL Error after glow drawing: %d\n", err);
-                  }
-                }
-
-                glDisable(GL_BLEND);
-                glBegin(wire ? GL_LINES : GL_TRIANGLES);
-              }
-
-              glColor4fv (color2);
-              glMaterialfv (GL_FRONT, GL_AMBIENT_AND_DIFFUSE, color2);
-              glVertex3f (p[3].x, p[3].y, p[3].z);
-              glColor4fv (color1);
-              glMaterialfv (GL_FRONT, GL_AMBIENT_AND_DIFFUSE, color1);
-              glVertex3f (p[0].x, p[0].y, p[0].z);
-              if (! wire)
-                glVertex3f (p[1].x, p[1].y, p[1].z);
-              mi->polygon_count++;
-
-              glVertex3f (p[1].x, p[1].y, p[1].z);
-
-              glColor4fv (color2);
-              glMaterialfv (GL_FRONT, GL_AMBIENT_AND_DIFFUSE, color2);
-              glVertex3f (p[2].x, p[2].y, p[2].z);
-              if (! wire)
-                glVertex3f (p[3].x, p[3].y, p[3].z);
-              mi->polygon_count++;
-          }
-
-          /* Hexagon (one triangle of) in center to hide line miter/bevels.
-           */
-          if (total_arms) {
-              GLfloat size3 = size * thick2 * 0.8;
-              if (total_arms == 1)
-                size3 *= 2;
-
-              p[0] = h->pos;
-
-              p[1].x = h->pos.x + corners[j].x * size3;
-              p[1].y = h->pos.y + corners[j].y * size3;
-              p[1].z = h->pos.z;
-
-              /* Inner edge of hexagon border */
-              p[2].x = h->pos.x + corners[k].x * size3;
-              p[2].y = h->pos.y + corners[k].y * size3;
-              p[2].z = h->pos.z;
-
-              glColor4fv (color);
-              glMaterialfv (GL_FRONT, GL_AMBIENT_AND_DIFFUSE, color);
-              if (! wire)
-                glVertex3f (p[0].x, p[0].y, p[0].z);
-              glVertex3f (p[1].x, p[1].y, p[1].z);
-              glVertex3f (p[2].x, p[2].y, p[2].z);
-              mi->polygon_count++;
-          }
+        glVertex3f (p[2].x, p[2].y, p[2].z);
+        glVertex3f (p[3].x, p[3].y, p[3].z);
+        if (! wire) glVertex3f (p[0].x, p[0].y, p[0].z);
+        mi->polygon_count++;
       }
+
+      /* Line from center to edge, or edge to center.  */
+      if (a->state == IN || a->state == OUT || a->state == DONE) {
+        GLfloat x   = (corners[j].x + corners[k].x) / 2;
+        GLfloat y   = (corners[j].y + corners[k].y) / 2;
+        GLfloat xoff = corners[k].x - corners[j].x;
+        GLfloat yoff = corners[k].y - corners[j].y;
+        GLfloat line_length = h->arms[j].ratio;
+        GLfloat start, end;
+        GLfloat ncolor[4];
+        GLfloat color1[4];
+        GLfloat color2[4];
+
+        /* Color of the outer point of the line is average color of
+           this and the neighbor. */
+        HEXAGON_COLOR (ncolor, h->neighbors[j]);
+        ncolor[0] = (ncolor[0] + color[0]) / 2;
+        ncolor[1] = (ncolor[1] + color[1]) / 2;
+        ncolor[2] = (ncolor[2] + color[2]) / 2;
+        ncolor[3] = (ncolor[3] + color[3]) / 2;
+
+        if (a->state == OUT) {
+          start = 0;
+          end = size * line_length;
+          memcpy (color1, color,  sizeof(color1));
+          memcpy (color2, ncolor, sizeof(color1));
+        } else {
+          start = size;
+          end = size * (1 - line_length);
+          memcpy (color1, ncolor, sizeof(color1));
+          memcpy (color2, color,  sizeof(color1));
+        }
+
+        if (! h->neighbors[j]) abort();  /* arm/neighbor mismatch */
+
+        /* Center */
+        p[0].x = h->pos.x + xoff * size2 * thick2 + x * start;
+        p[0].y = h->pos.y + yoff * size2 * thick2 + y * start;
+        p[0].z = h->pos.z;
+        p[1].x = h->pos.x - xoff * size2 * thick2 + x * start;
+        p[1].y = h->pos.y - yoff * size2 * thick2 + y * start;
+        p[1].z = h->pos.z;
+
+        /* Edge */
+        p[2].x = h->pos.x - xoff * size2 * thick2 + x * end;
+        p[2].y = h->pos.y - yoff * size2 * thick2 + y * end;
+        p[2].z = h->pos.z;
+        p[3].x = h->pos.x + xoff * size2 * thick2 + x * end;
+        p[3].y = h->pos.y + yoff * size2 * thick2 + y * end;
+        p[3].z = h->pos.z;
+
+        if (do_glow || do_neon) {
+          Bool debug_now = False;
+          /*static time_t debug_time = 0;
+          time_t current_time = time(NULL);
+          if (current_time != debug_time) {
+            debug_now = True;
+            debug_time = current_time;
+          }*/
+
+          if (debug_now) {
+            printf("\nGLOW DEBUG:\n");
+            printf("Current color: %.2f, %.2f, %.2f\n",
+                   color[0], color[1], color[2]);
+            printf("Current p[0]: %.2f, %.2f, %.2f\n", p[0].x, p[0].y, p[0].z);
+            printf("Current p[3]: %.2f, %.2f, %.2f\n", p[3].x, p[3].y, p[3].z);
+            printf("Size value: %.2f\n", size);
+          }
+
+          GLenum err = glGetError();
+          if (err != GL_NO_ERROR && debug_now)
+            printf("GL Error before glow: %d\n", err);
+
+          glEnd();
+
+          glEnable(GL_BLEND);
+          if (debug_now) {
+            err = glGetError();
+            if (err != GL_NO_ERROR)
+              printf("GL Error after enable blend: %d\n", err);
+
+            GLboolean blend_enabled;
+            glGetBooleanv(GL_BLEND, &blend_enabled);
+            printf("Blend enabled: %d\n", blend_enabled);
+          }
+
+          if (do_neon)
+            glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+          else
+            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);  // More natural blending
+
+          const int glow_layers = 4;
+
+          for (int layer = 0; layer < glow_layers; layer++) {
+            GLfloat glow_scale, glow_alpha;
+
+            if (do_neon) {
+              glow_scale = 1.0 + (layer * 0.2);
+              //glow_scale = 1.0 + (layer * 0.5);
+              glow_alpha = 0.3 / ((layer + 1) * (layer + 1));
+              //glow_alpha = 0.8 / (layer + 1);
+            } else {
+              glow_scale = 0.1 + ((layer+1) * 0.1);
+              //glow_alpha = 0.15 / ((layer + 1) * (layer + 1));
+              glow_alpha = 0.15 * pow(0.5, layer);
+            }
+
+            /* Make the glow color brighter than the base color */
+            GLfloat *glow_color = color;
+            /*GLfloat glow_color[4] = {
+              fmin(color[0] * 2.0, 1.0),
+              fmin(color[1] * 2.0, 1.0),
+              fmin(color[2] * 2.0, 1.0),
+              color[3]
+            };*/
+
+            float dx = p[3].x - p[0].x;
+            float dy = p[3].y - p[0].y;
+            float length = sqrt(dx*dx + dy*dy);
+
+            if (debug_now && layer == 2) {
+              printf("\nLayer %d:\n", layer);
+              printf("Glow scale: %.2f\n", glow_scale);
+              printf("Glow alpha: %.2f\n", glow_alpha);
+              printf("Bright color: %.2f, %.2f, %.2f\n",
+                     glow_color[0], glow_color[1], glow_color[2]);
+              printf("Arm length: %.2f\n", length);
+            }
+
+            /* Center point glow */
+            glBegin(GL_TRIANGLE_FAN);
+            glColor4f(glow_color[0], glow_color[1], glow_color[2], glow_alpha);
+            glVertex3f(p[0].x, p[0].y, p[0].z);
+            for (int g = 0; g <= 16; g++) {
+            //for (int g = 0; g <= 8; g++) {
+              float angle = g * M_PI / 8;
+              //float angle = g * M_PI / 4;
+              float x = p[0].x + cos(angle) * size * glow_scale;
+              float y = p[0].y + sin(angle) * size * glow_scale;
+              glVertex3f(x, y, p[0].z);
+            }
+            glEnd();
+
+            /* End point glow */
+            glBegin(GL_TRIANGLE_FAN);
+            if (!do_neon)
+              glColor4f(glow_color[0], glow_color[1], glow_color[2], glow_alpha); // Needed?
+            glVertex3f(p[3].x, p[3].y, p[3].z);
+            for (int g = 0; g <= 16; g++) {
+            //for (int g = 0; g <= 8; g++) {
+              float angle = g * M_PI / 8;
+              //float angle = g * M_PI / 4;
+              float x = p[3].x + cos(angle) * size * glow_scale;
+              float y = p[3].y + sin(angle) * size * glow_scale;
+              glVertex3f(x, y, p[3].z);
+            }
+            glEnd();
+
+            /* Arm glow */
+            if (do_neon)
+              glBegin(GL_TRIANGLE_STRIP);
+            else
+              glBegin(GL_QUADS);
+            float nx = -dy/length * size * glow_scale;
+            float ny = dx/length * size * glow_scale;
+
+            if (!do_neon)
+              glColor4f(glow_color[0], glow_color[1], glow_color[2], glow_alpha); // Needed?
+            glVertex3f(p[0].x + nx, p[0].y + ny, p[0].z);
+            glVertex3f(p[0].x - nx, p[0].y - ny, p[0].z);
+            glVertex3f(p[3].x + nx, p[3].y + ny, p[3].z);
+            glVertex3f(p[3].x - nx, p[3].y - ny, p[3].z);
+            glEnd();
+          }
+
+          if (debug_now) {
+            err = glGetError();
+            if (err != GL_NO_ERROR) {
+              printf("GL Error after glow drawing: %d\n", err);
+            }
+          }
+
+          glDisable(GL_BLEND);
+          glBegin(wire ? GL_LINES : GL_TRIANGLES);
+        }
+
+        glColor4fv (color2);
+        glMaterialfv (GL_FRONT, GL_AMBIENT_AND_DIFFUSE, color2);
+        glVertex3f (p[3].x, p[3].y, p[3].z);
+        glColor4fv (color1);
+        glMaterialfv (GL_FRONT, GL_AMBIENT_AND_DIFFUSE, color1);
+        glVertex3f (p[0].x, p[0].y, p[0].z);
+        if (! wire) glVertex3f (p[1].x, p[1].y, p[1].z);
+        mi->polygon_count++;
+
+        glVertex3f (p[1].x, p[1].y, p[1].z);
+
+        glColor4fv (color2);
+        glMaterialfv (GL_FRONT, GL_AMBIENT_AND_DIFFUSE, color2);
+        glVertex3f (p[2].x, p[2].y, p[2].z);
+        if (! wire) glVertex3f (p[3].x, p[3].y, p[3].z);
+        mi->polygon_count++;
+      }
+
+      /* Hexagon (one triangle of) in center to hide line miter/bevels.  */
+      if (total_arms) {
+        GLfloat size3 = size * thick2 * 0.8;
+        if (total_arms == 1) size3 *= 2;
+
+        p[0] = h->pos;
+
+        p[1].x = h->pos.x + corners[j].x * size3;
+        p[1].y = h->pos.y + corners[j].y * size3;
+        p[1].z = h->pos.z;
+
+        /* Inner edge of hexagon border */
+        p[2].x = h->pos.x + corners[k].x * size3;
+        p[2].y = h->pos.y + corners[k].y * size3;
+        p[2].z = h->pos.z;
+
+        glColor4fv (color);
+        glMaterialfv (GL_FRONT, GL_AMBIENT_AND_DIFFUSE, color);
+        if (! wire) glVertex3f (p[0].x, p[0].y, p[0].z);
+        glVertex3f (p[1].x, p[1].y, p[1].z);
+        glVertex3f (p[2].x, p[2].y, p[2].z);
+        mi->polygon_count++;
+      }
+    }
   }
 
   glEnd();
