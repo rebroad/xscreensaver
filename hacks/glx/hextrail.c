@@ -437,8 +437,8 @@ static void tick_hexagons (ModeInfo *mi) {
 		  debug = True; min_y = h0->y;
 	    }
 	    if (bp->state == FADE) {
-		  max_x = 0; max_y = 0; min_x = 0; min_y = 0;
-		  max_vx = 0; max_vy = 0; min_vx = 0; min_vy = 0;
+		  max_x = 0; max_y = 0; min_x = INT_MAX; min_y = INT_MAX;
+		  max_vx = 0; max_vy = 0; min_vx = INT_MAX; min_vy = INT_MAX;
 		  debug = False;
 	    }
 
