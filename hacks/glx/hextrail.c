@@ -333,7 +333,6 @@ static Bool point_visible(hexagon *h0) {
   return is_visible;
 }
 
-/* Expand grid in a given direction */
 static void expand_plane(ModeInfo *mi, int direction) {
   hextrail_configuration *bp = &bps[MI_SCREEN(mi)];
   int old_grid_w = bp->grid_w; int old_grid_h = bp->grid_h;
@@ -366,7 +365,7 @@ static void expand_plane(ModeInfo *mi, int direction) {
   /* Copy existing hexagons with position adjustment */
   for (y = 0; y < old_grid_h; y++) for (x = 0; x < old_grid_w; x++) {
     hexagon *old_hex = &old_hexagons[y * old_grid_w + x];
-    hexagon *new_hex = &new_hexagons[(y + y_offset) * bp->grid_w + (x + x_offset)];
+    hexagon *new_hex = &new_hexagons[(y + y_offset) * new_grid_w + (x + x_offset)];
     *new_hex = *old_hex;
 
     /* Adjust position to maintain visual continuity */
