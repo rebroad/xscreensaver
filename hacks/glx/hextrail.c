@@ -553,7 +553,7 @@ static void tick_hexagons (ModeInfo *mi) {
   } // Loop through each hexagon
 
   /* Start a new cell growing.  */
-  Bool started = False;
+  Bool try_new = False, started = False;
   if ((bp->doing - bp->ignored) <= 0) {
     for (i = 0; i < (bp->grid_w * bp->grid_h) / 3; i++) {
       hexagon *h0;
@@ -564,6 +564,7 @@ static void tick_hexagons (ModeInfo *mi) {
         bp->state = DRAW;
         bp->fade_ratio = 1;
       } else {
+		try_new = True;
         x = random() % bp->grid_w;
         y = random() % bp->grid_h;
       }
@@ -575,7 +576,7 @@ static void tick_hexagons (ModeInfo *mi) {
     }
   }
 
-  if (started || bp->doing != bp->ignored)
+  if (try_new && (started || bp->doing != bp->ignored))
 	printf("New cell: started=%d doing=%d ignored=%d\n", started, bp->doing, bp->ignored);
 
   if ((bp->doing - bp->ignored) <= 0 && bp->state != FADE) {
