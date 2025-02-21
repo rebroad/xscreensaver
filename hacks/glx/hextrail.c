@@ -503,7 +503,10 @@ static void tick_hexagons (ModeInfo *mi) {
                Pass the baton to this waiting neighbor. */
             hexagon *h1 = h0->neighbors[j];
             arm *a1 = &h1->arms[(j + 3) % 6];
-            if (a1->state != WAIT) abort();
+            if (a1->state != WAIT) {
+              printf("H0 (%d,%d)'s arm=%d connecting to H1 (%d,%d)'s arm_state=%d\n", h0->x, h0->y, j, h1->x, h1->y, a1->state);
+              abort();
+			}
             a0->state = DONE;
             a0->ratio = 1;
             a1->state = IN;
