@@ -19,7 +19,6 @@
 #include <GL/gl.h>
 #include <GL/glu.h>
 #endif
-#include <string.h>
 #include "xlockmore.h"
 #include "colors.h"
 #include "normals.h"
@@ -234,7 +233,7 @@ static void doing(ModeInfo *mi, hexagon *h, Bool alive) {
         printf("%s: pos=%.0f,%.0f doing=%d->%d ignored=%d->%d\n", __func__, 
 				h->pos.x * 1000, h->pos.y * 1000,
 				bp->doing+1, bp->doing, bp->ignored+1, bp->ignored);
-		if (bp->ignored < -2) abort();
+		if (bp->ignored < -2) usleep(10000000);
 	  } else
         printf("%s: pos=%.0f,%.0f doing=%d->%d ignored=%d\n", __func__,
 				h->pos.x * 1000, h->pos.y * 1000, bp->doing+1, bp->doing,
@@ -431,11 +430,13 @@ static void tick_hexagons (ModeInfo *mi) {
 		  printf("%s: pos=%.0f,%.0f doing=%d ignored=%d->%d\n", __func__,
 				  h0->pos.x * 1000, h0->pos.y * 1000, bp->doing,
 				  bp->ignored-1, bp->ignored);
+		  if (bp->ignored > bp->doing + 1) usleep(10000000);
 	    } else if (!is_visible && h0->ignore) {
 		  bp->ignored--;
 		  printf("%s: pos=%.0f,%.0f doing=%d ignored=%d->%d\n", __func__,
 				  h0->pos.x * 1000, h0->pos.y * 1000, bp->doing,
 				  bp->ignored+1, bp->ignored);
+		  if (bp->ignored < -1) usleep(10000000);
 		}
 	  }
       h0->ignore = !is_visible;
