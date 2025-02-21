@@ -470,16 +470,15 @@ static void tick_hexagons (ModeInfo *mi) {
             else if (h0->pos.y >= 1) dir = 1; /* Top */
             else if (h0->pos.x <= -1) dir = 3;/* Left */
             else if (h0->pos.y <= -1) dir = 4;/* Bottom */
+		    char *str;
+            if (dir == 0) str = "Right";
+            else if (dir == 1) str = "Up";
+            else if (dir == 3) str = "Left";
+            else if (dir == 4) str = "Down";
+            else str = "???";
+            printf("pos=%d,%d Expanding plane %s is_edge=%d is_visible=%d is_doing=%d\n", h0->x, h0->y, str, is_edge, is_visible, h0->doing);
             break;
           }
-		  char *str;
-          if (dir == 0) str = "Right";
-          else if (dir == 1) str = "Up";
-          else if (dir == 3) str = "Left";
-          else if (dir == 4) str = "Down";
-          else str = "???";
-          printf("pos=%d,%d Expanding plane %s is_edge=%d is_visible=%d is_doing=%d\n",
-            h0->x, h0->y, str, is_edge, is_visible, h0->doing);
         }
       }
 	}
