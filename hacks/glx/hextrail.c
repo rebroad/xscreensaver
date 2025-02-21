@@ -223,9 +223,8 @@ static void doing(ModeInfo *mi, hexagon *h, Bool alive) {
     if (!h->doing) {
       h->doing = True;
       bp->doing++;
-      printf("%s: pos=%.0f,%.0f doing=%d->%d ignored=%d\n", __func__,
-			  h->pos.x * 1000, h->pos.y * 1000, bp->doing-1, bp->doing,
-			  bp->ignored);
+      printf("%s: pos=%d,%d doing=%d->%d ignored=%d\n", __func__,
+			  h->x, h->y, bp->doing-1, bp->doing, bp->ignored);
     }
   } else {
     if (h->doing) {
@@ -233,14 +232,12 @@ static void doing(ModeInfo *mi, hexagon *h, Bool alive) {
       bp->doing--;
 	  if (h->ignore) {
 		bp->ignored--;
-        printf("%s: pos=%.0f,%.0f doing=%d->%d ignored=%d->%d\n", __func__, 
-				h->pos.x * 1000, h->pos.y * 1000,
-				bp->doing+1, bp->doing, bp->ignored+1, bp->ignored);
+        printf("%s: pos=%d,%d doing=%d->%d ignored=%d->%d\n", __func__, 
+				h->x, h->y, bp->doing+1, bp->doing, bp->ignored+1, bp->ignored);
 		if (bp->ignored < -2) bp->bug_found = True;
 	  } else
-        printf("%s: pos=%.0f,%.0f doing=%d->%d ignored=%d\n", __func__,
-				h->pos.x * 1000, h->pos.y * 1000, bp->doing+1, bp->doing,
-				bp->ignored);
+        printf("%s: pos=%d,%d doing=%d->%d ignored=%d\n", __func__,
+				h->x, h->y, bp->doing+1, bp->doing, bp->ignored);
     }
   }
 }
@@ -325,9 +322,8 @@ static Bool point_visible(ModeInfo *mi, int i, hexagon *h0) {
 
   if (current_time > debug_time + 4) {
 	debug_time = current_time;
-	printf("\npos=%.0f,%.0f %s hexagon is o%sscreen\n",
-			h0->pos.x * 1000, h0->pos.y * 1000,
-			ignore ? "ignored" : "watched", is_visible ? "n" : "ff");
+	printf("\npos=%d,%d %s hexagon is o%sscreen\n",
+			h0->x, h0->y, ignore ? "ignored" : "watched", is_visible ? "n" : "ff");
     printf("World coords (x,y,z): %.2f, %.2f, %.2f\n", point.x, point.y, point.z);
     printf("Screen coords (x,y,z): %.2f, %.2f, %.2f\n", winX, winY, winZ);
     printf("Viewport: x=%d, y=%d, w=%d, h=%d\n", 
@@ -338,12 +334,11 @@ static Bool point_visible(ModeInfo *mi, int i, hexagon *h0) {
 }
 
 /* Expand grid in a given direction */
-static Bool expand_plane(ModeInfo *mi, int direction) {
+static void expand_plane(ModeInfo *mi, int direction) {
   hextrail_configuration *bp = &bps[MI_SCREEN(mi)];
   int old_grid_w = bp->grid_w; int old_grid_h = bp->grid_h;
   int new_grid_w = old_grid_w; int new_grid_h = old_grid_h;
   hexagon *old_hexagons = bp->hexagons;
-  float pos_offset_x = 0, pos_offset_y = 0;
   int x, y;
 
   /* Increase grid size */
@@ -360,7 +355,7 @@ static Bool expand_plane(ModeInfo *mi, int direction) {
   hexagon *new_hexagons = (hexagon *)calloc(new_grid_w * new_grid_h, sizeof(hexagon));
   if (!new_hexagons) {
 	fprintf(stderr, "FGailed to allocate memory for expanded grid\n");
-	return False;
+	return;
   }
 
   /* Calculate copy offsets */
@@ -431,23 +426,20 @@ static void tick_hexagons (ModeInfo *mi) {
 
 	  if (is_edge && current_time > debug_time + 6) {
 		  debug_time = current_time;
-		  printf("\npos=%.0f,%.0f is_edge, is_visible = %d\n",
-				  h0->pos.x * 1000, h0->pos.y * 1000, is_visible);
+		  printf("\npos=%d,%d is_edge, is_visible = %d\n", h0->x, h0->y, is_visible);
 	  }
 
       /* Update activity state based on visibility */
 	  if (h0->doing) {
 		if (!is_visible && !h0->ignore) {
 		  bp->ignored++;
-		  printf("%s: pos=%.0f,%.0f doing=%d ignored=%d->%d\n", __func__,
-				  h0->pos.x * 1000, h0->pos.y * 1000, bp->doing,
-				  bp->ignored-1, bp->ignored);
+		  printf("%s: pos=%d,%d doing=%d ignored=%d->%d\n", __func__,
+				  h0->x, h0->y, bp->doing, bp->ignored-1, bp->ignored);
 		  if (bp->ignored > bp->doing + 1) bp->bug_found = True;
 	    } else if (is_visible && h0->ignore) {
 		  bp->ignored--;
-		  printf("%s: pos=%.0f,%.0f doing=%d ignored=%d->%d\n", __func__,
-				  h0->pos.x * 1000, h0->pos.y * 1000, bp->doing,
-				  bp->ignored+1, bp->ignored);
+		  printf("%s: pos=%d,%d doing=%d ignored=%d->%d\n", __func__,
+				  h0->x, h0->y, bp->doing, bp->ignored+1, bp->ignored);
 		  if (bp->ignored < -1) bp->bug_found = True;
 		}
 	  }
@@ -474,9 +466,8 @@ static void tick_hexagons (ModeInfo *mi) {
         else if (dir == 3) str = "Left";
         else if (dir == 4) str = "Down";
 		else str = "???";
-        printf("pos=%.0f,%.0f Expanding plane %s is_edge=%d is_visible=%d is_doing=%d\n",
-				h0->pos.x * 1000, h0->pos.y * 1000, str,
-				is_edge, is_visible, h0->doing);
+        printf("pos=%d,%d Expanding plane %s is_edge=%d is_visible=%d is_doing=%d\n",
+				h0->x, h0->y, str, is_edge, is_visible, h0->doing);
         expand_plane(mi, dir);
       }
     } // Button never pressed
