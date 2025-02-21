@@ -408,6 +408,9 @@ static void tick_hexagons (ModeInfo *mi) {
   hextrail_configuration *bp = &bps[MI_SCREEN(mi)];
   int i, j;
   int8_t dir = 0;
+  static int max_x = 0, max_y = 0, max_vx = 0, max_vy = 0;
+  static int min_x = INT_MAX, min_y = INT_MAX;
+  static int min_vx = INT_MAX, min_vy = INT_MAX;
 
   if (!bp->button_pressed) {
     for (i = 0; i < bp->grid_w * bp->grid_h; i++) {
@@ -419,9 +422,6 @@ static void tick_hexagons (ModeInfo *mi) {
 	    Bool is_visible = point_visible(h0);
 
 	    Bool debug = False;
-	    static int max_x = 0, max_y = 0, max_vx = 0, max_vy = 0;
-	    static int min_x = INT_MAX, min_y = INT_MAX;
-		static int min_vx = INT_MAX, min_vy = INT_MAX;
 		if (is_visible) {
 	      if (h0->x > max_vx) {
             debug = True; max_vx = h0->x;
@@ -443,11 +443,6 @@ static void tick_hexagons (ModeInfo *mi) {
           debug = True; max_y = h0->y;
 	    } else if (h0->y < min_y) {
 		  debug = True; min_y = h0->y;
-	    }
-	    if (bp->state == FADE) {
-		  max_x = 0; max_y = 0; min_x = INT_MAX; min_y = INT_MAX;
-		  max_vx = 0; max_vy = 0; min_vx = INT_MAX; min_vy = INT_MAX;
-		  debug = False;
 	    }
 
 	    if (debug)
@@ -578,6 +573,8 @@ static void tick_hexagons (ModeInfo *mi) {
         y = bp->grid_h / 2;
         bp->state = DRAW;
         bp->fade_ratio = 1;
+        max_x = 0; max_y = 0; min_x = bp->grid_w; min_y = bp->grid_h;
+        max_vx = 0; max_vy = 0; min_vx = min_x; min_vy = min_y;
       } else {
 		try_new = True;
         x = random() % bp->grid_w;
