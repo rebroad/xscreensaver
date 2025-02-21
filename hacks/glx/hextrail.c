@@ -223,8 +223,8 @@ static void doing(ModeInfo *mi, hexagon *h, Bool alive) {
     if (!h->doing) {
       h->doing = True;
       bp->doing++;
-      printf("%s: pos=%d,%d doing=%d->%d ignored=%d\n", __func__,
-			  h->x, h->y, bp->doing-1, bp->doing, bp->ignored);
+      /*printf("%s: pos=%d,%d doing=%d->%d ignored=%d\n", __func__,
+			  h->x, h->y, bp->doing-1, bp->doing, bp->ignored);*/
     }
   } else {
     if (h->doing) {
@@ -232,12 +232,12 @@ static void doing(ModeInfo *mi, hexagon *h, Bool alive) {
       bp->doing--;
 	  if (h->ignore) {
 		bp->ignored--; h->ignore = False;
-        printf("%s: pos=%d,%d doing=%d->%d ignored=%d->%d\n", __func__, 
-				h->x, h->y, bp->doing+1, bp->doing, bp->ignored+1, bp->ignored);
+        /*printf("%s: pos=%d,%d doing=%d->%d ignored=%d->%d\n", __func__, 
+				h->x, h->y, bp->doing+1, bp->doing, bp->ignored+1, bp->ignored);*/
 		if (bp->ignored < -2) bp->bug_found = True;
-	  } else
+	  } /*else
         printf("%s: pos=%d,%d doing=%d->%d ignored=%d\n", __func__,
-				h->x, h->y, bp->doing+1, bp->doing, bp->ignored);
+				h->x, h->y, bp->doing+1, bp->doing, bp->ignored);*/
     }
   }
 }
@@ -294,8 +294,6 @@ static int add_arms (ModeInfo *mi, hexagon *h0, Bool out_p) {
   return added;
 }
 
-static time_t debug_time = 0;
-
 /* Check if a point is within the visible frustum */
 static Bool point_visible(ModeInfo *mi, int i, hexagon *h0) {
   Bool ignore = h0->ignore;
@@ -304,6 +302,7 @@ static Bool point_visible(ModeInfo *mi, int i, hexagon *h0) {
   GLint viewport[4];
   GLdouble winX, winY, winZ;
 
+  static time_t debug_time = 0;
   time_t current_time = time(NULL);
 
   /* Get current matrices and viewport */
@@ -407,6 +406,18 @@ static void expand_plane(ModeInfo *mi, int direction) {
   update_neighbors(mi);
 }
 
+static void reset_hextrail(ModeInfo *mi) {
+  hextrail_configuration *bp = &bps[MI_SCREEN(mi)];
+  if (MI_COUNT(mi) < 1) MI_COUNT(mi) = 1;
+  free (bp->hexagons);
+  bp->hexagons = 0;
+  bp->state = FIRST;
+  bp->fade_ratio = 1;
+  bp->doing = 0;
+  bp->ignored = 0;
+  make_plane (mi);
+}
+
 static void tick_hexagons (ModeInfo *mi) {
   hextrail_configuration *bp = &bps[MI_SCREEN(mi)];
   int i, j;
@@ -422,24 +433,25 @@ static void tick_hexagons (ModeInfo *mi) {
                      h0->pos.y <= -1 || h0->pos.y >= 1);
 	  Bool is_visible = point_visible(mi, i, h0);
 
+      static time_t debug_time = 0;
 	  time_t current_time = time(NULL);
 
 	  if (is_edge && current_time > debug_time + 6) {
-		  debug_time = current_time;
-		  printf("\npos=%d,%d is_edge, is_visible = %d\n", h0->x, h0->y, is_visible);
+        debug_time = current_time;
+        printf("\npos=%d,%d is_edge, is_visible = %d\n", h0->x, h0->y, is_visible);
 	  }
 
       /* Update activity state based on visibility */
 	  if (h0->doing) {
 		if (!is_visible && !h0->ignore) {
 		  bp->ignored++; h0->ignore = True;
-		  printf("%s: pos=%d,%d doing=%d ignored=%d->%d\n", __func__,
-				  h0->x, h0->y, bp->doing, bp->ignored-1, bp->ignored);
+		  /*printf("%s: pos=%d,%d doing=%d ignored=%d->%d\n", __func__,
+				  h0->x, h0->y, bp->doing, bp->ignored-1, bp->ignored);*/
 		  if (bp->ignored > bp->doing + 1) bp->bug_found = True;
 	    } else if (is_visible && h0->ignore) {
 		  bp->ignored--; h0->ignore = False;
-		  printf("%s: pos=%d,%d doing=%d ignored=%d->%d\n", __func__,
-				  h0->x, h0->y, bp->doing, bp->ignored+1, bp->ignored);
+		  /*printf("%s: pos=%d,%d doing=%d ignored=%d->%d\n", __func__,
+				  h0->x, h0->y, bp->doing, bp->ignored+1, bp->ignored);*/
 		  if (bp->ignored < -1) bp->bug_found = True;
 		}
 	  }
@@ -571,11 +583,8 @@ static void tick_hexagons (ModeInfo *mi) {
 	}
   } else if (bp->state == FADE) {
     bp->fade_ratio -= 0.01 * speed;
-    if (bp->fade_ratio <= 0) {
-      make_plane (mi); // TODO - not reset_hextrail?
-      bp->state = FIRST;
-      bp->fade_ratio = 1;
-    }
+    if (bp->fade_ratio <= 0)
+      reset_hextrail (mi);
   }
 }
 
@@ -946,20 +955,6 @@ reshape_hextrail (ModeInfo *mi, int width, int height)
   glClear(GL_COLOR_BUFFER_BIT);
 }
 
-#ifndef USE_SDL
-static void reset_hextrail(ModeInfo *mi) {
-  hextrail_configuration *bp = &bps[MI_SCREEN(mi)];
-  if (MI_COUNT(mi) < 1) MI_COUNT(mi) = 1;
-  free (bp->hexagons);
-  bp->hexagons = 0;
-  bp->state = FIRST;
-  bp->fade_ratio = 1;
-  bp->doing = 0;
-  bp->ignored = 0;
-  make_plane (mi);
-}
-#endif
-
 ENTRYPOINT Bool hextrail_handle_event (ModeInfo *mi,
 #ifdef USE_SDL
         SDL_Event *event
@@ -1049,7 +1044,6 @@ ENTRYPOINT void init_hextrail (ModeInfo *mi) {
     bp->trackball = gltrackball_init (True);
   }
 
-
   /* Let's tilt the scene a little. */
   gltrackball_reset (bp->trackball,
                      -0.4 + frand(0.8),
@@ -1058,10 +1052,7 @@ ENTRYPOINT void init_hextrail (ModeInfo *mi) {
   if (thickness < 0.05) thickness = 0.05;
   if (thickness > 0.5) thickness = 0.5;
 
-  make_plane (mi);
-  bp->state = FIRST;
-  bp->fade_ratio = 1;
-  bp->bug_found = False;
+  reset_hextrail (mi);
 }
 
 
