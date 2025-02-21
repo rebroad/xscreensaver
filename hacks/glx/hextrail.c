@@ -429,13 +429,11 @@ static void reset_hextrail(ModeInfo *mi) {
 static void tick_hexagons (ModeInfo *mi) {
   hextrail_configuration *bp = &bps[MI_SCREEN(mi)];
   int i, j;
-  Bool needs_expansion = False;
   int dir = -1;
 
-  for (i = 0; i < bp->grid_w * bp->grid_h; i++) {
-    hexagon *h0 = &bp->hexagons[i];
-    /* Check if we need to expand the grid */
-    if (!bp->button_pressed) {
+  if (!bp->button_pressed) {
+    for (i = 0; i < bp->grid_w * bp->grid_h; i++) {
+      hexagon *h0 = &bp->hexagons[i];
       /* Check if this is an edge hexagon with active arms */
       Bool is_edge = (h0->pos.x <= -1 || h0->pos.x >= 1 ||
                      h0->pos.y <= -1 || h0->pos.y >= 1);
@@ -467,7 +465,6 @@ static void tick_hexagons (ModeInfo *mi) {
       if (is_edge && is_visible) {
         for (int j = 0; j < 6; j++) {
           if (h0->arms[j].state != EMPTY) {
-            needs_expansion = True;
             /* Determine expansion direction based on position */
             if (h0->pos.x >= 1) dir = 0;      /* Right */
             else if (h0->pos.y >= 1) dir = 1; /* Top */
@@ -475,24 +472,26 @@ static void tick_hexagons (ModeInfo *mi) {
             else if (h0->pos.y <= -1) dir = 4;/* Bottom */
             break;
           }
+		  char *str;
+          if (dir == 0) str = "Right";
+          else if (dir == 1) str = "Up";
+          else if (dir == 3) str = "Left";
+          else if (dir == 4) str = "Down";
+          else str = "???";
+          printf("pos=%d,%d Expanding plane %s is_edge=%d is_visible=%d is_doing=%d\n",
+            h0->x, h0->y, str, is_edge, is_visible, h0->doing);
         }
       }
+	}
+  }
 
-      if (needs_expansion && dir >= 0) {
-        char *str;
-        if (dir == 0) str = "Right";
-        else if (dir == 1) str = "Up";
-        else if (dir == 3) str = "Left";
-        else if (dir == 4) str = "Down";
-		else str = "???";
-        printf("pos=%d,%d Expanding plane %s is_edge=%d is_visible=%d is_doing=%d\n",
-				h0->x, h0->y, str, is_edge, is_visible, h0->doing);
-        expand_plane(mi, dir);
-      }
-    } // Button never pressed
+  if (dir >= 0) {
+    printf("Expanding plane\n");
+    expand_plane(mi, dir);
+  }
 
-    //if (h0->frozen) continue;
-
+  for (i = 0; i < bp->grid_w * bp->grid_h; i++) {
+    hexagon *h0 = &bp->hexagons[i];
     /* Enlarge any still-growing arms if active.  */
     for (j = 0; j < 6; j++) {
       arm *a0 = &h0->arms[j];
