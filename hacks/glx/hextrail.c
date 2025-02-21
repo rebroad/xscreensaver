@@ -426,13 +426,13 @@ static void tick_hexagons (ModeInfo *mi) {
 
       /* Update activity state based on visibility */
 	  if (h0->doing) {
-		if (is_visible && !h0->ignore) {
+		if (!is_visible && !h0->ignore) {
 		  bp->ignored++;
 		  printf("%s: pos=%.0f,%.0f doing=%d ignored=%d->%d\n", __func__,
 				  h0->pos.x * 1000, h0->pos.y * 1000, bp->doing,
 				  bp->ignored-1, bp->ignored);
 		  if (bp->ignored > bp->doing + 1) bp->bug_found = True;
-	    } else if (!is_visible && h0->ignore) {
+	    } else if (is_visible && h0->ignore) {
 		  bp->ignored--;
 		  printf("%s: pos=%.0f,%.0f doing=%d ignored=%d->%d\n", __func__,
 				  h0->pos.x * 1000, h0->pos.y * 1000, bp->doing,
@@ -1089,14 +1089,14 @@ ENTRYPOINT void draw_hextrail (ModeInfo *mi) {
 
   {
     double x, y, z;
-    get_position (bp->rot, &x, &y, &z, !bp->button_down_p);
+    get_position (bp->rot, &x, &y, &z, !bp->button_down_p && !bp->bug_found);
     glTranslatef((x - 0.5) * 6,
                  (y - 0.5) * 6,
                  (z - 0.5) * 12);
 
     gltrackball_rotate (bp->trackball);
 
-    get_rotation (bp->rot, &x, &y, &z, !bp->button_down_p);
+    get_rotation (bp->rot, &x, &y, &z, !bp->button_down_p && !bp->bug_found);
     glRotatef (z * 360, 0.0, 0.0, 1.0);
   }
 
@@ -1108,7 +1108,7 @@ ENTRYPOINT void draw_hextrail (ModeInfo *mi) {
   }
 
   if (!bp->button_down_p && !bp->bug_found) tick_hexagons (mi);
-  else {
+  else if (bp->button_down_p) {
 	  if (!bp->button_pressed) printf("Button pressed\n");
 	  bp->button_pressed = True;
   }
