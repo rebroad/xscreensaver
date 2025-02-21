@@ -443,10 +443,6 @@ static void tick_hexagons (ModeInfo *mi) {
 	    static GLfloat minposx = 0, minposy = 0, minvposx = 0, minvposy = 0;
  	    GLfloat posx = h0->pos.x * 1000;
  	    GLfloat posy = h0->pos.y * 1000;
-	    if (bp->state == FADE) {
-		  maxposx = 0; maxposy = 0; minposx = 0; minposy = 0;
-		  maxvposx = 0; maxvposy = 0; minvposx = 0; minvposy = 0;
-	    }
 		if (is_visible) {
 	      if (posx > maxvposx) {
             debug = True; maxvposx = posx;
@@ -468,6 +464,11 @@ static void tick_hexagons (ModeInfo *mi) {
           debug = True; maxposy = posy;
 	    } else if (posy < minposy) {
 		  debug = True; minposy = posy;
+	    }
+	    if (bp->state == FADE) {
+		  maxposx = 0; maxposy = 0; minposx = 0; minposy = 0;
+		  maxvposx = 0; maxvposy = 0; minvposx = 0; minvposy = 0;
+		  debug = False;
 	    }
 
 	    if (debug)
