@@ -425,16 +425,18 @@ static void tick_hexagons (ModeInfo *mi) {
 	  }
 
       /* Update activity state based on visibility */
-	  if (!is_visible && !h0->ignore && h0->doing) {
+	  if (h0->doing) {
+		if (is_visible && !h0->ignore) {
 		  bp->ignored++;
 		  printf("%s: pos=%.0f,%.0f doing=%d ignored=%d->%d\n", __func__,
 				  h0->pos.x * 1000, h0->pos.y * 1000, bp->doing,
 				  bp->ignored-1, bp->ignored);
-	  } else if (is_visible && h0->ignore && h0->doing) {
+	    } else if (!is_visible && h0->ignore) {
 		  bp->ignored--;
 		  printf("%s: pos=%.0f,%.0f doing=%d ignored=%d->%d\n", __func__,
 				  h0->pos.x * 1000, h0->pos.y * 1000, bp->doing,
 				  bp->ignored+1, bp->ignored);
+		}
 	  }
       h0->ignore = !is_visible;
 
