@@ -483,13 +483,14 @@ static void tick_hexagons (ModeInfo *mi) {
               else if (h0->pos.y >= 1) dir = 1; /* Top */
               else if (h0->pos.x <= -1) dir = 3;/* Left */
               else if (h0->pos.y <= -1) dir = 4;/* Bottom */
-		      char str[10];
-              if (dir == 0) strcpy(str, "Right");
-              else if (dir == 1) strcpy(str, "Up");
-              else if (dir == 3) strcpy(str, "Left");
-              else if (dir == 4) strcpy(str, "Down");
-              else sprintf(str, "%d", dir);
-              printf("pos=%d,%d Expanding plane %s is_edge=%d is_visible=%d is_doing=%d\n", h0->x, h0->y, str, is_edge, is_visible, h0->doing);
+		      char *str;
+              if (dir == 0) str = "Right";
+              else if (dir == 1) str = "Up";
+              else if (dir == 3) str = "Left";
+              else if (dir == 4) str = "Down";
+              else str = "???";
+			  if (dir >=0 )
+                  printf("pos=%d,%d Expanding plane %s is_edge=%d is_visible=%d is_doing=%d\n", h0->x, h0->y, str, is_edge, is_visible, h0->doing);
               break;
             }
           }
@@ -511,7 +512,10 @@ static void tick_hexagons (ModeInfo *mi) {
       arm *a0 = &h0->arms[j];
       switch (a0->state) {
         case OUT:
-          if (a0->speed <= 0) abort();
+          if (a0->speed <= 0) {
+			printf("a0->speed = %f\n", a0->speed);
+			abort();
+		  }
           a0->ratio += a0->speed;
           if (a0->ratio > 1) {
             /* Just finished growing from center to edge.
