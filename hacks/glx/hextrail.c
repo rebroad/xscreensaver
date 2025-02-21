@@ -318,6 +318,7 @@ static Bool point_visible(hexagon *h0) {
 
 static void expand_plane(ModeInfo *mi, int direction) {
   hextrail_configuration *bp = &bps[MI_SCREEN(mi)];
+  if (bp->x_offset || bp->y_offset) return; // TODO - temp test
   int old_grid_w = bp->grid_w; int old_grid_h = bp->grid_h;
   int new_grid_w = old_grid_w; int new_grid_h = old_grid_h;
   hexagon *old_hexagons = bp->hexagons;
@@ -359,8 +360,7 @@ static void expand_plane(ModeInfo *mi, int direction) {
   GLfloat h = w * sqrt(3) / 2;
 
   for (y = 0; y < new_grid_h; y++) for (x = 0; x < new_grid_w; x++) {
-    int i = y * new_grid_w + x;
-    hexagon *h0 = &new_hexagons[i];
+    hexagon *h0 = &new_hexagons[y * new_grid_w + x];
 	h0->x = x; h0->y = y; // These have changed now
 
     /* Skip existing hexagons */
@@ -369,8 +369,8 @@ static void expand_plane(ModeInfo *mi, int direction) {
       continue;
 
 	// TODO 2 lines below might be wrong...
-    h0->pos.x = (x - (new_grid_w + bp->x_offset) / 2) * w;
-    h0->pos.y = (y - (new_grid_h + bp->y_offset) / 2) * h;
+    h0->pos.x = (x - (new_grid_w + bp->x_offset)/2) * w;
+    h0->pos.y = (y - (new_grid_h + bp->y_offset)/2) * h;
 	h0->pos.z = 0;
     if (y & 1) h0->pos.x += w / 2;
     h0->border_state = EMPTY;
@@ -378,12 +378,12 @@ static void expand_plane(ModeInfo *mi, int direction) {
     h0->ignore = False;
     h0->doing = False;
     h0->ccolor = random() % bp->ncolors;
-	for (int i = 0; i < 6; i++) {
+	/*for (int i = 0; i < 6; i++) {
 	  h0->arms[i].state = EMPTY;
 	  h0->arms[i].ratio = 0;
 	  h0->arms[i].speed = 0;
 	  h0->neighbors[i] = NULL;
-	}
+	}*/
   }
 
   bp->grid_w = new_grid_w; bp->grid_h = new_grid_h;
