@@ -295,7 +295,7 @@ static int add_arms (ModeInfo *mi, hexagon *h0, Bool out_p) {
 }
 
 /* Check if a point is within the visible frustum */
-static Bool point_visible(ModeInfo *mi, int i, hexagon *h0) {
+static Bool point_visible(hexagon *h0) {
   Bool ignore = h0->ignore;
   XYZ point = h0->pos;
   GLdouble model[16], proj[16];
@@ -431,7 +431,7 @@ static void tick_hexagons (ModeInfo *mi) {
       /* Check if this is an edge hexagon with active arms */
       Bool is_edge = (h0->pos.x <= -1 || h0->pos.x >= 1 ||
                      h0->pos.y <= -1 || h0->pos.y >= 1);
-	  Bool is_visible = point_visible(mi, i, h0);
+	  Bool is_visible = point_visible(h0);
 
       static time_t debug_time = 0;
 	  time_t current_time = time(NULL);
@@ -553,7 +553,7 @@ static void tick_hexagons (ModeInfo *mi) {
   } // Loop through each hexagon
 
   /* Start a new cell growing.  */
-  Bool try_new = False;
+  Bool try_new = False, started = False;
   if ((bp->doing - bp->ignored) <= 0) {
     for (i = 0; i < (bp->grid_w * bp->grid_h) / 3; i++) {
       hexagon *h0;
@@ -569,12 +569,15 @@ static void tick_hexagons (ModeInfo *mi) {
         y = random() % bp->grid_h;
       }
       h0 = &bp->hexagons[y * bp->grid_w + x];
-      if (empty_hexagon_p(h0) && add_arms(mi, h0, True)) break;
+      if (empty_hexagon_p(h0) && point_visible(h0) && add_arms(mi, h0, True)) {
+		started = True;
+		break;
+	  }
     }
   }
 
-  if (try_new)
-	printf("New cell: doing=%d, ignored=%d\n", bp->doing, bp->ignored);
+  if (try_new && (started || bp->doing != bp->ignored))
+	printf("New cell: started=%d doing=%d ignored=%d\n", started, bp->doing, bp->ignored);
 
   if ((bp->doing - bp->ignored) <= 0 && bp->state != FADE) {
     bp->state = FADE;
