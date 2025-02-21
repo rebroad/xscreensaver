@@ -57,7 +57,7 @@ typedef struct hexagon hexagon;
 struct hexagon {
   XYZ pos;
   int x, y;
-  hexagon *neighbors[6];
+  hexagon *neighbors[6]; // not technically needed...
   arm arms[6];
   int ccolor;
   state_t border_state;
@@ -131,28 +131,26 @@ static void update_neighbors(ModeInfo *mi) {
   hextrail_configuration *bp = &bps[MI_SCREEN(mi)];
   int x, y;
 
-  for (y = 0; y < bp->grid_h; y++)
-    for (x = 0; x < bp->grid_w; x++) {
-      hexagon *h0 = &bp->hexagons[y * bp->grid_w + x];
+  for (y = 0; y < bp->grid_h; y++) for (x = 0; x < bp->grid_w; x++) {
+    hexagon *h0 = &bp->hexagons[y * bp->grid_w + x];
 
 # define NEIGHBOR(I,XE,XO,Y) do {                                     \
-        int x1 = x + (y & 1 ? (XO) : (XE));                           \
-        int y1 = y + (Y);                                             \
-        if (x1 >= 0 && x1 < bp->grid_w && y1 >= 0 && y1 < bp->grid_h) \
-          h0->neighbors[(I)] = &bp->hexagons[y1 * bp->grid_w + x1];   \
-        else                                                          \
-          h0->neighbors[(I)] = NULL;                                  \
-      } while (0)
+      int x1 = x + (y & 1 ? (XO) : (XE));                           \
+      int y1 = y + (Y);                                             \
+      if (x1 >= 0 && x1 < bp->grid_w && y1 >= 0 && y1 < bp->grid_h) \
+        h0->neighbors[(I)] = &bp->hexagons[y1 * bp->grid_w + x1];   \
+      else                                                          \
+        h0->neighbors[(I)] = NULL;                                  \
+    } while (0)
 
-      NEIGHBOR (0,  0,  1, -1);
-      NEIGHBOR (1,  1,  1,  0);
-      NEIGHBOR (2,  0,  1,  1);
-      NEIGHBOR (3, -1,  0,  1);
-      NEIGHBOR (4, -1, -1,  0);
-      NEIGHBOR (5, -1,  0, -1);
-
+    NEIGHBOR (0,  0,  1, -1);
+    NEIGHBOR (1,  1,  1,  0);
+    NEIGHBOR (2,  0,  1,  1);
+    NEIGHBOR (3, -1,  0,  1);
+    NEIGHBOR (4, -1, -1,  0);
+    NEIGHBOR (5, -1,  0, -1);
 # undef NEIGHBOR
-	}
+  }
 }
 
 static void make_plane (ModeInfo *mi) {
@@ -485,8 +483,9 @@ static void tick_hexagons (ModeInfo *mi) {
   }
 
   if (dir >= 0) {
-    printf("Expanding plane\n");
+    printf("Expanding plane - before grid = %dx%d\n", bp->grid_w, bp->grid_h);
     expand_plane(mi, dir);
+    printf("Expanding plane - after grid = %dx%d\n", bp->grid_w, bp->grid_h);
   }
 
   for (i = 0; i < bp->grid_w * bp->grid_h; i++) {
@@ -525,6 +524,7 @@ static void tick_hexagons (ModeInfo *mi) {
         case EMPTY: case WAIT: case DONE:
           break;
         default:
+		  printf("a0->state = %d\n", a0->state);
           abort(); break;
 	  }
 	} // 6 arms
