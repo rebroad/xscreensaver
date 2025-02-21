@@ -348,12 +348,13 @@ static void expand_plane(ModeInfo *mi, int direction) {
     case 4: /* Bottom */
     case 1: /* Top */
       new_grid_h++; break;
+	default: return;
   }
 
   /* Allocate new grid */
   hexagon *new_hexagons = (hexagon *)calloc(new_grid_w * new_grid_h, sizeof(hexagon));
   if (!new_hexagons) {
-	fprintf(stderr, "FGailed to allocate memory for expanded grid\n");
+	fprintf(stderr, "Failed to allocate memory for expanded grid\n");
 	return;
   }
 
@@ -364,21 +365,24 @@ static void expand_plane(ModeInfo *mi, int direction) {
   /* Copy existing hexagons with position adjustment */
   for (y = 0; y < old_grid_h; y++) for (x = 0; x < old_grid_w; x++) {
     hexagon *old_hex = &old_hexagons[y * old_grid_w + x];
-    hexagon *new_hex = &bp->hexagons[(y + y_offset) * bp->grid_w + (x + x_offset)];
+    hexagon *new_hex = &new_hexagons[(y + y_offset) * bp->grid_w + (x + x_offset)];
     *new_hex = *old_hex;
 
+	for (int i = 0; i < 6; i++) new_hex->neighbors[i] = NULL;
+
     /* Adjust position to maintain visual continuity */
-    new_hex->pos.x += x_offset * (2.0 / old_grid_w);
-    new_hex->pos.y += y_offset * (2.0 / old_grid_h);
+	GLfloat size = 2.0 / old_grid_w;
+    new_hex->pos.x += x_offset * size;
+    new_hex->pos.y += y_offset * (size * sqrt(3) / 2);
   }
 
   /* Initialize new hexagons */
-  GLfloat size = 2.0 / bp->grid_w;
+  GLfloat size = 2.0 / new_grid_w;
   GLfloat h = size * sqrt(3) / 2;
 
-  for (y = 0; y < bp->grid_h; y++) for (x = 0; x < bp->grid_w; x++) {
-    int i = y *bp->grid_w + x;
-    hexagon *h0 = &bp->hexagons[i];
+  for (y = 0; y < new_grid_h; y++) for (x = 0; x < new_grid_w; x++) {
+    int i = y * new_grid_w + x;
+    hexagon *h0 = &new_hexagons[i];
 	h0->x = x; h0->y = y; // These have changed now
 
     /* Skip existing hexagons */
@@ -386,22 +390,26 @@ static void expand_plane(ModeInfo *mi, int direction) {
         y >= y_offset && y < old_grid_h + y_offset)
       continue;
 
-    h0->pos.x = (x - bp->grid_w/2) * size;
-    h0->pos.y = (y - bp->grid_h/2) * h;
+    h0->pos.x = (x - new_grid_w / 2) * size;
+    h0->pos.y = (y - new_grid_h / 2) * h;
 	h0->pos.z = 0;
+    if (y & 1) h0->pos.x += size / 2;
     h0->border_state = EMPTY;
     h0->border_ratio = 0;
     h0->ignore = False;
     h0->doing = False;
-
-    if (y & 1) h0->pos.x += size / 2;
-
     h0->ccolor = random() % bp->ncolors;
+	for (int i = 0; i < 6; i++) {
+	  h0->arms[i].state = EMPTY;
+	  h0->arms[i].ratio = 0;
+	  h0->arms[i].speed = 0;
+	  h0->neighbors[i] = NULL;
+	}
   }
 
   bp->grid_w = new_grid_w; bp->grid_h = new_grid_h;
-  free(old_hexagons);
   bp->hexagons = new_hexagons;
+  free(old_hexagons);
 
   update_neighbors(mi);
 }
