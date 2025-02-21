@@ -316,20 +316,6 @@ static Bool point_visible(hexagon *h0) {
           winY >= viewport[1] && winY <= viewport[1] + viewport[3] &&
           winZ > 0 && winZ < 1);
 
-  /*static time_t debug_time = 0;
-  time_t current_time = time(NULL);
-  Bool ignore = h0->ignore;
-
-  if (h0->doing && current_time > debug_time + 4) {
-	debug_time = current_time;
-	printf("\npos=%d,%d %s hexagon is o%sscreen\n",
-			h0->x, h0->y, ignore ? "ignored" : "watched", is_visible ? "n" : "ff");
-    printf("World coords (x,y,z): %.2f, %.2f, %.2f\n", point.x, point.y, point.z);
-    printf("Screen coords (x,y,z): %.2f, %.2f, %.2f\n", winX, winY, winZ);
-    printf("Viewport: x=%d, y=%d, w=%d, h=%d\n", 
-           viewport[0], viewport[1], viewport[2], viewport[3]);
-  }*/
-
   return is_visible;
 }
 
@@ -520,6 +506,12 @@ static void tick_hexagons (ModeInfo *mi) {
 
   for (i = 0; i < bp->grid_w * bp->grid_h; i++) {
     hexagon *h0 = &bp->hexagons[i];
+
+    Bool is_edge = (h0->x == 0 || h0->x == bp->grid_w - 1 ||
+                   h0->y == 0 || h0->y == bp->grid_h - 1 );
+
+	if (is_edge && h0->ignore) continue;
+
     /* Enlarge any still-growing arms if active.  */
     for (j = 0; j < 6; j++) {
       arm *a0 = &h0->arms[j];
