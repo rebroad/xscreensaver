@@ -231,7 +231,7 @@ static void doing(ModeInfo *mi, hexagon *h, Bool alive) {
       h->doing = False;
       bp->doing--;
 	  if (h->ignore) {
-		bp->ignored--;
+		bp->ignored--; h->ignore = False;
         printf("%s: pos=%d,%d doing=%d->%d ignored=%d->%d\n", __func__, 
 				h->x, h->y, bp->doing+1, bp->doing, bp->ignored+1, bp->ignored);
 		if (bp->ignored < -2) bp->bug_found = True;
@@ -432,18 +432,17 @@ static void tick_hexagons (ModeInfo *mi) {
       /* Update activity state based on visibility */
 	  if (h0->doing) {
 		if (!is_visible && !h0->ignore) {
-		  bp->ignored++;
+		  bp->ignored++; h0->ignore = True;
 		  printf("%s: pos=%d,%d doing=%d ignored=%d->%d\n", __func__,
 				  h0->x, h0->y, bp->doing, bp->ignored-1, bp->ignored);
 		  if (bp->ignored > bp->doing + 1) bp->bug_found = True;
 	    } else if (is_visible && h0->ignore) {
-		  bp->ignored--;
+		  bp->ignored--; h0->ignore = False;
 		  printf("%s: pos=%d,%d doing=%d ignored=%d->%d\n", __func__,
 				  h0->x, h0->y, bp->doing, bp->ignored+1, bp->ignored);
 		  if (bp->ignored < -1) bp->bug_found = True;
 		}
 	  }
-      h0->ignore = !is_visible;
 
       if (is_edge && is_visible) {
         for (int j = 0; j < 6; j++) {
