@@ -433,17 +433,37 @@ static void tick_hexagons (ModeInfo *mi) {
     for (i = 0; i < bp->grid_w * bp->grid_h; i++) {
       hexagon *h0 = &bp->hexagons[i];
       /* Check if this is an edge hexagon with active arms */
-      Bool is_edge = (h0->pos.x <= -1 || h0->pos.x >= 1 ||
+      Bool is_edge1 = (h0->x == 0 || h0->x == bp->grid_w - 1 ||
+                     h0->y == 0 || h0->y == bp->grid_h - 1 );
+	  Bool is_edge = is_edge1;
+      Bool is_edge2 = (h0->pos.x <= -1 || h0->pos.x >= 1 ||
                      h0->pos.y <= -1 || h0->pos.y >= 1);
+	  if (!is_edge) is_edge = is_edge2;
 	  Bool is_visible = point_visible(h0);
 
-      static time_t debug_time = 0;
-	  time_t current_time = time(NULL);
-
-	  if (h0->doing && is_edge && current_time > debug_time + 6) {
-        debug_time = current_time;
-        printf("\npos=%d,%d is_edge, is_visible = %d\n", h0->x, h0->y, is_visible);
+	  Bool debug = False;
+	  static GLfloat maxposx = 0, maxposy = 0;
+	  static GLfloat minposx = 0, minposy = 0;
+ 	  GLfloat posx = h0->pos.x * 1000;
+ 	  GLfloat posy = h0->pos.y * 1000;
+	  if (bp->state == FIRST) {
+		maxposx = 0; maxposy = 0; minposx = 0; minposy = 0;
 	  }
+	  if (posx > maxposx) {
+        debug = True; maxposx = posx;
+	  } else if (posx < minposx) {
+        debug = True; minposx = posx;
+	  }
+	  if (posy > maxposy) {
+		debug = True; maxposy = posy;
+	  } else if (posy < minposy) {
+		debug = True; minposy = posy;
+	  }
+
+	  if (h0->doing && debug)
+        printf("\npos=%d,%d %.0f,%.0f (%.0f-%.0f,%.0f-%.0f) is_edge=%d, is_visible=%d\n",
+				h0->x, h0->y, posx, posy, minposx, maxposx,
+				minposy, maxposy, is_edge, is_visible);
 
       /* Update activity state based on visibility */
 	  if (h0->doing) {
@@ -554,6 +574,7 @@ static void tick_hexagons (ModeInfo *mi) {
  */
         break;
       default:
+		printf("h0->border_state = %d\n", h0->border_state);
         abort(); break;
 	}
   } // Loop through each hexagon
