@@ -221,8 +221,6 @@ static void doing(ModeInfo *mi, hexagon *h, Bool alive) {
     if (!h->doing) {
       h->doing = True;
       bp->doing++;
-      /*printf("%s: pos=%d,%d doing=%d->%d ignored=%d\n", __func__,
-			  h->x, h->y, bp->doing-1, bp->doing, bp->ignored);*/
     }
   } else {
     if (h->doing) {
@@ -230,12 +228,8 @@ static void doing(ModeInfo *mi, hexagon *h, Bool alive) {
       bp->doing--;
 	  if (h->ignore) {
 		bp->ignored--; h->ignore = False;
-        /*printf("%s: pos=%d,%d doing=%d->%d ignored=%d->%d\n", __func__, 
-				h->x, h->y, bp->doing+1, bp->doing, bp->ignored+1, bp->ignored);*/
 		if (bp->ignored < -2) bp->bug_found = True;
-	  } /*else
-        printf("%s: pos=%d,%d doing=%d->%d ignored=%d\n", __func__,
-				h->x, h->y, bp->doing+1, bp->doing, bp->ignored);*/
+	  }
     }
   }
 }
@@ -327,15 +321,8 @@ static void expand_plane(ModeInfo *mi, int direction) {
   int x, y;
 
   /* Increase grid size */
-  switch(direction) {
-    case 3: /* Left */
-    case 0: /* Right */
-      new_grid_w++; break;
-    case 4: /* Bottom */
-    case 1: /* Top */
-      new_grid_h++; break;
-	default: return;
-  }
+  if (direction & 8 || direction & 2) new_grid_w++;
+  if (direction & 4 || direction & 1) new_grid_h++;
 
   /* Allocate new grid */
   hexagon *new_hexagons = (hexagon *)calloc(new_grid_w * new_grid_h, sizeof(hexagon));
@@ -345,8 +332,8 @@ static void expand_plane(ModeInfo *mi, int direction) {
   }
 
   /* Calculate copy offsets */
-  int x_offset = (direction == 3) ? 1 : 0;
-  int y_offset = (direction == 4) ? 1 : 0;
+  int x_offset = (direction & 8) ? 1 : 0;
+  int y_offset = (direction & 4) ? 1 : 0;
 
   /* Copy existing hexagons with position adjustment */
   for (y = 0; y < old_grid_h; y++) for (x = 0; x < old_grid_w; x++) {
@@ -412,7 +399,7 @@ static void reset_hextrail(ModeInfo *mi) {
 static void tick_hexagons (ModeInfo *mi) {
   hextrail_configuration *bp = &bps[MI_SCREEN(mi)];
   int i, j;
-  int dir = -1;
+  int8_t dir = 0;
 
   if (!bp->button_pressed) {
     for (i = 0; i < bp->grid_w * bp->grid_h; i++) {
@@ -475,29 +462,18 @@ static void tick_hexagons (ModeInfo *mi) {
 		}
 
         if (is_edge && is_visible) {
-          for (int j = 0; j < 6; j++) {
-            if (h0->arms[j].state != EMPTY) {
-              /* Determine expansion direction based on position */
-              if (h0->pos.x >= 1) dir = 0;      /* Right */
-              else if (h0->pos.y >= 1) dir = 1; /* Top */
-              else if (h0->pos.x <= -1) dir = 3;/* Left */
-              else if (h0->pos.y <= -1) dir = 4;/* Bottom */
-		      char *str;
-              if (dir == 0) str = "Right";
-              else if (dir == 1) str = "Up";
-              else if (dir == 3) str = "Left";
-              else if (dir == 4) str = "Down";
-              else str = "???";
-			  if (dir >=0 )
-                  printf("pos=%d,%d Expanding plane %s is_edge=%d is_visible=%d is_doing=%d\n", h0->x, h0->y, str, is_edge, is_visible, h0->doing);
-              break;
-            }
-          }
+		  // 1=vmax++, 2=hmax++, 4=vmin--, 8=hmin--
+		  if (h0->x == 0) dir |= 8;
+		  else if (h0->x == bp->grid_w - 1) dir |= 2;
+		  if (h0->y == 0) dir |= 4;
+		  else if (h0->y == bp->grid_h - 1) dir |= 1;
+          printf("pos=%d,%d Expanding plane %d is_edge=%d is_visible=%d is_doing=%d\n", h0->x, h0->y, dir, is_edge, is_visible, h0->doing);
+          break;
         } // Visible edge
       } // h0 is doing
     } // For all hexagons
 
-    if (dir >= 0) {
+    if (dir > 0) {
       printf("Expanding plane - before grid = %dx%d\n", bp->grid_w, bp->grid_h);
       expand_plane(mi, dir);
       printf("Expanding plane - after grid = %dx%d\n", bp->grid_w, bp->grid_h);
