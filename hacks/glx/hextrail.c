@@ -78,6 +78,7 @@ typedef struct {
   trackball_state *trackball;
   Bool button_down_p;
   Bool button_pressed;
+  Bool bug_found;
 
   int grid_w, grid_h;
   hexagon *hexagons;
@@ -233,7 +234,7 @@ static void doing(ModeInfo *mi, hexagon *h, Bool alive) {
         printf("%s: pos=%.0f,%.0f doing=%d->%d ignored=%d->%d\n", __func__, 
 				h->pos.x * 1000, h->pos.y * 1000,
 				bp->doing+1, bp->doing, bp->ignored+1, bp->ignored);
-		if (bp->ignored < -2) usleep(10000000);
+		if (bp->ignored < -2) bp->bug_found = True;
 	  } else
         printf("%s: pos=%.0f,%.0f doing=%d->%d ignored=%d\n", __func__,
 				h->pos.x * 1000, h->pos.y * 1000, bp->doing+1, bp->doing,
@@ -430,13 +431,13 @@ static void tick_hexagons (ModeInfo *mi) {
 		  printf("%s: pos=%.0f,%.0f doing=%d ignored=%d->%d\n", __func__,
 				  h0->pos.x * 1000, h0->pos.y * 1000, bp->doing,
 				  bp->ignored-1, bp->ignored);
-		  if (bp->ignored > bp->doing + 1) usleep(10000000);
+		  if (bp->ignored > bp->doing + 1) bp->bug_found = True;
 	    } else if (!is_visible && h0->ignore) {
 		  bp->ignored--;
 		  printf("%s: pos=%.0f,%.0f doing=%d ignored=%d->%d\n", __func__,
 				  h0->pos.x * 1000, h0->pos.y * 1000, bp->doing,
 				  bp->ignored+1, bp->ignored);
-		  if (bp->ignored < -1) usleep(10000000);
+		  if (bp->ignored < -1) bp->bug_found = True;
 		}
 	  }
       h0->ignore = !is_visible;
@@ -1059,6 +1060,7 @@ ENTRYPOINT void init_hextrail (ModeInfo *mi) {
   make_plane (mi);
   bp->state = FIRST;
   bp->fade_ratio = 1;
+  bp->bug_found = False;
 }
 
 
@@ -1105,7 +1107,7 @@ ENTRYPOINT void draw_hextrail (ModeInfo *mi) {
     glScalef (s, s, s);
   }
 
-  if (! bp->button_down_p) tick_hexagons (mi);
+  if (!bp->button_down_p && !bp->bug_found) tick_hexagons (mi);
   else {
 	  if (!bp->button_pressed) printf("Button pressed\n");
 	  bp->button_pressed = True;
