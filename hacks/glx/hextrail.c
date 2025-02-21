@@ -319,7 +319,7 @@ static Bool point_visible(ModeInfo *mi, int i, hexagon *h0) {
           winY >= viewport[1] && winY <= viewport[1] + viewport[3] &&
           winZ > 0 && winZ < 1);
 
-  if (current_time > debug_time + 4) {
+  if (h0->doing && current_time > debug_time + 4) {
 	debug_time = current_time;
 	printf("\npos=%d,%d %s hexagon is o%sscreen\n",
 			h0->x, h0->y, ignore ? "ignored" : "watched", is_visible ? "n" : "ff");
@@ -436,7 +436,7 @@ static void tick_hexagons (ModeInfo *mi) {
       static time_t debug_time = 0;
 	  time_t current_time = time(NULL);
 
-	  if (is_edge && current_time > debug_time + 6) {
+	  if (h0->doing && is_edge && current_time > debug_time + 6) {
         debug_time = current_time;
         printf("\npos=%d,%d is_edge, is_visible = %d\n", h0->x, h0->y, is_visible);
 	  }
@@ -553,8 +553,8 @@ static void tick_hexagons (ModeInfo *mi) {
   } // Loop through each hexagon
 
   /* Start a new cell growing.  */
+  Bool try_new = False;
   if ((bp->doing - bp->ignored) <= 0) {
-	printf("New cell: doing=%d, ignored=%d\n", bp->doing, bp->ignored);
     for (i = 0; i < (bp->grid_w * bp->grid_h) / 3; i++) {
       hexagon *h0;
       int x, y;
@@ -564,13 +564,17 @@ static void tick_hexagons (ModeInfo *mi) {
         bp->state = DRAW;
         bp->fade_ratio = 1;
       } else {
+		try_new = True;
         x = random() % bp->grid_w;
         y = random() % bp->grid_h;
       }
       h0 = &bp->hexagons[y * bp->grid_w + x];
-      if (empty_hexagon_p (h0) && add_arms (mi, h0, True)) break;
+      if (empty_hexagon_p(h0) && add_arms(mi, h0, True)) break;
     }
   }
+
+  if (try_new)
+	printf("New cell: doing=%d, ignored=%d\n", bp->doing, bp->ignored);
 
   if ((bp->doing - bp->ignored) <= 0 && bp->state != FADE) {
     bp->state = FADE;
