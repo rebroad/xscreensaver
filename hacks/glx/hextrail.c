@@ -411,53 +411,49 @@ static void tick_hexagons (ModeInfo *mi) {
 	    Bool is_visible = point_visible(h0);
 
 	    Bool debug = False;
-	    static GLfloat maxposx = 0, maxposy = 0, maxvposx = 0, maxvposy = 0;
-	    static GLfloat minposx = 0, minposy = 0, minvposx = 0, minvposy = 0;
- 	    GLfloat posx = h0->pos.x * 1000;
- 	    GLfloat posy = h0->pos.y * 1000;
+	    static int max_x = 0, max_y = 0, max_vx = 0, max_vy = 0;
+	    static int min_x = INT_MAX, min_y = INT_MAX;
+		static int min_vx = INT_MAX, min_vy = INT_MAX;
 		if (is_visible) {
-	      if (posx > maxvposx) {
-            debug = True; maxvposx = posx;
-	      } else if (posx < minvposx) {
-            debug = True; minvposx = posx;
+	      if (h0->x > max_vx) {
+            debug = True; max_vx = h0->x;
+	      } else if (h0->x < min_vx) {
+            debug = True; min_vx = h0->x;
 	      }
-	      if (posy > maxvposy) {
-            debug = True; maxvposy = posy;
-	      } else if (posy < minvposy) {
-		    debug = True; minvposy = posy;
+	      if (h0->y > max_vy) {
+            debug = True; max_vy = h0->y;
+	      } else if (h0->y < min_vy) {
+		    debug = True; min_vy = h0->y;
 	      }
 		}
-	    if (posx > maxposx) {
-          debug = True; maxposx = posx;
-	    } else if (posx < minposx) {
-          debug = True; minposx = posx;
+	    if (h0->x > max_x) {
+          debug = True; max_x = h0->x;
+	    } else if (h0->x < min_x) {
+          debug = True; min_x = h0->x;
 	    }
-	    if (posy > maxposy) {
-          debug = True; maxposy = posy;
-	    } else if (posy < minposy) {
-		  debug = True; minposy = posy;
+	    if (h0->y > max_y) {
+          debug = True; max_y = h0->y;
+	    } else if (h0->y < min_y) {
+		  debug = True; min_y = h0->y;
 	    }
 	    if (bp->state == FADE) {
-		  maxposx = 0; maxposy = 0; minposx = 0; minposy = 0;
-		  maxvposx = 0; maxvposy = 0; minvposx = 0; minvposy = 0;
+		  max_x = 0; max_y = 0; min_x = INT_MAX; min_y = INT_MAX;
+		  max_vx = 0; max_vy = 0; min_vx = INT_MAX; min_vy = INT_MAX;
 		  debug = False;
 	    }
 
 	    if (debug)
-          printf("pos=%d,%d %.0f,%.0f vis=(%.0f-%.0f,%.0f-%.0f) (%.0f-%.0f,%.0f-%.0f) is_edge=%d, is_visible=%d\n",
-                  h0->x, h0->y, posx, posy, minvposx, maxvposx, minvposy, maxvposy,
-				  minposx, maxposx, minposy, maxposy, is_edge, is_visible);
+          printf("pos=%d,%d vis=(%d-%d,%d-%d) (%d-%d,%d-%d) is_edge=%d, is_visible=%d\n",
+                  h0->x, h0->y, min_vx, max_vx, min_vy, max_vy,
+				  min_x, max_x, min_y, max_y, is_edge, is_visible);
+		// TODO use above values to work out if we can shift instead of expand plane
 
         /* Update activity state based on visibility */
 		if (!is_visible && !h0->ignore) {
 		  bp->ignored++; h0->ignore = True;
-		  /*printf("%s: pos=%d,%d doing=%d ignored=%d->%d\n", __func__,
-				  h0->x, h0->y, bp->doing, bp->ignored-1, bp->ignored);*/
 		  if (bp->ignored > bp->doing + 1) bp->bug_found = True;
 	    } else if (is_visible && h0->ignore) {
 		  bp->ignored--; h0->ignore = False;
-		  /*printf("%s: pos=%d,%d doing=%d ignored=%d->%d\n", __func__,
-				  h0->x, h0->y, bp->doing, bp->ignored+1, bp->ignored);*/
 		  if (bp->ignored < -1) bp->bug_found = True;
 		}
 
