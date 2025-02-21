@@ -56,6 +56,7 @@ typedef struct hexagon hexagon;
 
 struct hexagon {
   XYZ pos;
+  int x, y;
   hexagon *neighbors[6];
   arm arms[6];
   int ccolor;
@@ -191,6 +192,7 @@ static void make_plane (ModeInfo *mi) {
     for (x = 0; x < bp->grid_w; x++) {
 	  int i = y * bp->grid_w + x;
       hexagon *h0 = &grid[i];
+	  h0->x = x; h0->y = y;
       h0->pos.x = (x - bp->grid_w/2) * w;
       h0->pos.y = (y - bp->grid_h/2) * h;
 	  h0->pos.z = 0;
@@ -336,36 +338,42 @@ static Bool point_visible(ModeInfo *mi, int i, hexagon *h0) {
 }
 
 /* Expand grid in a given direction */
-static void expand_plane(ModeInfo *mi, int direction) {
+static Bool expand_plane(ModeInfo *mi, int direction) {
   hextrail_configuration *bp = &bps[MI_SCREEN(mi)];
   int old_grid_w = bp->grid_w; int old_grid_h = bp->grid_h;
+  int new_grid_w = old_grid_w; int new_grid_h = old_grid_h;
   hexagon *old_hexagons = bp->hexagons;
-  int expansion = MI_COUNT(mi);  /* Amount to expand by */
+  float pos_offset_x = 0, pos_offset_y = 0;
   int x, y;
 
   /* Increase grid size */
   switch(direction) {
-    case 0: /* Right */
     case 3: /* Left */
-      bp->grid_w += expansion; break;
-    case 1: /* Top */
+    case 0: /* Right */
+      new_grid_w++; break;
     case 4: /* Bottom */
-      bp->grid_h += expansion; break;
+    case 1: /* Top */
+      new_grid_h++; break;
   }
 
   /* Allocate new grid */
-  bp->hexagons = (hexagon *) calloc(bp->grid_w * bp->grid_h, sizeof(hexagon));
+  hexagon *new_hexagons = (hexagon *)calloc(new_grid_w * new_grid_h, sizeof(hexagon));
+  if (!new_hexagons) {
+	fprintf(stderr, "FGailed to allocate memory for expanded grid\n");
+	return False;
+  }
 
-  /* Copy existing hexagons to new grid with offset based on direction */
-  int x_offset = (direction == 3) ? expansion : 0;
-  int y_offset = (direction == 4) ? expansion : 0;
+  /* Calculate copy offsets */
+  int x_offset = (direction == 3) ? 1 : 0;
+  int y_offset = (direction == 4) ? 1 : 0;
 
+  /* Copy existing hexagons with position adjustment */
   for (y = 0; y < old_grid_h; y++) for (x = 0; x < old_grid_w; x++) {
     hexagon *old_hex = &old_hexagons[y * old_grid_w + x];
     hexagon *new_hex = &bp->hexagons[(y + y_offset) * bp->grid_w + (x + x_offset)];
     *new_hex = *old_hex;
 
-    /* Adjust position for offset */
+    /* Adjust position to maintain visual continuity */
     new_hex->pos.x += x_offset * (2.0 / old_grid_w);
     new_hex->pos.y += y_offset * (2.0 / old_grid_h);
   }
@@ -376,13 +384,14 @@ static void expand_plane(ModeInfo *mi, int direction) {
 
   for (y = 0; y < bp->grid_h; y++) for (x = 0; x < bp->grid_w; x++) {
     int i = y *bp->grid_w + x;
+    hexagon *h0 = &bp->hexagons[i];
+	h0->x = x; h0->y = y; // These have changed now
 
     /* Skip existing hexagons */
     if (x >= x_offset && x < old_grid_w + x_offset &&
         y >= y_offset && y < old_grid_h + y_offset)
       continue;
 
-    hexagon *h0 = &bp->hexagons[i];
     h0->pos.x = (x - bp->grid_w/2) * size;
     h0->pos.y = (y - bp->grid_h/2) * h;
 	h0->pos.z = 0;
@@ -396,9 +405,11 @@ static void expand_plane(ModeInfo *mi, int direction) {
     h0->ccolor = random() % bp->ncolors;
   }
 
-  update_neighbors(mi);
-
+  bp->grid_w = new_grid_w; bp->grid_h = new_grid_h;
   free(old_hexagons);
+  bp->hexagons = new_hexagons;
+
+  update_neighbors(mi);
 }
 
 static void tick_hexagons (ModeInfo *mi) {
