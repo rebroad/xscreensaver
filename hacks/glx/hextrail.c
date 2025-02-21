@@ -411,8 +411,9 @@ static void tick_hexagons (ModeInfo *mi) {
 	    Bool is_visible = point_visible(h0);
 
 	    Bool debug = False;
-	    int max_x = 0, max_y = 0, max_vx = 0, max_vy = 0;
-	    int min_x = 0, min_y = 0, min_vx = 0, min_vy = 0;
+	    static int max_x = 0, max_y = 0, max_vx = 0, max_vy = 0;
+	    static int min_x = INT_MAX, min_y = INT_MAX;
+		static int min_vx = INT_MAX, min_vy = INT_MAX;
 		if (is_visible) {
 	      if (h0->x > max_vx) {
             debug = True; max_vx = h0->x;
@@ -450,13 +451,9 @@ static void tick_hexagons (ModeInfo *mi) {
         /* Update activity state based on visibility */
 		if (!is_visible && !h0->ignore) {
 		  bp->ignored++; h0->ignore = True;
-		  /*printf("%s: pos=%d,%d doing=%d ignored=%d->%d\n", __func__,
-				  h0->x, h0->y, bp->doing, bp->ignored-1, bp->ignored);*/
 		  if (bp->ignored > bp->doing + 1) bp->bug_found = True;
 	    } else if (is_visible && h0->ignore) {
 		  bp->ignored--; h0->ignore = False;
-		  /*printf("%s: pos=%d,%d doing=%d ignored=%d->%d\n", __func__,
-				  h0->x, h0->y, bp->doing, bp->ignored+1, bp->ignored);*/
 		  if (bp->ignored < -1) bp->bug_found = True;
 		}
 
