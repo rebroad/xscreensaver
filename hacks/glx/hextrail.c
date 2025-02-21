@@ -638,18 +638,18 @@ static void tick_hexagons (ModeInfo *mi) {
   }
 }
 
-static void draw_glow_circle(XYZ *p, GLfloat size, GLfloat scale,
+static void draw_glow_point(XYZ p, GLfloat size, GLfloat scale,
 		GLfloat *color, GLfloat alpha, Bool neon) {
   glBegin(GL_TRIANGLE_FAN);
   if (!neon) glColor4f(color[0], color[1], color[2], alpha);
-  glVertex3f(p->x, p->y, p->z);
+  glVertex3f(p.x, p.y, p.z);
   for (int g = 0; g <= 16; g++) {
   //for (int g = 0; g <= 8; g++) {
     float angle = g * M_PI / 8;
     //float angle = g * M_PI / 4;
-    float x = p->x + cos(angle) * size * scale;
-    float y = p->y + sin(angle) * size * scale;
-    glVertex3f(x, y, p->z);
+    float x = p.x + cos(angle) * size * scale;
+    float y = p.y + sin(angle) * size * scale;
+    glVertex3f(x, y, p.z);
   }
   glEnd();
 }
@@ -880,10 +880,10 @@ static void draw_hexagons (ModeInfo *mi) {
             }
 
             /* Center point glow */
-			draw_glow_circle(&p[0], size, glow_scale, glow_color, glow_alpha, do_neon);
+			draw_glow_point(p[0], size, glow_scale, glow_color, glow_alpha, do_neon);
 
             /* End point glow */
-			draw_glow_circle(&p[3], size, glow_scale, glow_color, glow_alpha, do_neon);
+			draw_glow_point(p[3], size, glow_scale, glow_color, glow_alpha, do_neon);
 
             /* Arm glow */
             if (do_neon)
