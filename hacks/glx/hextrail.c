@@ -82,6 +82,7 @@ typedef struct {
   Bool bug_found;
 
   int grid_w, grid_h;
+  int x_offset, y_offset;
   hexagon *hexagons;
   int doing;
   int ignored;
@@ -168,7 +169,9 @@ static void make_plane (ModeInfo *mi) {
   memset (grid, 0, bp->grid_w * bp->grid_h * sizeof(*grid));
 
   bp->ncolors = 8;
-  printf("Setting button_pressed to False\n");
+  bp->x_offset = 0; bp->y_offset = 0;
+  if (bp->button_pressed)
+    printf("Setting button_pressed to False\n");
   bp->button_pressed = False;
   if (!bp->colors) {
 #ifdef USE_SDL
@@ -318,11 +321,12 @@ static void expand_plane(ModeInfo *mi, int direction) {
   int old_grid_w = bp->grid_w; int old_grid_h = bp->grid_h;
   int new_grid_w = old_grid_w; int new_grid_h = old_grid_h;
   hexagon *old_hexagons = bp->hexagons;
+  const int expansion = 2;
   int x, y;
 
   /* Increase grid size */
-  if (direction & 8 || direction & 2) new_grid_w++;
-  if (direction & 4 || direction & 1) new_grid_h++;
+  if (direction & 8 || direction & 2) new_grid_w += expansion;
+  if (direction & 4 || direction & 1) new_grid_h += expansion;
 
   /* Allocate new grid */
   hexagon *new_hexagons = (hexagon *)calloc(new_grid_w * new_grid_h, sizeof(hexagon));
@@ -332,8 +336,9 @@ static void expand_plane(ModeInfo *mi, int direction) {
   }
 
   /* Calculate copy offsets */
-  int x_offset = (direction & 8) ? 1 : 0;
-  int y_offset = (direction & 4) ? 1 : 0;
+  int x_offset = (direction & 8) ? expansion : 0;
+  int y_offset = (direction & 4) ? expansion : 0;
+  bp->x_offset += x_offset; bp->y_offset += y_offset;
 
   /* Copy existing hexagons with position adjustment */
   for (y = 0; y < old_grid_h; y++) for (x = 0; x < old_grid_w; x++) {
@@ -342,14 +347,16 @@ static void expand_plane(ModeInfo *mi, int direction) {
     *new_hex = *old_hex;
 
     /* Adjust position to maintain visual continuity */
-	GLfloat size = 2.0 / old_grid_w;
-    new_hex->pos.x += x_offset * size;
-    new_hex->pos.y += y_offset * (size * sqrt(3) / 2);
+	//GLfloat size = (2.0 / old_grid_w);
+    //new_hex->pos.x -= x_offset * size;
+    //new_hex->pos.y += y_offset * (size * sqrt(3) / 2);
+	// TODO - perhaps...
+	//new_hex->pos.y -= y_offset * (2.0 / old_grid_h);
   }
 
   /* Initialize new hexagons */
-  GLfloat size = 2.0 / new_grid_w;
-  GLfloat h = size * sqrt(3) / 2;
+  GLfloat w = 2.0 / new_grid_w;
+  GLfloat h = w * sqrt(3) / 2;
 
   for (y = 0; y < new_grid_h; y++) for (x = 0; x < new_grid_w; x++) {
     int i = y * new_grid_w + x;
@@ -361,10 +368,11 @@ static void expand_plane(ModeInfo *mi, int direction) {
         y >= y_offset && y < old_grid_h + y_offset)
       continue;
 
-    h0->pos.x = (x - new_grid_w / 2) * size;
-    h0->pos.y = (y - new_grid_h / 2) * h;
+	// TODO 2 lines below might be wrong...
+    h0->pos.x = (x - (new_grid_w + bp->x_offset) / 2) * w;
+    h0->pos.y = (y - (new_grid_h + bp->y_offset) / 2) * h;
 	h0->pos.z = 0;
-    if (y & 1) h0->pos.x += size / 2;
+    if (y & 1) h0->pos.x += w / 2;
     h0->border_state = EMPTY;
     h0->border_ratio = 0;
     h0->ignore = False;
@@ -470,7 +478,7 @@ static void tick_hexagons (ModeInfo *mi) {
     } // For all hexagons
 
     if (dir > 0) {
-      printf("Expanding plane - before grid = %dx%d\n", bp->grid_w, bp->grid_h);
+      printf("Expanding plane - count=%ld - before grid = %dx%d\n", MI_COUNT(mi), bp->grid_w, bp->grid_h);
       expand_plane(mi, dir);
       printf("Expanding plane - after grid = %dx%d\n", bp->grid_w, bp->grid_h);
     }
