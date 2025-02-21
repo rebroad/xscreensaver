@@ -262,7 +262,10 @@ static int add_arms (ModeInfo *mi, hexagon *h0, Bool out_p) {
     hexagon *h1 = h0->neighbors[j];
     arm *a0 = &h0->arms[j];
     arm *a1;
-    if (!h1) continue;			/* No neighboring cell */
+    if (!h1) {
+      printf("pos=%d,%d No neighbour on arm %d\n", h0->x, h0->y, j);
+      continue;			/* No neighboring cell */
+	}
     if (! empty_hexagon_p (h1)) continue;	/* Occupado */
     if (a0->state != EMPTY) continue;		/* Arm already exists */
 
@@ -366,8 +369,6 @@ static void expand_plane(ModeInfo *mi, int direction) {
     hexagon *new_hex = &new_hexagons[(y + y_offset) * bp->grid_w + (x + x_offset)];
     *new_hex = *old_hex;
 
-	for (int i = 0; i < 6; i++) new_hex->neighbors[i] = NULL;
-
     /* Adjust position to maintain visual continuity */
 	GLfloat size = 2.0 / old_grid_w;
     new_hex->pos.x += x_offset * size;
@@ -407,9 +408,8 @@ static void expand_plane(ModeInfo *mi, int direction) {
 
   bp->grid_w = new_grid_w; bp->grid_h = new_grid_h;
   bp->hexagons = new_hexagons;
-  free(old_hexagons);
-
   update_neighbors(mi);
+  free(old_hexagons);
 }
 
 static void reset_hextrail(ModeInfo *mi) {
