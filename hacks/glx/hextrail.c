@@ -56,14 +56,13 @@ typedef struct {
 typedef struct hexagon hexagon;
 
 struct hexagon {
-  int i;
   XYZ pos;
   hexagon *neighbors[6];
   arm arms[6];
   int ccolor;
   state_t border_state;
   GLfloat border_ratio;
-  Bool frozen;
+  Bool ignore;
   Bool doing;
 };
 
@@ -83,8 +82,8 @@ typedef struct {
 
   int grid_w, grid_h;
   hexagon *hexagons;
-  int live_count;
-  int sleeping;
+  int doing;
+  int ignored;
   enum { FIRST, DRAW, FADE } state;
   GLfloat fade_ratio;
 
@@ -197,7 +196,7 @@ static void make_plane (ModeInfo *mi) {
 	  h0->pos.z = 0;
       h0->border_state = EMPTY;
       h0->border_ratio = 0;
-	  h0->frozen = False;
+	  h0->ignore = False;
 	  h0->doing = False;
 
       if (y & 1) h0->pos.x += w / 2; // Stagger into hex arrangement
@@ -260,7 +259,6 @@ static int add_arms (ModeInfo *mi, hexagon *h0, Bool out_p) {
       if (! (random() % 5)) h1->ccolor = (h0->ccolor + 1) % bp->ncolors;
 	}
 
-    //bp->live_count++;
     added++;
     if (added >= target) break;
   }
@@ -268,14 +266,19 @@ static int add_arms (ModeInfo *mi, hexagon *h0, Bool out_p) {
   if (added) {
     if (!h0->doing) {
       h0->doing = True;
-      bp->live_count++;
-      printf("i=%d live_count=%d->%d\n", h0->i, bp->live_count-1, bp->live_count);
+      bp->doing++;
+      printf("pos=%.1f,%.1f ignored=%d doing=%d->%d\n", h0->pos.x, h0->pos.y, bp->ignored, bp->doing-1, bp->doing);
     }
   } else {
     if (h0->doing) {
       h0->doing = False;
-      bp->live_count--;
-      printf("i=%d live_count=%d->%d\n", h0->i, bp->live_count+1, bp->live_count);
+      bp->doing--;
+	  if (h0->ignore) {
+		bp->ignored--;
+        printf("pos=%.1f,%.1f ignored=%d->%d doing=%d->%d\n", h0->pos.x, h0->pos.y, bp->ignored+1,
+				bp->ignored, bp->doing+1, bp->doing);
+	  } else
+        printf("pos=%.1f,%.1f ignored=%d doing=%d->%d\n", h0->pos.x, h0->pos.y, bp->ignored, bp->doing+1, bp->doing);
     }
   }
 
@@ -286,7 +289,7 @@ static time_t debug_time = 0;
 
 /* Check if a point is within the visible frustum */
 static Bool point_visible(ModeInfo *mi, int i, hexagon *h0) {
-  Bool frozen = h0->frozen;
+  Bool ignore = h0->ignore;
   XYZ point = h0->pos;
   GLdouble model[16], proj[16];
   GLint viewport[4];
@@ -310,7 +313,7 @@ static Bool point_visible(ModeInfo *mi, int i, hexagon *h0) {
 
   if (current_time > debug_time + 4) {
 	debug_time = current_time;
-	printf("\ni=%d %s hexagon is o%sscreen\n", i, frozen ? "Frozen" : "Wet",
+	printf("\ni=%d %s hexagon is o%sscreen\n", i, ignore ? "ignored" : "watched",
 			is_visible ? "n" : "ff");
     printf("World coords (x,y,z): %.2f, %.2f, %.2f\n", point.x, point.y, point.z);
     printf("Screen coords (x,y,z): %.2f, %.2f, %.2f\n", winX, winY, winZ);
@@ -362,20 +365,19 @@ static void expand_plane(ModeInfo *mi, int direction) {
 
   for (y = 0; y < bp->grid_h; y++) for (x = 0; x < bp->grid_w; x++) {
     int i = y *bp->grid_w + x;
-    hexagon *h0 = &bp->hexagons[i];
-    h0->i = i;
 
     /* Skip existing hexagons */
     if (x >= x_offset && x < old_grid_w + x_offset &&
         y >= y_offset && y < old_grid_h + y_offset)
       continue;
 
+    hexagon *h0 = &bp->hexagons[i];
     h0->pos.x = (x - bp->grid_w/2) * size;
     h0->pos.y = (y - bp->grid_h/2) * h;
 	h0->pos.z = 0;
     h0->border_state = EMPTY;
     h0->border_ratio = 0;
-    h0->frozen = False;
+    h0->ignore = False;
     h0->doing = False;
 
     if (y & 1) h0->pos.x += size / 2;
@@ -411,15 +413,14 @@ static void tick_hexagons (ModeInfo *mi) {
 	  }
 
       /* Update activity state based on visibility */
-	  if (!is_visible && !h0->frozen && h0->doing) {
-		  bp->sleeping++;
-		  printf("i=%d sleeping %d->%d\n", i, bp->sleeping-1, bp->sleeping);
-	  } else if (is_visible && h0->frozen && h0->doing) {
-		  bp->sleeping--;
-		  printf("i=%d sleeping %d->%d\n", i, bp->sleeping+1, bp->sleeping);
-		  if (bp->sleeping < 0) abort();
+	  if (!is_visible && h0->doing) {
+		  bp->ignored++;
+		  printf("i=%d doing=%d ignored %d->%d\n", i, bp->doing, bp->ignored-1, bp->ignored);
+	  } else if (is_visible && h0->doing) {
+		  bp->ignored--;
+		  printf("i=%d doing=%d ignored %d->%d\n", i, bp->doing, bp->ignored+1, bp->ignored);
 	  }
-      h0->frozen = !is_visible; // TODO - maybe only freeze if also doing
+      h0->ignore = !is_visible; // TODO - maybe only freeze if also doing
 
       if (is_edge && is_visible) {
         for (int j = 0; j < 6; j++) {
@@ -516,8 +517,8 @@ static void tick_hexagons (ModeInfo *mi) {
   } // Loop through each hexagon
 
   /* Start a new cell growing.  */
-  if ((bp->live_count - bp->sleeping) <= 0) {
-	printf("New cell: life_count=%d, sleeping=%d\n", bp->live_count, bp->sleeping);
+  if ((bp->doing - bp->ignored) <= 0) {
+	printf("New cell: doing=%d, ignored=%d\n", bp->doing, bp->ignored);
     for (i = 0; i < (bp->grid_w * bp->grid_h) / 3; i++) {
       hexagon *h0;
       int x, y;
@@ -535,7 +536,7 @@ static void tick_hexagons (ModeInfo *mi) {
     }
   }
 
-  if ((bp->live_count - bp->sleeping) <= 0 && bp->state != FADE) {
+  if ((bp->doing - bp->ignored) <= 0 && bp->state != FADE) {
     bp->state = FADE;
     bp->fade_ratio = 1;
 
@@ -935,8 +936,8 @@ static void reset_hextrail(ModeInfo *mi) {
   bp->hexagons = 0;
   bp->state = FIRST;
   bp->fade_ratio = 1;
-  bp->live_count = 0;
-  bp->sleeping = 0;
+  bp->doing = 0;
+  bp->ignored = 0;
   make_plane (mi);
 }
 #endif
