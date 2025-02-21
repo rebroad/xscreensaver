@@ -432,41 +432,41 @@ static void tick_hexagons (ModeInfo *mi) {
   if (!bp->button_pressed) {
     for (i = 0; i < bp->grid_w * bp->grid_h; i++) {
       hexagon *h0 = &bp->hexagons[i];
-      /* Check if this is an edge hexagon with active arms */
-      Bool is_edge1 = (h0->x == 0 || h0->x == bp->grid_w - 1 ||
-                     h0->y == 0 || h0->y == bp->grid_h - 1 );
-	  Bool is_edge = is_edge1;
-      Bool is_edge2 = (h0->pos.x <= -1 || h0->pos.x >= 1 ||
-                     h0->pos.y <= -1 || h0->pos.y >= 1);
-	  if (!is_edge) is_edge = is_edge2;
-	  Bool is_visible = point_visible(h0);
+      if (h0->doing) {
+        /* Check if this is an edge hexagon with active arms */
+        Bool is_edge1 = (h0->x == 0 || h0->x == bp->grid_w - 1 ||
+                       h0->y == 0 || h0->y == bp->grid_h - 1 );
+	    Bool is_edge = is_edge1;
+        Bool is_edge2 = (h0->pos.x <= -1 || h0->pos.x >= 1 ||
+                       h0->pos.y <= -1 || h0->pos.y >= 1);
+	    if (!is_edge) is_edge = is_edge2;
+	    Bool is_visible = point_visible(h0);
 
-	  Bool debug = False;
-	  static GLfloat maxposx = 0, maxposy = 0;
-	  static GLfloat minposx = 0, minposy = 0;
- 	  GLfloat posx = h0->pos.x * 1000;
- 	  GLfloat posy = h0->pos.y * 1000;
-	  if (bp->state == FIRST) {
-		maxposx = 0; maxposy = 0; minposx = 0; minposy = 0;
-	  }
-	  if (posx > maxposx) {
-        debug = True; maxposx = posx;
-	  } else if (posx < minposx) {
-        debug = True; minposx = posx;
-	  }
-	  if (posy > maxposy) {
-		debug = True; maxposy = posy;
-	  } else if (posy < minposy) {
-		debug = True; minposy = posy;
-	  }
+	    Bool debug = False;
+	    static GLfloat maxposx = 0, maxposy = 0;
+	    static GLfloat minposx = 0, minposy = 0;
+ 	    GLfloat posx = h0->pos.x * 1000;
+ 	    GLfloat posy = h0->pos.y * 1000;
+	    if (bp->state == FIRST) {
+		  maxposx = 0; maxposy = 0; minposx = 0; minposy = 0;
+	    }
+	    if (posx > maxposx) {
+          debug = True; maxposx = posx;
+	    } else if (posx < minposx) {
+          debug = True; minposx = posx;
+	    }
+	    if (posy > maxposy) {
+          debug = True; maxposy = posy;
+	    } else if (posy < minposy) {
+		  debug = True; minposy = posy;
+	    }
 
-	  if (h0->doing && debug)
-        printf("\npos=%d,%d %.0f,%.0f (%.0f-%.0f,%.0f-%.0f) is_edge=%d, is_visible=%d\n",
-				h0->x, h0->y, posx, posy, minposx, maxposx,
-				minposy, maxposy, is_edge, is_visible);
+	    if (debug)
+          printf("pos=%d,%d %.0f,%.0f (%.0f-%.0f,%.0f-%.0f) is_edge=%d, is_visible=%d\n",
+                  h0->x, h0->y, posx, posy, minposx, maxposx,
+				  minposy, maxposy, is_edge, is_visible);
 
-      /* Update activity state based on visibility */
-	  if (h0->doing) {
+        /* Update activity state based on visibility */
 		if (!is_visible && !h0->ignore) {
 		  bp->ignored++; h0->ignore = True;
 		  /*printf("%s: pos=%d,%d doing=%d ignored=%d->%d\n", __func__,
@@ -478,35 +478,35 @@ static void tick_hexagons (ModeInfo *mi) {
 				  h0->x, h0->y, bp->doing, bp->ignored+1, bp->ignored);*/
 		  if (bp->ignored < -1) bp->bug_found = True;
 		}
-	  }
 
-      if (is_edge && is_visible) {
-        for (int j = 0; j < 6; j++) {
-          if (h0->arms[j].state != EMPTY) {
-            /* Determine expansion direction based on position */
-            if (h0->pos.x >= 1) dir = 0;      /* Right */
-            else if (h0->pos.y >= 1) dir = 1; /* Top */
-            else if (h0->pos.x <= -1) dir = 3;/* Left */
-            else if (h0->pos.y <= -1) dir = 4;/* Bottom */
-		    char *str;
-            if (dir == 0) str = "Right";
-            else if (dir == 1) str = "Up";
-            else if (dir == 3) str = "Left";
-            else if (dir == 4) str = "Down";
-            else str = "???";
-            printf("pos=%d,%d Expanding plane %s is_edge=%d is_visible=%d is_doing=%d\n", h0->x, h0->y, str, is_edge, is_visible, h0->doing);
-            break;
+        if (is_edge && is_visible) {
+          for (int j = 0; j < 6; j++) {
+            if (h0->arms[j].state != EMPTY) {
+              /* Determine expansion direction based on position */
+              if (h0->pos.x >= 1) dir = 0;      /* Right */
+              else if (h0->pos.y >= 1) dir = 1; /* Top */
+              else if (h0->pos.x <= -1) dir = 3;/* Left */
+              else if (h0->pos.y <= -1) dir = 4;/* Bottom */
+		      char *str;
+              if (dir == 0) str = "Right";
+              else if (dir == 1) str = "Up";
+              else if (dir == 3) str = "Left";
+              else if (dir == 4) str = "Down";
+              else str = "???";
+              printf("pos=%d,%d Expanding plane %s is_edge=%d is_visible=%d is_doing=%d\n", h0->x, h0->y, str, is_edge, is_visible, h0->doing);
+              break;
+            }
           }
-        }
-      }
-	}
-  }
+        } // Visible edge
+      } // h0 is doing
+    } // For all hexagons
 
-  if (dir >= 0) {
-    printf("Expanding plane - before grid = %dx%d\n", bp->grid_w, bp->grid_h);
-    expand_plane(mi, dir);
-    printf("Expanding plane - after grid = %dx%d\n", bp->grid_w, bp->grid_h);
-  }
+    if (dir >= 0) {
+      printf("Expanding plane - before grid = %dx%d\n", bp->grid_w, bp->grid_h);
+      expand_plane(mi, dir);
+      printf("Expanding plane - after grid = %dx%d\n", bp->grid_w, bp->grid_h);
+    }
+  } // Button never pressed
 
   for (i = 0; i < bp->grid_w * bp->grid_h; i++) {
     hexagon *h0 = &bp->hexagons[i];
