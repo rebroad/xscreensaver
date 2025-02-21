@@ -263,7 +263,7 @@ static int add_arms (ModeInfo *mi, hexagon *h0, Bool out_p) {
     arm *a0 = &h0->arms[j];
     arm *a1;
     if (!h1) {
-      printf("pos=%d,%d No neighbour on arm %d\n", h0->x, h0->y, j);
+      //printf("pos=%d,%d No neighbour on arm %d\n", h0->x, h0->y, j);
       continue;			/* No neighboring cell */
 	}
     if (! empty_hexagon_p (h1)) continue;	/* Occupado */
@@ -434,12 +434,8 @@ static void tick_hexagons (ModeInfo *mi) {
       hexagon *h0 = &bp->hexagons[i];
       if (h0->doing) {
         /* Check if this is an edge hexagon with active arms */
-        Bool is_edge1 = (h0->x == 0 || h0->x == bp->grid_w - 1 ||
+        Bool is_edge = (h0->x == 0 || h0->x == bp->grid_w - 1 ||
                        h0->y == 0 || h0->y == bp->grid_h - 1 );
-	    Bool is_edge = is_edge1;
-        Bool is_edge2 = (h0->pos.x <= -1 || h0->pos.x >= 1 ||
-                       h0->pos.y <= -1 || h0->pos.y >= 1);
-	    if (!is_edge) is_edge = is_edge2;
 	    Bool is_visible = point_visible(h0);
 
 	    Bool debug = False;
