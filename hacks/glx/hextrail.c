@@ -297,14 +297,10 @@ static int add_arms (ModeInfo *mi, hexagon *h0, Bool out_p) {
 
 /* Check if a point is within the visible frustum */
 static Bool point_visible(hexagon *h0) {
-  Bool ignore = h0->ignore;
   XYZ point = h0->pos;
   GLdouble model[16], proj[16];
   GLint viewport[4];
   GLdouble winX, winY, winZ;
-
-  static time_t debug_time = 0;
-  time_t current_time = time(NULL);
 
   /* Get current matrices and viewport */
   glGetDoublev(GL_MODELVIEW_MATRIX, model);
@@ -320,6 +316,10 @@ static Bool point_visible(hexagon *h0) {
           winY >= viewport[1] && winY <= viewport[1] + viewport[3] &&
           winZ > 0 && winZ < 1);
 
+  /*static time_t debug_time = 0;
+  time_t current_time = time(NULL);
+  Bool ignore = h0->ignore;
+
   if (h0->doing && current_time > debug_time + 4) {
 	debug_time = current_time;
 	printf("\npos=%d,%d %s hexagon is o%sscreen\n",
@@ -328,7 +328,7 @@ static Bool point_visible(hexagon *h0) {
     printf("Screen coords (x,y,z): %.2f, %.2f, %.2f\n", winX, winY, winZ);
     printf("Viewport: x=%d, y=%d, w=%d, h=%d\n", 
            viewport[0], viewport[1], viewport[2], viewport[3]);
-  }
+  }*/
 
   return is_visible;
 }
@@ -416,7 +416,7 @@ static void reset_hextrail(ModeInfo *mi) {
   hextrail_configuration *bp = &bps[MI_SCREEN(mi)];
   if (MI_COUNT(mi) < 1) MI_COUNT(mi) = 1;
   free (bp->hexagons);
-  bp->hexagons = 0;
+  bp->hexagons = NULL;
   bp->state = FIRST;
   bp->fade_ratio = 1;
   bp->doing = 0;
@@ -439,13 +439,26 @@ static void tick_hexagons (ModeInfo *mi) {
 	    Bool is_visible = point_visible(h0);
 
 	    Bool debug = False;
-	    static GLfloat maxposx = 0, maxposy = 0;
-	    static GLfloat minposx = 0, minposy = 0;
+	    static GLfloat maxposx = 0, maxposy = 0, maxvposx = 0, maxvposy = 0;
+	    static GLfloat minposx = 0, minposy = 0, minvposx = 0, minvposy = 0;
  	    GLfloat posx = h0->pos.x * 1000;
  	    GLfloat posy = h0->pos.y * 1000;
-	    if (bp->state == FIRST) {
+	    if (bp->state == FADE) {
 		  maxposx = 0; maxposy = 0; minposx = 0; minposy = 0;
+		  maxvposx = 0; maxvposy = 0; minvposx = 0; minvposy = 0;
 	    }
+		if (is_visible) {
+	      if (posx > maxvposx) {
+            debug = True; maxvposx = posx;
+	      } else if (posx < minvposx) {
+            debug = True; minvposx = posx;
+	      }
+	      if (posy > maxvposy) {
+            debug = True; maxvposy = posy;
+	      } else if (posy < minvposy) {
+		    debug = True; minvposy = posy;
+	      }
+		}
 	    if (posx > maxposx) {
           debug = True; maxposx = posx;
 	    } else if (posx < minposx) {
@@ -458,9 +471,9 @@ static void tick_hexagons (ModeInfo *mi) {
 	    }
 
 	    if (debug)
-          printf("pos=%d,%d %.0f,%.0f (%.0f-%.0f,%.0f-%.0f) is_edge=%d, is_visible=%d\n",
-                  h0->x, h0->y, posx, posy, minposx, maxposx,
-				  minposy, maxposy, is_edge, is_visible);
+          printf("pos=%d,%d %.0f,%.0f vis=(%.0f-%.0f,%.0f-%.0f) (%.0f-%.0f,%.0f-%.0f) is_edge=%d, is_visible=%d\n",
+                  h0->x, h0->y, posx, posy, minvposx, maxvposx, minvposy, maxvposy,
+				  minposx, maxposx, minposy, maxposy, is_edge, is_visible);
 
         /* Update activity state based on visibility */
 		if (!is_visible && !h0->ignore) {
