@@ -215,6 +215,31 @@ static Bool empty_hexagon_p (hexagon *h) {
   return True;
 }
 
+static void doing(ModeInfo *mi, hexagon *h, Bool alive) {
+  hextrail_configuration *bp = &bps[MI_SCREEN(mi)];
+  if (alive) {
+    if (!h->doing) {
+      h->doing = True;
+      bp->doing++;
+      printf("pos=%.1f,%.1f doing=%d->%d ignored=%d\n",
+			  h->pos.x, h->pos.y, bp->doing-1, bp->doing, bp->ignored);
+    }
+  } else {
+    if (h->doing) {
+      h->doing = False;
+      bp->doing--;
+	  if (h->ignore) {
+		bp->ignored--;
+        printf("pos=%.1f,%.1f ignored=%d->%d doing=%d->%d\n",
+				h->pos.x, h->pos.y, bp->ignored+1, bp->ignored, bp->doing+1, bp->doing);
+		if (bp->ignored < 2) abort();
+	  } else
+        printf("pos=%.1f,%.1f ignored=%d doing=%d->%d\n",
+				h->pos.x, h->pos.y, bp->ignored, bp->doing+1, bp->doing);
+    }
+  }
+}
+
 static int add_arms (ModeInfo *mi, hexagon *h0, Bool out_p) {
   hextrail_configuration *bp = &bps[MI_SCREEN(mi)];
   int i;
@@ -252,6 +277,7 @@ static int add_arms (ModeInfo *mi, hexagon *h0, Bool out_p) {
     a1->speed = a0->speed;
 
     if (h1->border_state == EMPTY) {
+	  doing(mi, h1, True);
       h1->border_state = IN;
 
       /* Mostly keep the same color */
@@ -261,28 +287,6 @@ static int add_arms (ModeInfo *mi, hexagon *h0, Bool out_p) {
 
     added++;
     if (added >= target) break;
-  }
-
-  if (added) {
-    if (!h0->doing) {
-      h0->doing = True;
-      bp->doing++;
-      printf("%s: added=%d pos=%.1f,%.1f doing=%d->%d ignored=%d\n", __func__, added,
-			  h0->pos.x, h0->pos.y, bp->doing-1, bp->doing, bp->ignored);
-    }
-  } else {
-    if (h0->doing) {
-      h0->doing = False;
-      bp->doing--;
-	  if (h0->ignore) {
-		bp->ignored--;
-        printf("%s: pos=%.1f,%.1f ignored=%d->%d doing=%d->%d\n", __func__,
-				h0->pos.x, h0->pos.y, bp->ignored+1, bp->ignored, bp->doing+1, bp->doing);
-		if (bp->ignored < 2) abort();
-	  } else
-        printf("%s: pos=%.1f,%.1f ignored=%d doing=%d->%d\n", __func__, h0->pos.x, h0->pos.y,
-				bp->ignored, bp->doing+1, bp->doing);
-    }
   }
 
   return added;
@@ -507,6 +511,7 @@ static void tick_hexagons (ModeInfo *mi) {
         if (h0->border_ratio <= 0) {
           h0->border_ratio = 0;
           h0->border_state = EMPTY;
+		  doing(mi, h0, False);
         }
       case WAIT:
         if (! (random() % 50)) h0->border_state = OUT;
