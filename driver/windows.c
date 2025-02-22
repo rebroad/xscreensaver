@@ -470,9 +470,7 @@ raise_windows (saver_info *si)
 
 /* Called only once, before the main loop begins.
  */
-void 
-blank_screen (saver_info *si)
-{
+void blank_screen (saver_info *si) {
   saver_preferences *p = &si->prefs;
   Bool user_active_p = False;
   int i;
@@ -522,8 +520,7 @@ blank_screen (saver_info *si)
     }
 
   /* Save a screenshot.  Must be before fade-out. */
-  for (i = 0; i < si->nscreens; i++)
-    {
+  for (i = 0; i < si->nscreens; i++) {
       saver_screen_info *ssi = &si->screens[i];
       if (ssi->screenshot)
         XFreePixmap (si->dpy, ssi->screenshot);
@@ -535,16 +532,12 @@ blank_screen (saver_info *si)
         screenshot_save (si->dpy, ssi->screensaver_window, ssi->screenshot);
     }
 
-  if (p->fade_p &&
-      !si->demoing_p &&
-      !si->emergency_p)
-    {
-      Window *current_windows = (Window *)
+  if (p->fade_p && !si->demoing_p && !si->emergency_p) {
+    Window *current_windows = (Window *)
         malloc (si->nscreens * sizeof(*current_windows));
-      if (!current_windows) abort();
+    if (!current_windows) abort();
 
-      for (i = 0; i < si->nscreens; i++)
-	{
+    for (i = 0; i < si->nscreens; i++) {
 	  saver_screen_info *ssi = &si->screens[i];
 	  current_windows[i] = ssi->screensaver_window;
 	  /* Ensure that the default background of the window is really black,
@@ -553,24 +546,23 @@ blank_screen (saver_info *si)
 				ssi->black_pixel);
 	}
 
-      if (p->verbose_p) fprintf (stderr, "%s: fading...\n", blurb());
+    if (p->verbose_p) fprintf (stderr, "%s: fading...\n", blurb());
 
-      /* This will take several seconds to complete. */
-      user_active_p = fade_screens (si->app, si->dpy,
+    /* This will take several seconds to complete. */
+    user_active_p = fade_screens (si->app, si->dpy,
                                     current_windows, si->nscreens,
                                     p->fade_seconds / 1000.0,
                                     True,  /* out_p */
                                     True,  /* from_desktop_p */
                                     &si->fade_state);
-      free (current_windows);
+    free (current_windows);
 
-      if (!p->verbose_p)
-        ;
-      else if (user_active_p)
-        fprintf (stderr, "%s: fading aborted\n", blurb());
-      else
-        fprintf (stderr, "%s: fading done\n", blurb());
-    }
+    if (!p->verbose_p) ;
+    else if (user_active_p)
+      fprintf (stderr, "%s: fading aborted\n", blurb());
+    else
+      fprintf (stderr, "%s: fading done\n", blurb());
+  }
 
   raise_windows (si);
   reset_watchdog_timer (si);
@@ -585,51 +577,42 @@ blank_screen (saver_info *si)
     spawn_screenhack (&si->screens[i]);
 
   /* Turn off "next" and "prev" modes after they have happened once. */
-   if (si->selection_mode < 0)
-     si->selection_mode = 0;
+  if (si->selection_mode < 0) si->selection_mode = 0;
 
   /* If we are blanking only, optionally power down monitor right now. */
-  if (p->mode == BLANK_ONLY &&
-      p->dpms_quickoff_p)
+  if (p->mode == BLANK_ONLY && p->dpms_quickoff_p)
     monitor_power_on (si, False);
 }
 
 
-/* Called only once, upon receipt of SIGTERM, just before exiting.
- */
-void
-unblank_screen (saver_info *si)
-{
+/* Called only once, upon receipt of SIGTERM, just before exiting.  */
+void unblank_screen (saver_info *si) {
   saver_preferences *p = &si->prefs;
   Bool unfade_p = p->unfade_p;
   int i;
 
   monitor_power_on (si, True);
 
-  if (si->demoing_p)
-    unfade_p = False;
+  if (si->demoing_p) unfade_p = False;
 
-  if (unfade_p)
-    {
-      double seconds = p->fade_seconds / 1000.0;
-      double ratio = 1/3.0;
-      Window *current_windows = (Window *)
-	calloc(sizeof(Window), si->nscreens);
-      Bool interrupted_p = False;
+  if (unfade_p) {
+    double seconds = p->fade_seconds / 1000.0;
+    double ratio = 1/3.0;
+    Window *current_windows = (Window *) calloc(sizeof(Window), si->nscreens);
+    Bool interrupted_p = False;
 
-      for (i = 0; i < si->nscreens; i++)
-	{
+    for (i = 0; i < si->nscreens; i++) {
 	  saver_screen_info *ssi = &si->screens[i];
 	  current_windows[i] = ssi->screensaver_window;
 	}
 
-      if (p->verbose_p) fprintf (stderr, "%s: unfading...\n", blurb());
+    if (p->verbose_p) fprintf (stderr, "%s: unfading...\n", blurb());
 
-      monitor_power_on (si, True);
+    monitor_power_on (si, True);
 
-      /* When we fade in to the desktop, first fade out from the saver to
-         black, then fade in from black to the desktop. */
-      interrupted_p = fade_screens (si->app, si->dpy,
+    /* When we fade in to the desktop, first fade out from the saver to
+       black, then fade in from black to the desktop. */
+    interrupted_p = fade_screens (si->app, si->dpy,
                                     current_windows, si->nscreens,
                                     seconds * ratio,
                                     True,  /* out_p */
@@ -649,57 +632,49 @@ unblank_screen (saver_info *si)
                                       False, /* out_p */
                                       False, /* from_desktop_p */
                                       &si->fade_state);
-      free (current_windows);
+    free (current_windows);
 
-      if (p->verbose_p)
-        fprintf (stderr, "%s: unfading done%s\n", blurb(),
+    if (p->verbose_p)
+      fprintf (stderr, "%s: unfading done%s\n", blurb(),
                  (interrupted_p ? " (interrupted)" : ""));
-    }
-  else
-    {
-      for (i = 0; i < si->nscreens; i++)
-	{
+  } else {
+    for (i = 0; i < si->nscreens; i++) {
 	  saver_screen_info *ssi = &si->screens[i];
-	  if (ssi->cmap)
-	    {
-	      Colormap c = DefaultColormapOfScreen (ssi->screen);
-	      /* avoid technicolor */
-              XSetWindowBackground (si->dpy, ssi->screensaver_window,
+	  if (ssi->cmap) {
+	    Colormap c = DefaultColormapOfScreen (ssi->screen);
+	    /* avoid technicolor */
+        XSetWindowBackground (si->dpy, ssi->screensaver_window,
                                     BlackPixelOfScreen (ssi->screen));
-	      XClearWindow (si->dpy, ssi->screensaver_window);
-	      if (c) XInstallColormap (si->dpy, c);
-	    }
-	  XUnmapWindow (si->dpy, ssi->screensaver_window);
+	    XClearWindow (si->dpy, ssi->screensaver_window);
+	    if (c) XInstallColormap (si->dpy, c);
+	  }
+      XUnmapWindow (si->dpy, ssi->screensaver_window);
 	}
-    }
+  }
 }
 
 
 static Visual *
-get_screen_gl_visual (saver_info *si, int real_screen_number)
-{
+get_screen_gl_visual (saver_info *si, int real_screen_number) {
   int nscreens = ScreenCount (si->dpy);
 
-  if (! si->best_gl_visuals)
-    {
-      int i;
-      si->best_gl_visuals = (Visual **) 
+  if (! si->best_gl_visuals) {
+    int i;
+    si->best_gl_visuals = (Visual **) 
         calloc (nscreens + 1, sizeof (*si->best_gl_visuals));
 
-      for (i = 0; i < nscreens; i++)
-        if (! si->best_gl_visuals[i])
-          si->best_gl_visuals[i] = 
+    for (i = 0; i < nscreens; i++)
+      if (! si->best_gl_visuals[i])
+        si->best_gl_visuals[i] = 
             get_best_gl_visual (si, ScreenOfDisplay (si->dpy, i));
-    }
+  }
 
   if (real_screen_number < 0 || real_screen_number >= nscreens) abort();
   return si->best_gl_visuals[real_screen_number];
 }
 
 
-Bool
-select_visual (saver_screen_info *ssi, const char *visual_name)
-{
+Bool select_visual (saver_screen_info *ssi, const char *visual_name) {
   XWindowAttributes xgwa;
   saver_info *si = ssi->global;
   saver_preferences *p = &si->prefs;
@@ -711,8 +686,7 @@ select_visual (saver_screen_info *ssi, const char *visual_name)
   /* On some systems (most recently, MacOS X) OpenGL programs get confused
      when you kill one and re-start another on the same window.  So maybe
      it's best to just always destroy and recreate the xscreensaver window
-     when changing hacks, instead of trying to reuse the old one?
-   */
+     when changing hacks, instead of trying to reuse the old one?  */
   Bool always_recreate_window_p = True;
 
   get_screen_gl_visual (si, 0);   /* let's probe all the GL visuals early */
@@ -720,38 +694,27 @@ select_visual (saver_screen_info *ssi, const char *visual_name)
   /* We make sure the existing window is actually on ssi->screen before
      trying to use it, in case things moved around radically when monitors
      were added or deleted.  If we don't do this we could get a BadMatch
-     even though the depths match.  I think.
-   */
+     even though the depths match.  I think.  */
   memset (&xgwa, 0, sizeof(xgwa));
   if (ssi->screensaver_window)
     XGetWindowAttributes (si->dpy, ssi->screensaver_window, &xgwa);
 
-  if (visual_name && *visual_name)
-    {
-      if (!strcasecmp(visual_name, "default-i"))
-	{
+  if (visual_name && *visual_name) {
+    if (!strcasecmp(visual_name, "default-i")) {
 	  visual_name = "default";
 	  install_cmap_p = True;
-	}
-      else if (!strcasecmp(visual_name, "default-n"))
-	{
+	} else if (!strcasecmp(visual_name, "default-n")) {
 	  visual_name = "default";
 	  install_cmap_p = False;
-	}
-      else if (!strcasecmp(visual_name, "GL"))
-        {
-          new_v = get_screen_gl_visual (si, ssi->real_screen_number);
-          if (!new_v && p->verbose_p)
-            fprintf (stderr, "%s: no GL visuals\n", blurb());
-        }
+	} else if (!strcasecmp(visual_name, "GL")) {
+      new_v = get_screen_gl_visual (si, ssi->real_screen_number);
+      if (!new_v && p->verbose_p) fprintf (stderr, "%s: no GL visuals\n", blurb());
+    }
 
-      if (!new_v)
-        new_v = get_visual (ssi->screen, visual_name, True, False);
-    }
-  else
-    {
-      new_v = ssi->default_visual;
-    }
+    if (!new_v) new_v = get_visual (ssi->screen, visual_name, True, False);
+  } else {
+    new_v = ssi->default_visual;
+  }
 
   got_it = !!new_v;
 
@@ -761,19 +724,14 @@ select_visual (saver_screen_info *ssi, const char *visual_name)
 
   ssi->install_cmap_p = install_cmap_p;
 
-  if ((ssi->screen != xgwa.screen) ||
-      (new_v &&
-       (always_recreate_window_p ||
-        (ssi->current_visual != new_v) ||
-        (install_cmap_p != was_installed_p))))
-    {
-      Colormap old_c = ssi->cmap;
-      Window old_w = ssi->screensaver_window;
-      if (! new_v) 
-        new_v = ssi->current_visual;
+  if ((ssi->screen != xgwa.screen) || (new_v &&
+       (always_recreate_window_p || (ssi->current_visual != new_v) ||
+        (install_cmap_p != was_installed_p)))) {
+    Colormap old_c = ssi->cmap;
+    Window old_w = ssi->screensaver_window;
+    if (! new_v) new_v = ssi->current_visual;
 
-      if (p->verbose_p)
-	{
+    if (p->verbose_p) {
 #if 0
 	  fprintf (stderr, "%s: %d: visual ", blurb(), ssi->number);
 	  describe_visual (stderr, ssi->screen, new_v, install_cmap_p);
@@ -785,25 +743,24 @@ select_visual (saver_screen_info *ssi, const char *visual_name)
 #endif
 	}
 
-      ssi->current_visual = new_v;
-      ssi->current_depth = visual_depth(ssi->screen, new_v);
-      ssi->cmap = 0;
-      ssi->screensaver_window = 0;
+    ssi->current_visual = new_v;
+    ssi->current_depth = visual_depth(ssi->screen, new_v);
+    ssi->cmap = 0;
+    ssi->screensaver_window = 0;
 
-      initialize_screensaver_window_1 (ssi);
-      raise_window (ssi);
+    initialize_screensaver_window_1 (ssi);
+    raise_window (ssi);
 
-      /* Now we can destroy the old window without horking our grabs. */
-      defer_XDestroyWindow (si->app, si->dpy, old_w);
+    /* Now we can destroy the old window without horking our grabs. */
+    defer_XDestroyWindow (si->app, si->dpy, old_w);
 
-      if (p->verbose_p > 1)
-	fprintf (stderr, "%s: %d: destroyed old saver window 0x%lx\n",
-		 blurb(), ssi->number, (unsigned long) old_w);
+    if (p->verbose_p > 1)
+	  fprintf (stderr, "%s: %d: destroyed old saver window 0x%lx\n",
+              blurb(), ssi->number, (unsigned long) old_w);
 
-      if (old_c &&
-	  old_c != DefaultColormapOfScreen (ssi->screen))
-	XFreeColormap (si->dpy, old_c);
-    }
+    if (old_c && old_c != DefaultColormapOfScreen (ssi->screen))
+	  XFreeColormap (si->dpy, old_c);
+  }
 
   return got_it;
 }
@@ -812,113 +769,98 @@ select_visual (saver_screen_info *ssi, const char *visual_name)
 /* Synchronize the contents of si->ssi to the current state of the monitors.
    Doesn't change anything if nothing has changed; otherwise, alters and
    reuses existing saver_screen_info structs as much as possible.
-   Returns True if anything changed.
- */
-Bool
-update_screen_layout (saver_info *si)
-{
+   Returns True if anything changed.  */
+Bool update_screen_layout (saver_info *si) {
   monitor **monitors = scan_monitors (si->dpy);
   int count = 0;
   int good_count = 0;
   int i, j;
   int seen_screens[100] = { 0, };
 
-  if (! monitor_layouts_differ_p (monitors, si->monitor_layout))
-    {
-      free_monitors (monitors);
-      return False;
-    }
+  if (! monitor_layouts_differ_p (monitors, si->monitor_layout)) {
+    free_monitors (monitors);
+    return False;
+  }
 
   free_monitors (si->monitor_layout);
   si->monitor_layout = monitors;
 
-  while (monitors[count])
-    {
-      if (monitors[count]->sanity == S_SANE)
-        good_count++;
-      count++;
-    }
+  while (monitors[count]) {
+    if (monitors[count]->sanity == S_SANE) good_count++;
+    count++;
+  }
 
-  if (si->ssi_count == 0)
-    {
-      si->ssi_count = 10;
-      si->screens = (saver_screen_info *)
-        calloc (sizeof(*si->screens), si->ssi_count);
-    }
+  if (si->ssi_count == 0) {
+    si->ssi_count = 10;
+    si->screens = (saver_screen_info *) calloc (sizeof(*si->screens), si->ssi_count);
+  }
 
-  if (si->ssi_count < count)
-    {
-      si->screens = (saver_screen_info *)
+  if (si->ssi_count < count) {
+    si->screens = (saver_screen_info *)
         realloc (si->screens, sizeof(*si->screens) * count);
-      memset (si->screens + si->ssi_count, 0,
+    memset (si->screens + si->ssi_count, 0,
               sizeof(*si->screens) * (count - si->ssi_count));
-      si->ssi_count = count;
-    }
+    si->ssi_count = count;
+  }
 
   if (! si->screens) abort();
 
   si->nscreens = good_count;
 
   /* Regenerate the list of GL visuals as needed. */
-  if (si->best_gl_visuals)
-    free (si->best_gl_visuals);
+  if (si->best_gl_visuals) free (si->best_gl_visuals);
   si->best_gl_visuals = 0;
 
-  for (i = 0, j = 0; i < count; i++)
-    {
-      monitor *m = monitors[i];
-      saver_screen_info *ssi = &si->screens[j];
-      int sn;
-      if (monitors[i]->sanity != S_SANE) continue;
+  for (i = 0, j = 0; i < count; i++) {
+    monitor *m = monitors[i];
+    saver_screen_info *ssi = &si->screens[j];
+    int sn;
+    if (monitors[i]->sanity != S_SANE) continue;
 
-      ssi->global = si;
-      ssi->number = j;
+    ssi->global = si;
+    ssi->number = j;
 
-      sn = screen_number (m->screen);
-      ssi->screen = m->screen;
-      ssi->real_screen_number = sn;
-      ssi->real_screen_p = (seen_screens[sn] == 0);
-      seen_screens[sn]++;
+    sn = screen_number (m->screen);
+    ssi->screen = m->screen;
+    ssi->real_screen_number = sn;
+    ssi->real_screen_p = (seen_screens[sn] == 0);
+    seen_screens[sn]++;
 
-      ssi->default_visual =
-	get_visual_resource (ssi->screen, "visualID", "VisualID", False);
-      ssi->current_visual = ssi->default_visual;
-      ssi->current_depth = visual_depth (ssi->screen, ssi->current_visual);
+    ssi->default_visual =
+	    get_visual_resource (ssi->screen, "visualID", "VisualID", False);
+    ssi->current_visual = ssi->default_visual;
+    ssi->current_depth = visual_depth (ssi->screen, ssi->current_visual);
 
-      ssi->x      = m->x;
-      ssi->y      = m->y;
-      ssi->width  = m->width;
-      ssi->height = m->height;
+    ssi->x      = m->x;
+    ssi->y      = m->y;
+    ssi->width  = m->width;
+    ssi->height = m->height;
 
 # ifndef DEBUG_MULTISCREEN
-      {
-        saver_preferences *p = &si->prefs;
-        if (p->debug_p)
-          ssi->width /= 2;
-      }
+    {
+      saver_preferences *p = &si->prefs;
+      if (p->debug_p)
+        ssi->width /= 2;
+    }
 # endif
 
-      j++;
-    }
+    j++;
+  }
 
   return True;
 }
 
 
 /* When the screensaver is active, this timer will periodically change
-   the running program.  Each screen has its own timer.
- */
-void
-cycle_timer (XtPointer closure, XtIntervalId *id)
-{
+   the running program.  Each screen has its own timer.  */
+void cycle_timer (XtPointer closure, XtIntervalId *id) {
   saver_screen_info *ssi = (saver_screen_info *) closure;
   saver_info *si = ssi->global;
 
-  if (ssi->error_dialog)
-    {
-      defer_XDestroyWindow (si->app, si->dpy, ssi->error_dialog);
-      ssi->error_dialog = 0;
-    }
+  if (ssi->error_dialog) {
+    defer_XDestroyWindow (si->app, si->dpy, ssi->error_dialog);
+    ssi->error_dialog = 0;
+  }
 
   maybe_reload_init_file (si);
   kill_screenhack (ssi);
@@ -936,12 +878,9 @@ cycle_timer (XtPointer closure, XtIntervalId *id)
 
 /* Called when a screenhack has exited unexpectedly.
    We print a notification on the window, and in a little while, launch
-   a new hack (rather than waiting for the cycle timer to fire).
- */
-void
-screenhack_obituary (saver_screen_info *ssi,
-                     const char *name, const char *error)
-{
+   a new hack (rather than waiting for the cycle timer to fire).  */
+void screenhack_obituary (saver_screen_info *ssi,
+                     const char *name, const char *error) {
   saver_info *si = ssi->global;
   saver_preferences *p = &si->prefs;
   Time how_long = p->cycle;
@@ -964,14 +903,11 @@ screenhack_obituary (saver_screen_info *ssi,
   Colormap cmap;
 
   /* Restart the cycle timer, to take down the error dialog and launch
-     a new hack.
-   */
-  if (how_long > max)
-    how_long = max;
-  if (ssi->cycle_id)
-    XtRemoveTimeOut (ssi->cycle_id);
+     a new hack.  */
+  if (how_long > max) how_long = max;
+  if (ssi->cycle_id) XtRemoveTimeOut (ssi->cycle_id);
   ssi->cycle_id =
-    XtAppAddTimeOut (si->app, how_long, cycle_timer, (XtPointer) ssi);
+      XtAppAddTimeOut (si->app, how_long, cycle_timer, (XtPointer) ssi);
   ssi->cycle_at = time ((time_t *) 0) + how_long / 1000;
   if (p->verbose_p)
     fprintf (stderr, "%s: %d: cycling in %lu sec\n", blurb(), ssi->number,
@@ -982,8 +918,7 @@ screenhack_obituary (saver_screen_info *ssi,
      We can't just render text on top of ssi->screensaver_window because
      if there was an OpenGL hack running on it, Xlib graphics might not
      show up at all.  Likewise, creating a sub-window doesn't work.
-     So it must be a top-level override-redirect window atop the saver.
-   */
+     So it must be a top-level override-redirect window atop the saver.  */
   cmap = ssi->cmap ? ssi->cmap : DefaultColormapOfScreen (ssi->screen);
   window = ssi->error_dialog;
   if (window) defer_XDestroyWindow (si->app, si->dpy, window);
@@ -996,7 +931,7 @@ screenhack_obituary (saver_screen_info *ssi,
               CWBackingStore | CWColormap);
   visual = ssi->current_visual;
   window = ssi->error_dialog =
-    XCreateWindow (si->dpy, RootWindowOfScreen (ssi->screen),
+        XCreateWindow (si->dpy, RootWindowOfScreen (ssi->screen),
                    0, 0, 1, 1, 0, ssi->current_depth, InputOutput, visual,
                    attrmask, &attrs);
 
@@ -1009,15 +944,12 @@ screenhack_obituary (saver_screen_info *ssi,
   XftColorAllocName (si->dpy, visual, cmap, cn, &fg);
   xftdraw = XftDrawCreate (si->dpy, window, visual, cmap);
 
-  gcv.foreground =
-    get_pixel_resource (si->dpy, cmap, "errorColor", "Color");
+  gcv.foreground = get_pixel_resource (si->dpy, cmap, "errorColor", "Color");
   gcv.line_width = bw;
   gc = XCreateGC (si->dpy, window, GCForeground | GCLineWidth, &gcv);
 
-  if (name && *name)
-    sprintf (buf, "\"%.100s\" %.100s", name, error);
-  else
-    sprintf (buf, "%.100s", error);
+  if (name && *name) sprintf (buf, "\"%.100s\" %.100s", name, error);
+  else sprintf (buf, "%.100s", error);
 
   XftTextExtentsUtf8 (si->dpy, font, (FcChar8 *) buf, strlen(buf), &overall);
   x = (ssi->width - overall.width) / 2;
@@ -1059,11 +991,8 @@ screenhack_obituary (saver_screen_info *ssi,
 
    Maybe we should respond to Expose events to detect when another window has
    raised above us and re-raise ourselves sooner.  But that would result in us
-   fighting against "xscreensaver-auth" which tries very hard to be on top.
- */
-static void
-watchdog_timer (XtPointer closure, XtIntervalId *id)
-{
+   fighting against "xscreensaver-auth" which tries very hard to be on top.  */
+static void watchdog_timer (XtPointer closure, XtIntervalId *id) {
   saver_info *si = (saver_info *) closure;
   Bool running_p, on_p, terminating_p;
 
@@ -1088,41 +1017,30 @@ watchdog_timer (XtPointer closure, XtIntervalId *id)
   running_p = any_screenhacks_running_p (si);
   on_p = monitor_powered_on_p (si);
   terminating_p = si->terminating_p;
-  if (running_p && !on_p)
-    {
+  if (running_p && !on_p) {
+    int i;
+    if (si->prefs.verbose_p)
+      fprintf (stderr, "%s: monitor has powered down; killing running hacks\n",
+                 blurb());
+    for (i = 0; i < si->nscreens; i++) kill_screenhack (&si->screens[i]);
+    /* Do not clear current_hack here. */
+  } else if (terminating_p) {
+    /* If we are in the process of shutting down and are about to exit,
+       don't re-launch anything just because the monitor came back on. */
+  } else if (!running_p && on_p) {
+    /* If the hack number is set but no hack is running, it is because the
+       hack was killed when the monitor powered off, above.  This assumes
+       that kill_screenhack() clears pid but not current_hack.  Start the
+       hack going again.  The cycle_timer will also do this (unless "cycle"
+       is 0) but watchdog_timer runs more frequently.  */
+    if (si->nscreens > 0 && si->screens[0].current_hack >= 0) {
       int i;
       if (si->prefs.verbose_p)
-        fprintf (stderr,
-                 "%s: monitor has powered down; killing running hacks\n",
-                 blurb());
-      for (i = 0; i < si->nscreens; i++)
-        kill_screenhack (&si->screens[i]);
-      /* Do not clear current_hack here. */
-    }
-  else if (terminating_p)
-    {
-       /* If we are in the process of shutting down and are about to exit,
-          don't re-launch anything just because the monitor came back on. */
-    }
-  else if (!running_p && on_p)
-    {
-      /* If the hack number is set but no hack is running, it is because the
-         hack was killed when the monitor powered off, above.  This assumes
-         that kill_screenhack() clears pid but not current_hack.  Start the
-         hack going again.  The cycle_timer will also do this (unless "cycle"
-         is 0) but watchdog_timer runs more frequently.
-       */
-      if (si->nscreens > 0 && si->screens[0].current_hack >= 0)
-        {
-          int i;
-          if (si->prefs.verbose_p)
-            fprintf (stderr,
-                     "%s: monitor has powered back on; re-launching hacks\n",
+        fprintf (stderr, "%s: monitor has powered back on; re-launching hacks\n",
                      blurb());
-          for (i = 0; i < si->nscreens; i++)
-            spawn_screenhack (&si->screens[i]);
-        }
+      for (i = 0; i < si->nscreens; i++) spawn_screenhack (&si->screens[i]);
     }
+  }
 
   /* Re-schedule this timer.  The watchdog timer defaults to a bit less
      than the hack cycle period, but is never longer than one minute.
