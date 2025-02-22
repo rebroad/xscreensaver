@@ -303,42 +303,35 @@ save_argv (int ac, char **av)
 }
 
 
-static void
-kill_all_subprocs (void)
-{
-  if (saver_gfx_pid)
-    {
-      if (verbose_p)
-        fprintf (stderr, "%s: pid %lu: killing " SAVER_GFX_PROGRAM "\n",
+static void kill_all_subprocs (void) {
+  if (saver_gfx_pid) {
+    if (verbose_p)
+      fprintf (stderr, "%s: pid %lu: killing " SAVER_GFX_PROGRAM "\n",
                  blurb(), (unsigned long) saver_gfx_pid);
-      kill (saver_gfx_pid, SIGTERM);
+    kill (saver_gfx_pid, SIGTERM);
 
-      if (gfx_stopped_p)	/* SIGCONT to allow SIGTERM to proceed */
-        {
-          if (verbose_p)
-            fprintf (stderr, "%s: pid %lu: sending " SAVER_GFX_PROGRAM
-                     " SIGCONT\n",
-                     blurb(), (unsigned long) saver_gfx_pid);
-          gfx_stopped_p = False;
-          kill (-saver_gfx_pid, SIGCONT);  /* send to process group */
-        }
-    }
-
-  if (saver_auth_pid)
-    {
+    if (gfx_stopped_p) {	/* SIGCONT to allow SIGTERM to proceed */
       if (verbose_p)
+        fprintf (stderr, "%s: pid %lu: sending " SAVER_GFX_PROGRAM
+                     " SIGCONT\n", blurb(), (unsigned long) saver_gfx_pid);
+      gfx_stopped_p = False;
+      kill (-saver_gfx_pid, SIGCONT);  /* send to process group */
+    }
+  }
+
+  if (saver_auth_pid) {
+    if (verbose_p)
         fprintf (stderr, "%s: pid %lu: killing " SAVER_AUTH_PROGRAM "\n",
                  blurb(), (unsigned long) saver_auth_pid);
-      kill (saver_auth_pid, SIGTERM);
-    }
+    kill (saver_auth_pid, SIGTERM);
+  }
 
-  if (saver_systemd_pid)
-    {
-      if (verbose_p)
+  if (saver_systemd_pid) {
+    if (verbose_p)
         fprintf (stderr, "%s: pid %lu: killing " SAVER_SYSTEMD_PROGRAM "\n",
                  blurb(), (unsigned long) saver_systemd_pid);
-      kill (saver_systemd_pid, SIGTERM);
-    }
+    kill (saver_systemd_pid, SIGTERM);
+  }
 }
 
 
@@ -2111,8 +2104,7 @@ main_loop (Display *dpy)
         if (!locking_disabled_p &&
             (force_lock_p ||
              (lock_p && 
-              now >= blanked_at + lock_timeout)))
-          {
+              now >= blanked_at + lock_timeout))) {
             if (verbose_p)
               fprintf (stderr, "%s: locking%s\n", blurb(),
                        (force_lock_p ? "" : " after timeout"));
@@ -2120,10 +2112,8 @@ main_loop (Display *dpy)
             authenticated_p = False;
             store_saver_status (dpy, True, True, now);
             force_lock_p = False;   /* Single shot */
-          }
-        else if (active_at >= now &&
-                 active_at >= ignore_activity_before)
-          {
+        } else if (active_at >= now &&
+                 active_at >= ignore_activity_before) {
           UNBLANK:
             if (verbose_p)
               fprintf (stderr, "%s: unblanking\n", blurb());
@@ -2131,39 +2121,34 @@ main_loop (Display *dpy)
             ignore_motion_p = False;
             store_saver_status (dpy, False, False, now);
 
-            if (saver_gfx_pid)
-              {
-                if (verbose_p)
-                  fprintf (stderr,
-                           "%s: pid %lu: killing " SAVER_GFX_PROGRAM "\n",
+            if (saver_gfx_pid) {
+              if (verbose_p)
+                fprintf (stderr, "%s: pid %lu: killing " SAVER_GFX_PROGRAM "\n",
                            blurb(), (unsigned long) saver_gfx_pid);
-                kill (saver_gfx_pid, SIGTERM);
-                respawn_thrashing_count = 0;
+              kill (saver_gfx_pid, SIGTERM);
+              respawn_thrashing_count = 0;
 
-                if (gfx_stopped_p)  /* SIGCONT to allow SIGTERM to proceed */
-                  {
-                    if (verbose_p)
-                      fprintf (stderr, "%s: pid %lu: sending "
+              if (gfx_stopped_p) {  /* SIGCONT to allow SIGTERM to proceed */
+                if (verbose_p)
+                  fprintf (stderr, "%s: pid %lu: sending "
                                SAVER_GFX_PROGRAM " SIGCONT\n",
                                blurb(), (unsigned long) saver_gfx_pid);
-                    gfx_stopped_p = False;
-                    kill (-saver_gfx_pid, SIGCONT);  /* send to process group */
-                  }
+                gfx_stopped_p = False;
+                kill (-saver_gfx_pid, SIGCONT);  /* send to process group */
               }
+            }
 
             ungrab_keyboard_and_mouse (dpy);
-          }
+        }
         break;
 
       case LOCKED:
         if (active_at >= now &&
-            active_at >= ignore_activity_before)
-          {
+            active_at >= ignore_activity_before) {
             char *av[10];
             int ac = 0;
 
-            if (saver_gfx_pid)
-              {
+            if (saver_gfx_pid) {
                 /* To suspend or not suspend?  If we don't suspend, then a
                    misbehaving or heavily-loaded screenhack might make it more
                    difficult to type in the password.  Though that seems pretty
@@ -2184,10 +2169,9 @@ main_loop (Display *dpy)
                 gfx_stopped_p = True;
                 kill (-saver_gfx_pid, SIGSTOP);  /* send to process group */
 # endif
-              }
+            }
 
-            if (verbose_p)
-              fprintf (stderr, "%s: authorizing\n", blurb());
+            if (verbose_p) fprintf (stderr, "%s: authorizing\n", blurb());
             current_state = AUTH;
 
             /* We already hold the mouse grab, but try to re-grab it with
@@ -2202,24 +2186,19 @@ main_loop (Display *dpy)
             if (debug_p)       av[ac++] = "--debug";
             av[ac] = 0;
             saver_auth_pid = fork_and_exec (dpy, ac, av);
-          }
+        }
         break;
 
       case AUTH:
-        if (saver_auth_pid)
-          {
+        if (saver_auth_pid) {
             /* xscreensaver-auth still running -- wait for it to exit. */
-          }
-        else if (authenticated_p)
-          {
+        } else if (authenticated_p) {
             /* xscreensaver-auth exited with "success" status */
             if (verbose_p)
               fprintf (stderr, "%s: unlocking\n", blurb());
             authenticated_p = False;
             goto UNBLANK;
-          }
-        else
-          {
+        } else {
             /* xscreensaver-auth exited with non-success, or with signal. */
             if (verbose_p)
               fprintf (stderr, "%s: authorization failed\n", blurb());
@@ -2237,16 +2216,15 @@ main_loop (Display *dpy)
                immediately. */
             ignore_activity_before = now + 1;
 
-            if (gfx_stopped_p)	/* SIGCONT to resume savers */
-              {
+            if (gfx_stopped_p) {	/* SIGCONT to resume savers */
                 if (verbose_p)
                   fprintf (stderr, "%s: pid %lu: sending " SAVER_GFX_PROGRAM
                            " SIGCONT\n",
                            blurb(), (unsigned long) saver_gfx_pid);
                 gfx_stopped_p = False;
                 kill (-saver_gfx_pid, SIGCONT);  /* send to process group */
-              }
-          }
+            }
+        }
         break;
 
       default:
@@ -2258,25 +2236,20 @@ main_loop (Display *dpy)
 
 
 /* There is no good reason for this executable to be setuid, but in case
-   it is, turn that off.
- */
-static const char *
-disavow_privileges (void)
-{
+   it is, turn that off.  */
+static const char * disavow_privileges (void) {
   static char msg[255];
   uid_t euid = geteuid();
   gid_t egid = getegid();
   uid_t uid = getuid();
   gid_t gid = getgid();
 
-  if (uid == euid && gid == egid)
-    return 0;
+  if (uid == euid && gid == egid) return 0;
 
   /* Without setgroups(), the process will retain any supplementary groups
      associated with the uid, e.g. the default groups of the "root" user.
      But setgroups() can only be called by root, and returns EPERM for other
-     users even if the call would be a no-op.  So ignore its error status.
-   */
+     users even if the call would be a no-op.  So ignore its error status.  */
   setgroups (1, &gid);
 
   if (gid != egid && setgid (gid) != 0)
