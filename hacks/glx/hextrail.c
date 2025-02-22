@@ -343,21 +343,12 @@ static void expand_plane(ModeInfo *mi, int direction) {
 
   /* Copy existing hexagons with position adjustment */
   for (y = 0; y < old_grid_h; y++) for (x = 0; x < old_grid_w; x++) {
-    hexagon *old_hex = &old_hexagons[y * old_grid_w + x];
     hexagon *new_hex = &new_hexagons[(y + y_offset) * new_grid_w + (x + x_offset)];
-    *new_hex = *old_hex;
-
-    /* Adjust position to maintain visual continuity */
-	//GLfloat size = (2.0 / old_grid_w);
-    //new_hex->pos.x -= x_offset * size;
-    //new_hex->pos.y += y_offset * (size * sqrt(3) / 2);
-	// TODO - perhaps...
-	//new_hex->pos.y -= y_offset * (2.0 / old_grid_h);
+    *new_hex = old_hexagons[y * old_grid_w + x];
   }
 
   /* Initialize new hexagons */
-  GLfloat w = 2.0 / new_grid_w;
-  GLfloat h = w * sqrt(3) / 2;
+  GLfloat w = 2.0 / new_grid_w; GLfloat h = w * sqrt(3) / 2;
 
   for (y = 0; y < new_grid_h; y++) for (x = 0; x < new_grid_w; x++) {
     hexagon *h0 = &new_hexagons[y * new_grid_w + x];
