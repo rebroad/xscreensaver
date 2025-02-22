@@ -409,33 +409,36 @@ static void tick_hexagons (ModeInfo *mi) {
       Bool is_edge = (h0->x == 0 || h0->x == bp->grid_w - 1 ||
                      h0->y == 0 || h0->y == bp->grid_h - 1 );
       Bool is_visible = point_visible(h0);
+      Bool debug = False;
 
-      if (h0->doing) {
-        Bool debug = False;
-        if (is_visible) {
-          if (h0->x > max_vx) {
-            max_vx = h0->x;
-            if (h0->x > last_max_vx) {
-              debug = True; last_max_vx = h0->x;
-            }
-          } else if (h0->x < min_vx) {
-            min_vx = h0->x;
-            if (h0->x < last_min_vx) {
-              debug = True; last_min_vx = h0->x;
-            }
+	  // Measure the drawn part we can see
+	  if (is_visible && (h0->doing || !empty_hexagon_p(h0))) {
+        if (h0->x > max_vx) {
+          max_vx = h0->x;
+          if (h0->x > last_max_vx) {
+            debug = True; last_max_vx = h0->x;
           }
-          if (h0->y > max_vy) {
-            max_vy = h0->y;
-            if (h0->y > last_max_vy) {
-              debug = True; last_max_vy = h0->y;
-            }
-          } else if (h0->y < min_vy) {
-            min_vy = h0->y;
-            if (h0->y < last_min_vy) {
-              debug = True; last_min_vy = h0->y;
-            }
+        } else if (h0->x < min_vx) {
+          min_vx = h0->x;
+          if (h0->x < last_min_vx) {
+            debug = True; last_min_vx = h0->x;
           }
         }
+        if (h0->y > max_vy) {
+          max_vy = h0->y;
+          if (h0->y > last_max_vy) {
+            debug = True; last_max_vy = h0->y;
+          }
+        } else if (h0->y < min_vy) {
+          min_vy = h0->y;
+          if (h0->y < last_min_vy) {
+            debug = True; last_min_vy = h0->y;
+          }
+        }
+	  } // Visible and something there
+
+      // Measure how far out the structure has spread - just for debugging
+	  if (h0->doing) {
         if (h0->x > max_x) {
           max_x = h0->x; debug = True;
         } else if (h0->x < min_x) {
@@ -462,6 +465,7 @@ static void tick_hexagons (ModeInfo *mi) {
           else if (h0->x == bp->grid_w - 1) dir |= 2;
           if (h0->y == 0) dir |= 4;
           else if (h0->y == bp->grid_h - 1) dir |= 1;
+		  // TODO - test if we can shift instead of expand
           printf("pos=%d,%d Expanding plane %d is_edge=%d is_visible=%d is_doing=%d\n", h0->x, h0->y, dir, is_edge, is_visible, h0->doing);
           break;
         }
