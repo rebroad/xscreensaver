@@ -149,11 +149,7 @@ static char **merged_defaults;
 static void merge_options (void) {
   struct xscreensaver_function_table *ft = xscreensaver_function_table;
 
-#ifdef USE_SDL
-  const SDLOptionDescRec *options = ft->options;
-#else
   const XrmOptionDescRec *options = ft->options;
-#endif
   const char * const *defaults    = ft->defaults;
   const char *progclass           = ft->progclass;
 
