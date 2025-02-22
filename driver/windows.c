@@ -558,10 +558,8 @@ void blank_screen (saver_info *si) {
     free (current_windows);
 
     if (!p->verbose_p) ;
-    else if (user_active_p)
-      fprintf (stderr, "%s: fading aborted\n", blurb());
-    else
-      fprintf (stderr, "%s: fading done\n", blurb());
+    else if (user_active_p) fprintf (stderr, "%s: fading aborted\n", blurb());
+    else fprintf (stderr, "%s: fading done\n", blurb());
   }
 
   raise_windows (si);
