@@ -64,8 +64,6 @@ struct hexagon {
   GLfloat border_ratio;
   Bool empty;
   Bool doing;
-  Bool ignorea;
-  Bool ignoreb;
 };
 
 typedef struct {
@@ -202,8 +200,6 @@ static void make_plane (ModeInfo *mi) {
       h0->border_ratio = 0;
 	  h0->empty = True;
       h0->doing = False;
-      h0->ignorea = False;
-      h0->ignoreb = False;
 
 
       h0->ccolor = random() % bp->ncolors;
@@ -276,7 +272,7 @@ static int add_arms (ModeInfo *mi, hexagon *h0, Bool out_p) {
 }
 
 /* Check if a point is within the visible frustum */
-static Bool point_visible(hexagon *h0) {
+static Bool point_invis(hexagon *h0) {
   XYZ point = h0->pos;
   GLdouble model[16], proj[16];
   GLint viewport[4];
@@ -296,7 +292,7 @@ static Bool point_visible(hexagon *h0) {
           winY >= viewport[1] && winY <= viewport[1] + viewport[3] &&
           winZ > 0 && winZ < 1);
 
-  return is_visible;
+  return !is_visible;
 }
 
 static void expand_plane(ModeInfo *mi, int direction) {
@@ -351,8 +347,6 @@ static void expand_plane(ModeInfo *mi, int direction) {
     h0->border_ratio = 0;
 	h0->empty = True;
     h0->doing = False;
-    h0->ignorea = False;
-    h0->ignoreb = False;
     h0->ccolor = random() % bp->ncolors;
     /*for (int i = 0; i < 6; i++) {
       h0->arms[i].state = EMPTY;
@@ -380,7 +374,7 @@ static void reset_hextrail(ModeInfo *mi) {
 
 static void tick_hexagons (ModeInfo *mi) {
   hextrail_configuration *bp = &bps[MI_SCREEN(mi)];
-  int i, j, doinga = 0, doingb = 0, ignoreb = 0; // TODO ignorea?
+  int i, j, doinga = 0, doingb = 0, ignorea = 0, ignoreb = 0;
   int8_t dir = 0;
   static int max_x = 0, max_y = 0, min_x = INT_MAX, min_y = INT_MAX;
   static int last_min_vx = 0, last_min_vy = 0, last_max_vx = 0, last_max_vy = 0;
@@ -391,11 +385,23 @@ static void tick_hexagons (ModeInfo *mi) {
       hexagon *h0 = &bp->hexagons[i];
       Bool is_edge = (h0->x == 0 || h0->x == bp->grid_w - 1 ||
                      h0->y == 0 || h0->y == bp->grid_h - 1 );
-      Bool is_visible = point_visible(h0);
+      Bool invis = point_invis(h0);
       Bool debug = False;
 
+      h0->invis = invis;
+
+	  if (h0->doing) {
+        doinga++;
+		if (invis) ignorea++;
+	  }
+
+	  if (h0->border != EMPTY) {
+        doingb++;
+        if (invis) ignoreb++;
+	  }
+
 	  // Measure the drawn part we can see
-	  if (is_visible && (h0->border_state != EMPTY || !h0->empty)) {
+	  if (!invis && (h0->border_state != EMPTY || !h0->empty)) {
         if (h0->x > max_vx) {
           max_vx = h0->x;
           if (h0->x > last_max_vx) {
@@ -436,29 +442,22 @@ static void tick_hexagons (ModeInfo *mi) {
 
 	  if (h0->doing) {
         /* Update activity state based on visibility */
-		doing++;
-        if (is_visible) {
-          vdoing++;
-          h0->ignorea = False; // TODO still needed?
-		} else
-          h0->ignorea = True;
-
-        if (is_edge && is_visible) {
+        if (is_edge && !invis) {
           // 1=vmax++, 2=hmax++, 4=vmin--, 8=hmin--
           if (h0->x == 0) dir |= 8;
           else if (h0->x == bp->grid_w - 1) dir |= 2;
           if (h0->y == 0) dir |= 4;
           else if (h0->y == bp->grid_h - 1) dir |= 1;
 		  // TODO - test if we can shift instead of expand
-          printf("pos=%d,%d Expanding plane %d edge=%d visible=%d arms=%d border=%d\n", h0->x, h0->y, dir, is_edge, is_visible, h0->doinga, h0->border_state != EMPTY);
+          printf("pos=%d,%d Expanding plane %d edge=%d visible=%d arms=%d border=%d\n", h0->x, h0->y, dir, is_edge, !invis, h0->doing, h0->border_state != EMPTY);
           break;
         }
 	  } // h0->doing
 
       if (debug)
-        printf("pos=%d,%d vis=(%d-%d,%d-%d) (%d-%d,%d-%d) is_edge=%d, is_visible=%d\n",
+        printf("pos=%d,%d vis=(%d-%d,%d-%d) (%d-%d,%d-%d) edge=%d, visible=%d\n",
                 h0->x, h0->y, last_min_vx, last_max_vx, last_min_vy, last_max_vy,
-                min_x, max_x, min_y, max_y, is_edge, is_visible);
+                min_x, max_x, min_y, max_y, is_edge, !invis);
       // TODO use above values to work out if we can shift instead of expand plane
 
     } // For all hexagons
@@ -478,7 +477,7 @@ static void tick_hexagons (ModeInfo *mi) {
     Bool is_edge = (h0->x == 0 || h0->x == bp->grid_w - 1 ||
                    h0->y == 0 || h0->y == bp->grid_h - 1 );
 
-    if (is_edge && h0->ignorea) continue; // TODO - rename to invis?
+    if (is_edge && h0->invis) continue;
 
     /* Enlarge any still-growing arms if active.  */
     for (j = 0; j < 6; j++) {
@@ -573,11 +572,11 @@ static void tick_hexagons (ModeInfo *mi) {
                 min_x, max_x, min_y, max_y);
       } else {
         try_new = True;
-        x = random() % bp->grid_w;
+        x = random() % bp->grid_w; // TODO - don't use random?
         y = random() % bp->grid_h;
       }
       h0 = &bp->hexagons[y * bp->grid_w + x];
-      if (h0->empty && point_visible(h0) && add_arms(mi, h0, True)) {
+      if (h0->empty && !h0->invis && add_arms(mi, h0, True)) {
         started = True;
         break;
       }
