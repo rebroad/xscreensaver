@@ -199,7 +199,7 @@ static void make_plane (ModeInfo *mi) {
       h0->pos.z = 0;
       h0->border_state = EMPTY;
       h0->border_ratio = 0;
-	  h0->empty = True;
+      h0->empty = True;
       h0->doing = 0;
 
       h0->ccolor = random() % bp->ncolors;
@@ -249,7 +249,7 @@ static int add_arms (ModeInfo *mi, hexagon *h0) {
     if (h1->border_state == EMPTY) {
       h1->doing = -1;
       h1->border_state = IN;
-	  h1->empty = False; h0->empty = False;
+      h1->empty = False; h0->empty = False;
 
       /* Mostly keep the same color */
       h1->ccolor = h0->ccolor;
@@ -299,7 +299,6 @@ static void expand_plane(ModeInfo *mi, int direction) {
   /* Increase grid size */
   if (direction & 8 || direction & 2) new_grid_w += expansion;
   if (direction & 4 || direction & 1) new_grid_h += expansion;
-
   /* Calculate copy offsets */
   int x_offset = (direction & 8) ? expansion : 0;
   int y_offset = (direction & 4) ? expansion : 0;
@@ -307,9 +306,9 @@ static void expand_plane(ModeInfo *mi, int direction) {
 
   printf("Expanding plane: before = %d-%d,%d-%d after = %d-%d,%d=%d\n",
           x_offset - bp->x_offset, y_offset - bp->y_offset,
-		  x_offset - bp->x_offset + bp->grid_w, y_offset - bp->y_offset + bp->grid_h,
-		  -bp->x_offset, -bp->y_offset,
-		  new_grid_w - bp->x_offset, new_grid_h - bp->y_offset);
+          x_offset - bp->x_offset + bp->grid_w, y_offset - bp->y_offset + bp->grid_h,
+          -bp->x_offset, -bp->y_offset,
+          new_grid_w - bp->x_offset, new_grid_h - bp->y_offset);
 
   /* Allocate new grid */
   hexagon *new_hexagons = (hexagon *)calloc(new_grid_w * new_grid_h, sizeof(hexagon));
@@ -317,6 +316,7 @@ static void expand_plane(ModeInfo *mi, int direction) {
     fprintf(stderr, "Failed to allocate memory for expanded grid\n");
     return;
   }
+
 
   /* Copy existing hexagons with position adjustment */
   for (y = 0; y < old_grid_h; y++) for (x = 0; x < old_grid_w; x++) {
@@ -329,20 +329,20 @@ static void expand_plane(ModeInfo *mi, int direction) {
 
   for (y = 0; y < new_grid_h; y++) for (x = 0; x < new_grid_w; x++) {
     hexagon *h0 = &new_hexagons[y * new_grid_w + x];
+    h0->x = x; h0->y = y; // These have changed now
 
     /* Skip existing hexagons */
     if (x >= x_offset && x < old_grid_w + x_offset &&
         y >= y_offset && y < old_grid_h + y_offset)
       continue;
 
-	h0->x = x - x_offset; h0->y = y - y_offset;
     h0->pos.x = (x - new_grid_w/2) * w;
     if (y & 1) h0->pos.x += w / 2;
     h0->pos.y = (y - new_grid_h/2) * h;
     h0->pos.z = 0;
     h0->border_state = EMPTY;
     h0->border_ratio = 0;
-	h0->empty = True;
+    h0->empty = True;
     h0->doing = 0;
     h0->ccolor = random() % bp->ncolors;
     /*for (int i = 0; i < 6; i++) {
@@ -385,8 +385,8 @@ static void tick_hexagons (ModeInfo *mi) {
 
       h0->invis = invis;
 
-	  // Measure the drawn part we can see
-	  if (!invis && !h0->empty) {
+      // Measure the drawn part we can see
+      if (!invis && !h0->empty) {
         if (h0->x > max_vx) {
           max_vx = h0->x;
           if (h0->x > last_max_vx) {
@@ -409,11 +409,11 @@ static void tick_hexagons (ModeInfo *mi) {
             debug = True; last_min_vy = h0->y;
           }
         }
-	  } // Visible and non-empty
+      } // Visible and non-empty
 
       // Try to debug why expansion not working
-	  if (!h0->empty) {
-		int posx = (int)(h0->pos.x * 1000); int posy = (int)(h0->pos.y * 1000);
+      if (!h0->empty) {
+        int posx = (int)(h0->pos.x * 1000); int posy = (int)(h0->pos.y * 1000);
         if (posx > max_x) {
           max_x = posx; debug = True;
         } else if (posx < min_x) {
@@ -424,15 +424,14 @@ static void tick_hexagons (ModeInfo *mi) {
         } else if (posy < min_y) {
           min_y = posy; debug = True;
         }
-	  }
+      }
 
-	  if (h0->doing && !invis) {
+      if (h0->doing && !invis) {
         // 1=vmax++, 2=hmax++, 4=vmin--, 8=hmin--
-	    int adj_x = h0->x + bp->x_offset, adj_y = h0->y + bp->y_offset;
-        if (adj_x == 0) dir |= 8;
-        else if (adj_x == bp->grid_w - 1) dir |= 2;
-        if (adj_y == 0) dir |= 4;
-        else if (adj_y == bp->grid_h - 1) dir |= 1;
+        if (h0->x == 0) dir |= 8;
+        else if (h0->x == bp->grid_w - 1) dir |= 2;
+        if (h0->y == 0) dir |= 4;
+        else if (h0->y == bp->grid_h - 1) dir |= 1;
         // TODO - test if we can shift instead of expand
         //printf("pos=%d,%d Expanding plane %d edge=%d visible=%d arms=%d border=%d\n", h0->x, h0->y, dir, is_edge, !invis, h0->doing, h0->border_state != EMPTY);
         break;
@@ -440,12 +439,13 @@ static void tick_hexagons (ModeInfo *mi) {
 
       if (debug)
         printf("pos=%d,%d vis=(%d-%d,%d-%d) (%d-%d,%d-%d) arms=%d border=%d edge=%d, visible=%d\n",
-                h0->x, h0->y, last_min_vx, last_max_vx, last_min_vy, last_max_vy,
+                h0->x - bp->x_offset, h0->y - bp->y_offset,
+                last_min_vx - bp->x_offset, last_max_vx - bp->x_offset,
+                last_min_vy - bp->y_offset, last_max_vy - bp->y_offset,
                 min_x, max_x, min_y, max_y, h0->doing, h0->border_state != EMPTY, dir, !invis);
       // TODO use above values to work out if we can shift instead of expand plane
 
     } // For all hexagons
-
     last_min_vx = min_vx; last_max_vx = max_vx; last_min_vy = min_vy; last_max_vy = max_vy;
 
     if (dir) expand_plane(mi, dir);
@@ -454,9 +454,8 @@ static void tick_hexagons (ModeInfo *mi) {
   for (i = 0; i < bp->grid_w * bp->grid_h; i++) {
     hexagon *h0 = &bp->hexagons[i];
 
-	int adj_x = h0->x + bp->x_offset, adj_y = h0->y + bp->y_offset;
-    Bool is_edge = (adj_x == 0 || adj_x == bp->grid_w - 1 ||
-                   adj_y == 0 || adj_y == bp->grid_h - 1 );
+    Bool is_edge = (h0->x == 0 || h0->x == bp->grid_w - 1 ||
+                   h0->y == 0 || h0->y == bp->grid_h - 1 );
 
     if (h0->doing) {
       doinga++;
@@ -503,9 +502,9 @@ static void tick_hexagons (ModeInfo *mi) {
             /* Just finished growing from edge to center.
                Look for any available exits. */
             a0->state = DONE;
-			//hexagon *h1 = h0->neighbors[(j + 3) % 6];
-			hexagon *h1 = h0->neighbors[j];
-			h1->doing--;
+            //hexagon *h1 = h0->neighbors[(j + 3) % 6];
+            hexagon *h1 = h0->neighbors[j];
+            h1->doing--;
             a0->ratio = 1;
             add_arms(mi, h0);
           }
