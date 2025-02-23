@@ -229,7 +229,6 @@ static int add_arms (ModeInfo *mi, hexagon *h0) {
     int j = idx[i];
     hexagon *h1 = h0->neighbors[j];
     arm *a0 = &h0->arms[j];
-    arm *a1;
     if (!h1) {
       //printf("pos=%d,%d No neighbour on arm %d\n", h0->x, h0->y, j);
       continue;			/* No neighboring cell */
@@ -237,7 +236,7 @@ static int add_arms (ModeInfo *mi, hexagon *h0) {
     if (!h1->empty) continue;	/* Occupado */
     if (a0->state != EMPTY) continue;		/* Arm already exists */
 
-    a1 = &h1->arms[(j + 3) % 6];		/* Opposite arm */
+    arm *a1 = &h1->arms[(j + 3) % 6];		/* Opposite arm */
 
     if (a1->state != EMPTY) abort();
     a0->state = OUT;
@@ -279,8 +278,7 @@ static Bool point_invis(hexagon *h0) {
 
   /* Project point to screen coordinates */
   gluProject((GLdouble)point.x, (GLdouble)point.y, (GLdouble)point.z,
-             model, proj, viewport,
-             &winX, &winY, &winZ);
+             model, proj, viewport, &winX, &winY, &winZ);
 
   Bool is_visible = (winX >= viewport[0] && winX <= viewport[0] + viewport[2] &&
           winY >= viewport[1] && winY <= viewport[1] + viewport[3] &&
@@ -337,11 +335,11 @@ static void expand_plane(ModeInfo *mi, int direction) {
         y >= y_offset && y < old_grid_h + y_offset)
       continue;
 
-    h0->pos.x = (x - new_grid_w/2) * w;
-    h0->pos.y = (y - new_grid_h/2) * h;
-    if (y & 1) h0->pos.x += w / 2;
-    h0->pos.z = 0;
 	h0->x = x - x_offset; h0->y = y - y_offset;
+    h0->pos.x = (x - new_grid_w/2) * w;
+    if (y & 1) h0->pos.x += w / 2;
+    h0->pos.y = (y - new_grid_h/2) * h;
+    h0->pos.z = 0;
     h0->border_state = EMPTY;
     h0->border_ratio = 0;
 	h0->empty = True;
@@ -382,15 +380,13 @@ static void tick_hexagons (ModeInfo *mi) {
   if (!bp->button_pressed) {
     for (i = 0; i < bp->grid_w * bp->grid_h; i++) {
       hexagon *h0 = &bp->hexagons[i];
-      Bool is_edge = (h0->x == 0 || h0->x == bp->grid_w - 1 ||
-                     h0->y == 0 || h0->y == bp->grid_h - 1 );
       Bool invis = point_invis(h0);
       Bool debug = False;
 
       h0->invis = invis;
 
 	  // Measure the drawn part we can see
-	  if (!invis && (h0->border_state != EMPTY || !h0->empty)) {
+	  if (!invis && !h0->empty) {
         if (h0->x > max_vx) {
           max_vx = h0->x;
           if (h0->x > last_max_vx) {
@@ -413,7 +409,7 @@ static void tick_hexagons (ModeInfo *mi) {
             debug = True; last_min_vy = h0->y;
           }
         }
-	  } // Visible and something there
+	  } // Visible and non-empty
 
       // Try to debug why expansion not working
 	  if (!h0->empty) {
@@ -430,12 +426,13 @@ static void tick_hexagons (ModeInfo *mi) {
         }
 	  }
 
-	  if (h0->doing && is_edge && !invis) {
+	  if (h0->doing && !invis) {
         // 1=vmax++, 2=hmax++, 4=vmin--, 8=hmin--
-        if (h0->x == 0) dir |= 8;
-        else if (h0->x == bp->grid_w - 1) dir |= 2;
-        if (h0->y == 0) dir |= 4;
-        else if (h0->y == bp->grid_h - 1) dir |= 1;
+	    int adj_x = h0->x + bp->x_offset, adj_y = h0->y + bp->y_offset;
+        if (adj_x == 0) dir |= 8;
+        else if (adj_x == bp->grid_w - 1) dir |= 2;
+        if (adj_y == 0) dir |= 4;
+        else if (adj_y == bp->grid_h - 1) dir |= 1;
         // TODO - test if we can shift instead of expand
         //printf("pos=%d,%d Expanding plane %d edge=%d visible=%d arms=%d border=%d\n", h0->x, h0->y, dir, is_edge, !invis, h0->doing, h0->border_state != EMPTY);
         break;
@@ -444,23 +441,22 @@ static void tick_hexagons (ModeInfo *mi) {
       if (debug)
         printf("pos=%d,%d vis=(%d-%d,%d-%d) (%d-%d,%d-%d) arms=%d border=%d edge=%d, visible=%d\n",
                 h0->x, h0->y, last_min_vx, last_max_vx, last_min_vy, last_max_vy,
-                min_x, max_x, min_y, max_y, h0->doing, h0->border_state != EMPTY, is_edge, !invis);
+                min_x, max_x, min_y, max_y, h0->doing, h0->border_state != EMPTY, dir, !invis);
       // TODO use above values to work out if we can shift instead of expand plane
 
     } // For all hexagons
-      //
+
     last_min_vx = min_vx; last_max_vx = max_vx; last_min_vy = min_vy; last_max_vy = max_vy;
 
-    if (dir > 0) {
-      expand_plane(mi, dir);
-    }
+    if (dir) expand_plane(mi, dir);
   } // Button never pressed
 
   for (i = 0; i < bp->grid_w * bp->grid_h; i++) {
     hexagon *h0 = &bp->hexagons[i];
 
-    Bool is_edge = (h0->x == 0 || h0->x == bp->grid_w - 1 ||
-                   h0->y == 0 || h0->y == bp->grid_h - 1 );
+	int adj_x = h0->x + bp->x_offset, adj_y = h0->y + bp->y_offset;
+    Bool is_edge = (adj_x == 0 || adj_x == bp->grid_w - 1 ||
+                   adj_y == 0 || adj_y == bp->grid_h - 1 );
 
     if (h0->doing) {
       doinga++;
