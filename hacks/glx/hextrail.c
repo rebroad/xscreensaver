@@ -292,6 +292,7 @@ static Bool point_invis(hexagon *h0) {
 static void expand_plane(ModeInfo *mi, int direction) {
   hextrail_configuration *bp = &bps[MI_SCREEN(mi)];
   if (bp->x_offset || bp->y_offset) return; // TODO - temp test
+  printf("Expanding plane - count=%ld - before grid = %dx%d\n", MI_COUNT(mi), bp->grid_w, bp->grid_h);
   int old_grid_w = bp->grid_w; int old_grid_h = bp->grid_h;
   int new_grid_w = old_grid_w; int new_grid_h = old_grid_h;
   hexagon *old_hexagons = bp->hexagons;
@@ -351,6 +352,7 @@ static void expand_plane(ModeInfo *mi, int direction) {
   }
 
   bp->grid_w = new_grid_w; bp->grid_h = new_grid_h;
+  printf("Expanding plane - after grid = %dx%d\n", bp->grid_w, bp->grid_h);
   bp->hexagons = new_hexagons;
   update_neighbors(mi);
   free(old_hexagons);
@@ -410,17 +412,18 @@ static void tick_hexagons (ModeInfo *mi) {
         }
 	  } // Visible and something there
 
-      // Measure how far out the structure has spread - just for debugging
+      // Try to debug why expansion not working
 	  if (!h0->empty) {
-        if (h0->x > max_x) {
-          max_x = h0->x; debug = True;
-        } else if (h0->x < min_x) {
-          min_x = h0->x; debug = True;
+		int posx = (int)(h0->pos.x * 1000); int posy = (int)(h0->pos.y * 1000);
+        if (posx > max_x) {
+          max_x = posx; debug = True;
+        } else if (posx < min_x) {
+          min_x = posx; debug = True;
         }
-        if (h0->y > max_y) {
-          max_y = h0->y; debug = True;
-        } else if (h0->y < min_y) {
-          min_y = h0->y; debug = True;
+        if (posy > max_y) {
+          max_y = posy; debug = True;
+        } else if (posy < min_y) {
+          min_y = posy; debug = True;
         }
 	  }
 
@@ -431,7 +434,7 @@ static void tick_hexagons (ModeInfo *mi) {
         if (h0->y == 0) dir |= 4;
         else if (h0->y == bp->grid_h - 1) dir |= 1;
         // TODO - test if we can shift instead of expand
-        printf("pos=%d,%d Expanding plane %d edge=%d visible=%d arms=%d border=%d\n", h0->x, h0->y, dir, is_edge, !invis, h0->doing, h0->border_state != EMPTY);
+        //printf("pos=%d,%d Expanding plane %d edge=%d visible=%d arms=%d border=%d\n", h0->x, h0->y, dir, is_edge, !invis, h0->doing, h0->border_state != EMPTY);
         break;
       }
 
@@ -446,9 +449,7 @@ static void tick_hexagons (ModeInfo *mi) {
     last_min_vx = min_vx; last_max_vx = max_vx; last_min_vy = min_vy; last_max_vy = max_vy;
 
     if (dir > 0) {
-      printf("Expanding plane - count=%ld - before grid = %dx%d\n", MI_COUNT(mi), bp->grid_w, bp->grid_h);
       expand_plane(mi, dir);
-      printf("Expanding plane - after grid = %dx%d\n", bp->grid_w, bp->grid_h);
     }
   } // Button never pressed
 
