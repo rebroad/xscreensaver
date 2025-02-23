@@ -292,7 +292,6 @@ static Bool point_invis(hexagon *h0) {
 static void expand_plane(ModeInfo *mi, int direction) {
   hextrail_configuration *bp = &bps[MI_SCREEN(mi)];
   //if (bp->x_offset || bp->y_offset) return; // TODO - temp test
-  printf("Expanding plane - count=%ld - before grid = %dx%d\n", MI_COUNT(mi), bp->grid_w, bp->grid_h);
   int old_grid_w = bp->grid_w; int old_grid_h = bp->grid_h;
   int new_grid_w = old_grid_w; int new_grid_h = old_grid_h;
   hexagon *old_hexagons = bp->hexagons;
@@ -303,17 +302,23 @@ static void expand_plane(ModeInfo *mi, int direction) {
   if (direction & 8 || direction & 2) new_grid_w += expansion;
   if (direction & 4 || direction & 1) new_grid_h += expansion;
 
+  /* Calculate copy offsets */
+  int x_offset = (direction & 8) ? expansion : 0;
+  int y_offset = (direction & 4) ? expansion : 0;
+  bp->x_offset += x_offset; bp->y_offset += y_offset;
+
+  printf("Expanding plane: before = %d-%d,%d-%d after = %d-%d,%d=%d\n",
+          x_offset - bp->x_offset, y_offset - bp->y_offset,
+		  x_offset - bp->x_offset + bp->grid_w, y_offset - bp->y_offset + bp->grid_h,
+		  -bp->x_offset, -bp->y_offset,
+		  new_grid_w - bp->x_offset, new_grid_h - bp->y_offset);
+
   /* Allocate new grid */
   hexagon *new_hexagons = (hexagon *)calloc(new_grid_w * new_grid_h, sizeof(hexagon));
   if (!new_hexagons) {
     fprintf(stderr, "Failed to allocate memory for expanded grid\n");
     return;
   }
-
-  /* Calculate copy offsets */
-  int x_offset = (direction & 8) ? expansion : 0;
-  int y_offset = (direction & 4) ? expansion : 0;
-  bp->x_offset += x_offset; bp->y_offset += y_offset;
 
   /* Copy existing hexagons with position adjustment */
   for (y = 0; y < old_grid_h; y++) for (x = 0; x < old_grid_w; x++) {
@@ -351,7 +356,6 @@ static void expand_plane(ModeInfo *mi, int direction) {
   }
 
   bp->grid_w = new_grid_w; bp->grid_h = new_grid_h;
-  printf("Expanding plane - after grid = %dx%d\n", bp->grid_w, bp->grid_h);
   bp->hexagons = new_hexagons;
   update_neighbors(mi);
   free(old_hexagons);
