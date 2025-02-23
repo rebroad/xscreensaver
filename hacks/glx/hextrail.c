@@ -322,7 +322,7 @@ static void expand_plane(ModeInfo *mi, int direction) {
   }
 
   /* Initialize new hexagons */
-  GLfloat w = 2.0 / new_grid_w; GLfloat h = w * sqrt(3) / 2;
+  GLfloat w = 1.0 / MI_COUNT(mi); GLfloat h = w * sqrt(3) / 2;
 
   for (y = 0; y < new_grid_h; y++) for (x = 0; x < new_grid_w; x++) {
     hexagon *h0 = &new_hexagons[y * new_grid_w + x];
