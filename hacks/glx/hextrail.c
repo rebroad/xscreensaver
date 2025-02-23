@@ -63,7 +63,8 @@ struct hexagon {
   state_t border_state;
   GLfloat border_ratio;
   Bool empty;
-  Bool doing;
+  int doing;
+  Bool invis;
 };
 
 typedef struct {
@@ -199,8 +200,7 @@ static void make_plane (ModeInfo *mi) {
       h0->border_state = EMPTY;
       h0->border_ratio = 0;
 	  h0->empty = True;
-      h0->doing = False;
-
+      h0->doing = 0;
 
       h0->ccolor = random() % bp->ncolors;
     }
@@ -210,17 +210,11 @@ static void make_plane (ModeInfo *mi) {
 }
 
 
-static Bool empty_hexagon_p (hexagon *h) {
-  for (int i = 0; i < 6; i++)
-    if (h->arms[i].state != EMPTY) return False;
-  return True;
-}
-
-static int add_arms (ModeInfo *mi, hexagon *h0, Bool out_p) {
+static int add_arms (ModeInfo *mi, hexagon *h0) {
   hextrail_configuration *bp = &bps[MI_SCREEN(mi)];
   int i;
   int added = 0;
-  int target = 1 + (random() % 4);	/* Aim for 1-5 arms */
+  int target = (random() % 4);
 
   int idx[6];				/* Traverse in random order */
   for (i = 0; i < 6; i++) idx[i] = i;
@@ -230,8 +224,6 @@ static int add_arms (ModeInfo *mi, hexagon *h0, Bool out_p) {
     idx[j] = idx[i];
     idx[i] = swap;
   }
-
-  if (out_p) target--;
 
   for (i = 0; i < 6; i++) {
     int j = idx[i];
@@ -248,7 +240,7 @@ static int add_arms (ModeInfo *mi, hexagon *h0, Bool out_p) {
     a1 = &h1->arms[(j + 3) % 6];		/* Opposite arm */
 
     if (a1->state != EMPTY) abort();
-    a0->state = (out_p ? OUT : IN);
+    a0->state = OUT;
     a1->state = WAIT;
     a0->ratio = 0;
     a1->ratio = 0;
@@ -256,7 +248,7 @@ static int add_arms (ModeInfo *mi, hexagon *h0, Bool out_p) {
     a1->speed = a0->speed;
 
     if (h1->border_state == EMPTY) {
-      h1->doinga = True;
+      h1->doing = 1;
       h1->border_state = IN;
 
       /* Mostly keep the same color */
@@ -267,6 +259,7 @@ static int add_arms (ModeInfo *mi, hexagon *h0, Bool out_p) {
     added++;
     if (added >= target) break;
   }
+  h0->doing = added;
 
   return added;
 }
@@ -346,7 +339,7 @@ static void expand_plane(ModeInfo *mi, int direction) {
     h0->border_state = EMPTY;
     h0->border_ratio = 0;
 	h0->empty = True;
-    h0->doing = False;
+    h0->doing = 0;
     h0->ccolor = random() % bp->ncolors;
     /*for (int i = 0; i < 6; i++) {
       h0->arms[i].state = EMPTY;
@@ -395,7 +388,7 @@ static void tick_hexagons (ModeInfo *mi) {
 		if (invis) ignorea++;
 	  }
 
-	  if (h0->border != EMPTY) {
+	  if (h0->border_state != EMPTY) {
         doingb++;
         if (invis) ignoreb++;
 	  }
@@ -489,7 +482,7 @@ static void tick_hexagons (ModeInfo *mi) {
             abort();
           }
           a0->ratio += a0->speed;
-          if (a0->ratio > 1) {
+          if (a0->ratio >= 1) {
             /* Just finished growing from center to edge.
                Pass the baton to this waiting neighbor. */
             hexagon *h1 = h0->neighbors[j];
@@ -508,12 +501,14 @@ static void tick_hexagons (ModeInfo *mi) {
         case IN:
           if (a0->speed <= 0) abort();
           a0->ratio += a0->speed;
-          if (a0->ratio > 1) {
+          if (a0->ratio >= 1) {
             /* Just finished growing from edge to center.
                Look for any available exits. */
             a0->state = DONE;
+			hexagon *h1 = h0->neighbors[(j + 3) % 6];
+			h1->doing--;
             a0->ratio = 1;
-            add_arms(mi, h0, True);
+            add_arms(mi, h0);
           }
           break;
         case EMPTY: case WAIT: case DONE:
@@ -537,8 +532,6 @@ static void tick_hexagons (ModeInfo *mi) {
         if (h0->border_ratio <= 0) {
           h0->border_ratio = 0;
           h0->border_state = EMPTY;
-		  h0->ignoreb = False;
-          h0->doing = False; // TODO - move this to arm out finish
         }
       case WAIT:
         if (! (random() % 50)) h0->border_state = OUT;
@@ -557,7 +550,7 @@ static void tick_hexagons (ModeInfo *mi) {
 
   /* Start a new cell growing.  */
   Bool try_new = False, started = False;
-  if ((bp->doing - ignorea) <= 0) {
+  if ((doinga - ignorea) <= 0) {
     for (i = 0; i < (bp->grid_w * bp->grid_h) / 3; i++) {
       hexagon *h0;
       int x, y;
@@ -576,17 +569,17 @@ static void tick_hexagons (ModeInfo *mi) {
         y = random() % bp->grid_h;
       }
       h0 = &bp->hexagons[y * bp->grid_w + x];
-      if (h0->empty && !h0->invis && add_arms(mi, h0, True)) {
+      if (h0->empty && !h0->invis && add_arms(mi, h0)) {
         started = True;
         break;
       }
     }
   }
 
-  if (try_new && (started || bp->doing != bp->ignored))
-    printf("New cell: started=%d doing=%d ignored=%d\n", started, bp->doing, bp->ignored);
+  if (try_new && (started || doinga != ignorea))
+    printf("New cell: started=%d doing=%d ignored=%d\n", started, doinga, ignorea);
 
-  if ((doingb - ignoredb) <= 0 && bp->state != FADE) {
+  if ((doinga - ignorea) <= 0 && (doingb - ignoreb) < 2 && bp->state != FADE) {
     if (doingb)
       printf("Fade started. doinga=%d doingb=%d\n", doinga, doingb);
     bp->state = FADE;
