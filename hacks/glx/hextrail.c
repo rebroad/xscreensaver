@@ -406,8 +406,13 @@ static void tick_hexagons (ModeInfo *mi) {
   int i, j, doinga = 0, doingb = 0, ignorea = 0, ignoreb = 0;
   int8_t dir = 0;
   static int max_x = 0, max_y = 0, min_x = 0, min_y = 0;
-  static int last_min_vx = 0, last_min_vy = 0, last_max_vx = 0, last_max_vy = 0;
+  static int last_min_vx = -1, last_min_vy = 0, last_max_vx = 0, last_max_vy = 0;
   int min_vx = bp->grid_w, min_vy = bp->grid_h, max_vx = 0, max_vy = 0;
+
+  if (last_min_vx == -1) {
+	last_min_vx = bp->grid_w; last_max_vx = 0;
+	last_min_vy = bp->grid_h; last_max_vy = 0;
+  }
 
   if (!bp->button_pressed) {
     for (i = 0; i < bp->grid_w * bp->grid_h; i++) {
@@ -416,19 +421,27 @@ static void tick_hexagons (ModeInfo *mi) {
 
       // Measure the drawn part we can see
       if (!h0->invis && !h0->empty) {
-        if (h0->x > max_vx) max_vx = h0->x;
-        else if (h0->x < min_vx) min_vx = h0->x;
-        if (h0->x > last_max_vx) {
-          debug = True; last_max_vx = h0->x;
-        } else if (h0->x < last_min_vx) {
+        if (h0->x > max_vx) {
+		  max_vx = h0->x;
+          if (h0->x > last_max_vx) {
+            debug = True; last_max_vx = h0->x;
+		  }
+		} else if (h0->x < min_vx) {
+		  min_vx = h0->x;
+          if (h0->x < last_min_vx) {
           debug = True; last_min_vx = h0->x;
-        }
-        if (h0->y > max_vy) max_vy = h0->y;
-        else if (h0->y < min_vy) min_vy = h0->y;
-        if (h0->y > last_max_vy) {
-          debug = True; last_max_vy = h0->y;
-        } else if (h0->y < last_min_vy) {
-          debug = True; last_min_vy = h0->y;
+          }
+		}
+        if (h0->y > max_vy) {
+	      max_vy = h0->y;
+          if (h0->y > last_max_vy) {
+            debug = True; last_max_vy = h0->y;
+		  }
+		} else if (h0->y < min_vy) {
+		  min_vy = h0->y;
+          if (h0->y < last_min_vy) {
+            debug = True; last_min_vy = h0->y;
+		  }
         }
       } // Visible and non-empty
 
@@ -569,7 +582,8 @@ static void tick_hexagons (ModeInfo *mi) {
         bp->state = DRAW;
         bp->fade_ratio = 1;
         max_x = 0; max_y = 0; min_x = 0; min_y = 0;
-        last_max_vx = 0; last_max_vy = 0; last_min_vx = bp->grid_w; last_min_vy = bp->grid_h;
+		last_min_vx = bp->grid_w; last_max_vx = 0;
+		last_min_vy = bp->grid_h; last_max_vy = 0;
         printf("New hextrail. vis=(%d-%d,%d-%d) (%d-%d,%d-%d)\n",
                 last_min_vx, last_max_vx, last_min_vy, last_max_vy,
                 min_x, max_x, min_y, max_y);
