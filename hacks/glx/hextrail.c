@@ -80,7 +80,6 @@ typedef struct {
   trackball_state *trackball;
   Bool button_down_p;
   Bool button_pressed;
-  Bool image_rotated;
   Bool bug_found;
 
   int grid_w, grid_h;
@@ -584,8 +583,6 @@ static void tick_hexagons (ModeInfo *mi) {
         printf("New hextrail. vis=(%d-%d,%d-%d) (%d-%d,%d-%d)\n",
                 last_min_vx, last_max_vx, last_min_vy, last_max_vy,
                 min_x, max_x, min_y, max_y);
-        if (bp->image_rotated) printf("Setting image_rotated to False\n");
-        bp->image_rotated = False;
       } else {
         try_new = True;
         x = random() % bp->grid_w; // TODO - don't use random?
@@ -1104,9 +1101,8 @@ ENTRYPOINT void draw_hextrail (ModeInfo *mi) {
   glPushMatrix ();
 
   {
-    double x, y, z, old_x, old_y, old_z;
+    double x, y, z;
     get_position (bp->rot, &x, &y, &z, !bp->bug_found);
-	old_x = x; old_y = y; old_z = z;
     glTranslatef((x - 0.5) * 6,
                  (y - 0.5) * 6,
                  (z - 0.5) * 12);
@@ -1114,11 +1110,6 @@ ENTRYPOINT void draw_hextrail (ModeInfo *mi) {
     gltrackball_rotate (bp->trackball);
 
     get_rotation (bp->rot, &x, &y, &z, !bp->bug_found);
-	if (!bp->image_rotated && (old_x != x || old_y != y || old_z != z)) {
-	  printf("Rotation occurred!\n");
-	  usleep(3000000);
-	  bp->image_rotated = True;
-	}
     glRotatef (z * 360, 0.0, 0.0, 1.0);
   }
 
