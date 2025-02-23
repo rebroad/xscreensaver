@@ -317,7 +317,6 @@ static void expand_plane(ModeInfo *mi, int direction) {
     return;
   }
 
-
   /* Copy existing hexagons with position adjustment */
   for (y = 0; y < old_grid_h; y++) for (x = 0; x < old_grid_w; x++) {
     hexagon *new_hex = &new_hexagons[(y + y_offset) * new_grid_w + (x + x_offset)];
@@ -356,6 +355,31 @@ static void expand_plane(ModeInfo *mi, int direction) {
   bp->grid_w = new_grid_w; bp->grid_h = new_grid_h;
   bp->hexagons = new_hexagons;
   update_neighbors(mi);
+
+  /* Sanity check */
+  int start_x = bp->grid_w / 2 - 1;
+  int start_y = bp->grid_h / 2 - 1;
+  if (direction & 1) start_y = bp->grid_h - 3;
+  if (direction & 2) start_x = bp->grid_w - 3;
+  if (direction & 4) start_y = 0;
+  if (direction & 8) start_x = 0;
+
+  for (int y = start_y; y < start_y + 3; y++) {
+    for (int x = start_x; x < start_x + 3; x++) {
+      hexagon *h0 = &bp->hexagons[y * bp->grid_w + x];
+      for (int j = 0; j < 6; j++) {
+        if (h0->arms[j].state != EMPTY && h0->neighbors[j]) {
+          hexagon *h1 = h0->neighbors[j];
+          arm *a1 = &h1->arms[(j + 3) % 6];
+          if (h0->arms[j].state == OUT && a1->state != WAIT) {
+            printf("Arm mismatch at (%d,%d) arm %d: state=%d, neighbor (%d,%d) state=%d\n",
+                   h0->x, h0->y, j, h0->arms[j].state, h1->x, h1->y, a1->state);
+          }
+        }
+      }
+    }
+  }
+
   free(old_hexagons);
 }
 
