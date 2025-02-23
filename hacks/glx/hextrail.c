@@ -291,12 +291,12 @@ static Bool point_invis(hexagon *h0) {
 
 static void expand_plane(ModeInfo *mi, int direction) {
   hextrail_configuration *bp = &bps[MI_SCREEN(mi)];
-  if (bp->x_offset || bp->y_offset) return; // TODO - temp test
+  //if (bp->x_offset || bp->y_offset) return; // TODO - temp test
   printf("Expanding plane - count=%ld - before grid = %dx%d\n", MI_COUNT(mi), bp->grid_w, bp->grid_h);
   int old_grid_w = bp->grid_w; int old_grid_h = bp->grid_h;
   int new_grid_w = old_grid_w; int new_grid_h = old_grid_h;
   hexagon *old_hexagons = bp->hexagons;
-  const int expansion = 2;
+  const int expansion = 1;
   int x, y;
 
   /* Increase grid size */
@@ -326,18 +326,17 @@ static void expand_plane(ModeInfo *mi, int direction) {
 
   for (y = 0; y < new_grid_h; y++) for (x = 0; x < new_grid_w; x++) {
     hexagon *h0 = &new_hexagons[y * new_grid_w + x];
-    h0->x = x; h0->y = y; // These have changed now
 
     /* Skip existing hexagons */
     if (x >= x_offset && x < old_grid_w + x_offset &&
         y >= y_offset && y < old_grid_h + y_offset)
       continue;
 
-    // TODO 2 lines below might be wrong...
     h0->pos.x = (x - new_grid_w/2) * w;
-    if (y & 1) h0->pos.x += w / 2;
     h0->pos.y = (y - new_grid_h/2) * h;
+    if (y & 1) h0->pos.x += w / 2;
     h0->pos.z = 0;
+	h0->x = x - x_offset; h0->y = y - y_offset;
     h0->border_state = EMPTY;
     h0->border_ratio = 0;
 	h0->empty = True;
@@ -372,9 +371,9 @@ static void tick_hexagons (ModeInfo *mi) {
   hextrail_configuration *bp = &bps[MI_SCREEN(mi)];
   int i, j, doinga = 0, doingb = 0, ignorea = 0, ignoreb = 0;
   int8_t dir = 0;
-  static int max_x = 0, max_y = 0, min_x = INT_MAX, min_y = INT_MAX;
+  static int max_x = 0, max_y = 0, min_x = 0, min_y = 0;
   static int last_min_vx = 0, last_min_vy = 0, last_max_vx = 0, last_max_vy = 0;
-  int min_vx = INT_MAX, min_vy = INT_MAX, max_vx = 0, max_vy = 0;
+  int min_vx = bp->grid_w, min_vy = bp->grid_h, max_vx = 0, max_vy = 0;
 
   if (!bp->button_pressed) {
     for (i = 0; i < bp->grid_w * bp->grid_h; i++) {
@@ -440,9 +439,7 @@ static void tick_hexagons (ModeInfo *mi) {
 
       if (debug)
         printf("pos=%d,%d vis=(%d-%d,%d-%d) (%d-%d,%d-%d) arms=%d border=%d edge=%d, visible=%d\n",
-                h0->x - bp->x_offset, h0->y - bp->y_offset,
-				last_min_vx - bp->x_offset, last_max_vx - bp->x_offset,
-				last_min_vy - bp->y_offset, last_max_vy - bp->y_offset,
+                h0->x, h0->y, last_min_vx, last_max_vx, last_min_vy, last_max_vy,
                 min_x, max_x, min_y, max_y, h0->doing, h0->border_state != EMPTY, is_edge, !invis);
       // TODO use above values to work out if we can shift instead of expand plane
 
@@ -560,8 +557,8 @@ static void tick_hexagons (ModeInfo *mi) {
         x = bp->grid_w / 2; y = bp->grid_h / 2;
         bp->state = DRAW;
         bp->fade_ratio = 1;
-        max_x = 0; max_y = 0; min_x = bp->grid_w; min_y = bp->grid_h;
-        last_max_vx = 0; last_max_vy = 0; last_min_vx = min_x; last_min_vy = min_y;
+        max_x = 0; max_y = 0; min_x = 0; min_y = 0;
+        last_max_vx = 0; last_max_vy = 0; last_min_vx = bp->grid_w; last_min_vy = bp->grid_h;
         printf("New hextrail. vis=(%d-%d,%d-%d) (%d-%d,%d-%d)\n",
                 last_min_vx, last_max_vx, last_min_vy, last_max_vy,
                 min_x, max_x, min_y, max_y);
