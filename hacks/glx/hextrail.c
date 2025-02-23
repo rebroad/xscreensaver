@@ -214,7 +214,7 @@ static int add_arms (ModeInfo *mi, hexagon *h0) {
   hextrail_configuration *bp = &bps[MI_SCREEN(mi)];
   int i;
   int added = 0;
-  int target = (random() % 4);
+  int target = 1 + (random() % 5);
 
   int idx[6];				/* Traverse in random order */
   for (i = 0; i < 6; i++) idx[i] = i;
@@ -238,7 +238,11 @@ static int add_arms (ModeInfo *mi, hexagon *h0) {
 
     arm *a1 = &h1->arms[(j + 3) % 6];		/* Opposite arm */
 
-    if (a1->state != EMPTY) abort();
+    if (a1->state != EMPTY) {
+	  printf("H1 (%d,%d) empty=%d arm[%d].state=%d\n",
+			 h1->x, h1->y, h1->empty, (j+3)%6, a1->state);
+	  abort();
+	}
     a0->state = OUT;
     a1->state = WAIT;
     a0->ratio = 0;
