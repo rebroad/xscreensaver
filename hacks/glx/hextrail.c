@@ -416,44 +416,21 @@ static void tick_hexagons (ModeInfo *mi) {
 
       // Measure the drawn part we can see
       if (!h0->invis && !h0->empty) {
-        if (h0->x > max_vx) {
-          max_vx = h0->x;
-          if (h0->x > last_max_vx) {
-            debug = True; last_max_vx = h0->x;
-          }
-        } else if (h0->x < min_vx) {
-          min_vx = h0->x;
-          if (h0->x < last_min_vx) {
-            debug = True; last_min_vx = h0->x;
-          }
+        if (h0->x > max_vx) max_vx = h0->x;
+        else if (h0->x < min_vx) min_vx = h0->x;
+        if (h0->x > last_max_vx) {
+          debug = True; last_max_vx = h0->x;
+        } else if (h0->x < last_min_vx) {
+          debug = True; last_min_vx = h0->x;
         }
-        if (h0->y > max_vy) {
-          max_vy = h0->y;
-          if (h0->y > last_max_vy) {
-            debug = True; last_max_vy = h0->y;
-          }
-        } else if (h0->y < min_vy) {
-          min_vy = h0->y;
-          if (h0->y < last_min_vy) {
-            debug = True; last_min_vy = h0->y;
-          }
+        if (h0->y > max_vy) max_vy = h0->y;
+        else if (h0->y < min_vy) min_vy = h0->y;
+        if (h0->y > last_max_vy) {
+          debug = True; last_max_vy = h0->y;
+        } else if (h0->y < last_min_vy) {
+          debug = True; last_min_vy = h0->y;
         }
       } // Visible and non-empty
-
-      // Try to debug why expansion not working
-      if (!h0->empty) {
-        int posx = (int)(h0->pos.x * 1000); int posy = (int)(h0->pos.y * 1000);
-        if (posx > max_x) {
-          max_x = posx; debug = True;
-        } else if (posx < min_x) {
-          min_x = posx; debug = True;
-        }
-        if (posy > max_y) {
-          max_y = posy; debug = True;
-        } else if (posy < min_y) {
-          min_y = posy; debug = True;
-        }
-      }
 
       if (h0->doing && !h0->invis) {
         // 1=vmax++, 2=hmax++, 4=vmin--, 8=hmin--
@@ -467,11 +444,11 @@ static void tick_hexagons (ModeInfo *mi) {
       }
 
       if (debug)
-        printf("pos=%d,%d vis=(%d-%d,%d-%d) (%d-%d,%d-%d) arms=%d border=%d edge=%d, visible=%d\n",
+        printf("pos=%d,%d vis=(%d-%d,%d-%d) arms=%d border=%d edge=%d, visible=%d\n",
                 h0->x - bp->x_offset, h0->y - bp->y_offset,
                 last_min_vx - bp->x_offset, last_max_vx - bp->x_offset,
                 last_min_vy - bp->y_offset, last_max_vy - bp->y_offset,
-                min_x, max_x, min_y, max_y, h0->doing, h0->border_state != EMPTY, dir, !h0->invis);
+                h0->doing, h0->border_state != EMPTY, dir, !h0->invis);
       // TODO use above values to work out if we can shift instead of expand plane
 
     } // For all hexagons
