@@ -80,6 +80,7 @@ typedef struct {
   trackball_state *trackball;
   Bool button_down_p;
   Bool button_pressed;
+  Bool image_rotated;
   Bool bug_found;
 
   int grid_w, grid_h;
@@ -171,7 +172,10 @@ static void make_plane (ModeInfo *mi) {
   bp->x_offset = 0; bp->y_offset = 0;
   if (bp->button_pressed)
     printf("Setting button_pressed to False\n");
+  if (bp->image_rotated)
+    printf("Setting image_rotated to False\n");
   bp->button_pressed = False;
+  bp->image_rotated = False;
   if (!bp->colors) {
 #ifdef USE_SDL
     bp->colors = (SDL_Color *) calloc(bp->ncolors, sizeof(SDL_Color));
@@ -1109,15 +1113,21 @@ ENTRYPOINT void draw_hextrail (ModeInfo *mi) {
   glPushMatrix ();
 
   {
-    double x, y, z;
-    get_position (bp->rot, &x, &y, &z, !bp->button_down_p && !bp->bug_found);
+    double x, y, z, old_x, old_y, old_z;
+    get_position (bp->rot, &x, &y, &z, !bp->bug_found);
+	old_x = x; old_y = y; old_z = z;
     glTranslatef((x - 0.5) * 6,
                  (y - 0.5) * 6,
                  (z - 0.5) * 12);
 
     gltrackball_rotate (bp->trackball);
 
-    get_rotation (bp->rot, &x, &y, &z, !bp->button_down_p && !bp->bug_found);
+    get_rotation (bp->rot, &x, &y, &z, !bp->bug_found);
+	if (!bp->image_rotated && (old_x != x || old_y != y || old_z != z)) {
+	  printf("Rotation occurred!\n");
+	  usleep(3000000);
+	  bp->image_rotated = True;
+	}
     glRotatef (z * 360, 0.0, 0.0, 1.0);
   }
 
@@ -1130,8 +1140,8 @@ ENTRYPOINT void draw_hextrail (ModeInfo *mi) {
 
   if (!bp->button_down_p && !bp->bug_found) tick_hexagons (mi);
   else if (bp->button_down_p) {
-      if (!bp->button_pressed) printf("Button pressed\n");
-      bp->button_pressed = True;
+    if (!bp->button_pressed) printf("Button pressed\n");
+    bp->button_pressed = True;
   }
   draw_hexagons (mi);
 
