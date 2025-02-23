@@ -284,6 +284,10 @@ static Bool point_invis(hexagon *h0) {
           winY >= viewport[1] && winY <= viewport[1] + viewport[3] &&
           winZ > 0 && winZ < 1);
 
+  if (!h0->empty && h0->invis == is_visible && is_visible)
+    printf("Visibility flip at (%d,%d): win=(%.1f, %.1f, %.1f), viewport=(%d,%d,%d,%d)\n",
+             h0->x, h0->y, winX, winY, winZ, viewport[0], viewport[1], viewport[2], viewport[3]);
+
   return !is_visible;
 }
 
