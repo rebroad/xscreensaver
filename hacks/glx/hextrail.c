@@ -248,8 +248,9 @@ static int add_arms (ModeInfo *mi, hexagon *h0) {
     a1->speed = a0->speed;
 
     if (h1->border_state == EMPTY) {
-      h1->doing = 1;
+      h1->doing = -1;
       h1->border_state = IN;
+	  h1->empty = False; h0->empty = False;
 
       /* Mostly keep the same color */
       h1->ccolor = h0->ccolor;
@@ -435,9 +436,9 @@ static void tick_hexagons (ModeInfo *mi) {
       }
 
       if (debug)
-        printf("pos=%d,%d vis=(%d-%d,%d-%d) (%d-%d,%d-%d) edge=%d, visible=%d\n",
+        printf("pos=%d,%d vis=(%d-%d,%d-%d) (%d-%d,%d-%d) arms=%d border=%d edge=%d, visible=%d\n",
                 h0->x, h0->y, last_min_vx, last_max_vx, last_min_vy, last_max_vy,
-                min_x, max_x, min_y, max_y, is_edge, !invis);
+                min_x, max_x, min_y, max_y, h0->doing, h0->border_state != EMPTY, is_edge, !invis);
       // TODO use above values to work out if we can shift instead of expand plane
 
     } // For all hexagons
@@ -502,7 +503,8 @@ static void tick_hexagons (ModeInfo *mi) {
             /* Just finished growing from edge to center.
                Look for any available exits. */
             a0->state = DONE;
-			hexagon *h1 = h0->neighbors[(j + 3) % 6];
+			//hexagon *h1 = h0->neighbors[(j + 3) % 6];
+			hexagon *h1 = h0->neighbors[j];
 			h1->doing--;
             a0->ratio = 1;
             add_arms(mi, h0);
@@ -570,13 +572,13 @@ static void tick_hexagons (ModeInfo *mi) {
         started = True;
         break;
       }
-    }
+    } // Look for a suitable cell
   }
 
   if (try_new && (started || doinga != ignorea))
     printf("New cell: started=%d doing=%d ignored=%d\n", started, doinga, ignorea);
 
-  if ((doinga - ignorea) <= 0 && (doingb - ignoreb) < 2 && bp->state != FADE) {
+  if (!started && (doinga - ignorea) <= 0 && (doingb - ignoreb) < 2 && bp->state != FADE) {
     printf("Fade started. doinga=%d doingb=%d\n", doinga, doingb);
     bp->state = FADE;
     bp->fade_ratio = 1;
