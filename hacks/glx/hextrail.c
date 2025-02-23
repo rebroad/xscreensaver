@@ -334,9 +334,9 @@ static void expand_plane(ModeInfo *mi, int direction) {
       continue;
 
     // TODO 2 lines below might be wrong...
-    h0->pos.x = (x - (new_grid_w + bp->x_offset)/2) * w;
+    h0->pos.x = (x - new_grid_w/2) * w;
     if (y & 1) h0->pos.x += w / 2;
-    h0->pos.y = (y - (new_grid_h + bp->y_offset)/2) * h;
+    h0->pos.y = (y - new_grid_h/2) * h;
     h0->pos.z = 0;
     h0->border_state = EMPTY;
     h0->border_ratio = 0;
@@ -440,7 +440,9 @@ static void tick_hexagons (ModeInfo *mi) {
 
       if (debug)
         printf("pos=%d,%d vis=(%d-%d,%d-%d) (%d-%d,%d-%d) arms=%d border=%d edge=%d, visible=%d\n",
-                h0->x, h0->y, last_min_vx, last_max_vx, last_min_vy, last_max_vy,
+                h0->x - bp->x_offset, h0->y - bp->y_offset,
+				last_min_vx - bp->x_offset, last_max_vx - bp->x_offset,
+				last_min_vy - bp->y_offset, last_max_vy - bp->y_offset,
                 min_x, max_x, min_y, max_y, h0->doing, h0->border_state != EMPTY, is_edge, !invis);
       // TODO use above values to work out if we can shift instead of expand plane
 
