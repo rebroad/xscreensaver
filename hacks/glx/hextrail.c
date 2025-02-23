@@ -62,8 +62,10 @@ struct hexagon {
   int ccolor;
   state_t border_state;
   GLfloat border_ratio;
-  Bool ignore;
+  Bool empty;
   Bool doing;
+  Bool ignorea;
+  Bool ignoreb;
 };
 
 typedef struct {
@@ -84,8 +86,6 @@ typedef struct {
   int grid_w, grid_h;
   int x_offset, y_offset;
   hexagon *hexagons;
-  int doing;
-  int ignored;
   enum { FIRST, DRAW, FADE } state;
   GLfloat fade_ratio;
 
@@ -195,14 +195,16 @@ static void make_plane (ModeInfo *mi) {
       hexagon *h0 = &grid[i];
       h0->x = x; h0->y = y;
       h0->pos.x = (x - bp->grid_w/2) * w;
+      if (y & 1) h0->pos.x += w / 2; // Stagger into hex arrangement
       h0->pos.y = (y - bp->grid_h/2) * h;
       h0->pos.z = 0;
       h0->border_state = EMPTY;
       h0->border_ratio = 0;
-      h0->ignore = False;
+	  h0->empty = True;
       h0->doing = False;
+      h0->ignorea = False;
+      h0->ignoreb = False;
 
-      if (y & 1) h0->pos.x += w / 2; // Stagger into hex arrangement
 
       h0->ccolor = random() % bp->ncolors;
     }
@@ -216,25 +218,6 @@ static Bool empty_hexagon_p (hexagon *h) {
   for (int i = 0; i < 6; i++)
     if (h->arms[i].state != EMPTY) return False;
   return True;
-}
-
-static void doing(ModeInfo *mi, hexagon *h, Bool alive) {
-  hextrail_configuration *bp = &bps[MI_SCREEN(mi)];
-  if (alive) {
-    if (!h->doing) {
-      h->doing = True;
-      bp->doing++;
-    }
-  } else {
-    if (h->doing) {
-      h->doing = False;
-      bp->doing--;
-      if (h->ignore) {
-        bp->ignored--; h->ignore = False;
-        if (bp->ignored < -2) bp->bug_found = True;
-      }
-    }
-  }
 }
 
 static int add_arms (ModeInfo *mi, hexagon *h0, Bool out_p) {
@@ -263,7 +246,7 @@ static int add_arms (ModeInfo *mi, hexagon *h0, Bool out_p) {
       //printf("pos=%d,%d No neighbour on arm %d\n", h0->x, h0->y, j);
       continue;			/* No neighboring cell */
     }
-    if (! empty_hexagon_p (h1)) continue;	/* Occupado */
+    if (!h1->empty) continue;	/* Occupado */
     if (a0->state != EMPTY) continue;		/* Arm already exists */
 
     a1 = &h1->arms[(j + 3) % 6];		/* Opposite arm */
@@ -277,7 +260,7 @@ static int add_arms (ModeInfo *mi, hexagon *h0, Bool out_p) {
     a1->speed = a0->speed;
 
     if (h1->border_state == EMPTY) {
-      doing(mi, h1, True);
+      h1->doinga = True;
       h1->border_state = IN;
 
       /* Mostly keep the same color */
@@ -361,13 +344,15 @@ static void expand_plane(ModeInfo *mi, int direction) {
 
     // TODO 2 lines below might be wrong...
     h0->pos.x = (x - (new_grid_w + bp->x_offset)/2) * w;
+    if (y & 1) h0->pos.x += w / 2;
     h0->pos.y = (y - (new_grid_h + bp->y_offset)/2) * h;
     h0->pos.z = 0;
-    if (y & 1) h0->pos.x += w / 2;
     h0->border_state = EMPTY;
     h0->border_ratio = 0;
-    h0->ignore = False;
+	h0->empty = True;
     h0->doing = False;
+    h0->ignorea = False;
+    h0->ignoreb = False;
     h0->ccolor = random() % bp->ncolors;
     /*for (int i = 0; i < 6; i++) {
       h0->arms[i].state = EMPTY;
@@ -390,14 +375,12 @@ static void reset_hextrail(ModeInfo *mi) {
   bp->hexagons = NULL;
   bp->state = FIRST;
   bp->fade_ratio = 1;
-  bp->doing = 0;
-  bp->ignored = 0;
   make_plane (mi);
 }
 
 static void tick_hexagons (ModeInfo *mi) {
   hextrail_configuration *bp = &bps[MI_SCREEN(mi)];
-  int i, j;
+  int i, j, doinga = 0, doingb = 0, ignoreb = 0; // TODO ignorea?
   int8_t dir = 0;
   static int max_x = 0, max_y = 0, min_x = INT_MAX, min_y = INT_MAX;
   static int last_min_vx = 0, last_min_vy = 0, last_max_vx = 0, last_max_vy = 0;
@@ -412,7 +395,7 @@ static void tick_hexagons (ModeInfo *mi) {
       Bool debug = False;
 
 	  // Measure the drawn part we can see
-	  if (is_visible && (h0->doing || !empty_hexagon_p(h0))) {
+	  if (is_visible && (h0->border_state != EMPTY || !h0->empty)) {
         if (h0->x > max_vx) {
           max_vx = h0->x;
           if (h0->x > last_max_vx) {
@@ -438,7 +421,7 @@ static void tick_hexagons (ModeInfo *mi) {
 	  } // Visible and something there
 
       // Measure how far out the structure has spread - just for debugging
-	  if (h0->doing) {
+	  if (!h0->empty) {
         if (h0->x > max_x) {
           max_x = h0->x; debug = True;
         } else if (h0->x < min_x) {
@@ -449,15 +432,16 @@ static void tick_hexagons (ModeInfo *mi) {
         } else if (h0->y < min_y) {
           min_y = h0->y; debug = True;
         }
+	  }
 
+	  if (h0->doing) {
         /* Update activity state based on visibility */
-        if (!is_visible && !h0->ignore) {
-          bp->ignored++; h0->ignore = True;
-          if (bp->ignored > bp->doing + 1) bp->bug_found = True;
-        } else if (is_visible && h0->ignore) {
-          bp->ignored--; h0->ignore = False;
-          if (bp->ignored < -1) bp->bug_found = True;
-        }
+		doing++;
+        if (is_visible) {
+          vdoing++;
+          h0->ignorea = False; // TODO still needed?
+		} else
+          h0->ignorea = True;
 
         if (is_edge && is_visible) {
           // 1=vmax++, 2=hmax++, 4=vmin--, 8=hmin--
@@ -466,17 +450,17 @@ static void tick_hexagons (ModeInfo *mi) {
           if (h0->y == 0) dir |= 4;
           else if (h0->y == bp->grid_h - 1) dir |= 1;
 		  // TODO - test if we can shift instead of expand
-          printf("pos=%d,%d Expanding plane %d is_edge=%d is_visible=%d is_doing=%d\n", h0->x, h0->y, dir, is_edge, is_visible, h0->doing);
+          printf("pos=%d,%d Expanding plane %d edge=%d visible=%d arms=%d border=%d\n", h0->x, h0->y, dir, is_edge, is_visible, h0->doinga, h0->border_state != EMPTY);
           break;
         }
+	  } // h0->doing
 
-        if (debug)
-          printf("pos=%d,%d vis=(%d-%d,%d-%d) (%d-%d,%d-%d) is_edge=%d, is_visible=%d\n",
-                  h0->x, h0->y, last_min_vx, last_max_vx, last_min_vy, last_max_vy,
-                  min_x, max_x, min_y, max_y, is_edge, is_visible);
-        // TODO use above values to work out if we can shift instead of expand plane
+      if (debug)
+        printf("pos=%d,%d vis=(%d-%d,%d-%d) (%d-%d,%d-%d) is_edge=%d, is_visible=%d\n",
+                h0->x, h0->y, last_min_vx, last_max_vx, last_min_vy, last_max_vy,
+                min_x, max_x, min_y, max_y, is_edge, is_visible);
+      // TODO use above values to work out if we can shift instead of expand plane
 
-      } // h0->doing
     } // For all hexagons
       //
     last_min_vx = min_vx; last_max_vx = max_vx; last_min_vy = min_vy; last_max_vy = max_vy;
@@ -494,7 +478,7 @@ static void tick_hexagons (ModeInfo *mi) {
     Bool is_edge = (h0->x == 0 || h0->x == bp->grid_w - 1 ||
                    h0->y == 0 || h0->y == bp->grid_h - 1 );
 
-    if (is_edge && h0->ignore) continue;
+    if (is_edge && h0->ignorea) continue; // TODO - rename to invis?
 
     /* Enlarge any still-growing arms if active.  */
     for (j = 0; j < 6; j++) {
@@ -554,7 +538,8 @@ static void tick_hexagons (ModeInfo *mi) {
         if (h0->border_ratio <= 0) {
           h0->border_ratio = 0;
           h0->border_state = EMPTY;
-          doing(mi, h0, False);
+		  h0->ignoreb = False;
+          h0->doing = False; // TODO - move this to arm out finish
         }
       case WAIT:
         if (! (random() % 50)) h0->border_state = OUT;
@@ -573,13 +558,12 @@ static void tick_hexagons (ModeInfo *mi) {
 
   /* Start a new cell growing.  */
   Bool try_new = False, started = False;
-  if ((bp->doing - bp->ignored) <= 0) {
+  if ((bp->doing - ignorea) <= 0) {
     for (i = 0; i < (bp->grid_w * bp->grid_h) / 3; i++) {
       hexagon *h0;
       int x, y;
       if (bp->state == FIRST) {
-        x = bp->grid_w / 2;
-        y = bp->grid_h / 2;
+        x = bp->grid_w / 2; y = bp->grid_h / 2;
         bp->state = DRAW;
         bp->fade_ratio = 1;
         max_x = 0; max_y = 0; min_x = bp->grid_w; min_y = bp->grid_h;
@@ -593,7 +577,7 @@ static void tick_hexagons (ModeInfo *mi) {
         y = random() % bp->grid_h;
       }
       h0 = &bp->hexagons[y * bp->grid_w + x];
-      if (empty_hexagon_p(h0) && point_visible(h0) && add_arms(mi, h0, True)) {
+      if (h0->empty && point_visible(h0) && add_arms(mi, h0, True)) {
         started = True;
         break;
       }
@@ -603,9 +587,9 @@ static void tick_hexagons (ModeInfo *mi) {
   if (try_new && (started || bp->doing != bp->ignored))
     printf("New cell: started=%d doing=%d ignored=%d\n", started, bp->doing, bp->ignored);
 
-  if ((bp->doing - bp->ignored) <= 0 && bp->state != FADE) {
-    if (bp->doing)
-      printf("Fade started. doing=%d\n", bp->doing);
+  if ((doingb - ignoredb) <= 0 && bp->state != FADE) {
+    if (doingb)
+      printf("Fade started. doinga=%d doingb=%d\n", doinga, doingb);
     bp->state = FADE;
     bp->fade_ratio = 1;
 
