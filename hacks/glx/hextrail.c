@@ -473,10 +473,6 @@ static void tick_hexagons (ModeInfo *mi) {
       arm *a0 = &h0->arms[j];
       switch (a0->state) {
         case OUT:
-          if (a0->speed <= 0) {
-            printf("a0->speed = %f\n", a0->speed);
-            abort();
-          }
           a0->ratio += a0->speed;
           if (a0->ratio >= 1) {
             /* Just finished growing from center to edge.
@@ -484,15 +480,23 @@ static void tick_hexagons (ModeInfo *mi) {
             hexagon *h1 = h0->neighbors[j];
             arm *a1 = &h1->arms[(j + 3) % 6];
             if (a1->state != WAIT) {
-              printf("H0 (%d,%d)'s arm=%d connecting to H1 (%d,%d)'s arm_state=%d\n", h0->x, h0->y, j, h1->x, h1->y, a1->state);
-              abort();
-            }
+              printf("H0 (%d,%d)'s arm=%d connecting to H1 (%d,%d)'s arm_state=%d arm_ratio=%.1f\n", h0->x, h0->y, j, h1->x, h1->y, a1->state, a1->ratio);
+			  usleep(3000000);
+              a0->speed = -a0->speed;
+			  a1->state = OUT;
+			  if (a1->speed > 0) a1->speed = -a1->speed;
+            } else {
+              a0->state = DONE;
+              a0->ratio = 1;
+              a1->state = IN;
+              a1->ratio = 0;
+              a1->speed = a0->speed;
+			}
+          } else if (a0->ratio <= 0) {
+			/* Just finished retreating back to center */
             a0->state = DONE;
-            a0->ratio = 1;
-            a1->state = IN;
-            a1->ratio = 0;
-            a1->speed = a0->speed;
-          }
+			a0->ratio = 0;
+		  }
           break;
         case IN:
           if (a0->speed <= 0) abort();
