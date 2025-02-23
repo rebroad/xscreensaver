@@ -37,7 +37,7 @@ SDL_GLContext glContext;
 
 #define DEF_SPIN        "True"
 #define DEF_WANDER      "True"
-#define DEF_GLOW        "True"
+#define DEF_GLOW        "False"
 #define DEF_NEON        "False"
 #define DEF_SPEED       "1.0"
 #define DEF_THICKNESS   "0.15"
@@ -380,13 +380,10 @@ static void tick_hexagons (ModeInfo *mi) {
   if (!bp->button_pressed) {
     for (i = 0; i < bp->grid_w * bp->grid_h; i++) {
       hexagon *h0 = &bp->hexagons[i];
-      Bool invis = point_invis(h0);
       Bool debug = False;
 
-      h0->invis = invis;
-
       // Measure the drawn part we can see
-      if (!invis && !h0->empty) {
+      if (!h0->invis && !h0->empty) {
         if (h0->x > max_vx) {
           max_vx = h0->x;
           if (h0->x > last_max_vx) {
@@ -426,7 +423,7 @@ static void tick_hexagons (ModeInfo *mi) {
         }
       }
 
-      if (h0->doing && !invis) {
+      if (h0->doing && !h0->invis) {
         // 1=vmax++, 2=hmax++, 4=vmin--, 8=hmin--
         if (h0->x == 0) dir |= 8;
         else if (h0->x == bp->grid_w - 1) dir |= 2;
@@ -442,7 +439,7 @@ static void tick_hexagons (ModeInfo *mi) {
                 h0->x - bp->x_offset, h0->y - bp->y_offset,
                 last_min_vx - bp->x_offset, last_max_vx - bp->x_offset,
                 last_min_vy - bp->y_offset, last_max_vy - bp->y_offset,
-                min_x, max_x, min_y, max_y, h0->doing, h0->border_state != EMPTY, dir, !invis);
+                min_x, max_x, min_y, max_y, h0->doing, h0->border_state != EMPTY, dir, !h0->invis);
       // TODO use above values to work out if we can shift instead of expand plane
 
     } // For all hexagons
@@ -456,6 +453,8 @@ static void tick_hexagons (ModeInfo *mi) {
 
     Bool is_edge = (h0->x == 0 || h0->x == bp->grid_w - 1 ||
                    h0->y == 0 || h0->y == bp->grid_h - 1 );
+
+    h0->invis = (!bp->button_pressed && point_invis(h0));
 
     if (h0->doing) {
       doinga++;
