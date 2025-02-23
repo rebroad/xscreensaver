@@ -172,10 +172,7 @@ static void make_plane (ModeInfo *mi) {
   bp->x_offset = 0; bp->y_offset = 0;
   if (bp->button_pressed)
     printf("Setting button_pressed to False\n");
-  if (bp->image_rotated)
-    printf("Setting image_rotated to False\n");
   bp->button_pressed = False;
-  bp->image_rotated = False;
   if (!bp->colors) {
 #ifdef USE_SDL
     bp->colors = (SDL_Color *) calloc(bp->ncolors, sizeof(SDL_Color));
@@ -206,7 +203,7 @@ static void make_plane (ModeInfo *mi) {
       h0->empty = True;
       h0->doing = 0;
 
-      h0->ccolor = random() % bp->ncolors;
+      //h0->ccolor = random() % bp->ncolors;
     }
   }
 
@@ -301,15 +298,15 @@ static void expand_plane(ModeInfo *mi, int direction) {
   int old_grid_w = bp->grid_w; int old_grid_h = bp->grid_h;
   int new_grid_w = old_grid_w; int new_grid_h = old_grid_h;
   hexagon *old_hexagons = bp->hexagons;
-  const int expansion = 1;
+  const int x_expansion = 2, y_expansion = 1;
   int x, y;
 
   /* Increase grid size */
-  if (direction & 8 || direction & 2) new_grid_w += expansion;
-  if (direction & 4 || direction & 1) new_grid_h += expansion;
+  if (direction & 8 || direction & 2) new_grid_w += x_expansion;
+  if (direction & 4 || direction & 1) new_grid_h += y_expansion;
   /* Calculate copy offsets */
-  int x_offset = (direction & 8) ? expansion : 0;
-  int y_offset = (direction & 4) ? expansion : 0;
+  int x_offset = (direction & 8) ? x_expansion : 0;
+  int y_offset = (direction & 4) ? y_expansion : 0;
   bp->x_offset += x_offset; bp->y_offset += y_offset;
 
   printf("Expanding plane: before = %d-%d,%d-%d after = %d-%d,%d=%d\n",
@@ -351,7 +348,7 @@ static void expand_plane(ModeInfo *mi, int direction) {
     h0->border_ratio = 0;
     h0->empty = True;
     h0->doing = 0;
-    h0->ccolor = random() % bp->ncolors;
+    //h0->ccolor = random() % bp->ncolors;
     /*for (int i = 0; i < 6; i++) {
       h0->arms[i].state = EMPTY;
       h0->arms[i].ratio = 0;
@@ -587,6 +584,8 @@ static void tick_hexagons (ModeInfo *mi) {
         printf("New hextrail. vis=(%d-%d,%d-%d) (%d-%d,%d-%d)\n",
                 last_min_vx, last_max_vx, last_min_vy, last_max_vy,
                 min_x, max_x, min_y, max_y);
+        if (bp->image_rotated) printf("Setting image_rotated to False\n");
+        bp->image_rotated = False;
       } else {
         try_new = True;
         x = random() % bp->grid_w; // TODO - don't use random?
@@ -594,6 +593,7 @@ static void tick_hexagons (ModeInfo *mi) {
       }
       h0 = &bp->hexagons[y * bp->grid_w + x];
       if (h0->empty && !h0->invis && add_arms(mi, h0)) {
+        h0->ccolor = random() % bp->ncolors;
         started = True;
         break;
       }
