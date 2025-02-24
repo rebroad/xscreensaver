@@ -78,9 +78,8 @@ typedef struct {
 #endif
   rotator *rot;
   trackball_state *trackball;
-  Bool button_down_p;
-  Bool button_pressed;
-  Bool bug_found;
+  Bool button_down_p, button_pressed;
+  time_t now, pause_until;
 
   int grid_w, grid_h;
   int x_offset, y_offset;
@@ -486,7 +485,7 @@ static void tick_hexagons (ModeInfo *mi) {
             arm *a1 = &h1->arms[(j + 3) % 6];
             if (a1->state != WAIT) {
               printf("H0 (%d,%d)'s arm=%d connecting to H1 (%d,%d)'s arm_state=%d arm_ratio=%.1f\n", h0->x, h0->y, j, h1->x, h1->y, a1->state, a1->ratio);
-			  usleep(3000000);
+			  bp->pause_until = bp->now + 3;
               a0->speed = -a0->speed;
 			  a1->state = OUT;
 			  if (a1->speed > 0) a1->speed = -a1->speed;
@@ -1087,14 +1086,14 @@ ENTRYPOINT void draw_hextrail (ModeInfo *mi) {
 
   {
     double x, y, z;
-    get_position (bp->rot, &x, &y, &z, !bp->bug_found);
+    get_position (bp->rot, &x, &y, &z, !bp->button_down_p);
     glTranslatef((x - 0.5) * 6,
                  (y - 0.5) * 6,
                  (z - 0.5) * 12);
 
     gltrackball_rotate (bp->trackball);
 
-    get_rotation (bp->rot, &x, &y, &z, !bp->bug_found);
+    get_rotation (bp->rot, &x, &y, &z, !bp->button_down_p);
     glRotatef (z * 360, 0.0, 0.0, 1.0);
   }
 
@@ -1105,8 +1104,9 @@ ENTRYPOINT void draw_hextrail (ModeInfo *mi) {
     glScalef (s, s, s);
   }
 
-  if (!bp->button_down_p && !bp->bug_found) tick_hexagons (mi);
-  else if (bp->button_down_p) {
+  bp->now = time(NULL);
+  if (bp->pause_until < bp->now) tick_hexagons (mi);
+  if (bp->button_down_p) {
     if (!bp->button_pressed) printf("Button pressed\n");
     bp->button_pressed = True;
   }
