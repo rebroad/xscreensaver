@@ -75,7 +75,7 @@ typedef struct {
   rotator *rot;
   trackball_state *trackball;
   Bool button_down_p, button_pressed;
-  time_t now, pause_until;
+  time_t now, pause_until, debug;
 
   /* TODO - have a simple X by Y array of hexagon pointers
    /   and then allocate memory for the actual hexagons when
@@ -319,6 +319,7 @@ static void expand_plane(ModeInfo *mi, int direction) {
   int x_offset = (direction & 8) ? 2 : 0;
   int y_offset = (direction & 4) ? 1 : 0;
 
+  bp->debug = bp->now;
   printf("Expanding plane: before = %d-%d,%d-%d after = %d-%d,%d-%d\n",
           -bp->x_offset, -bp->y_offset, bp->grid_w - bp->x_offset, bp->grid_h - bp->y_offset,
           -bp->x_offset - x_offset, -bp->y_offset - y_offset,
@@ -407,7 +408,7 @@ static void reset_hextrail(ModeInfo *mi) {
 static void tick_hexagons (ModeInfo *mi) {
   hextrail_configuration *bp = &bps[MI_SCREEN(mi)];
   int i, j, doinga = 0, doingb = 0, ignorea = 0, ignoreb = 0;
-  int empty = 0; // TODO use this prior to fade
+  int empty = 0, vempty = 0; // TODO use this prior to fade
   int8_t dir = 0;
   static int min_x = 0, min_y = 0, max_x = 0, max_y = 0;
   static int min_vx = 0, min_vy = 0, max_vx = 0, max_vy = 0;
@@ -463,10 +464,12 @@ static void tick_hexagons (ModeInfo *mi) {
       // TODO - test if we can shift instead of expand
     }
 
-    if (debug)
+    if (debug) {
       printf("pos=%d,%d vis=(%d-%d,%d-%d) (%d-%d,%d-%d) arms=%d border=%d edge=%d, invis=%d\n",
               h0->x, h0->y, min_vx, max_vx, min_vy, max_vy,
               min_x, max_x, min_y, max_y, h0->doing, h0->state != EMPTY, edge, h0->invis);
+	  bp->debug = bp->now;
+	}
     // TODO use above values to work out if we can shift instead of expand plane
 
     if (h0->doing) {
@@ -474,11 +477,13 @@ static void tick_hexagons (ModeInfo *mi) {
       if (h0->invis) ignorea++;
     }
 
-    if (h0->state != EMPTY) {
-      doingb++;
-      if (h0->invis) ignoreb++;
-    } else
-      empty++;
+    if (h0->state == EMPTY) {
+	  empty++;
+	  if (!h0->invis) vempty++;
+	} else if (h0->state != DONE) {
+	  doingb++;
+	  if (h0->invis) ignoreb++;
+	}
 
     // TODO - change point_invis to return a value based on how
     // far off-screen. 1 for just-off. 2 for +5% off, 3 for +10%
@@ -566,6 +571,12 @@ static void tick_hexagons (ModeInfo *mi) {
   min_vx = this_min_vx; max_vx = this_max_vx; min_vy = this_min_vy; max_vy = this_max_vy;
 
   if (dir && do_expand) expand_plane(mi, dir);
+
+  if (bp->now > bp->debug) {
+	printf("doinga=%d ignorea=%d doingb=%d ignoreb=%d vempty=%d empty=%d\n",
+		doinga, ignorea, doingb, ignoreb, vempty, empty);
+	bp->debug = bp->now;
+  }
 
   /* Start a new cell growing.  */
   Bool try_new = False, started = False;
