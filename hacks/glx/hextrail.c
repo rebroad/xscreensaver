@@ -287,9 +287,9 @@ static Bool point_invis(hexagon *h0) {
           winY >= viewport[1] && winY <= viewport[1] + viewport[3] &&
           winZ > 0 && winZ < 1);
 
-  if (!h0->empty && h0->invis == is_visible && is_visible)
+  /*if (!h0->empty && h0->invis == is_visible && is_visible)
     printf("Visibility flip at (%d,%d): win=(%.1f, %.1f, %.1f), viewport=(%d,%d,%d,%d)\n",
-             h0->x, h0->y, winX, winY, winZ, viewport[0], viewport[1], viewport[2], viewport[3]);
+             h0->x, h0->y, winX, winY, winZ, viewport[0], viewport[1], viewport[2], viewport[3]);*/
 
   return !is_visible;
 }
@@ -347,7 +347,6 @@ static void expand_plane(ModeInfo *mi, int direction) {
     h0->border_ratio = 0;
     h0->empty = True;
     h0->doing = 0;
-    //h0->ccolor = random() % bp->ncolors;
     /*for (int i = 0; i < 6; i++) {
       h0->arms[i].state = EMPTY;
       h0->arms[i].ratio = 0;
@@ -877,7 +876,7 @@ static void draw_hexagons (ModeInfo *mi) {
 
           glDisable(GL_BLEND);
           glBegin(wire ? GL_LINES : GL_TRIANGLES);
-        }
+        } // Glow or neon
 
         glColor4fv (color2);
         glMaterialfv (GL_FRONT, GL_AMBIENT_AND_DIFFUSE, color2);
@@ -895,7 +894,7 @@ static void draw_hexagons (ModeInfo *mi) {
         glVertex3f (p[2].x, p[2].y, p[2].z);
         if (! wire) glVertex3f (p[3].x, p[3].y, p[3].z);
         mi->polygon_count++;
-      }
+      } // arm is IN, OUT or DONE
 
       /* Hexagon (one triangle of) in center to hide line miter/bevels.  */
       if (total_arms) {
@@ -927,11 +926,9 @@ static void draw_hexagons (ModeInfo *mi) {
 }
 
 
-/* Window management, etc
- */
+/* Window management, etc */
 ENTRYPOINT void
-reshape_hextrail (ModeInfo *mi, int width, int height)
-{
+reshape_hextrail (ModeInfo *mi, int width, int height) {
   GLfloat h = (GLfloat) height / (GLfloat) width;
   int y = 0;
 
@@ -949,9 +946,7 @@ reshape_hextrail (ModeInfo *mi, int width, int height)
 
   glMatrixMode(GL_MODELVIEW);
   glLoadIdentity();
-  gluLookAt( 0.0, 0.0, 30.0,
-             0.0, 0.0, 0.0,
-             0.0, 1.0, 0.0);
+  gluLookAt( 0.0, 0.0, 30.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0);
 
   {
     GLfloat s = (MI_WIDTH(mi) < MI_HEIGHT(mi)
