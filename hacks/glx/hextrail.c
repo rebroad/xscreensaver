@@ -35,6 +35,7 @@
 #define DEF_WANDER      "True"
 #define DEF_GLOW        "False"
 #define DEF_NEON        "False"
+#define DEF_EXPAND      "False"
 #define DEF_SPEED       "1.0"
 #define DEF_THICKNESS   "0.15"
 
@@ -99,6 +100,7 @@ static GLfloat speed;
 static Bool do_wander;
 static Bool do_glow;
 static Bool do_neon;
+static Bool do_expand;
 static GLfloat thickness;
 
 static XrmOptionDescRec opts[] = {
@@ -111,6 +113,8 @@ static XrmOptionDescRec opts[] = {
   { "+glow",   ".glow",   XrmoptionNoArg, "False" },
   { "-neon",   ".neon",   XrmoptionNoArg, "True" },
   { "+neon",   ".neon",   XrmoptionNoArg, "False" },
+  { "-expand", ".expand", XrmoptionNoArg, "True" },
+  { "+expand", ".expand", XrmoptionNoArg, "False" },
   { "-thickness", ".thickness", XrmoptionSepArg, 0 },
 #ifdef USE_SDL
   { 0, 0, 0, 0 }
@@ -122,6 +126,7 @@ static argtype vars[] = {
   {&do_wander, "wander", "Wander", DEF_WANDER, t_Bool},
   {&do_glow,   "glow",   "Glow",   DEF_GLOW,   t_Bool},
   {&do_neon,   "neon",   "Neon",   DEF_NEON,   t_Bool},
+  {&do_expand, "expand", "Expand", DEF_EXPAND, t_Bool},
   {&speed,     "speed",  "Speed",  DEF_SPEED,  t_Float},
   {&thickness, "thickness", "Thickness", DEF_THICKNESS, t_Float},
 };
@@ -170,7 +175,7 @@ static void make_plane (ModeInfo *mi) {
 
   bp->ncolors = 8;
   bp->x_offset = 0; bp->y_offset = 0;
-  if (bp->button_pressed)
+  if (do_expand && bp->button_pressed)
     printf("Setting button_pressed to False\n");
   bp->button_pressed = False;
   if (!bp->colors) {
@@ -245,7 +250,8 @@ static int add_arms (ModeInfo *mi, hexagon *h0) {
     if (a1->state != EMPTY) {
       printf("H1 (%d,%d) empty=%d arm[%d].state=%d\n",
              h1->x, h1->y, h1->state == EMPTY, (j+3)%6, a1->state);
-      abort();
+      bp->pause_until = bp->now + 3;
+	  continue;
     }
     a0->state = OUT;
     a1->state = WAIT;
@@ -410,63 +416,59 @@ static void tick_hexagons (ModeInfo *mi) {
 
   for (i = 0; i < bp->grid_w * bp->grid_h; i++) {
     hexagon *h0 = &bp->hexagons[i];
-    h0->invis = (!bp->button_pressed && point_invis(h0));
+    h0->invis = (do_expand && !bp->button_pressed && point_invis(h0));
 
     int adj_x = h0->x + bp->size/2 + bp->x_offset;
     int adj_y = h0->y + bp->size/2 + bp->y_offset;
-    if (!bp->button_pressed) {
-      Bool debug = False;
 
-      // Measure the drawn part we can see
-      if (!h0->invis && h0->state != EMPTY) {
-        if (h0->x > this_max_vx) {
-          this_max_vx = h0->x;
-          if (h0->x > max_vx) {
-            debug = True; max_vx = h0->x;
-          }
-        }
-        if (h0->x < this_min_vx) {
-          this_min_vx = h0->x;
-          if (h0->x < min_vx) {
-          debug = True; min_vx = h0->x;
-          }
-        }
-        if (h0->y > this_max_vy) {
-          this_max_vy = h0->y;
-          if (h0->y > max_vy) {
-            debug = True; max_vy = h0->y;
-          }
-        }
-        if (h0->y < this_min_vy) {
-          this_min_vy = h0->y;
-          if (h0->y < min_vy) {
-            debug = True; min_vy = h0->y;
-          }
-        }
-      } // Visible and non-empty
+    Bool debug = False;
 
-      // Logic to expand the X,Y lookup table
-      if (h0->doing && !h0->invis) {
-        // 1=vmax++, 2=hmax++, 4=vmin--, 8=hmin--
-        if (adj_x == 0) dir |= 8;
-        else if (adj_x == bp->grid_w - 1) dir |= 2;
-        if (adj_y == 0) dir |= 4;
-        else if (adj_y == bp->grid_h - 1) dir |= 1;
-        // TODO - test if we can shift instead of expand
-        //printf("pos=%d,%d Expanding plane %d edge=%d visible=%d arms=%d border=%d\n", h0->x, h0->y, dir, is_edge, !invis, h0->doing, h0->state != EMPTY);
+    // Measure the drawn part we can see
+    if (!h0->invis && h0->state != EMPTY) {
+      if (h0->x > this_max_vx) {
+        this_max_vx = h0->x;
+        if (h0->x > max_vx) {
+          debug = True; max_vx = h0->x;
+        }
       }
+      if (h0->x < this_min_vx) {
+        this_min_vx = h0->x;
+        if (h0->x < min_vx) {
+        debug = True; min_vx = h0->x;
+        }
+      }
+      if (h0->y > this_max_vy) {
+        this_max_vy = h0->y;
+        if (h0->y > max_vy) {
+          debug = True; max_vy = h0->y;
+        }
+      }
+      if (h0->y < this_min_vy) {
+        this_min_vy = h0->y;
+        if (h0->y < min_vy) {
+          debug = True; min_vy = h0->y;
+        }
+      }
+    } // Visible and non-empty
 
-      if (debug)
-        printf("pos=%d,%d vis=(%d-%d,%d-%d) (%d-%d,%d-%d) arms=%d border=%d edge=%d, invis=%d\n",
-                h0->x, h0->y, min_vx, max_vx, min_vy, max_vy,
-                min_x, max_x, min_y, max_y, h0->doing, h0->state != EMPTY, dir, h0->invis);
-      // TODO use above values to work out if we can shift instead of expand plane
+    int8_t edge = 0;
 
-    } // Button never pressed
+    // Logic to expand the X,Y lookup table
+    if (h0->doing && !h0->invis) {
+      // 1=vmax++, 2=hmax++, 4=vmin--, 8=hmin--
+      if (adj_x == 0) edge |= 8;
+      else if (adj_x == bp->grid_w - 1) edge |= 2;
+      if (adj_y == 0) edge |= 4;
+      else if (adj_y == bp->grid_h - 1) edge |= 1;
+	  dir |= edge;
+      // TODO - test if we can shift instead of expand
+    }
 
-    Bool is_edge = (adj_x == 0 || adj_x == bp->grid_w - 1 ||
-                   adj_y == 0 || adj_y == bp->grid_h - 1 );
-
+    if (debug)
+      printf("pos=%d,%d vis=(%d-%d,%d-%d) (%d-%d,%d-%d) arms=%d border=%d edge=%d, invis=%d\n",
+              h0->x, h0->y, min_vx, max_vx, min_vy, max_vy,
+              min_x, max_x, min_y, max_y, h0->doing, h0->state != EMPTY, edge, h0->invis);
+    // TODO use above values to work out if we can shift instead of expand plane
 
     if (h0->doing) {
       doinga++;
@@ -481,8 +483,8 @@ static void tick_hexagons (ModeInfo *mi) {
 
     // TODO - change point_invis to return a value based on how
     // far off-screen. 1 for just-off. 2 for +5% off, 3 for +10%
-    // if (h0->invis > 2) continue;
-    if (is_edge && h0->invis) continue;
+    // e.g. if (h0->invis > 1) continue;
+    if (do_expand && edge && h0->invis) continue;
 
     /* Enlarge any still-growing arms if active.  */
     for (j = 0; j < 6; j++) {
@@ -563,7 +565,7 @@ static void tick_hexagons (ModeInfo *mi) {
 
   min_vx = this_min_vx; max_vx = this_max_vx; min_vy = this_min_vy; max_vy = this_max_vy;
 
-  if (dir) expand_plane(mi, dir);
+  if (dir && do_expand) expand_plane(mi, dir);
 
   /* Start a new cell growing.  */
   Bool try_new = False, started = False;
