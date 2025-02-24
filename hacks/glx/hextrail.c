@@ -234,11 +234,12 @@ static int add_arms (ModeInfo *mi, hexagon *h0) {
     // TODO - here we allocate memory for a new hexagon
     if (!h1) {
       //printf("pos=%d,%d No neighbour on arm %d\n", h0->x, h0->y, j);
+      // TODO - Allocate a hexagon here, either from the spare pool, or allocate memory for a new one.
       continue;			/* No neighboring cell */
     }
     if (h1->state != EMPTY) continue;	/* Occupado */
+    if (a0->state != EMPTY) continue;   /* Arm already exists */
 
-    h1->state = IN;
     arm *a1 = &h1->arms[(j + 3) % 6];		/* Opposite arm */
 
     if (a1->state != EMPTY) {
@@ -253,9 +254,16 @@ static int add_arms (ModeInfo *mi, hexagon *h0) {
     a0->speed = 0.05 * speed * (0.8 + frand(1.0));
     a1->speed = a0->speed;
 
-    /* Mostly keep the same color */
-    if (! (random() % 5)) h1->ccolor = (h0->ccolor + 1) % bp->ncolors;
-    else h1->ccolor = h0->ccolor;
+    if (h1->state == EMPTY) {
+      h1->state = IN;
+
+      /* Mostly keep the same color */
+      if (! (random() % 5)) h1->ccolor = (h0->ccolor + 1) % bp->ncolors;
+      else h1->ccolor = h0->ccolor;
+    } else
+      printf("H0 (%d,%d) arm%d out to H1 (%d,%d)->state=%d\n",
+h0->x, h0->y, j, h1->x, h1->y, h1->state);
+      // TODO - find out which arm of H1 is already WAITing and the ratio of the OUT arm heading to it.
 
     added++;
     if (added >= target) break;
@@ -284,6 +292,7 @@ static Bool point_invis(hexagon *h0) {
   Bool is_visible = (winX >= viewport[0] && winX <= viewport[0] + viewport[2] &&
           winY >= viewport[1] && winY <= viewport[1] + viewport[3] &&
           winZ > 0 && winZ < 1);
+
   /*if (h0->state != EMPTY && h0->invis == is_visible && is_visible)
     printf("Visibility flip at (%d,%d): win=(%.1f, %.1f, %.1f), viewport=(%d,%d,%d,%d)\n",
              h0->x, h0->y, winX, winY, winZ, viewport[0], viewport[1], viewport[2], viewport[3]);*/
@@ -291,7 +300,7 @@ static Bool point_invis(hexagon *h0) {
   return !is_visible;
 }
 
-// TODO the function below can be deleted once we move to dynamically allocating memory for hexagons, and reference these all by a single 1000 by 1000 array of pointers.
+// TODO the function below can for the simple X by Y array of pointers to hexagons - is it possible to use 20-bit or 24-bit or 32-bit pointers rather than wasting 64-bits for each one?
 static void expand_plane(ModeInfo *mi, int direction) {
   hextrail_configuration *bp = &bps[MI_SCREEN(mi)];
   int new_grid_w = bp->grid_w, new_grid_h = bp->grid_h;
@@ -300,7 +309,6 @@ static void expand_plane(ModeInfo *mi, int direction) {
   if (direction & 8) new_grid_w += 2;
   if (direction & 2) new_grid_w++;
   if (direction & 4 || direction & 1) new_grid_h++;
-
   /* Calculate copy offsets */
   int x_offset = (direction & 8) ? 2 : 0;
   int y_offset = (direction & 4) ? 1 : 0;
@@ -338,7 +346,7 @@ static void expand_plane(ModeInfo *mi, int direction) {
         y >= y_offset && y < bp->grid_h + y_offset) continue;
 
     h0->x = x - bp->x_offset - bp->size/2;
-	h0->y = y - bp->y_offset - bp->size/2;
+    h0->y = y - bp->y_offset - bp->size/2;
     h0->pos.x = x * w; // TODO - remove pos as a derivative
     if (y & 1) h0->pos.x += w / 2;
     h0->pos.y = y * h;
@@ -358,29 +366,27 @@ static void expand_plane(ModeInfo *mi, int direction) {
   free(bp->hexagons);
   bp->hexagons = new_hexagons;
   update_neighbors(mi);
+
   /* Sanity check */
-  int start_x = bp->grid_w / 2 - 1;
-  int start_y = bp->grid_h / 2 - 1;
-  if (direction & 1) start_y = bp->grid_h - 3;
-  if (direction & 2) start_x = bp->grid_w - 3;
+  int start_x = bp->grid_w / 2 - 2;
+  int start_y = bp->grid_h / 2 - 2;
+  if (direction & 1) start_y = bp->grid_h - 4;
+  if (direction & 2) start_x = bp->grid_w - 4;
   if (direction & 4) start_y = 0;
   if (direction & 8) start_x = 0;
 
-  for (int y = start_y; y < start_y + 3; y++) {
+  for (int y = start_y; y < start_y + 3; y++)
     for (int x = start_x; x < start_x + 3; x++) {
       hexagon *h0 = &bp->hexagons[y * bp->grid_w + x];
-      for (int j = 0; j < 6; j++) {
+      for (int j = 0; j < 6; j++)
         if (h0->arms[j].state != EMPTY && h0->neighbors[j]) {
           hexagon *h1 = h0->neighbors[j];
           arm *a1 = &h1->arms[(j + 3) % 6];
-          if (h0->arms[j].state == OUT && a1->state != WAIT) {
+          if (h0->arms[j].state == OUT && a1->state != WAIT)
             printf("Arm mismatch at (%d,%d) arm %d: state=%d, neighbor (%d,%d) state=%d\n",
                    h0->x, h0->y, j, h0->arms[j].state, h1->x, h1->y, a1->state);
-          }
         }
-      }
     }
-  }
 }
 
 static void reset_hextrail(ModeInfo *mi) {
@@ -397,7 +403,7 @@ static void tick_hexagons (ModeInfo *mi) {
   hextrail_configuration *bp = &bps[MI_SCREEN(mi)];
   int i, j, doinga = 0, doingb = 0, ignorea = 0, ignoreb = 0;
   int empty = 0; // TODO use this prior to fade
-  int8_t dir = 0; // TODO soon to be obsoleted
+  int8_t dir = 0;
   static int min_x = 0, min_y = 0, max_x = 0, max_y = 0;
   static int min_vx = 0, min_vy = 0, max_vx = 0, max_vy = 0;
   int this_min_vx = 0, this_min_vy = 0, this_max_vx = 0, this_max_vy = 0;
@@ -408,7 +414,6 @@ static void tick_hexagons (ModeInfo *mi) {
 
     int adj_x = h0->x + bp->size/2 + bp->x_offset;
     int adj_y = h0->y + bp->size/2 + bp->y_offset;
-
     if (!bp->button_pressed) {
       Bool debug = False;
 
@@ -463,9 +468,6 @@ static void tick_hexagons (ModeInfo *mi) {
                    adj_y == 0 || adj_y == bp->grid_h - 1 );
 
 
-
-
-
     if (h0->doing) {
       doinga++;
       if (h0->invis) ignorea++;
@@ -477,7 +479,9 @@ static void tick_hexagons (ModeInfo *mi) {
     } else
       empty++;
 
-    // if (h0->invis > 2) continue; // TODO make granular
+    // TODO - change point_invis to return a value based on how
+    // far off-screen. 1 for just-off. 2 for +5% off, 3 for +10%
+    // if (h0->invis > 2) continue;
     if (is_edge && h0->invis) continue;
 
     /* Enlarge any still-growing arms if active.  */
@@ -550,10 +554,6 @@ static void tick_hexagons (ModeInfo *mi) {
         if (! (random() % 50)) h0->state = OUT;
         break;
       case EMPTY:
-/*
-        if (! (random() % 3000))
-          h0->state = IN;
- */
         break;
       default:
         printf("h0->state = %d\n", h0->state);
@@ -581,12 +581,12 @@ static void tick_hexagons (ModeInfo *mi) {
                 min_x, max_x, min_y, max_y);
       } else {
         try_new = True;
-        //x = (random() % bp->size) - (bp->size / 2);
-        //y = (random() % bp->size) - (bp->size / 2);
         x = random() % bp->grid_w;
         y = random() % bp->grid_h;
       }
-      //hexagon *h0 = add_hexagon(NULL, 0, x, y);
+      // TODO line below would be used for when we dynamically
+      // allocate memory for new hexagons
+      //hexagon *h0 = add_hexagon(x, y);
       hexagon *h0 = &bp->hexagons[y * bp->grid_w + x];
       if (h0->state == EMPTY && !h0->invis && add_arms(mi, h0)) {
         h0->ccolor = random() % bp->ncolors;
