@@ -164,9 +164,7 @@ static void make_plane (ModeInfo *mi) {
   GLfloat size, w, h;
   hexagon *grid;
 
-  bp->size = MI_COUNT(mi) * 2;
-  bp->grid_w = bp->size;
-  bp->grid_h = bp->size;
+  bp->grid_w = bp->size; bp->grid_h = bp->size;
 
   grid = (bp->hexagons
           ? bp->hexagons
@@ -200,15 +198,17 @@ static void make_plane (ModeInfo *mi) {
       int i = y * bp->grid_w + x;
       hexagon *h0 = &grid[i];
       h0->x = x - bp->size/2; h0->y = y - bp->size/2; // Put 0,0 at the center
-      h0->pos.x = x * w; // TODO - remove this as a derivative
-      if (y & 1) h0->pos.x += w / 2; // Stagger into hex arrangement
-      h0->pos.y = (y - bp->grid_h/2) * h;
+      h0->pos.x = h0->x * w; // TODO - remove this as a derivative
+      if (h0->y & 1) h0->pos.x += w / 2; // Stagger into hex arrangement
+      h0->pos.y = h0->y * h;
       h0->pos.z = 0;
       h0->state = EMPTY;
       h0->ratio = 0;
       h0->doing = 0;
 
-      //h0->ccolor = random() % bp->ncolors;
+	  if (x == 0 && y == 0) printf("%s: %d,%d pos.x=%f pos.y=%f\n", __func__, h0->x,h0->y,h0->pos.x,h0->pos.y);
+	  if (x == bp->grid_w/2 && y == bp->grid_h/2) printf("%s: %d,%d pos.x = %f pos.y = %f\n", __func__, h0->x,h0->y,h0->pos.x,h0->pos.y);
+	  if (x == bp->grid_w-1 && y == bp->grid_h-1) printf("%s: %d,%d pos.x = %f pos.y = %f\n", __func__, h0->x,h0->y,h0->pos.x,h0->pos.y);
     }
   }
 
@@ -351,11 +351,10 @@ static void expand_plane(ModeInfo *mi, int direction) {
     if (x >= x_offset && x < bp->grid_w + x_offset &&
         y >= y_offset && y < bp->grid_h + y_offset) continue;
 
-    h0->x = x - bp->x_offset - bp->size/2;
-    h0->y = y - bp->y_offset - bp->size/2;
-    h0->pos.x = x * w; // TODO - remove pos as a derivative
-    if (y & 1) h0->pos.x += w / 2;
-    h0->pos.y = y * h;
+    h0->x = x - bp->x_offset - bp->size/2; h0->y = y - bp->y_offset - bp->size/2;
+    h0->pos.x = h0->x * w; // TODO - remove pos as a derivative
+    if (h0->y & 1) h0->pos.x += w / 2;
+    h0->pos.y = h0->y * h;
     h0->pos.z = 0;
     h0->state = EMPTY;
     h0->ratio = 0;
@@ -374,10 +373,10 @@ static void expand_plane(ModeInfo *mi, int direction) {
   update_neighbors(mi);
 
   /* Sanity check */
-  int start_x = bp->grid_w / 2 - 2;
-  int start_y = bp->grid_h / 2 - 2;
-  if (direction & 1) start_y = bp->grid_h - 4;
-  if (direction & 2) start_x = bp->grid_w - 4;
+  int start_x = bp->grid_w / 2 - 1;
+  int start_y = bp->grid_h / 2 - 1;
+  if (direction & 1) start_y = bp->grid_h - 3;
+  if (direction & 2) start_x = bp->grid_w - 3;
   if (direction & 4) start_y = 0;
   if (direction & 8) start_x = 0;
 
@@ -573,7 +572,7 @@ static void tick_hexagons (ModeInfo *mi) {
     for (i = 0; i < (bp->grid_w * bp->grid_h) / 3; i++) {
       int x, y;
       if (bp->state == FIRST) {
-        x = bp->grid_w / 2; y = bp->grid_h / 2;
+        x = bp->grid_w / 2 - 1; y = bp->grid_h / 2 - 1;
         bp->state = DRAW;
         bp->fade_ratio = 1; // TODO what is this?
         min_vx = 0; max_vx = 0; min_vy = 0; max_vy = 0;
@@ -1048,7 +1047,7 @@ ENTRYPOINT void init_hextrail (ModeInfo *mi) {
 
   reshape_hextrail (mi, MI_WIDTH(mi), MI_HEIGHT(mi));
 
-  bp->size = MI_COUNT(mi) * 2;
+  bp->size = MI_COUNT(mi) * 2 + 1;
   bp->rot = make_rotator (do_spin ? 0.002 : 0,
                           do_spin ? 0.002 : 0,
                           do_spin ? 0.002 : 0,
@@ -1115,7 +1114,7 @@ ENTRYPOINT void draw_hextrail (ModeInfo *mi) {
   bp->now = time(NULL);
   if (bp->pause_until < bp->now) tick_hexagons (mi);
   if (bp->button_down_p) {
-    if (!bp->button_pressed) printf("Button pressed\n");
+    if (do_expand && !bp->button_pressed) printf("Button pressed\n");
     bp->button_pressed = True;
   }
   draw_hexagons (mi);
