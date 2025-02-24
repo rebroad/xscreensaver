@@ -51,6 +51,7 @@ typedef struct {
 typedef struct hexagon hexagon;
 
 struct hexagon {
+  XYZ pos;		// TODO remove as can be derived from x and y
   int x, y;
   hexagon *neighbors[6];
   arm arms[6];
@@ -75,9 +76,16 @@ typedef struct {
   Bool button_down_p, button_pressed;
   time_t now, pause_until;
 
-  hexagon **hexagons;
-  int hexagon_count;
-  int size;
+  /* TODO - have a simple X by Y array of hexagon pointers
+   /   and then allocate memory for the actual hexagons when
+   /   they are created. This way we'll never need to update
+   /   neighbours as we can keep all pointers to hexagons
+   /   and the fixed array uses less memory (just a single
+   /   pointer per entry, so a 1000 x 1000 grid will need only
+   /   8MB on a 64-bit system */
+  int grid_w, grid_h;
+  int x_offset, y_offset;
+  hexagon *hexagons;
   enum { FIRST, DRAW, FADE } state;
   GLfloat fade_ratio;
 
@@ -120,14 +128,40 @@ static argtype vars[] = {
 
 ENTRYPOINT ModeSpecOpt hextrail_opts = {countof(opts), opts, countof(vars), vars, NULL};
 
-/*static void make_plane (ModeInfo *mi) {
+static void update_neighbors(ModeInfo *mi) {
+  hextrail_configuration *bp = &bps[MI_SCREEN(mi)];
+  int x, y;
+
+  for (y = 0; y < bp->grid_h; y++) for (x = 0; x < bp->grid_w; x++) {
+    hexagon *h0 = &bp->hexagons[y * bp->grid_w + x];
+
+# define NEIGHBOR(I,XE,XO,Y) do {                                   \
+      int x1 = x + (y & 1 ? (XO) : (XE)), y1 = y + (Y);             \
+      if (x1 >= 0 && x1 < bp->grid_w && y1 >= 0 && y1 < bp->grid_h) \
+        h0->neighbors[(I)] = &bp->hexagons[y1 * bp->grid_w + x1];   \
+      else                                                          \
+        h0->neighbors[(I)] = NULL;                                  \
+    } while (0)
+
+    NEIGHBOR (0,  0,  1, -1);
+    NEIGHBOR (1,  1,  1,  0);
+    NEIGHBOR (2,  0,  1,  1);
+    NEIGHBOR (3, -1,  0,  1);
+    NEIGHBOR (4, -1, -1,  0);
+    NEIGHBOR (5, -1,  0, -1);
+# undef NEIGHBOR
+  }
+}
+
+static void make_plane (ModeInfo *mi) {
   hextrail_configuration *bp = &bps[MI_SCREEN(mi)];
   int x, y;
   GLfloat size, w, h;
   hexagon *grid;
 
-  bp->grid_w = MI_COUNT(mi) * 2;
-  bp->grid_h = bp->grid_w;
+  bp->size = MI_COUNT(mi) * 2;
+  bp->grid_w = bp->size;
+  bp->grid_h = bp->size;
 
   grid = (bp->hexagons
           ? bp->hexagons
@@ -139,7 +173,16 @@ ENTRYPOINT ModeSpecOpt hextrail_opts = {countof(opts), opts, countof(vars), vars
   if (bp->button_pressed)
     printf("Setting button_pressed to False\n");
   bp->button_pressed = False;
-  printf("ncolors = %d\n", bp->ncolors);
+  if (!bp->colors) {
+#ifdef USE_SDL
+    bp->colors = (SDL_Color *) calloc(bp->ncolors, sizeof(SDL_Color));
+    make_smooth_colormap(bp->colors, &bp->ncolors, False, 0, False);
+#else
+    bp->colors = (XColor *) calloc(bp->ncolors, sizeof(XColor));
+    make_smooth_colormap (0, 0, 0, bp->colors, &bp->ncolors, False, 0, False);
+#endif
+  } else
+    printf("Didn't smooth. ncolors = %d\n", bp->ncolors);
 
   size = 2.0 / bp->grid_w;
   w = size;
@@ -156,6 +199,7 @@ ENTRYPOINT ModeSpecOpt hextrail_opts = {countof(opts), opts, countof(vars), vars
       if (y & 1) h0->pos.x += w / 2; // Stagger into hex arrangement
       h0->pos.y = (y - bp->grid_h/2) * h;
       h0->pos.z = 0;
+      h0->state = EMPTY;
       h0->ratio = 0;
       h0->doing = 0;
 
@@ -164,7 +208,7 @@ ENTRYPOINT ModeSpecOpt hextrail_opts = {countof(opts), opts, countof(vars), vars
   }
 
   update_neighbors(mi);
-} */
+}
 
 
 static int add_arms (ModeInfo *mi, hexagon *h0) {
@@ -186,11 +230,13 @@ static int add_arms (ModeInfo *mi, hexagon *h0) {
     int j = idx[i];
     arm *a0 = &h0->arms[j];
     if (a0->state != EMPTY) continue;		/* Arm already exists */
-    hexagon *h1 = h0->neighbors[j];
-    if (h1) continue;   /* Occupado */
-    // Create a new hexagon if no neighbour exists
-    h1 = add_hexagon(mi, h0, j);
-    if (!h1) continue;  // Constrained
+    hexagon *h1 = h0->neighbors[j]; // TODO - technically not needed as the array of X by Y is sufficient to find all 6 neighbours
+    // TODO - here we allocate memory for a new hexagon
+    if (!h1) {
+      //printf("pos=%d,%d No neighbour on arm %d\n", h0->x, h0->y, j);
+      continue;			/* No neighboring cell */
+    }
+    if (!h1->empty) continue;	/* Occupado */
 
     h1->state = IN;
     arm *a1 = &h1->arms[(j + 3) % 6];		/* Opposite arm */
@@ -238,7 +284,6 @@ static Bool point_invis(hexagon *h0) {
   Bool is_visible = (winX >= viewport[0] && winX <= viewport[0] + viewport[2] &&
           winY >= viewport[1] && winY <= viewport[1] + viewport[3] &&
           winZ > 0 && winZ < 1);
-
   /*if (!h0->empty && h0->invis == is_visible && is_visible)
     printf("Visibility flip at (%d,%d): win=(%.1f, %.1f, %.1f), viewport=(%d,%d,%d,%d)\n",
              h0->x, h0->y, winX, winY, winZ, viewport[0], viewport[1], viewport[2], viewport[3]);*/
@@ -246,82 +291,194 @@ static Bool point_invis(hexagon *h0) {
   return !is_visible;
 }
 
+// TODO the function below can be deleted once we move to dynamically allocating memory for hexagons, and reference these all by a single 1000 by 1000 array of pointers.
+static void expand_plane(ModeInfo *mi, int direction) {
+  hextrail_configuration *bp = &bps[MI_SCREEN(mi)];
+  int new_grid_w = bp->grid_w, new_grid_h = bp->grid_h;
+
+  /* Increase grid size */
+  if (direction & 8) new_grid_w += 2;
+  if (direction & 2) new_grid_w++;
+  if (direction & 4 || direction & 1) new_grid_h++;
+
+  /* Calculate copy offsets */
+  int x_offset = (direction & 8) ? 2 : 0;
+  int y_offset = (direction & 4) ? 1 : 0;
+
+  printf("Expanding plane: before = %d-%d,%d-%d after = %d-%d,%d-%d\n",
+          -bp->x_offset, -bp->y_offset, bp->grid_w - bp->x_offset, bp->grid_h - bp->y_offset,
+          -bp->x_offset - x_offset, -bp->y_offset - y_offset,
+          new_grid_w - bp->x_offset - x_offset, new_grid_h - bp->y_offset - y_offset);
+
+  bp->x_offset += x_offset; bp->y_offset += y_offset;
+
+  /* Allocate new grid */
+  hexagon *new_hexagons = (hexagon *)calloc(new_grid_w * new_grid_h, sizeof(hexagon));
+  if (!new_hexagons) {
+    fprintf(stderr, "Failed to allocate memory for expanded grid\n");
+    return;
+  }
+
+  /* Copy existing hexagons with position adjustment */
+  int x, y;
+  for (y = 0; y < bp->grid_h; y++) for (x = 0; x < bp->grid_w; x++) {
+    hexagon *old_hex = &bp->hexagons[y * bp->grid_w + x];
+    hexagon *new_hex = &new_hexagons[(y + y_offset) * new_grid_w + x + x_offset];
+    *new_hex = *old_hex;
+  }
+
+  /* Initialize new hexagons */
+  GLfloat w = 2.0 / bp->size; GLfloat h = w * sqrt(3) / 2;
+
+  for (y = 0; y < new_grid_h; y++) for (x = 0; x < new_grid_w; x++) {
+    hexagon *h0 = &new_hexagons[y * new_grid_w + x];
+
+    /* Skip existing hexagons */
+    if (x >= x_offset && x < bp->grid_w + x_offset &&
+        y >= y_offset && y < bp->grid_h + y_offset) continue;
+
+    h0->x = x - bp->x_offset; h0->y = y - bp->y_offset;
+    h0->pos.x = (x - bp->size/2) * w;
+    if (y & 1) h0->pos.x += w / 2;
+    h0->pos.y = (y - bp->size/2) * h;
+    h0->pos.z = 0;
+    h0->border_state = EMPTY;
+    h0->border_ratio = 0;
+    h0->empty = True;
+    h0->doing = 0;
+    /*for (int i = 0; i < 6; i++) {
+      h0->arms[i].state = EMPTY;
+      h0->arms[i].ratio = 0;
+      h0->arms[i].speed = 0;
+      h0->neighbors[i] = NULL;
+    }*/
+  }
+
+  bp->grid_w = new_grid_w; bp->grid_h = new_grid_h;
+  free(bp->hexagons);
+  bp->hexagons = new_hexagons;
+  update_neighbors(mi);
+  /* Sanity check */
+  int start_x = bp->grid_w / 2 - 1;
+  int start_y = bp->grid_h / 2 - 1;
+  if (direction & 1) start_y = bp->grid_h - 3;
+  if (direction & 2) start_x = bp->grid_w - 3;
+  if (direction & 4) start_y = 0;
+  if (direction & 8) start_x = 0;
+
+  for (int y = start_y; y < start_y + 3; y++) {
+    for (int x = start_x; x < start_x + 3; x++) {
+      hexagon *h0 = &bp->hexagons[y * bp->grid_w + x];
+      for (int j = 0; j < 6; j++) {
+        if (h0->arms[j].state != EMPTY && h0->neighbors[j]) {
+          hexagon *h1 = h0->neighbors[j];
+          arm *a1 = &h1->arms[(j + 3) % 6];
+          if (h0->arms[j].state == OUT && a1->state != WAIT) {
+            printf("Arm mismatch at (%d,%d) arm %d: state=%d, neighbor (%d,%d) state=%d\n",
+                   h0->x, h0->y, j, h0->arms[j].state, h1->x, h1->y, a1->state);
+          }
+        }
+      }
+    }
+  }
+}
+
 static void reset_hextrail(ModeInfo *mi) {
   hextrail_configuration *bp = &bps[MI_SCREEN(mi)];
   if (MI_COUNT(mi) < 1) MI_COUNT(mi) = 1;
-  //free (bp->hexagons);
-  //bp->hexagons = NULL;
+  free (bp->hexagons);
+  bp->hexagons = NULL;
   bp->state = FIRST;
   bp->fade_ratio = 1;
-  // Allocate colors
-  bp->ncolors = 8;
-  if (!bp->colors) {
-#ifdef USE_SDL
-    bp->colors = (SDL_Color *) calloc(bp->ncolors, sizeof(SDL_Color));
-    make_smooth_colormap(bp->colors, &bp->ncolors, False, 0, False);
-#else
-    bp->colors = (XColor *) calloc(bp->ncolors, sizeof(XColor));
-    make_smooth_colormap (0, 0, 0, bp->colors, &bp->ncolors, False, 0, False);
-#endif
-  } else
-    printf("Not reallocating colors\n");
+  make_plane (mi);
 }
 
 static void tick_hexagons (ModeInfo *mi) {
   hextrail_configuration *bp = &bps[MI_SCREEN(mi)];
   int i, j, doinga = 0, doingb = 0, ignorea = 0, ignoreb = 0;
+  int empty = 0; // TODO use this prior to fade
+  int8_t dir = 0; // TODO soon to be obsoleted
   static int min_x = 0, minvy = 0, max_x = 0, max_y = 0;
   static int min_vx = 0, min_vy = 0, max_vx = 0, max_vy = 0;
   int this_min_vx = 0, this_min_vy = 0, this_max_vx = 0, this_max_vy = 0;
 
-  for (i = 0; i < bp->hexagon_count; i++) {
+  for (i = 0; i < bp->grid_w * bp->grid_h; i++) {
     hexagon *h0 = &bp->hexagons[i];
     h0->invis = (!bp->button_pressed && point_invis(h0));
 
-    Bool debug = False;
+    int adj_x = h0->x + bp->size/2 + bp->x_offset;
+    int adj_y = h0->y + bp->size/2 + bp->y_offset;
 
-    // Measure the drawn part we can see
-    if (!h0->invis) {
-      if (h0->x > this_max_vx) {
-        this_max_vx = h0->x;
-        if (h0->x > max_vx) {
-          debug = True; max_vx = h0->x;
+    if (!bp->button_pressed) {
+      Bool debug = False;
+
+      // Measure the drawn part we can see
+      if (!h0->invis && h0->state != EMPTY) {
+        if (h0->x > this_max_vx) {
+          this_max_vx = h0->x;
+          if (h0->x > max_vx) {
+            debug = True; max_vx = h0->x;
+          }
         }
-      }
-      if (h0->x < this_min_vx) {
-        this_min_vx = h0->x;
         if (h0->x < min_vx) {
-        debug = True; min_vx = h0->x;
+          min_vx = h0->x;
+          if (h0->x < last_min_vx) {
+          debug = True; last_min_vx = h0->x;
+          }
         }
-      }
-      if (h0->y > this_max_vy) {
-        this_max_vy = h0->y;
         if (h0->y > max_vy) {
-          debug = True; max_vy = h0->y;
+          max_vy = h0->y;
+          if (h0->y > last_max_vy) {
+            debug = True; last_max_vy = h0->y;
+          }
         }
-      }
-      if (h0->y < this_min_vy) {
-        this_min_vy = h0->y;
         if (h0->y < min_vy) {
-          debug = True; min_vy = h0->y;
+          min_vy = h0->y;
+          if (h0->y < last_min_vy) {
+            debug = True; last_min_vy = h0->y;
+          }
         }
-      }
-    } // Visible and non-empty
+      } // Visible and non-empty
 
-    if (debug)
-      printf("pos=%d,%d vis=(%d-%d,%d-%d) (%d-%d,%d-%d) arms=%d visible=%d\n",
-              h0->x, h0->y, min_vx, max_vx, min_vy, max_vy,
-              min_x, max_x, min_y, max_y, h0->doing, !h0->invis);
+      // Logic to expand the X,Y lookup table
+      if (h0->doing && !h0->invis) {
+        // 1=vmax++, 2=hmax++, 4=vmin--, 8=hmin--
+        if (adj_x == 0) dir |= 8;
+        else if (adj_x == bp->grid_w - 1) dir |= 2;
+        if (adj_y == 0) dir |= 4;
+        else if (adj_y == bp->grid_h - 1) dir |= 1;
+        // TODO - test if we can shift instead of expand
+        //printf("pos=%d,%d Expanding plane %d edge=%d visible=%d arms=%d border=%d\n", h0->x, h0->y, dir, is_edge, !invis, h0->doing, h0->border_state != EMPTY);
+      }
+
+      if (debug)
+        printf("pos=%d,%d vis=(%d-%d,%d-%d) (%d-%d,%d-%d) arms=%d border=%d edge=%d, visible=%d\n",
+                h0->x, h0->y, min_vx, max_vx, min_vy, max_vy,
+                min_x, max_x, min_y, max_y, h0->doing, h0->border_state != EMPTY, dir, !invis);
+      // TODO use above values to work out if we can shift instead of expand plane
+
+    } // Button never pressed
+
+    Bool is_edge = (adj_x == 0 || adj_x == bp->grid_w - 1 ||
+                   adj_y == 0 || adj_y == bp->grid_h - 1 );
+
+
+
+
 
     if (h0->doing) {
       doinga++;
       if (h0->invis) ignorea++;
     }
 
-    doingb++;
-    if (h0->invis >= 1) ignoreb++;
+    if (h0->border_state != EMPTY) {
+      doingb++;
+      if (h0->invis) ignoreb++;
+    } else
+      empty++;
 
-    if (h0->invis >= 1.1) continue;
+    // if (h0->invis > 2) continue; // TODO make granular
+    if (is_edge && h0->invis) continue;
 
     /* Enlarge any still-growing arms if active.  */
     for (j = 0; j < 6; j++) {
@@ -383,15 +540,15 @@ static void tick_hexagons (ModeInfo *mi) {
           h0->state = WAIT;
         }
         break;
+      case OUT:
+        h0->border_ratio -= 0.05 * speed;
+        if (h0->border_ratio <= 0) {
+          h0->border_ratio = 0;
+          h0->border_state = EMPTY;
+        }
       case WAIT:
         if (! (random() % 50)) h0->border_state = OUT;
         break;
-      case OUT:
-        h0->ratio -= 0.05 * speed;
-        if (h0->ratio <= 0) {
-          h0->ratio = 0;
-          h0->state = DONE;
-        }
       case EMPTY:
 /*
         if (! (random() % 3000))
@@ -406,13 +563,15 @@ static void tick_hexagons (ModeInfo *mi) {
 
   min_vx = this_min_vx; max_vx = this_max_vx; min_vy = this_min_vy; max_vy = this_max_vy;
 
+  if (dir) expand_plane(mi, dir);
+
   /* Start a new cell growing.  */
   Bool try_new = False, started = False;
   if ((doinga - ignorea) <= 0) {
-    int tries = (bp->size * bp->size) / 3;
-	int x = 0, y = 0;
-    for (i = 0; i < tries; i++) {
+    for (i = 0; i < (bp->grid_w * bp->grid_h) / 3; i++) {
+      int x, y;
       if (bp->state == FIRST) {
+        x = bp->grid_w / 2; y = bp->grid_h / 2;
         bp->state = DRAW;
         bp->fade_ratio = 1; // TODO what is this?
         min_vx = 0; max_vx = 0; min_vy = 0; max_vy = 0;
@@ -422,10 +581,13 @@ static void tick_hexagons (ModeInfo *mi) {
                 min_x, max_x, min_y, max_y);
       } else {
         try_new = True;
-        x = (random() % bp->size) - (bp->size / 2);
-        y = (random() % bp->size) - (bp->size / 2);
+        //x = (random() % bp->size) - (bp->size / 2);
+        //y = (random() % bp->size) - (bp->size / 2);
+        x = random() % bp->grid_w;
+        y = random() % bp->grid_h;
       }
-      hexagon *h0 = add_hexagon(NULL, 0, x, y);
+      //hexagon *h0 = add_hexagon(NULL, 0, x, y);
+      hexagon *h0 = &bp->hexagons[y * bp->grid_w + x];
       if (h0->empty && !h0->invis && add_arms(mi, h0)) {
         h0->ccolor = random() % bp->ncolors;
         started = True;
@@ -900,14 +1062,6 @@ ENTRYPOINT void init_hextrail (ModeInfo *mi) {
 
   if (thickness < 0.05) thickness = 0.05;
   if (thickness > 0.5) thickness = 0.5;
-  // Initialise dynamic hezagon array
-  bp->hexagon_count = 0;
-  // Start with space for 400 hexagons
-  bp->hexagons = (hexagon **)malloc(400 * sizeof(hexagon *));
-  if (!bp->hexagons) {
-    fprintf(stderr, "Failed to allocate initial hexagon array\n");
-    exit(1);
-  }
 
   reset_hextrail (mi);
 }
