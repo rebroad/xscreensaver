@@ -206,9 +206,9 @@ static void make_plane (ModeInfo *mi) {
       h0->ratio = 0;
       h0->doing = 0;
 
-	  if (x == 0 && y == 0) printf("%s: %d,%d pos.x=%f pos.y=%f\n", __func__, h0->x,h0->y,h0->pos.x,h0->pos.y);
-	  if (x == bp->grid_w/2 && y == bp->grid_h/2) printf("%s: %d,%d pos.x = %f pos.y = %f\n", __func__, h0->x,h0->y,h0->pos.x,h0->pos.y);
-	  if (x == bp->grid_w-1 && y == bp->grid_h-1) printf("%s: %d,%d pos.x = %f pos.y = %f\n", __func__, h0->x,h0->y,h0->pos.x,h0->pos.y);
+      if (x == 0 && y == 0) printf("%s: %d,%d pos.x=%f pos.y=%f\n", __func__, h0->x,h0->y,h0->pos.x,h0->pos.y);
+      if (x == bp->grid_w/2 && y == bp->grid_h/2) printf("%s: %d,%d pos.x = %f pos.y = %f\n", __func__, h0->x,h0->y,h0->pos.x,h0->pos.y);
+      if (x == bp->grid_w-1 && y == bp->grid_h-1) printf("%s: %d,%d pos.x = %f pos.y = %f\n", __func__, h0->x,h0->y,h0->pos.x,h0->pos.y);
     }
   }
 
@@ -251,7 +251,7 @@ static int add_arms (ModeInfo *mi, hexagon *h0) {
       printf("H1 (%d,%d) empty=%d arm[%d].state=%d\n",
              h1->x, h1->y, h1->state == EMPTY, (j+3)%6, a1->state);
       bp->pause_until = bp->now + 3;
-	  continue;
+      continue;
     }
     a0->state = OUT;
     a1->state = WAIT;
@@ -459,7 +459,7 @@ static void tick_hexagons (ModeInfo *mi) {
       else if (adj_x == bp->grid_w - 1) edge |= 2;
       if (adj_y == 0) edge |= 4;
       else if (adj_y == bp->grid_h - 1) edge |= 1;
-	  dir |= edge;
+      dir |= edge;
       // TODO - test if we can shift instead of expand
     }
 
@@ -549,12 +549,13 @@ static void tick_hexagons (ModeInfo *mi) {
         h0->ratio -= 0.05 * speed;
         if (h0->ratio <= 0) {
           h0->ratio = 0;
-          h0->state = EMPTY;
+          h0->state = DONE;
         }
       case WAIT:
         if (! (random() % 50)) h0->state = OUT;
         break;
       case EMPTY:
+      case DONE:
         break;
       default:
         printf("h0->state = %d\n", h0->state);
@@ -692,7 +693,7 @@ static void draw_hexagons (ModeInfo *mi) {
       int k = (j + 1) % 6;
       XYZ p[6];
 
-      if (h->state != EMPTY) {
+      if (h->state != EMPTY && h->state != DONE) {
         GLfloat color1[3];
         memcpy (color1, color, sizeof(color1));
         color1[0] *= h->ratio;
