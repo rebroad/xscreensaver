@@ -415,7 +415,8 @@ static void tick_hexagons (ModeInfo *mi) {
           if (h0->x > last_max_vx) {
             debug = True; last_max_vx = h0->x;
 		  }
-		} else if (h0->x < min_vx) {
+		}
+		if (h0->x < min_vx) {
 		  min_vx = h0->x;
           if (h0->x < last_min_vx) {
           debug = True; last_min_vx = h0->x;
@@ -426,7 +427,8 @@ static void tick_hexagons (ModeInfo *mi) {
           if (h0->y > last_max_vy) {
             debug = True; last_max_vy = h0->y;
 		  }
-		} else if (h0->y < min_vy) {
+		}
+		if (h0->y < min_vy) {
 		  min_vy = h0->y;
           if (h0->y < last_min_vy) {
             debug = True; last_min_vy = h0->y;
