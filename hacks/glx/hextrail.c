@@ -30,10 +30,6 @@
 
 #ifdef USE_GL /* whole file */
 
-/*#ifdef USE_SDL
-SDL_Window* window;
-SDL_GLContext glContext;
-#endif*/
 
 #define DEF_SPIN        "True"
 #define DEF_WANDER      "True"
@@ -55,15 +51,13 @@ typedef struct {
 typedef struct hexagon hexagon;
 
 struct hexagon {
-  XYZ pos;
   int x, y;
-  hexagon *neighbors[6]; // not technically needed...?
+  hexagon *neighbors[6];
   arm arms[6];
   int ccolor;
-  state_t border_state;
-  GLfloat border_ratio;
-  Bool empty;
-  int doing;
+  state_t state;
+  GLfloat ratio;
+  int8_t doing;
   Bool invis;
 };
 
@@ -81,9 +75,8 @@ typedef struct {
   Bool button_down_p, button_pressed;
   time_t now, pause_until;
 
-  int grid_w, grid_h;
-  int x_offset, y_offset;
-  hexagon *hexagons;
+  hexagon **hexagons;
+  int hexagon_count;
   enum { FIRST, DRAW, FADE } state;
   GLfloat fade_ratio;
 
@@ -151,7 +144,7 @@ static void update_neighbors(ModeInfo *mi) {
   }
 }
 
-static void make_plane (ModeInfo *mi) {
+/*static void make_plane (ModeInfo *mi) {
   hextrail_configuration *bp = &bps[MI_SCREEN(mi)];
   int x, y;
   GLfloat size, w, h;
@@ -170,15 +163,6 @@ static void make_plane (ModeInfo *mi) {
   if (bp->button_pressed)
     printf("Setting button_pressed to False\n");
   bp->button_pressed = False;
-  if (!bp->colors) {
-#ifdef USE_SDL
-    bp->colors = (SDL_Color *) calloc(bp->ncolors, sizeof(SDL_Color));
-    make_smooth_colormap(bp->colors, &bp->ncolors, False, 0, False);
-#else
-    bp->colors = (XColor *) calloc(bp->ncolors, sizeof(XColor));
-    make_smooth_colormap (0, 0, 0, bp->colors, &bp->ncolors, False, 0, False);
-#endif
-  }
   printf("ncolors = %d\n", bp->ncolors);
 
   size = 2.0 / bp->grid_w;
@@ -196,9 +180,8 @@ static void make_plane (ModeInfo *mi) {
       if (y & 1) h0->pos.x += w / 2; // Stagger into hex arrangement
       h0->pos.y = (y - bp->grid_h/2) * h;
       h0->pos.z = 0;
-      h0->border_state = EMPTY;
-      h0->border_ratio = 0;
-      h0->empty = True;
+      h0->state = EMPTY;
+      h0->ratio = 0;
       h0->doing = 0;
 
       //h0->ccolor = random() % bp->ncolors;
@@ -206,7 +189,7 @@ static void make_plane (ModeInfo *mi) {
   }
 
   update_neighbors(mi);
-}
+} */
 
 
 static int add_arms (ModeInfo *mi, hexagon *h0) {
@@ -226,22 +209,21 @@ static int add_arms (ModeInfo *mi, hexagon *h0) {
 
   for (i = 0; i < 6; i++) {
     int j = idx[i];
-    hexagon *h1 = h0->neighbors[j];
     arm *a0 = &h0->arms[j];
-    if (!h1) {
-      //printf("pos=%d,%d No neighbour on arm %d\n", h0->x, h0->y, j);
-      continue;			/* No neighboring cell */
-    }
-    if (!h1->empty) continue;	/* Occupado */
     if (a0->state != EMPTY) continue;		/* Arm already exists */
+    hexagon *h1 = h0->neighbors[j];
+    if (h1) continue;   /* Occupado */
+    // Create a new hexagon if no neighbour exists
+    h1 = add_hexagon(mi, h0, j);
+    if (!h1) continue;
 
     arm *a1 = &h1->arms[(j + 3) % 6];		/* Opposite arm */
 
     if (a1->state != EMPTY) {
-	  printf("H1 (%d,%d) empty=%d arm[%d].state=%d\n",
-			 h1->x, h1->y, h1->empty, (j+3)%6, a1->state);
-	  abort();
-	}
+      printf("H1 (%d,%d) empty=%d arm[%d].state=%d\n",
+             h1->x, h1->y, h1->empty, (j+3)%6, a1->state);
+      abort();
+    }
     a0->state = OUT;
     a1->state = WAIT;
     a0->ratio = 0;
@@ -249,14 +231,12 @@ static int add_arms (ModeInfo *mi, hexagon *h0) {
     a0->speed = 0.05 * speed * (0.8 + frand(1.0));
     a1->speed = a0->speed;
 
-    if (h1->border_state == EMPTY) {
-      h1->doing = -1;
-      h1->border_state = IN;
-      h1->empty = False; h0->empty = False;
+    if (h1->state == EMPTY) {
+      h1->state = IN;
 
       /* Mostly keep the same color */
       if (! (random() % 5)) h1->ccolor = (h0->ccolor + 1) % bp->ncolors;
-	  else h1->ccolor = h0->ccolor;
+      else h1->ccolor = h0->ccolor;
     }
 
     added++;
@@ -343,8 +323,8 @@ static void expand_plane(ModeInfo *mi, int direction) {
     if (y & 1) h0->pos.x += w / 2;
     h0->pos.y = (y - bp->y_offset - MI_COUNT(mi)) * h;
     h0->pos.z = 0;
-    h0->border_state = EMPTY;
-    h0->border_ratio = 0;
+    h0->state = EMPTY;
+    h0->ratio = 0;
     h0->empty = True;
     h0->doing = 0;
     /*for (int i = 0; i < 6; i++) {
@@ -388,11 +368,22 @@ static void expand_plane(ModeInfo *mi, int direction) {
 static void reset_hextrail(ModeInfo *mi) {
   hextrail_configuration *bp = &bps[MI_SCREEN(mi)];
   if (MI_COUNT(mi) < 1) MI_COUNT(mi) = 1;
-  free (bp->hexagons);
-  bp->hexagons = NULL;
+  //free (bp->hexagons);
+  //bp->hexagons = NULL;
   bp->state = FIRST;
   bp->fade_ratio = 1;
-  make_plane (mi);
+  // Allocate colors
+  bp->ncolors = 8;
+  if (!bp->colors) {
+#ifdef USE_SDL
+    bp->colors = (SDL_Color *) calloc(bp->ncolors, sizeof(SDL_Color));
+    make_smooth_colormap(bp->colors, &bp->ncolors, False, 0, False);
+#else
+    bp->colors = (XColor *) calloc(bp->ncolors, sizeof(XColor));
+    make_smooth_colormap (0, 0, 0, bp->colors, &bp->ncolors, False, 0, False);
+#endif
+  } else
+    printf("Not reallocating colors\n");
 }
 
 static void tick_hexagons (ModeInfo *mi) {
@@ -410,28 +401,28 @@ static void tick_hexagons (ModeInfo *mi) {
       // Measure the drawn part we can see
       if (!h0->invis && !h0->empty) {
         if (h0->x > max_vx) {
-		  max_vx = h0->x;
+          max_vx = h0->x;
           if (h0->x > last_max_vx) {
             debug = True; last_max_vx = h0->x;
-		  }
-		}
-		if (h0->x < min_vx) {
-		  min_vx = h0->x;
+          }
+        }
+        if (h0->x < min_vx) {
+          min_vx = h0->x;
           if (h0->x < last_min_vx) {
           debug = True; last_min_vx = h0->x;
           }
-		}
+        }
         if (h0->y > max_vy) {
-	      max_vy = h0->y;
+          max_vy = h0->y;
           if (h0->y > last_max_vy) {
             debug = True; last_max_vy = h0->y;
-		  }
-		}
-		if (h0->y < min_vy) {
-		  min_vy = h0->y;
+          }
+        }
+        if (h0->y < min_vy) {
+          min_vy = h0->y;
           if (h0->y < last_min_vy) {
             debug = True; last_min_vy = h0->y;
-		  }
+          }
         }
       } // Visible and non-empty
 
@@ -442,7 +433,7 @@ static void tick_hexagons (ModeInfo *mi) {
         if (h0->y == 0) dir |= 4;
         else if (h0->y == bp->grid_h - 1) dir |= 1;
         // TODO - test if we can shift instead of expand
-        //printf("pos=%d,%d Expanding plane %d edge=%d visible=%d arms=%d border=%d\n", h0->x, h0->y, dir, is_edge, !invis, h0->doing, h0->border_state != EMPTY);
+        //printf("pos=%d,%d Expanding plane %d edge=%d visible=%d arms=%d border=%d\n", h0->x, h0->y, dir, is_edge, !invis, h0->doing, h0->state != EMPTY);
       }
 
       if (debug)
@@ -450,7 +441,7 @@ static void tick_hexagons (ModeInfo *mi) {
                 h0->x - bp->x_offset, h0->y - bp->y_offset,
                 last_min_vx - bp->x_offset, last_max_vx - bp->x_offset,
                 last_min_vy - bp->y_offset, last_max_vy - bp->y_offset,
-                h0->doing, h0->border_state != EMPTY, dir, !h0->invis);
+                h0->doing, h0->state != EMPTY, dir, !h0->invis);
       // TODO use above values to work out if we can shift instead of expand plane
 
     } // Button never pressed
@@ -465,7 +456,7 @@ static void tick_hexagons (ModeInfo *mi) {
       if (h0->invis) ignorea++;
     }
 
-    if (h0->border_state != EMPTY) {
+    if (h0->state != EMPTY) {
       doingb++;
       if (h0->invis) ignoreb++;
     }
@@ -485,22 +476,22 @@ static void tick_hexagons (ModeInfo *mi) {
             arm *a1 = &h1->arms[(j + 3) % 6];
             if (a1->state != WAIT) {
               printf("H0 (%d,%d)'s arm=%d connecting to H1 (%d,%d)'s arm_state=%d arm_ratio=%.1f\n", h0->x, h0->y, j, h1->x, h1->y, a1->state, a1->ratio);
-			  bp->pause_until = bp->now + 3;
+              bp->pause_until = bp->now + 3;
               a0->speed = -a0->speed;
-			  a1->state = OUT;
-			  if (a1->speed > 0) a1->speed = -a1->speed;
+              a1->state = OUT;
+              if (a1->speed > 0) a1->speed = -a1->speed;
             } else {
               a0->state = DONE;
               a0->ratio = 1;
               a1->state = IN;
               a1->ratio = 0;
               a1->speed = a0->speed;
-			}
+            }
           } else if (a0->ratio <= 0) {
-			/* Just finished retreating back to center */
+            /* Just finished retreating back to center */
             a0->state = DONE;
-			a0->ratio = 0;
-		  }
+            a0->ratio = 0;
+          }
           break;
         case IN:
           if (a0->speed <= 0) abort();
@@ -524,31 +515,32 @@ static void tick_hexagons (ModeInfo *mi) {
       }
     } // 6 arms
 
-    switch (h0->border_state) {
+    switch (h0->state) {
       case IN:
-        h0->border_ratio += 0.05 * speed;
-        if (h0->border_ratio >= 1) {
-          h0->border_ratio = 1;
-          h0->border_state = WAIT;
+        h0->ratio += 0.05 * speed;
+        if (h0->ratio >= 1) {
+          h0->ratio = 1;
+          h0->state = WAIT;
         }
         break;
-      case OUT:
-        h0->border_ratio -= 0.05 * speed;
-        if (h0->border_ratio <= 0) {
-          h0->border_ratio = 0;
-          h0->border_state = EMPTY;
-        }
       case WAIT:
         if (! (random() % 50)) h0->border_state = OUT;
         break;
+      case OUT:
+        h0->ratio -= 0.05 * speed;
+        if (h0->ratio <= 0) {
+          h0->ratio = 0;
+          h0->state = DONE;
+        }
       case EMPTY:
+      case DONE:
 /*
         if (! (random() % 3000))
-          h0->border_state = IN;
+          h0->state = IN;
  */
         break;
       default:
-        printf("h0->border_state = %d\n", h0->border_state);
+        printf("h0->state = %d\n", h0->state);
         abort(); break;
     }
   } // Loop through each hexagon
@@ -567,8 +559,8 @@ static void tick_hexagons (ModeInfo *mi) {
         x = bp->grid_w / 2; y = bp->grid_h / 2;
         bp->state = DRAW;
         bp->fade_ratio = 1;
-		last_min_vx = bp->grid_w; last_max_vx = 0;
-		last_min_vy = bp->grid_h; last_max_vy = 0;
+        last_min_vx = bp->grid_w; last_max_vx = 0;
+        last_min_vy = bp->grid_h; last_max_vy = 0;
         printf("New hextrail. vis=(%d-%d,%d-%d)\n",
                 last_min_vx, last_max_vx, last_min_vy, last_max_vy);
       } else {
@@ -595,8 +587,8 @@ static void tick_hexagons (ModeInfo *mi) {
 
     for (i = 0; i < bp->grid_w * bp->grid_h; i++) {
       hexagon *h = &bp->hexagons[i];
-      if (h->border_state == IN || h->border_state == WAIT)
-        h->border_state = OUT;
+      if (h->state == IN || h->state == WAIT)
+        h->state = OUT;
     }
   } else if (bp->state == FADE) {
     bp->fade_ratio -= 0.01 * speed;
@@ -680,12 +672,12 @@ static void draw_hexagons (ModeInfo *mi) {
       int k = (j + 1) % 6;
       XYZ p[6];
 
-      if (h->border_state != EMPTY) {
+      if (h->state != EMPTY) {
         GLfloat color1[3];
         memcpy (color1, color, sizeof(color1));
-        color1[0] *= h->border_ratio;
-        color1[1] *= h->border_ratio;
-        color1[2] *= h->border_ratio;
+        color1[0] *= h->ratio;
+        color1[1] *= h->ratio;
+        color1[2] *= h->ratio;
 
         glColor4fv (color1);
         glMaterialfv (GL_FRONT, GL_AMBIENT_AND_DIFFUSE, color1);
@@ -1035,19 +1027,13 @@ ENTRYPOINT void init_hextrail (ModeInfo *mi) {
 
   reshape_hextrail (mi, MI_WIDTH(mi), MI_HEIGHT(mi));
 
-  {
-    double spin_speed   = 0.002;
-    double wander_speed = 0.003;
-    double spin_accel   = 1.0;
-
-    bp->rot = make_rotator (do_spin ? spin_speed : 0,
-                            do_spin ? spin_speed : 0,
-                            do_spin ? spin_speed : 0,
-                            spin_accel,
-                            do_wander ? wander_speed : 0,
-                            False);
-    bp->trackball = gltrackball_init (True);
-  }
+  bp->rot = make_rotator (do_spin ? 0.002 : 0,
+                          do_spin ? 0.002 : 0,
+                          do_spin ? 0.002 : 0,
+                          1.0, // spin_accel
+                          do_wander ? 0.003 : 0,
+                          False);
+  bp->trackball = gltrackball_init (True);
 
   /* Let's tilt the scene a little. */
   gltrackball_reset (bp->trackball,
@@ -1056,6 +1042,14 @@ ENTRYPOINT void init_hextrail (ModeInfo *mi) {
 
   if (thickness < 0.05) thickness = 0.05;
   if (thickness > 0.5) thickness = 0.5;
+  // Initialise dynamic hezagon array
+  bp->hexagon_count = 0;
+  // Start with space for 400 hexagons
+  bp->hexagons = (hexagon **)malloc(400 * sizeof(hexagon *));
+  if (!bp->hexagons) {
+    fprintf(stderr, "Failed to allocate initial hexagon array\n");
+    exit(1);
+  }
 
   reset_hextrail (mi);
 }
