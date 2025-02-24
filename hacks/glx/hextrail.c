@@ -405,18 +405,12 @@ static void tick_hexagons (ModeInfo *mi) {
   hextrail_configuration *bp = &bps[MI_SCREEN(mi)];
   int i, j, doinga = 0, doingb = 0, ignorea = 0, ignoreb = 0;
   int8_t dir = 0;
-  static int max_x = 0, max_y = 0, min_x = 0, min_y = 0;
   static int last_min_vx = -1, last_min_vy = 0, last_max_vx = 0, last_max_vy = 0;
   int min_vx = bp->grid_w, min_vy = bp->grid_h, max_vx = 0, max_vy = 0;
 
-  if (last_min_vx == -1) {
-	last_min_vx = bp->grid_w; last_max_vx = 0;
-	last_min_vy = bp->grid_h; last_max_vy = 0;
-  }
-
-  if (!bp->button_pressed) {
-    for (i = 0; i < bp->grid_w * bp->grid_h; i++) {
-      hexagon *h0 = &bp->hexagons[i];
+  for (i = 0; i < bp->grid_w * bp->grid_h; i++) {
+    hexagon *h0 = &bp->hexagons[i];
+    if (!bp->button_pressed) {
       Bool debug = False;
 
       // Measure the drawn part we can see
@@ -453,7 +447,6 @@ static void tick_hexagons (ModeInfo *mi) {
         else if (h0->y == bp->grid_h - 1) dir |= 1;
         // TODO - test if we can shift instead of expand
         //printf("pos=%d,%d Expanding plane %d edge=%d visible=%d arms=%d border=%d\n", h0->x, h0->y, dir, is_edge, !invis, h0->doing, h0->border_state != EMPTY);
-        break;
       }
 
       if (debug)
@@ -464,14 +457,7 @@ static void tick_hexagons (ModeInfo *mi) {
                 h0->doing, h0->border_state != EMPTY, dir, !h0->invis);
       // TODO use above values to work out if we can shift instead of expand plane
 
-    } // For all hexagons
-    last_min_vx = min_vx; last_max_vx = max_vx; last_min_vy = min_vy; last_max_vy = max_vy;
-
-    if (dir) expand_plane(mi, dir);
-  } // Button never pressed
-
-  for (i = 0; i < bp->grid_w * bp->grid_h; i++) {
-    hexagon *h0 = &bp->hexagons[i];
+    } // Button never pressed
 
     Bool is_edge = (h0->x == 0 || h0->x == bp->grid_w - 1 ||
                    h0->y == 0 || h0->y == bp->grid_h - 1 );
@@ -571,6 +557,10 @@ static void tick_hexagons (ModeInfo *mi) {
     }
   } // Loop through each hexagon
 
+  last_min_vx = min_vx; last_max_vx = max_vx; last_min_vy = min_vy; last_max_vy = max_vy;
+
+  if (dir) expand_plane(mi, dir);
+
   /* Start a new cell growing.  */
   Bool try_new = False, started = False;
   if ((doinga - ignorea) <= 0) {
@@ -581,12 +571,10 @@ static void tick_hexagons (ModeInfo *mi) {
         x = bp->grid_w / 2; y = bp->grid_h / 2;
         bp->state = DRAW;
         bp->fade_ratio = 1;
-        max_x = 0; max_y = 0; min_x = 0; min_y = 0;
 		last_min_vx = bp->grid_w; last_max_vx = 0;
 		last_min_vy = bp->grid_h; last_max_vy = 0;
-        printf("New hextrail. vis=(%d-%d,%d-%d) (%d-%d,%d-%d)\n",
-                last_min_vx, last_max_vx, last_min_vy, last_max_vy,
-                min_x, max_x, min_y, max_y);
+        printf("New hextrail. vis=(%d-%d,%d-%d)\n",
+                last_min_vx, last_max_vx, last_min_vy, last_max_vy);
       } else {
         try_new = True;
         x = random() % bp->grid_w; // TODO - don't use random?
