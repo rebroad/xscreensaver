@@ -83,7 +83,7 @@ typedef struct {
    /   and the fixed array uses less memory (just a single
    /   pointer per entry, so a 1000 x 1000 grid will need only
    /   8MB on a 64-bit system */
-  int grid_w, grid_h;
+  int size, grid_w, grid_h;
   int x_offset, y_offset;
   hexagon *hexagons;
   enum { FIRST, DRAW, FADE } state;
@@ -194,8 +194,8 @@ static void make_plane (ModeInfo *mi) {
     for (x = 0; x < bp->grid_w; x++) {
       int i = y * bp->grid_w + x;
       hexagon *h0 = &grid[i];
-      h0->x = x; h0->y = y;
-      h0->pos.x = (x - bp->grid_w/2) * w;
+      h0->x = x - bp->size/2; h0->y = y - bp->size/2; // Put 0,0 at the center
+      h0->pos.x = x * w; // TODO - remove this as a derivative
       if (y & 1) h0->pos.x += w / 2; // Stagger into hex arrangement
       h0->pos.y = (y - bp->grid_h/2) * h;
       h0->pos.z = 0;
@@ -236,14 +236,14 @@ static int add_arms (ModeInfo *mi, hexagon *h0) {
       //printf("pos=%d,%d No neighbour on arm %d\n", h0->x, h0->y, j);
       continue;			/* No neighboring cell */
     }
-    if (!h1->empty) continue;	/* Occupado */
+    if (h1->state != EMPTY) continue;	/* Occupado */
 
     h1->state = IN;
     arm *a1 = &h1->arms[(j + 3) % 6];		/* Opposite arm */
 
     if (a1->state != EMPTY) {
       printf("H1 (%d,%d) empty=%d arm[%d].state=%d\n",
-             h1->x, h1->y, h1->empty, (j+3)%6, a1->state);
+             h1->x, h1->y, h1->state == EMPTY, (j+3)%6, a1->state);
       abort();
     }
     a0->state = OUT;
@@ -284,7 +284,7 @@ static Bool point_invis(hexagon *h0) {
   Bool is_visible = (winX >= viewport[0] && winX <= viewport[0] + viewport[2] &&
           winY >= viewport[1] && winY <= viewport[1] + viewport[3] &&
           winZ > 0 && winZ < 1);
-  /*if (!h0->empty && h0->invis == is_visible && is_visible)
+  /*if (h0->state != EMPTY && h0->invis == is_visible && is_visible)
     printf("Visibility flip at (%d,%d): win=(%.1f, %.1f, %.1f), viewport=(%d,%d,%d,%d)\n",
              h0->x, h0->y, winX, winY, winZ, viewport[0], viewport[1], viewport[2], viewport[3]);*/
 
@@ -337,14 +337,14 @@ static void expand_plane(ModeInfo *mi, int direction) {
     if (x >= x_offset && x < bp->grid_w + x_offset &&
         y >= y_offset && y < bp->grid_h + y_offset) continue;
 
-    h0->x = x - bp->x_offset; h0->y = y - bp->y_offset;
-    h0->pos.x = (x - bp->size/2) * w;
+    h0->x = x - bp->x_offset - bp->size/2;
+	h0->y = y - bp->y_offset - bp->size/2;
+    h0->pos.x = x * w; // TODO - remove pos as a derivative
     if (y & 1) h0->pos.x += w / 2;
-    h0->pos.y = (y - bp->size/2) * h;
+    h0->pos.y = y * h;
     h0->pos.z = 0;
-    h0->border_state = EMPTY;
-    h0->border_ratio = 0;
-    h0->empty = True;
+    h0->state = EMPTY;
+    h0->ratio = 0;
     h0->doing = 0;
     /*for (int i = 0; i < 6; i++) {
       h0->arms[i].state = EMPTY;
@@ -398,7 +398,7 @@ static void tick_hexagons (ModeInfo *mi) {
   int i, j, doinga = 0, doingb = 0, ignorea = 0, ignoreb = 0;
   int empty = 0; // TODO use this prior to fade
   int8_t dir = 0; // TODO soon to be obsoleted
-  static int min_x = 0, minvy = 0, max_x = 0, max_y = 0;
+  static int min_x = 0, min_y = 0, max_x = 0, max_y = 0;
   static int min_vx = 0, min_vy = 0, max_vx = 0, max_vy = 0;
   int this_min_vx = 0, this_min_vy = 0, this_max_vx = 0, this_max_vy = 0;
 
@@ -420,22 +420,22 @@ static void tick_hexagons (ModeInfo *mi) {
             debug = True; max_vx = h0->x;
           }
         }
-        if (h0->x < min_vx) {
-          min_vx = h0->x;
-          if (h0->x < last_min_vx) {
-          debug = True; last_min_vx = h0->x;
+        if (h0->x < this_min_vx) {
+          this_min_vx = h0->x;
+          if (h0->x < min_vx) {
+          debug = True; min_vx = h0->x;
           }
         }
-        if (h0->y > max_vy) {
-          max_vy = h0->y;
-          if (h0->y > last_max_vy) {
-            debug = True; last_max_vy = h0->y;
+        if (h0->y > this_max_vy) {
+          this_max_vy = h0->y;
+          if (h0->y > max_vy) {
+            debug = True; max_vy = h0->y;
           }
         }
-        if (h0->y < min_vy) {
-          min_vy = h0->y;
-          if (h0->y < last_min_vy) {
-            debug = True; last_min_vy = h0->y;
+        if (h0->y < this_min_vy) {
+          this_min_vy = h0->y;
+          if (h0->y < min_vy) {
+            debug = True; min_vy = h0->y;
           }
         }
       } // Visible and non-empty
@@ -448,13 +448,13 @@ static void tick_hexagons (ModeInfo *mi) {
         if (adj_y == 0) dir |= 4;
         else if (adj_y == bp->grid_h - 1) dir |= 1;
         // TODO - test if we can shift instead of expand
-        //printf("pos=%d,%d Expanding plane %d edge=%d visible=%d arms=%d border=%d\n", h0->x, h0->y, dir, is_edge, !invis, h0->doing, h0->border_state != EMPTY);
+        //printf("pos=%d,%d Expanding plane %d edge=%d visible=%d arms=%d border=%d\n", h0->x, h0->y, dir, is_edge, !invis, h0->doing, h0->state != EMPTY);
       }
 
       if (debug)
-        printf("pos=%d,%d vis=(%d-%d,%d-%d) (%d-%d,%d-%d) arms=%d border=%d edge=%d, visible=%d\n",
+        printf("pos=%d,%d vis=(%d-%d,%d-%d) (%d-%d,%d-%d) arms=%d border=%d edge=%d, invis=%d\n",
                 h0->x, h0->y, min_vx, max_vx, min_vy, max_vy,
-                min_x, max_x, min_y, max_y, h0->doing, h0->border_state != EMPTY, dir, !invis);
+                min_x, max_x, min_y, max_y, h0->doing, h0->state != EMPTY, dir, h0->invis);
       // TODO use above values to work out if we can shift instead of expand plane
 
     } // Button never pressed
@@ -471,7 +471,7 @@ static void tick_hexagons (ModeInfo *mi) {
       if (h0->invis) ignorea++;
     }
 
-    if (h0->border_state != EMPTY) {
+    if (h0->state != EMPTY) {
       doingb++;
       if (h0->invis) ignoreb++;
     } else
@@ -541,13 +541,13 @@ static void tick_hexagons (ModeInfo *mi) {
         }
         break;
       case OUT:
-        h0->border_ratio -= 0.05 * speed;
-        if (h0->border_ratio <= 0) {
-          h0->border_ratio = 0;
-          h0->border_state = EMPTY;
+        h0->ratio -= 0.05 * speed;
+        if (h0->ratio <= 0) {
+          h0->ratio = 0;
+          h0->state = EMPTY;
         }
       case WAIT:
-        if (! (random() % 50)) h0->border_state = OUT;
+        if (! (random() % 50)) h0->state = OUT;
         break;
       case EMPTY:
 /*
@@ -577,7 +577,7 @@ static void tick_hexagons (ModeInfo *mi) {
         min_vx = 0; max_vx = 0; min_vy = 0; max_vy = 0;
         min_x = 0; max_x = 0; min_y = 0; max_y = 0;
         printf("New hextrail. vis=(%d-%d,%d-%d) (%d-%d,%d-%d)\n",
-                min_vx, max_vx, min_vy, max_vy
+                min_vx, max_vx, min_vy, max_vy,
                 min_x, max_x, min_y, max_y);
       } else {
         try_new = True;
@@ -588,7 +588,7 @@ static void tick_hexagons (ModeInfo *mi) {
       }
       //hexagon *h0 = add_hexagon(NULL, 0, x, y);
       hexagon *h0 = &bp->hexagons[y * bp->grid_w + x];
-      if (h0->empty && !h0->invis && add_arms(mi, h0)) {
+      if (h0->state == EMPTY && !h0->invis && add_arms(mi, h0)) {
         h0->ccolor = random() % bp->ncolors;
         started = True;
         break;
