@@ -572,7 +572,7 @@ static void tick_hexagons (ModeInfo *mi) {
     for (i = 0; i < (bp->grid_w * bp->grid_h) / 3; i++) {
       int x, y;
       if (bp->state == FIRST) {
-        x = bp->grid_w / 2 - 1; y = bp->grid_h / 2 - 1;
+        x = bp->grid_w / 2; y = bp->grid_h / 2;
         bp->state = DRAW;
         bp->fade_ratio = 1; // TODO what is this?
         min_vx = 0; max_vx = 0; min_vy = 0; max_vy = 0;
