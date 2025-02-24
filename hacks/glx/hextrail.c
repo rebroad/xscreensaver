@@ -57,7 +57,7 @@ typedef struct hexagon hexagon;
 struct hexagon {
   XYZ pos;
   int x, y;
-  hexagon *neighbors[6]; // not technically needed...
+  hexagon *neighbors[6]; // not technically needed...?
   arm arms[6];
   int ccolor;
   state_t border_state;
@@ -180,6 +180,7 @@ static void make_plane (ModeInfo *mi) {
     make_smooth_colormap (0, 0, 0, bp->colors, &bp->ncolors, False, 0, False);
 #endif
   }
+  printf("ncolors = %d\n", bp->ncolors);
 
   size = 2.0 / bp->grid_w;
   w = size;
@@ -255,8 +256,8 @@ static int add_arms (ModeInfo *mi, hexagon *h0) {
       h1->empty = False; h0->empty = False;
 
       /* Mostly keep the same color */
-      h1->ccolor = h0->ccolor;
       if (! (random() % 5)) h1->ccolor = (h0->ccolor + 1) % bp->ncolors;
+	  else h1->ccolor = h0->ccolor;
     }
 
     added++;
@@ -1137,10 +1138,8 @@ ENTRYPOINT void free_hextrail (ModeInfo *mi) {
   free (bp->hexagons);
 
 #ifdef USE_SDL
-  if (bp->gl_context)
-    SDL_GL_DestroyContext(bp->gl_context);
-  if (bp->window)
-    SDL_DestroyWindow(bp->window);
+  if (bp->gl_context) SDL_GL_DestroyContext(bp->gl_context);
+  if (bp->window) SDL_DestroyWindow(bp->window);
   SDL_Quit();
 #endif
 }
