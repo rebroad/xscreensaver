@@ -610,10 +610,12 @@ static void tick_hexagons (ModeInfo *mi) {
   }
 
   if (try_new && (started || doinga != ignorea))
-    printf("New cell: started=%d doing=%d ignored=%d\n", started, doinga, ignorea);
+    printf("New cell: started=%d doinga=%d ignorea=%d doingb=%d ignoreb=%d\n",
+			started, doinga, ignorea, doingb, ignoreb);
 
-  if (!started && (doinga - ignorea) <= 0 && (doingb - ignoreb) < 2 && bp->state != FADE) {
-    printf("Fade started. doinga=%d doingb=%d\n", doinga, doingb);
+  if (!started && (doinga - ignorea) < 1 && (doingb - ignoreb) < 1 && bp->state != FADE) {
+    printf("Fade started. doinga=%d doingb=%d ignorea=%d ignoreb=%d\n",
+			doinga, doingb, ignorea, ignoreb);
     bp->state = FADE;
     bp->fade_ratio = 1;
 
