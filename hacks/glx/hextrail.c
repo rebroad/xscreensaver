@@ -77,6 +77,7 @@ typedef struct {
 
   hexagon **hexagons;
   int hexagon_count;
+  int size;
   enum { FIRST, DRAW, FADE } state;
   GLfloat fade_ratio;
 
@@ -310,7 +311,7 @@ static void tick_hexagons (ModeInfo *mi) {
     if (debug)
       printf("pos=%d,%d vis=(%d-%d,%d-%d) (%d-%d,%d-%d) arms=%d visible=%d\n",
               h0->x, h0->y, min_vx, max_vx, min_vy, max_vy,
-			  min_x, max_x, min_y, max_y, h0->doing, !h0->invis);
+              min_x, max_x, min_y, max_y, h0->doing, !h0->invis);
 
     if (h0->doing) {
       doinga++;
@@ -408,23 +409,23 @@ static void tick_hexagons (ModeInfo *mi) {
   /* Start a new cell growing.  */
   Bool try_new = False, started = False;
   if ((doinga - ignorea) <= 0) {
-    for (i = 0; i < (bp->grid_w * bp->grid_h) / 3; i++) {
-      hexagon *h0;
-      int x, y;
+    int tries = (bp->size * bp->size) / 3;
+	int x = 0, y = 0;
+    for (i = 0; i < tries; i++) {
       if (bp->state == FIRST) {
-        x = bp->grid_w / 2; y = bp->grid_h / 2;
         bp->state = DRAW;
-        bp->fade_ratio = 1;
-        last_min_vx = bp->grid_w; last_max_vx = 0;
-        last_min_vy = bp->grid_h; last_max_vy = 0;
-        printf("New hextrail. vis=(%d-%d,%d-%d)\n",
-                last_min_vx, last_max_vx, last_min_vy, last_max_vy);
+        bp->fade_ratio = 1; // TODO what is this?
+        min_vx = 0; max_vx = 0; min_vy = 0; max_vy = 0;
+        min_x = 0; max_x = 0; min_y = 0; max_y = 0;
+        printf("New hextrail. vis=(%d-%d,%d-%d) (%d-%d,%d-%d)\n",
+                min_vx, max_vx, min_vy, max_vy
+                min_x, max_x, min_y, max_y);
       } else {
         try_new = True;
-        x = random() % bp->grid_w; // TODO - don't use random?
-        y = random() % bp->grid_h;
+        x = (random() % bp->size) - (bp->size / 2);
+        y = (random() % bp->size) - (bp->size / 2);
       }
-      h0 = &bp->hexagons[y * bp->grid_w + x];
+      hexagon *h0 = add_hexagon(NULL, 0, x, y);
       if (h0->empty && !h0->invis && add_arms(mi, h0)) {
         h0->ccolor = random() % bp->ncolors;
         started = True;
@@ -883,6 +884,7 @@ ENTRYPOINT void init_hextrail (ModeInfo *mi) {
 
   reshape_hextrail (mi, MI_WIDTH(mi), MI_HEIGHT(mi));
 
+  bp->size = MI_COUNT(mi) * 2;
   bp->rot = make_rotator (do_spin ? 0.002 : 0,
                           do_spin ? 0.002 : 0,
                           do_spin ? 0.002 : 0,
