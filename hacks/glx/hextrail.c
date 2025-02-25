@@ -49,9 +49,7 @@ typedef struct {
   GLfloat speed;
 } arm;
 
-typedef struct hexagon hexagon;
-
-struct hexagon {
+typedef struct hexagon {
   XYZ pos;		// TODO remove as can be derived from x and y
   int x, y;
   hexagon *neighbors[6];
@@ -61,7 +59,11 @@ struct hexagon {
   GLfloat ratio;
   int8_t doing;
   Bool invis;
-};
+} hexagon;
+
+typedef struct hex_node {
+  hexagon *hex;
+} hex_node;
 
 typedef struct {
 #ifdef USE_SDL
@@ -83,10 +85,9 @@ typedef struct {
    /   neighbours as we can keep all pointers to hexagons
    /   and the fixed array uses less memory (just a single
    /   pointer per entry, so a 1000 x 1000 grid will need only
-   /   8MB on a 64-bit system>
+   /   8MB on a 64-bit system>*/
   hex_node **hex_table;    // Lookup table of hexagons
   int table_size;          // Size of the lookup table
-*/
   int size, grid_w, grid_h;
   int x_offset, y_offset;
   hexagon *hexagons;
@@ -172,7 +173,9 @@ static void make_plane (config *bp) {
   GLfloat w, h;
   hexagon *grid;
 
-  bp->grid_w = bp->size; bp->grid_h = bp->size;
+  if (!bp->hexagons) {
+    bp->grid_w = bp->size; bp->grid_h = bp->size;
+  }
 
   grid = (bp->hexagons
           ? bp->hexagons
@@ -402,10 +405,23 @@ static void reset_hextrail(config *bp) {
   make_plane (bp);
 }
 
-static hexagon *add_hexagon(config *bp, int x, int y) {
+static hexagon *add_hexagon(config *bp, int gx, int gy) {
+  if (gx < 0 || gx >= bp->size || gy < 0 || gy >= bp->size) {
+	  printf("%s: Out of bounds\n", __func__);
+      return NULL;
+  }
   hexagon *h0 = (hexagon *)malloc(sizeof(hexagon));
-  if (!h0) return NULL;
+  if (!h0) {
+	printf("%s: Malloc failed\n", __func__);
+	return NULL;
+  }
+  if (bp->hex_table[gx * 31 + gy]) {
+	printf("%s: already exists in hex_table\n", __func__);
+	return NULL;
+  }
 
+  int x = gx - bp->size/2 - bp->x_offset;
+  int y = gy - bp->size/2 - bp->y_offset;
   h0->x = x; h0->y = y;
   GLfloat w = 2.0 / bp->size; // TODO - to delete
   GLfloat h = w * sqrt(3) / 2; //       and below
@@ -425,10 +441,8 @@ static hexagon *add_hexagon(config *bp, int x, int y) {
   }*/
 
   // Add to lookup table
-  int adj_x = x + bp->size/2 + bp->x_offset;
-  int adj_y = y + bp->size/2 + bp->y_offset;
   // TODO - add code to derive idx for the lookup table entry
-  bp->hex_table[idx] = node;
+  bp->hex_table[gx * 31 + gy] = h0;
   bp->hexagon_count++;
 
   return h0;
@@ -627,13 +641,13 @@ static void tick_hexagons (config *bp) {
       }
       // TODO line below would be used for when we dynamically
       // allocate memory for new hexagons
-      //hexagon *h0 = add_hexagon(x, y);
-      hexagon *h0 = &bp->hexagons[y * bp->grid_w + x];
+      //hexagon *h0 = &bp->hexagons[y * bp->grid_w + x];
+      hexagon *h0 = add_hexagon(x, y);
       if (h0->state == EMPTY && !h0->invis && add_arms(bp, h0)) {
         h0->ccolor = random() % bp->ncolors;
-		h0->state = DONE;
+        h0->state = DONE;
         started = True;
-		if (try_new) bp->pause_until = bp->now + 5;
+        if (try_new) bp->pause_until = bp->now + 5;
         break;
       }
     } // Look for a suitable cell
@@ -1058,7 +1072,7 @@ ENTRYPOINT Bool hextrail_handle_event (ModeInfo *mi,
             ) {
       MI_COUNT(mi)--;
       if (MI_COUNT(mi) < 1) MI_COUNT(mi) = 1;
-	}
+    }
 #ifdef USE_SDL
     else if (event->type == SDL_EVENT_QUIT) ;
 #else
@@ -1105,8 +1119,8 @@ ENTRYPOINT void init_hextrail (ModeInfo *mi) {
   if (thickness < 0.05) thickness = 0.05;
   if (thickness > 0.5) thickness = 0.5;
 
-  bp->table_size = 1024;
-  bp->hex_table = (hex_node **)calloc(bp->table_size, sizeof(hex_node *));
+  bp->table_size = bp->size * bp->size;
+  bp->hex_table = (hex_node **)calloc(bp->table_size, sizeof(hex_node *)); // Can this be extnded on demand?
   bp->hexagon_count = 0; // TODO should this be in reset_hextrail?
 
   reset_hextrail (bp);
