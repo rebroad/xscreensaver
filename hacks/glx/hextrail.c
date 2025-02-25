@@ -339,9 +339,10 @@ static void reset_hextrail(config *bp) {
   // TODO - is this a good idea each time? Or better to zero the entries?
   for (int i = 0; i < bp->hexagon_count; i++) free(bp->hexagons[i]);
   // TODO - do we need to free(bp->hexagons)) also?
-  //free (bp->hexagons);
-  //bp->hexagons = NULL;
+  free (bp->hexagons);
+  bp->hexagons = NULL;
   // TODO - should we perhaps free (bp->hex_grid) also? Or zero it?
+  memset(bp->hex_grid, 0, sizeof(&bp->hex_grid)); // TODO - is this right?
   bp->hexagon_count = 0;
   bp->state = FIRST;
   bp->fade_ratio = 1;
