@@ -52,7 +52,6 @@ typedef struct {
 typedef struct hexagon {
   XYZ pos;		// TODO remove as can be derived from x and y
   int x, y;
-  hexagon *neighbors[6];
   arm arms[6];
   int ccolor;
   state_t state;
@@ -60,10 +59,6 @@ typedef struct hexagon {
   int8_t doing;
   Bool invis;
 } hexagon;
-
-typedef struct hex_node {
-  hexagon *hex;
-} hex_node;
 
 typedef struct {
 #ifdef USE_SDL
@@ -79,17 +74,10 @@ typedef struct {
   Bool button_down_p, button_pressed;
   time_t now, pause_until, debug;
 
-  /* TODO - have a simple X by Y array of hexagon pointers
-   /   and then allocate memory for the actual hexagons when
-   /   they are created. This way we'll never need to update
-   /   neighbours as we can keep all pointers to hexagons
-   /   and the fixed array uses less memory (just a single
-   /   pointer per entry, so a 1000 x 1000 grid will need only
-   /   8MB on a 64-bit system>*/
-  hex_node **hex_grid;   // Lookup table of hexagons
+  hexagon **hexagons;   // In order of creation
+  hexagon **hex_grid;   // Lookup table of hexagons
   int size, grid_w, grid_h;
   int x_offset, y_offset;
-  hexagon *hexagons;
   enum { FIRST, DRAW, FADE } state;
   GLfloat fade_ratio;
 
@@ -161,7 +149,7 @@ ENTRYPOINT ModeSpecOpt hextrail_opts = {countof(opts), opts, countof(vars), vars
   }
 }*/
 
-static void make_plane (config *bp) {
+/*static void make_plane (config *bp) {
   int x, y;
   GLfloat w, h;
   hexagon *grid;
@@ -196,9 +184,9 @@ static void make_plane (config *bp) {
   }
 
   update_neighbors(bp);
-}
+}*/
 
-static hexagon *neighbor(config *bp, hexagon *h0, int j, int *px, int *py) {
+static hexagon *neighbor(config *bp, hexagon *h0, int j) {
   // First value is arm, 2nd value is XE, XO, Y
   //   0,0   1,0   2,0   3,0   4,0               5   0
   //      0,1   1,1   2,1   3,1   4,1
@@ -208,19 +196,8 @@ static hexagon *neighbor(config *bp, hexagon *h0, int j, int *px, int *py) {
   const int offset[6][3] = {
 	  {0, 1, -1}, {1, 1, 0}, {0, 1, 1}, {-1, 0, 1}, {-1, -1, 0}, {-1, 0, -1}
   };
-  int x = h0->x + offset[j][h0->y & 1];
-  int y = h0->y + offset[j][2];
-  if (px && py) {
-	*px = nx; *py = ny;
-  }
-  // Find it in the lookup table
-  int gx = x + bp->size/2 + bp->x_offset;
-  int gy = y + bp->size/2 + bp->y_offset;
-  if (gx < 0 || gx >= bp->size || gy < 0 || gy >= bp->size) {
-	printf("%s: Out of bounds\n", __func__);
-	return NULL;
-  }
-  return bp->hex_grid[gy * bp->size + gx];
+  int x = h0->x + offset[j][h0->y & 1], y = h0->y + offset[j][2];
+  return do_hexagon(bp, x, y);
 }
 
 static int add_arms (config *bp, hexagon *h0) {
@@ -246,7 +223,7 @@ static int add_arms (config *bp, hexagon *h0) {
     if (!h1) {
       //printf("pos=%d,%d No neighbour on arm %d\n", h0->x, h0->y, j);
 	  // TODO - need to create this offsets array
-	  h1 = add_hexagon(bp, nx, ny);
+	  h1 = do_hexagon(bp, nx, ny);
       if (!h1) continue;				/* No neighboring cell */
     }
     if (h1->state != EMPTY) continue;	/* Occupado */
@@ -416,17 +393,22 @@ static void reset_hextrail(config *bp) {
     printf("Didn't smooth. ncolors = %d\n", bp->ncolors);
 
   bp->grid_w = bp->size; bp->grid_h = bp->size;
-
-  make_plane (bp);
+  //make_plane (bp);
 }
 
-static hexagon *add_hexagon(config *bp, int x, int y) {
-  int gx = x + bp->size/2 + bp->x_offset;
-  int gy = y + bp->size/2 + bp->y_offset;
-  if (gx < 0 || gx >= bp->size || gy < 0 || gy >= bp->size) {
+static hexagon *do_hexagon(config *bp, int x, int y) {
+  // Returns or creates a hexton at co-ords
+  int gx = x + bp->grid_w/2 + bp->x_offset;
+  int gy = y + bp->grid_h/2 + bp->y_offset;
+  if (gx < 0 || gx >= bp->grid_w || gy < 0 || gy >= bp->grid_h) {
 	  printf("%s: Out of bounds\n", __func__);
+	  // TODO - we could extend_grid here
       return NULL;
   }
+  hexagon *h0 = bp->hex_grid[gy * bp->grid_w + gx];
+  // We found an existing hexagon, so return it.
+  if (h0) return h0;
+
   // TODO - is this ok to realloc 1 at a time like this?
   hexagon **new_hexagons = (hexagon **)realloc(bp->hexagons, (bp->hexagon_count+1) * sizeof(hexagon *));
   if (!new_hexagons) {
@@ -437,10 +419,6 @@ static hexagon *add_hexagon(config *bp, int x, int y) {
   hexagon *h0 = (hexagon *)malloc(sizeof(hexagon));
   if (!h0) {
 	printf("%s: Malloc failed\n", __func__);
-	return NULL;
-  }
-  if (bp->hex_grid[gy * bp->grid_w + gx]) {
-	printf("%s: already exists in hex_grid\n", __func__);
 	return NULL;
   }
 
@@ -660,7 +638,7 @@ static void tick_hexagons (config *bp) {
         x = (random() % bp->grid_w) - bp->size;
         y = (random() % bp->grid_h) - bp->size;
       }
-      hexagon *h0 = add_hexagon(x, y);
+      hexagon *h0 = do_hexagon(x, y);
       if (h0->state == EMPTY && !h0->invis && add_arms(bp, h0)) {
         h0->ccolor = random() % bp->ncolors;
         h0->state = DONE;
@@ -1137,7 +1115,7 @@ ENTRYPOINT void init_hextrail (ModeInfo *mi) {
   if (thickness < 0.05) thickness = 0.05;
   if (thickness > 0.5) thickness = 0.5;
 
-  bp->hex_grid = (hex_node **)calloc(bp->size * bp->size, sizeof(hex_node *)); // Can this be extnded on demand?
+  bp->hex_grid = (hexagon **)calloc(bp->size * bp->size, sizeof(hex_node *)); // Can this be extnded on demand?
   bp->hexagon_count = 0; // TODO should this be in reset_hextrail?
 
   reset_hextrail (bp);
