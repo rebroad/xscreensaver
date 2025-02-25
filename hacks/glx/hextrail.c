@@ -331,9 +331,10 @@ static void expand_grid(config *bp, int direction) {
 static void reset_hextrail(config *bp) {
   for (int i = 0; i < bp->hexagon_count; i++)
 	memset(bp->hexagons[i], 0, sizeof(hexagon));
+	//free(bp->hexagons[i]);
   bp->hexagon_count = 0;
-  if (bp->hexagons) free (bp->hexagons);
-  bp->hexagons = NULL;
+  //if (bp->hexagons) free (bp->hexagons);
+  //bp->hexagons = NULL;
   memset(bp->hex_grid, 0, bp->grid_w * bp->grid_h * sizeof(hexagon *));
   //bp->hexagon_capacity = 0;
   bp->state = FIRST;
