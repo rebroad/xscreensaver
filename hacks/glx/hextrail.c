@@ -269,9 +269,13 @@ static void expand_grid(config *bp, int direction) {
 }
 
 static void reset_hextrail(config *bp) {
-  free (bp->hexagons); // TODO - is this a good idea each time? Or better to zero it?
+  // TODO - is this a good idea each time? Or better to zero the entries?
+  for (int i = 0; i < bp->hexagon_count; i++) free(bp->hexagons[i]);
+  // TODO - do we need to free(bp->hexagons)) also?
+  //free (bp->hexagons);
+  //bp->hexagons = NULL;
   // TODO - should we perhaps free (bp->hex_grid) also? Or zero it?
-  bp->hexagons = NULL;
+  bp->hexagon_count = 0;
   bp->state = FIRST;
   bp->fade_ratio = 1;
   bp->ncolors = 8;
@@ -1015,7 +1019,6 @@ ENTRYPOINT void init_hextrail (ModeInfo *mi) {
   if (thickness > 0.5) thickness = 0.5;
 
   bp->hex_grid = (hexagon **)calloc(bp->size * bp->size, sizeof(hexagon *));
-  bp->hexagon_count = 0; // TODO should this be in reset_hextrail?
 
   reset_hextrail (bp);
 }
