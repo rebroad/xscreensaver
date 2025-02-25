@@ -182,22 +182,6 @@ static void make_plane (config *bp) {
           : (hexagon *) malloc (bp->grid_w * bp->grid_h * sizeof(*grid)));
   memset (grid, 0, bp->grid_w * bp->grid_h * sizeof(*grid));
 
-  bp->ncolors = 8;
-  bp->x_offset = 0; bp->y_offset = 0;
-  if (do_expand && bp->button_pressed)
-    printf("Setting button_pressed to False\n");
-  bp->button_pressed = False;
-  if (!bp->colors) {
-#ifdef USE_SDL
-    bp->colors = (SDL_Color *) calloc(bp->ncolors, sizeof(SDL_Color));
-    make_smooth_colormap(bp->colors, &bp->ncolors, False, 0, False);
-#else
-    bp->colors = (XColor *) calloc(bp->ncolors, sizeof(XColor));
-    make_smooth_colormap (0, 0, 0, bp->colors, &bp->ncolors, False, 0, False);
-#endif
-  } else
-    printf("Didn't smooth. ncolors = %d\n", bp->ncolors);
-
   w = 2.0 / bp->grid_w;
   h = w * sqrt(3) / 2;
 
@@ -402,6 +386,22 @@ static void reset_hextrail(config *bp) {
   bp->hexagons = NULL;
   bp->state = FIRST;
   bp->fade_ratio = 1;
+  bp->ncolors = 8;
+  bp->x_offset = 0; bp->y_offset = 0;
+  if (do_expand && bp->button_pressed)
+    printf("Setting button_pressed to False\n");
+  bp->button_pressed = False;
+  if (!bp->colors) {
+#ifdef USE_SDL
+    bp->colors = (SDL_Color *) calloc(bp->ncolors, sizeof(SDL_Color));
+    make_smooth_colormap(bp->colors, &bp->ncolors, False, 0, False);
+#else
+    bp->colors = (XColor *) calloc(bp->ncolors, sizeof(XColor));
+    make_smooth_colormap (0, 0, 0, bp->colors, &bp->ncolors, False, 0, False);
+#endif
+  } else
+    printf("Didn't smooth. ncolors = %d\n", bp->ncolors);
+
   make_plane (bp);
 }
 
