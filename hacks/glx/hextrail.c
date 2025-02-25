@@ -223,8 +223,7 @@ static int add_arms (config *bp, hexagon *h0) {
     if (!h1) {
       //printf("pos=%d,%d No neighbour on arm %d\n", h0->x, h0->y, j);
 	  // TODO - need to create this offsets array
-	  h1 = do_hexagon(bp, nx, ny);
-      if (!h1) continue;				/* No neighboring cell */
+      continue;		/* No neighboring cell */
     }
     if (h1->state != EMPTY) continue;	/* Occupado */
     if (a0->state != EMPTY) continue;   /* Arm already exists */
@@ -291,7 +290,7 @@ static Bool point_invis(hexagon *h0) {
 }
 
 // TODO the function below can for the simple X by Y array of pointers to hexagons - is it possible to use 20-bit or 24-bit or 32-bit pointers rather than wasting 64-bits for each one?
-static void expand_plane(config *bp, int direction) {
+static void expand_grid(config *bp, int direction) {
   int new_grid_w = bp->grid_w, new_grid_h = bp->grid_h;
 
   /* Increase grid size */
@@ -303,7 +302,7 @@ static void expand_plane(config *bp, int direction) {
   int y_offset = (direction & 4) ? 1 : 0;
 
   bp->debug = bp->now;
-  printf("Expanding plane: before = %d-%d,%d-%d after = %d-%d,%d-%d\n",
+  printf("Expanding grid: before = %d-%d,%d-%d after = %d-%d,%d-%d\n",
           -bp->x_offset, -bp->y_offset, bp->grid_w - bp->x_offset, bp->grid_h - bp->y_offset,
           -bp->x_offset - x_offset, -bp->y_offset - y_offset,
           new_grid_w - bp->x_offset - x_offset, new_grid_h - bp->y_offset - y_offset);
@@ -311,65 +310,24 @@ static void expand_plane(config *bp, int direction) {
   bp->x_offset += x_offset; bp->y_offset += y_offset;
 
   /* Allocate new grid */
-  hexagon *new_hexagons = (hexagon *)calloc(new_grid_w * new_grid_h, sizeof(hexagon));
-  if (!new_hexagons) {
+  hexagon **new_grid = (hexagon **)calloc(new_grid_w * new_grid_h, sizeof(hexagon *));
+  // TODO - do we need to memset to ensure zeros?
+  if (!new_grid) {
     fprintf(stderr, "Failed to allocate memory for expanded grid\n");
     return;
   }
 
-  /* Copy existing hexagons with position adjustment */
+  /* Copy existing hexagon pointers with position adjustment */
   int x, y;
   for (y = 0; y < bp->grid_h; y++) for (x = 0; x < bp->grid_w; x++) {
-    hexagon *old_hex = &bp->hexagons[y * bp->grid_w + x];
-    hexagon *new_hex = &new_hexagons[(y + y_offset) * new_grid_w + x + x_offset];
-    *new_hex = *old_hex;
-  }
-
-  /* Initialize new hexagons */
-  GLfloat w = 2.0 / bp->size, h = w * sqrt(3) / 2;
-
-  for (y = 0; y < new_grid_h; y++) for (x = 0; x < new_grid_w; x++) {
-    hexagon *h0 = &new_hexagons[y * new_grid_w + x];
-
-    /* Skip existing hexagons */
-    if (x >= x_offset && x < bp->grid_w + x_offset &&
-        y >= y_offset && y < bp->grid_h + y_offset) continue;
-
-    h0->x = x - bp->x_offset - bp->size/2; h0->y = y - bp->y_offset - bp->size/2;
-    h0->pos.x = h0->x * w; // TODO - remove pos as a derivative
-    if (h0->y & 1) h0->pos.x += w / 2;
-    h0->pos.y = h0->y * h;
-    h0->pos.z = 0;
-    h0->state = EMPTY;
-    h0->ratio = 0;
-    h0->doing = 0;
+    hexagon *old_idx = &bp->hex_grid[y * bp->grid_w + x];
+    hexagon *new_idx = &new_grid[(y + y_offset) * new_grid_w + x + x_offset];
+    *new_idx = *old_idx;
   }
 
   bp->grid_w = new_grid_w; bp->grid_h = new_grid_h;
-  free(bp->hexagons);
-  bp->hexagons = new_hexagons;
-  update_neighbors(bp);
-
-  /* Sanity check */
-  int start_x = bp->grid_w / 2 - 1;
-  int start_y = bp->grid_h / 2 - 1;
-  if (direction & 1) start_y = bp->grid_h - 3;
-  if (direction & 2) start_x = bp->grid_w - 3;
-  if (direction & 4) start_y = 0;
-  if (direction & 8) start_x = 0;
-
-  for (int y = start_y; y < start_y + 3; y++)
-    for (int x = start_x; x < start_x + 3; x++) {
-      hexagon *h0 = &bp->hexagons[y * bp->grid_w + x];
-      for (int j = 0; j < 6; j++)
-        if (h0->arms[j].state != EMPTY && h0->neighbors[j]) {
-          hexagon *h1 = h0->neighbors[j];
-          arm *a1 = &h1->arms[(j + 3) % 6];
-          if (h0->arms[j].state == OUT && a1->state != WAIT)
-            printf("Arm mismatch at (%d,%d) arm %d: state=%d, neighbor (%d,%d) state=%d\n",
-                   h0->x, h0->y, j, h0->arms[j].state, h1->x, h1->y, a1->state);
-        }
-    }
+  free(bp->hex_grid);
+  bp->hex_grid = new_grid;
 }
 
 static void reset_hextrail(config *bp) {
@@ -1115,7 +1073,7 @@ ENTRYPOINT void init_hextrail (ModeInfo *mi) {
   if (thickness < 0.05) thickness = 0.05;
   if (thickness > 0.5) thickness = 0.5;
 
-  bp->hex_grid = (hexagon **)calloc(bp->size * bp->size, sizeof(hex_node *)); // Can this be extnded on demand?
+  bp->hex_grid = (hexagon **)calloc(bp->size * bp->size, sizeof(hexagon *));
   bp->hexagon_count = 0; // TODO should this be in reset_hextrail?
 
   reset_hextrail (bp);
