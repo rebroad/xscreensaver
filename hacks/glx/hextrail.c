@@ -256,12 +256,12 @@ h0->x, h0->y, j, h1->x, h1->y, h1->state);
 }
 
 /* Check if a point is within the visible frustum */
-static Bool point_invis(config *bp, hexagon *h0) {
+static Bool point_invis(config *bp, int x, int y) {
   GLfloat wid = 2.0 / bp->size;
   GLfloat hgt = wid * sqrt(3) / 2;
   XYZ pos;
-  pos.x = h0->x * wid + (h0->y & 1) * wid / 2;
-  pos.y = h0->y * hgt; pos.z = 0;
+  pos.x = x * wid + (y & 1) * wid / 2;
+  pos.y = y * hgt; pos.z = 0;
   GLdouble model[16], proj[16];
   GLint viewport[4];
   GLdouble winX, winY, winZ;
@@ -369,7 +369,7 @@ static void tick_hexagons (config *bp) {
 
   for (i = 0; i < bp->hexagon_count; i++) {
     hexagon *h0 = bp->hexagons[i];
-    h0->invis = (do_expand && !bp->button_pressed && point_invis(bp, h0));
+    h0->invis = (do_expand && !bp->button_pressed && point_invis(bp, h0->x, h0->y));
 
     int adj_x = h0->x + bp->size/2 + bp->x_offset;
     int adj_y = h0->y + bp->size/2 + bp->y_offset;
@@ -529,7 +529,7 @@ static void tick_hexagons (config *bp) {
   static int fails = 0;
   if ((doinga - ignorea) <= 0) {
     for (i = 0; i < (bp->grid_w * bp->grid_h) / 3; i++) {
-      int x = 0, y = 0;
+	  int16_t x = 0, y = 0;
       if (bp->state == FIRST) {
         fails = 0;
         bp->state = DRAW;
@@ -539,9 +539,24 @@ static void tick_hexagons (config *bp) {
         printf("New hextrail. vis=(%d-%d,%d-%d) (%d-%d,%d-%d)\n",
                 min_vx, max_vx, min_vy, max_vy, min_x, max_x, min_y, max_y);
       } else {
-        try_new = True;
-        x = (random() % bp->grid_w) - bp->size / 2;
-        y = (random() % bp->grid_h) - bp->size / 2;
+        int16_t empty_cells[1000][2]; int empty_count = 0;
+		for (int y = min_vy; y <= max_vy && empty_count < 1000; y++) {
+		  for (int x = min_vx; x <= max_vx && empty_count < 1000; x++) {
+			int gx = x + bp->grid_w/2 + bp->x_offset;
+			int gy = y + bp->grid_h/2 + bp->y_offset;
+			if (gx >= 0 && gx < bp->grid_w && gy >= 0 && gy < bp->grid_h) {
+			  hexagon *h = bp->hex_grid[gy * bp->grid_w + gx];
+			  if (!h && point_invis(bp,x,y)) {
+				empty_cells[empty_count][0] = x;
+				empty_cells[empty_count++][1] = y;
+			  }
+			}
+		  }
+		}
+		if (empty_count > 0) {
+		  int pick = random() % empty_count;
+		  x = empty_cells[pick][0]; y = empty_cells[pick][1];
+		}
       }
       hexagon *h0 = do_hexagon(bp, x, y);
       if (!h0) {
@@ -551,7 +566,7 @@ static void tick_hexagons (config *bp) {
                 try_new, x, y);
           debug = bp->now;
         }
-      } else if (h0->state == EMPTY && !h0->invis && add_arms(bp, h0)) {
+      } else if (h0->state == EMPTY && add_arms(bp, h0)) {
         printf("hexagon created. Arms added. fails=%d pos=%d,%d\n", fails, x, y);
         fails = 0;
         h0->ccolor = random() % bp->ncolors;
