@@ -84,8 +84,8 @@ typedef struct {
    /   and the fixed array uses less memory (just a single
    /   pointer per entry, so a 1000 x 1000 grid will need only
    /   8MB on a 64-bit system>
-  hex_node **hex_table;    // Hash table of hexagons
-  int table_size;          // Size of the hash table
+  hex_node **hex_table;    // Lookup table of hexagons
+  int table_size;          // Size of the lookup table
 */
   int size, grid_w, grid_h;
   int x_offset, y_offset;
@@ -365,12 +365,6 @@ static void expand_plane(config *bp, int direction) {
     h0->state = EMPTY;
     h0->ratio = 0;
     h0->doing = 0;
-    /*for (int i = 0; i < 6; i++) {
-      h0->arms[i].state = EMPTY;
-      h0->arms[i].ratio = 0;
-      h0->arms[i].speed = 0;
-      h0->neighbors[i] = NULL;
-    }*/
   }
 
   bp->grid_w = new_grid_w; bp->grid_h = new_grid_h;
@@ -408,14 +402,11 @@ static void reset_hextrail(config *bp) {
   make_plane (bp);
 }
 
-/*static hexagon *add_hexagon(config *bp, int x, int y) {
+static hexagon *add_hexagon(config *bp, int x, int y) {
   hexagon *h0 = (hexagon *)malloc(sizeof(hexagon));
   if (!h0) return NULL;
 
   h0->x = x; h0->y = y;
-  int adj_x = x + bp->size/2 + bp->x_offset;
-  int adj_y = y + bp->size/2 + bp->y_offset;
-  (void)adj_x; (void)adj_y; // TODO - add these to the hash table
   GLfloat w = 2.0 / bp->size; // TODO - to delete
   GLfloat h = w * sqrt(3) / 2; //       and below
   h0->pos.x = x * w;
@@ -426,7 +417,22 @@ static void reset_hextrail(config *bp) {
   h0->ratio = 0;
   h0->doing = 0;
   h0->ccolor = random() & bp->ncolors;
-}*/
+  /*for (int i = 0; i < 6; i++) {
+    h0->arms[i].state = EMPTY;
+    h0->arms[i].ratio = 0;
+    h0->arms[i].speed = 0;
+    h0->neighbors[i] = NULL;
+  }*/
+
+  // Add to lookup table
+  int adj_x = x + bp->size/2 + bp->x_offset;
+  int adj_y = y + bp->size/2 + bp->y_offset;
+  // TODO - add code to derive idx for the lookup table entry
+  bp->hex_table[idx] = node;
+  bp->hexagon_count++;
+
+  return h0;
+}
 
 static void tick_hexagons (config *bp) {
   int i, j, doinga = 0, doingb = 0, ignorea = 0, ignoreb = 0;
@@ -1076,9 +1082,7 @@ ENTRYPOINT Bool hextrail_handle_event (ModeInfo *mi,
 
 ENTRYPOINT void init_hextrail (ModeInfo *mi) {
   config *bp;
-
   MI_INIT (mi, bps);
-
   bp = &bps[MI_SCREEN(mi)];
 
 #ifndef USE_SDL
@@ -1088,21 +1092,22 @@ ENTRYPOINT void init_hextrail (ModeInfo *mi) {
   reshape_hextrail (mi, MI_WIDTH(mi), MI_HEIGHT(mi));
 
   bp->size = MI_COUNT(mi) * 2 + 1;
-  bp->rot = make_rotator (do_spin ? 0.002 : 0,
-                          do_spin ? 0.002 : 0,
-                          do_spin ? 0.002 : 0,
-                          1.0, // spin_accel
-                          do_wander ? 0.003 : 0,
-                          False);
-  bp->trackball = gltrackball_init (True);
-
-  /* Let's tilt the scene a little. */
-  gltrackball_reset (bp->trackball,
-                     -0.4 + frand(0.8),
+  bp->rot = make_rotator(do_spin ? 0.002 : 0,
+                         do_spin ? 0.002 : 0,
+                         do_spin ? 0.002 : 0,
+                         1.0, // spin_accel
+                         do_wander ? 0.003 : 0,
+                         False);
+  bp->trackball = gltrackball_init(True);
+  gltrackball_reset(bp->trackball, -0.4 + frand(0.8),
                      -0.4 + frand(0.8));
 
   if (thickness < 0.05) thickness = 0.05;
   if (thickness > 0.5) thickness = 0.5;
+
+  bp->table_size = 1024;
+  bp->hex_table = (hex_node **)calloc(bp->table_size, sizeof(hex_node *));
+  bp->hexagon_count = 0; // TODO should this be in reset_hextrail?
 
   reset_hextrail (bp);
 }
