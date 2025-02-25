@@ -341,16 +341,6 @@ static void reset_hextrail(config *bp) {
   bp->x_offset = 0; bp->y_offset = 0;
   if (do_expand && bp->button_pressed) printf("Setting button_pressed to False\n");
   bp->button_pressed = False;
-  if (!bp->colors) {
-#ifdef USE_SDL
-    bp->colors = (SDL_Color *) calloc(bp->ncolors, sizeof(SDL_Color));
-    make_smooth_colormap(bp->colors, &bp->ncolors, False, 0, False);
-#else
-    bp->colors = (XColor *) calloc(bp->ncolors, sizeof(XColor));
-    make_smooth_colormap (0, 0, 0, bp->colors, &bp->ncolors, False, 0, False);
-#endif
-  } else
-    printf("Didn't smooth. ncolors = %d\n", bp->ncolors);
 
   bp->grid_w = bp->size; bp->grid_h = bp->size;
   //make_plane (bp);
@@ -358,7 +348,6 @@ static void reset_hextrail(config *bp) {
 
 static void tick_hexagons (config *bp) {
   int i, j, doinga = 0, doingb = 0, ignorea = 0, ignoreb = 0;
-  int empty = 0, vempty = 0; // TODO use this prior to fade
   int8_t dir = 0;
   static int min_x = 0, min_y = 0, max_x = 0, max_y = 0;
   static int min_vx = 0, min_vy = 0, max_vx = 0, max_vy = 0;
@@ -427,10 +416,7 @@ static void tick_hexagons (config *bp) {
       if (h0->invis) ignorea++;
     }
 
-    if (h0->state == EMPTY) {
-      empty++;
-      if (!h0->invis) vempty++;
-    } else if (h0->state != DONE) {
+    if (h0->state != DONE) {
       doingb++;
       if (h0->invis) ignoreb++;
     }
@@ -523,8 +509,7 @@ static void tick_hexagons (config *bp) {
   if (dir && do_expand) expand_grid(bp, dir);
 
   if (bp->now > bp->debug) {
-    printf("doinga=%d ignorea=%d doingb=%d ignoreb=%d vempty=%d empty=%d\n",
-        doinga, ignorea, doingb, ignoreb, vempty, empty);
+    printf("doinga=%d ignorea=%d doingb=%d ignoreb=%d\n", doinga, ignorea, doingb, ignoreb);
     bp->debug = bp->now;
   }
 
@@ -596,8 +581,7 @@ static void tick_hexagons (config *bp) {
     }
   } else if (bp->state == FADE) {
     bp->fade_ratio -= 0.01 * speed;
-    if (bp->fade_ratio <= 0)
-      reset_hextrail (bp);
+    if (bp->fade_ratio <= 0) reset_hextrail (bp);
   }
 }
 
@@ -1046,6 +1030,17 @@ ENTRYPOINT void init_hextrail (ModeInfo *mi) {
   if (thickness > 0.5) thickness = 0.5;
 
   bp->hex_grid = (hexagon **)calloc(bp->size * bp->size, sizeof(hexagon *));
+
+  if (!bp->colors) {
+#ifdef USE_SDL
+    bp->colors = (SDL_Color *) calloc(bp->ncolors, sizeof(SDL_Color));
+    make_smooth_colormap(bp->colors, &bp->ncolors, False, 0, False);
+#else
+    bp->colors = (XColor *) calloc(bp->ncolors, sizeof(XColor));
+    make_smooth_colormap (0, 0, 0, bp->colors, &bp->ncolors, False, 0, False);
+#endif
+  } else
+    printf("Didn't smooth. ncolors = %d\n", bp->ncolors);
 
   reset_hextrail (bp);
 }
