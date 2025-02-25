@@ -728,7 +728,12 @@ static void draw_hexagons (ModeInfo *mi) {
 
         /* Color of the outer point of the line is average color of
            this and the neighbor. */
-        HEXAGON_COLOR (ncolor, neighbor(bp, h, j));
+		hexagon *hn = neighbor(bp, h, j);
+		if (!hn) {
+			printf("%s: h=%d,%d h=%d BAD NEIGHBOR\n", __func__, h->x, h->y, j);
+			continue;
+		}
+        HEXAGON_COLOR (ncolor, neighbor(bp, h, j)); // TODO - Fix SIGSEGV here
         ncolor[0] = (ncolor[0] + color[0]) / 2;
         ncolor[1] = (ncolor[1] + color[1]) / 2;
         ncolor[2] = (ncolor[2] + color[2]) / 2;
