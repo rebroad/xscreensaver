@@ -162,7 +162,6 @@ static hexagon *do_hexagon(config *bp, int x, int y) {
   h0 = (hexagon *)malloc(sizeof(hexagon));
   if (!h0) {
     printf("%s: Malloc failed\n", __func__);
-    // TODO - if this fails, do we need to free the memory from the realloc above?
     return NULL;
   }
   memset (h0, 0, sizeof(hexagon));
@@ -179,8 +178,6 @@ static hexagon *do_hexagon(config *bp, int x, int y) {
     h0->neighbors[i] = NULL;
   }*/
 
-  // Add to lookup table
-  // TODO - add code to derive idx for the lookup table entry
   bp->hex_grid[gy * bp->grid_w + gx] = h0;
   bp->hexagons[bp->hexagon_count++] = h0;
 
@@ -311,19 +308,19 @@ static void expand_grid(config *bp, int direction) {
 
   /* Allocate new grid */
   hexagon **new_grid = (hexagon **)calloc(new_grid_w * new_grid_h, sizeof(hexagon *));
-  // TODO - do we need to memset to ensure zeros?
   if (!new_grid) {
     fprintf(stderr, "Failed to allocate memory for expanded grid\n");
     return;
   }
 
+  // TODO - perhaps we should enlarge the grid by a substantial percentage instead
+  // of 1 or 2 columns/rows at a time...
+
   /* Copy existing hexagon pointers with position adjustment */
   int x, y;
   for (y = 0; y < bp->grid_h; y++) for (x = 0; x < bp->grid_w; x++) {
-    // TODO below should I be using hexagon ** ?
-    hexagon *old_idx = bp->hex_grid[y * bp->grid_w + x];
-    hexagon *new_idx = new_grid[(y + y_offset) * new_grid_w + x + x_offset];
-    *new_idx = *old_idx;
+    hexagon *h = bp->hex_grid[y * bp->grid_w + x];
+    new_grid[(y + y_offset) * new_grid_w + x + x_offset] = h;
   }
 
   bp->grid_w = new_grid_w; bp->grid_h = new_grid_h;
@@ -332,14 +329,13 @@ static void expand_grid(config *bp, int direction) {
 }
 
 static void reset_hextrail(config *bp) {
-  // TODO - is this a good idea each time? Or better to zero the entries?
-  for (int i = 0; i < bp->hexagon_count; i++) free(bp->hexagons[i]);
-  // TODO - do we need to free(bp->hexagons)) also?
+  for (int i = 0; i < bp->hexagon_count; i++)
+	memset(bp->hexagons[i], 0, sizeof(hexagon));
+  bp->hexagon_count = 0;
   if (bp->hexagons) free (bp->hexagons);
   bp->hexagons = NULL;
-  // TODO - should we perhaps free (bp->hex_grid) also? Or zero it?
-  memset(bp->hex_grid, 0, sizeof(&bp->hex_grid)); // TODO - is this right?
-  bp->hexagon_count = 0;
+  memset(bp->hex_grid, 0, bp->grid_w * bp->grid_h * sizeof(hexagon *));
+  //bp->hexagon_capacity = 0;
   bp->state = FIRST;
   bp->fade_ratio = 1;
   bp->x_offset = 0; bp->y_offset = 0;
