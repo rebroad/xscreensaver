@@ -86,8 +86,7 @@ typedef struct {
    /   and the fixed array uses less memory (just a single
    /   pointer per entry, so a 1000 x 1000 grid will need only
    /   8MB on a 64-bit system>*/
-  hex_node **hex_table;    // Lookup table of hexagons
-  int table_size;          // Size of the lookup table
+  hex_node **hex_grid;   // Lookup table of hexagons
   int size, grid_w, grid_h;
   int x_offset, y_offset;
   hexagon *hexagons;
@@ -137,7 +136,7 @@ static argtype vars[] = {
 
 ENTRYPOINT ModeSpecOpt hextrail_opts = {countof(opts), opts, countof(vars), vars, NULL};
 
-static void update_neighbors(config *bp) {
+/*static void update_neighbors(config *bp) {
   int x, y;
 
   for (y = 0; y < bp->grid_h; y++) for (x = 0; x < bp->grid_w; x++) {
@@ -151,13 +150,7 @@ static void update_neighbors(config *bp) {
         h0->neighbors[(I)] = NULL;                                 \
     } while (0)
 
-    /*   0,0   1,0   2,0   3,0   4,0
-            0,1   1,1   2,1   3,1   4,1
-         0,2   1,2   2,2   3,2   4,
-            0,3   1,3   2,3   3,3   4,3
-         0,4   1,4   2,4   3,4   4,4
-            0,5   1,5   2,5   3,5   4,5
-     */
+
     NEIGHBOR (0,  0,  1, -1);
     NEIGHBOR (1,  1,  1,  0);
     NEIGHBOR (2,  0,  1,  1);
@@ -166,16 +159,12 @@ static void update_neighbors(config *bp) {
     NEIGHBOR (5, -1,  0, -1);
 # undef NEIGHBOR
   }
-}
+}*/
 
 static void make_plane (config *bp) {
   int x, y;
   GLfloat w, h;
   hexagon *grid;
-
-  if (!bp->hexagons) {
-    bp->grid_w = bp->size; bp->grid_h = bp->size;
-  }
 
   grid = (bp->hexagons
           ? bp->hexagons
@@ -209,11 +198,35 @@ static void make_plane (config *bp) {
   update_neighbors(bp);
 }
 
+static hexagon *neighbor(config *bp, hexagon *h0, int j, int *px, int *py) {
+  // First value is arm, 2nd value is XE, XO, Y
+  //   0,0   1,0   2,0   3,0   4,0               5   0
+  //      0,1   1,1   2,1   3,1   4,1
+  //   0,2   1,2   2,2   3,2   4,             4  arms   1
+  //      0,3   1,3   2,3   3,3   4,3
+  //   0,4   1,4   2,4   3,4   4,4               3   2
+  const int offset[6][3] = {
+	  {0, 1, -1}, {1, 1, 0}, {0, 1, 1}, {-1, 0, 1}, {-1, -1, 0}, {-1, 0, -1}
+  };
+  int x = h0->x + offset[j][h0->y & 1];
+  int y = h0->y + offset[j][2];
+  if (px && py) {
+	*px = nx; *py = ny;
+  }
+  // Find it in the lookup table
+  int gx = x + bp->size/2 + bp->x_offset;
+  int gy = y + bp->size/2 + bp->y_offset;
+  if (gx < 0 || gx >= bp->size || gy < 0 || gy >= bp->size) {
+	printf("%s: Out of bounds\n", __func__);
+	return NULL;
+  }
+  return bp->hex_grid[gy * bp->size + gx];
+}
 
 static int add_arms (config *bp, hexagon *h0) {
   int i;
   int added = 0;
-  int target = 1 + (random() % 5);
+  int target = 1 + (random() % 5); /* Aim for 1-5 arms */
 
   int idx[6];				/* Traverse in random order */
   for (i = 0; i < 6; i++) idx[i] = i;
@@ -227,21 +240,19 @@ static int add_arms (config *bp, hexagon *h0) {
   for (i = 0; i < 6; i++) {
     int j = idx[i];
     arm *a0 = &h0->arms[j];
-    if (a0->state != EMPTY) continue;		/* Arm already exists */
-    hexagon *h1 = h0->neighbors[j]; // TODO - technically not needed as the array of X by Y is sufficient to find all 6 neighbours
-    // TODO - here we allocate memory for a new hexagon
+    if (a0->state != EMPTY) continue;	/* Arm already exists */
+	int nx, ny;
+    hexagon *h1 = neighbor(h0,j,&nx,&ny);
     if (!h1) {
       //printf("pos=%d,%d No neighbour on arm %d\n", h0->x, h0->y, j);
 	  // TODO - need to create this offsets array
-      int nx = h0->x + offsets[j][h0->y & 1];
-      int ny = h0->y + offsets[j][2];
 	  h1 = add_hexagon(bp, nx, ny);
-      continue;			/* No neighboring cell */
+      if (!h1) continue;				/* No neighboring cell */
     }
     if (h1->state != EMPTY) continue;	/* Occupado */
     if (a0->state != EMPTY) continue;   /* Arm already exists */
 
-    arm *a1 = &h1->arms[(j + 3) % 6];		/* Opposite arm */
+    arm *a1 = &h1->arms[(j + 3) % 6];	/* Opposite arm */
 
     if (a1->state != EMPTY) {
       printf("H1 (%d,%d) empty=%d arm[%d].state=%d\n",
@@ -385,14 +396,13 @@ static void expand_plane(config *bp, int direction) {
 }
 
 static void reset_hextrail(config *bp) {
-  free (bp->hexagons);
+  free (bp->hexagons); // TODO - is this a good idea each time?
   bp->hexagons = NULL;
   bp->state = FIRST;
   bp->fade_ratio = 1;
   bp->ncolors = 8;
   bp->x_offset = 0; bp->y_offset = 0;
-  if (do_expand && bp->button_pressed)
-    printf("Setting button_pressed to False\n");
+  if (do_expand && bp->button_pressed) printf("Setting button_pressed to False\n");
   bp->button_pressed = False;
   if (!bp->colors) {
 #ifdef USE_SDL
@@ -404,6 +414,8 @@ static void reset_hextrail(config *bp) {
 #endif
   } else
     printf("Didn't smooth. ncolors = %d\n", bp->ncolors);
+
+  bp->grid_w = bp->size; bp->grid_h = bp->size;
 
   make_plane (bp);
 }
@@ -427,8 +439,8 @@ static hexagon *add_hexagon(config *bp, int x, int y) {
 	printf("%s: Malloc failed\n", __func__);
 	return NULL;
   }
-  if (bp->hex_table[gx * 31 + gy]) {
-	printf("%s: already exists in hex_table\n", __func__);
+  if (bp->hex_grid[gy * bp->grid_w + gx]) {
+	printf("%s: already exists in hex_grid\n", __func__);
 	return NULL;
   }
 
@@ -452,7 +464,7 @@ static hexagon *add_hexagon(config *bp, int x, int y) {
 
   // Add to lookup table
   // TODO - add code to derive idx for the lookup table entry
-  bp->hex_table[gx * 31 + gy] = h0;
+  bp->hex_grid[gy * bp->grid_w + gx] = h0;
   bp->hexagons[bp->hexagon_count++] = h0;
 
   return h0;
@@ -648,9 +660,6 @@ static void tick_hexagons (config *bp) {
         x = (random() % bp->grid_w) - bp->size;
         y = (random() % bp->grid_h) - bp->size;
       }
-      // TODO line below would be used for when we dynamically
-      // allocate memory for new hexagons
-      //hexagon *h0 = &bp->hexagons[y * bp->grid_w + x];
       hexagon *h0 = add_hexagon(x, y);
       if (h0->state == EMPTY && !h0->invis && add_arms(bp, h0)) {
         h0->ccolor = random() % bp->ncolors;
@@ -1128,8 +1137,7 @@ ENTRYPOINT void init_hextrail (ModeInfo *mi) {
   if (thickness < 0.05) thickness = 0.05;
   if (thickness > 0.5) thickness = 0.5;
 
-  bp->table_size = bp->size * bp->size;
-  bp->hex_table = (hex_node **)calloc(bp->table_size, sizeof(hex_node *)); // Can this be extnded on demand?
+  bp->hex_grid = (hex_node **)calloc(bp->size * bp->size, sizeof(hex_node *)); // Can this be extnded on demand?
   bp->hexagon_count = 0; // TODO should this be in reset_hextrail?
 
   reset_hextrail (bp);
