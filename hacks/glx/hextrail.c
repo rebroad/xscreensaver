@@ -124,31 +124,6 @@ static argtype vars[] = {
 
 ENTRYPOINT ModeSpecOpt hextrail_opts = {countof(opts), opts, countof(vars), vars, NULL};
 
-/*static void update_neighbors(config *bp) {
-  int x, y;
-
-  for (y = 0; y < bp->grid_h; y++) for (x = 0; x < bp->grid_w; x++) {
-    hexagon *h0 = &bp->hexagons[y * bp->grid_w + x];
-
-# define NEIGHBOR(I,XE,XO,Y) do {                                  \
-      int x1 = x + (y & 1 ? (XO) : (XE)), y1 = y + (Y);            \
-      if (x1 >= 0 && x1 < bp->grid_w && y1 >= 0 && y1 < bp->grid_h)\
-        h0->neighbors[(I)] = &bp->hexagons[y1 * bp->grid_w + x1];  \
-      else                                                         \
-        h0->neighbors[(I)] = NULL;                                 \
-    } while (0)
-
-
-    NEIGHBOR (0,  0,  1, -1);
-    NEIGHBOR (1,  1,  1,  0);
-    NEIGHBOR (2,  0,  1,  1);
-    NEIGHBOR (3, -1,  0,  1);
-    NEIGHBOR (4, -1, -1,  0);
-    NEIGHBOR (5, -1,  0, -1);
-# undef NEIGHBOR
-  }
-}*/
-
 /*static void make_plane (config *bp) {
   int x, y;
   GLfloat w, h;
@@ -289,7 +264,7 @@ static Bool point_invis(hexagon *h0) {
   return !is_visible;
 }
 
-// TODO the function below can for the simple X by Y array of pointers to hexagons - is it possible to use 20-bit or 24-bit or 32-bit pointers rather than wasting 64-bits for each one?
+// TODO - is it possible to use 20-bit or 24-bit or 32-bit pointers rather than wasting 64-bits for each one?
 static void expand_grid(config *bp, int direction) {
   int new_grid_w = bp->grid_w, new_grid_h = bp->grid_h;
 
@@ -331,7 +306,8 @@ static void expand_grid(config *bp, int direction) {
 }
 
 static void reset_hextrail(config *bp) {
-  free (bp->hexagons); // TODO - is this a good idea each time?
+  free (bp->hexagons); // TODO - is this a good idea each time? Or better to zero it?
+  // TODO - should we perhaps free (bp->hex_grid) also? Or zero it?
   bp->hexagons = NULL;
   bp->state = FIRST;
   bp->fade_ratio = 1;
@@ -377,9 +353,11 @@ static hexagon *do_hexagon(config *bp, int x, int y) {
   hexagon *h0 = (hexagon *)malloc(sizeof(hexagon));
   if (!h0) {
 	printf("%s: Malloc failed\n", __func__);
+	// TODO - if this fails, do we need to free the memory from the realloc above?
 	return NULL;
   }
 
+  bp->hexagons = new_hexagons;
   h0->x = x; h0->y = y;
   GLfloat w = 2.0 / bp->size; // TODO - to delete
   GLfloat h = w * sqrt(3) / 2; //       and below
@@ -390,7 +368,7 @@ static hexagon *do_hexagon(config *bp, int x, int y) {
   h0->state = EMPTY;
   h0->ratio = 0;
   h0->doing = 0;
-  h0->ccolor = random() & bp->ncolors;
+  //h0->ccolor = random() & bp->ncolors;
   /*for (int i = 0; i < 6; i++) {
     h0->arms[i].state = EMPTY;
     h0->arms[i].ratio = 0;
