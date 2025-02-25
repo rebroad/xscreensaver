@@ -58,7 +58,6 @@ typedef struct {
 } arm;
 
 typedef struct hexagon {
-  XYZ pos;		// TODO remove as can be derived from x and y
   int x, y;
   arm arms[6];
   int ccolor;
@@ -166,12 +165,6 @@ static hexagon *do_hexagon(config *bp, int x, int y) {
 
   bp->hexagons = new_hexagons;
   h0->x = x; h0->y = y;
-  GLfloat w = 2.0 / bp->size; // TODO - to delete
-  GLfloat h = w * sqrt(3) / 2; //       and below
-  h0->pos.x = x * w;
-  if (y & 1) h0->pos.x += w / 2; // Stagger into hex arrangement
-  h0->pos.y = y * h;
-  h0->pos.z = 0;
   h0->state = EMPTY;
   h0->ratio = 0;
   h0->doing = 0;
@@ -263,8 +256,12 @@ h0->x, h0->y, j, h1->x, h1->y, h1->state);
 }
 
 /* Check if a point is within the visible frustum */
-static Bool point_invis(hexagon *h0) {
-  XYZ point = h0->pos;
+static Bool point_invis(config *bp, hexagon *h0) {
+  GLfloat wid = 2.0 / bp->size;
+  GLfloat hgt = wid * sqrt(3) / 2;
+  XYZ pos;
+  pos.x = h0->x * wid + (h0->y & 1) * wid / 2;
+  pos.y = h0->y * hgt; pos.z = 0;
   GLdouble model[16], proj[16];
   GLint viewport[4];
   GLdouble winX, winY, winZ;
@@ -275,7 +272,7 @@ static Bool point_invis(hexagon *h0) {
   glGetIntegerv(GL_VIEWPORT, viewport);
 
   /* Project point to screen coordinates */
-  gluProject((GLdouble)point.x, (GLdouble)point.y, (GLdouble)point.z,
+  gluProject((GLdouble)pos.x, (GLdouble)pos.y, (GLdouble)pos.z,
              model, proj, viewport, &winX, &winY, &winZ);
 
   Bool is_visible = (winX >= viewport[0] && winX <= viewport[0] + viewport[2] &&
@@ -370,7 +367,7 @@ static void tick_hexagons (config *bp) {
 
   for (i = 0; i < bp->hexagon_count; i++) {
     hexagon *h0 = bp->hexagons[i];
-    h0->invis = (do_expand && !bp->button_pressed && point_invis(h0));
+    h0->invis = (do_expand && !bp->button_pressed && point_invis(bp, h0));
 
     int adj_x = h0->x + bp->size/2 + bp->x_offset;
     int adj_y = h0->y + bp->size/2 + bp->y_offset;
@@ -621,6 +618,8 @@ static void draw_hexagons (ModeInfo *mi) {
   GLfloat length = sqrt(3) / 3;
   GLfloat size = length / MI_COUNT(mi);
   GLfloat thick2 = thickness * bp->fade_ratio;
+  GLfloat wid = 2.0 / bp->size;
+  GLfloat hgt = wid * sqrt(3) / 2;
   int i;
 
 # undef H
@@ -638,6 +637,9 @@ static void draw_hexagons (ModeInfo *mi) {
 
   for (i = 0; i < bp->hexagon_count; i++) {
     hexagon *h = bp->hexagons[i];
+	XYZ pos;
+	pos.x = h->x * wid + (h->y & 1) * wid / 2;
+	pos.y = h->y * hgt; pos.z = 0;
     int total_arms = 0;
     GLfloat color[4];
     int j;
@@ -685,21 +687,21 @@ static void draw_hexagons (ModeInfo *mi) {
         glMaterialfv (GL_FRONT, GL_AMBIENT_AND_DIFFUSE, color1);
 
         /* Outer edge of hexagon border */
-        p[0].x = h->pos.x + corners[j].x * size1;
-        p[0].y = h->pos.y + corners[j].y * size1;
-        p[0].z = h->pos.z;
+        p[0].x = pos.x + corners[j].x * size1;
+        p[0].y = pos.y + corners[j].y * size1;
+        p[0].z = pos.z;
 
-        p[1].x = h->pos.x + corners[k].x * size1;
-        p[1].y = h->pos.y + corners[k].y * size1;
-        p[1].z = h->pos.z;
+        p[1].x = pos.x + corners[k].x * size1;
+        p[1].y = pos.y + corners[k].y * size1;
+        p[1].z = pos.z;
 
         /* Inner edge of hexagon border */
-        p[2].x = h->pos.x + corners[k].x * size2;
-        p[2].y = h->pos.y + corners[k].y * size2;
-        p[2].z = h->pos.z;
-        p[3].x = h->pos.x + corners[j].x * size2;
-        p[3].y = h->pos.y + corners[j].y * size2;
-        p[3].z = h->pos.z;
+        p[2].x = pos.x + corners[k].x * size2;
+        p[2].y = pos.y + corners[k].y * size2;
+        p[2].z = pos.z;
+        p[3].x = pos.x + corners[j].x * size2;
+        p[3].y = pos.y + corners[j].y * size2;
+        p[3].z = pos.z;
 
         glVertex3f (p[0].x, p[0].y, p[0].z);
         glVertex3f (p[1].x, p[1].y, p[1].z);
@@ -747,20 +749,20 @@ static void draw_hexagons (ModeInfo *mi) {
         //if (! h->neighbors[j]) abort();  /* arm/neighbor mismatch */
 
         /* Center */
-        p[0].x = h->pos.x + xoff * size2 * thick2 + x * start;
-        p[0].y = h->pos.y + yoff * size2 * thick2 + y * start;
-        p[0].z = h->pos.z;
-        p[1].x = h->pos.x - xoff * size2 * thick2 + x * start;
-        p[1].y = h->pos.y - yoff * size2 * thick2 + y * start;
-        p[1].z = h->pos.z;
+        p[0].x = pos.x + xoff * size2 * thick2 + x * start;
+        p[0].y = pos.y + yoff * size2 * thick2 + y * start;
+        p[0].z = pos.z;
+        p[1].x = pos.x - xoff * size2 * thick2 + x * start;
+        p[1].y = pos.y - yoff * size2 * thick2 + y * start;
+        p[1].z = pos.z;
 
         /* Edge */
-        p[2].x = h->pos.x - xoff * size2 * thick2 + x * end;
-        p[2].y = h->pos.y - yoff * size2 * thick2 + y * end;
-        p[2].z = h->pos.z;
-        p[3].x = h->pos.x + xoff * size2 * thick2 + x * end;
-        p[3].y = h->pos.y + yoff * size2 * thick2 + y * end;
-        p[3].z = h->pos.z;
+        p[2].x = pos.x - xoff * size2 * thick2 + x * end;
+        p[2].y = pos.y - yoff * size2 * thick2 + y * end;
+        p[2].z = pos.z;
+        p[3].x = pos.x + xoff * size2 * thick2 + x * end;
+        p[3].y = pos.y + yoff * size2 * thick2 + y * end;
+        p[3].z = pos.z;
 
         if (do_glow || do_neon) {
           Bool debug_now = False;
@@ -897,16 +899,16 @@ static void draw_hexagons (ModeInfo *mi) {
         GLfloat size3 = size * thick2 * 0.8;
         if (total_arms == 1) size3 *= 2;
 
-        p[0] = h->pos;
+        p[0] = pos;
 
-        p[1].x = h->pos.x + corners[j].x * size3;
-        p[1].y = h->pos.y + corners[j].y * size3;
-        p[1].z = h->pos.z;
+        p[1].x = pos.x + corners[j].x * size3;
+        p[1].y = pos.y + corners[j].y * size3;
+        p[1].z = pos.z;
 
         /* Inner edge of hexagon border */
-        p[2].x = h->pos.x + corners[k].x * size3;
-        p[2].y = h->pos.y + corners[k].y * size3;
-        p[2].z = h->pos.z;
+        p[2].x = pos.x + corners[k].x * size3;
+        p[2].y = pos.y + corners[k].y * size3;
+        p[2].z = pos.z;
 
         glColor4fv (color);
         glMaterialfv (GL_FRONT, GL_AMBIENT_AND_DIFFUSE, color);
