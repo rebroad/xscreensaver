@@ -136,8 +136,7 @@ static argtype vars[] = {
 
 ENTRYPOINT ModeSpecOpt hextrail_opts = {countof(opts), opts, countof(vars), vars, NULL};
 
-static void update_neighbors(ModeInfo *mi) {
-  config *bp = &bps[MI_SCREEN(mi)];
+static void update_neighbors(config *bp) {
   int x, y;
 
   for (y = 0; y < bp->grid_h; y++) for (x = 0; x < bp->grid_w; x++) {
@@ -168,8 +167,7 @@ static void update_neighbors(ModeInfo *mi) {
   }
 }
 
-static void make_plane (ModeInfo *mi) {
-  config *bp = &bps[MI_SCREEN(mi)];
+static void make_plane (config *bp) {
   int x, y;
   GLfloat w, h;
   hexagon *grid;
@@ -221,12 +219,11 @@ static void make_plane (ModeInfo *mi) {
     }
   }
 
-  update_neighbors(mi);
+  update_neighbors(bp);
 }
 
 
-static int add_arms (ModeInfo *mi, hexagon *h0) {
-  config *bp = &bps[MI_SCREEN(mi)];
+static int add_arms (config *bp, hexagon *h0) {
   int i;
   int added = 0;
   int target = 1 + (random() % 5);
@@ -316,8 +313,7 @@ static Bool point_invis(hexagon *h0) {
 }
 
 // TODO the function below can for the simple X by Y array of pointers to hexagons - is it possible to use 20-bit or 24-bit or 32-bit pointers rather than wasting 64-bits for each one?
-static void expand_plane(ModeInfo *mi, int direction) {
-  config *bp = &bps[MI_SCREEN(mi)];
+static void expand_plane(config *bp, int direction) {
   int new_grid_w = bp->grid_w, new_grid_h = bp->grid_h;
 
   /* Increase grid size */
@@ -380,7 +376,7 @@ static void expand_plane(ModeInfo *mi, int direction) {
   bp->grid_w = new_grid_w; bp->grid_h = new_grid_h;
   free(bp->hexagons);
   bp->hexagons = new_hexagons;
-  update_neighbors(mi);
+  update_neighbors(bp);
 
   /* Sanity check */
   int start_x = bp->grid_w / 2 - 1;
@@ -404,14 +400,12 @@ static void expand_plane(ModeInfo *mi, int direction) {
     }
 }
 
-static void reset_hextrail(ModeInfo *mi) {
-  config *bp = &bps[MI_SCREEN(mi)];
-  if (MI_COUNT(mi) < 1) MI_COUNT(mi) = 1;
+static void reset_hextrail(config *bp) {
   free (bp->hexagons);
   bp->hexagons = NULL;
   bp->state = FIRST;
   bp->fade_ratio = 1;
-  make_plane (mi);
+  make_plane (bp);
 }
 
 /*static hexagon *add_hexagon(config *bp, int x, int y) {
@@ -434,8 +428,7 @@ static void reset_hextrail(ModeInfo *mi) {
   h0->ccolor = random() & bp->ncolors;
 }*/
 
-static void tick_hexagons (ModeInfo *mi) {
-  config *bp = &bps[MI_SCREEN(mi)];
+static void tick_hexagons (config *bp) {
   int i, j, doinga = 0, doingb = 0, ignorea = 0, ignoreb = 0;
   int empty = 0, vempty = 0; // TODO use this prior to fade
   int8_t dir = 0;
@@ -560,7 +553,7 @@ static void tick_hexagons (ModeInfo *mi) {
             hexagon *h1 = h0->neighbors[j];
             h1->doing--;
             a0->ratio = 1;
-            add_arms(mi, h0);
+            add_arms(bp, h0);
           }
           break;
         case EMPTY: case WAIT: case DONE:
@@ -599,7 +592,7 @@ static void tick_hexagons (ModeInfo *mi) {
 
   min_vx = this_min_vx; max_vx = this_max_vx; min_vy = this_min_vy; max_vy = this_max_vy;
 
-  if (dir && do_expand) expand_plane(mi, dir);
+  if (dir && do_expand) expand_plane(bp, dir);
 
   if (bp->now > bp->debug) {
     printf("doinga=%d ignorea=%d doingb=%d ignoreb=%d vempty=%d empty=%d\n",
@@ -630,7 +623,7 @@ static void tick_hexagons (ModeInfo *mi) {
       // allocate memory for new hexagons
       //hexagon *h0 = add_hexagon(x, y);
       hexagon *h0 = &bp->hexagons[y * bp->grid_w + x];
-      if (h0->state == EMPTY && !h0->invis && add_arms(mi, h0)) {
+      if (h0->state == EMPTY && !h0->invis && add_arms(bp, h0)) {
         h0->ccolor = random() % bp->ncolors;
 		h0->state = DONE;
         started = True;
@@ -658,7 +651,7 @@ static void tick_hexagons (ModeInfo *mi) {
   } else if (bp->state == FADE) {
     bp->fade_ratio -= 0.01 * speed;
     if (bp->fade_ratio <= 0)
-      reset_hextrail (mi);
+      reset_hextrail (bp);
   }
 }
 
@@ -1056,8 +1049,10 @@ ENTRYPOINT Bool hextrail_handle_event (ModeInfo *mi,
 #else
             keysym == XK_Left || keysym == XK_Down || keysym == XK_Prior
 #endif
-            )
+            ) {
       MI_COUNT(mi)--;
+      if (MI_COUNT(mi) < 1) MI_COUNT(mi) = 1;
+	}
 #ifdef USE_SDL
     else if (event->type == SDL_EVENT_QUIT) ;
 #else
@@ -1067,7 +1062,7 @@ ENTRYPOINT Bool hextrail_handle_event (ModeInfo *mi,
 
 #ifndef USE_SDL
   RESET:
-    reset_hextrail(mi);
+    reset_hextrail(bp);
     return True;
 #endif
   }
@@ -1109,7 +1104,7 @@ ENTRYPOINT void init_hextrail (ModeInfo *mi) {
   if (thickness < 0.05) thickness = 0.05;
   if (thickness > 0.5) thickness = 0.5;
 
-  reset_hextrail (mi);
+  reset_hextrail (bp);
 }
 
 
@@ -1139,9 +1134,7 @@ ENTRYPOINT void draw_hextrail (ModeInfo *mi) {
   {
     double x, y, z;
     get_position (bp->rot, &x, &y, &z, !bp->button_down_p);
-    glTranslatef((x - 0.5) * 6,
-                 (y - 0.5) * 6,
-                 (z - 0.5) * 12);
+    glTranslatef((x - 0.5) * 6, (y - 0.5) * 6, (z - 0.5) * 12);
 
     gltrackball_rotate (bp->trackball);
 
@@ -1157,7 +1150,7 @@ ENTRYPOINT void draw_hextrail (ModeInfo *mi) {
   }
 
   bp->now = time(NULL);
-  if (bp->pause_until < bp->now) tick_hexagons (mi);
+  if (bp->pause_until < bp->now) tick_hexagons (bp);
   if (bp->button_down_p) {
     if (do_expand && !bp->button_pressed) printf("Button pressed\n");
     bp->button_pressed = True;
