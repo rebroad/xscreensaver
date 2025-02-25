@@ -124,43 +124,6 @@ static argtype vars[] = {
 
 ENTRYPOINT ModeSpecOpt hextrail_opts = {countof(opts), opts, countof(vars), vars, NULL};
 
-/*static void make_plane (config *bp) {
-  int x, y;
-  GLfloat w, h;
-  hexagon *grid;
-
-  grid = (bp->hexagons
-          ? bp->hexagons
-          : (hexagon *) malloc (bp->grid_w * bp->grid_h * sizeof(*grid)));
-  memset (grid, 0, bp->grid_w * bp->grid_h * sizeof(*grid));
-
-  w = 2.0 / bp->grid_w;
-  h = w * sqrt(3) / 2;
-
-  bp->hexagons = grid;
-
-  for (y = 0; y < bp->grid_h; y++) {
-    for (x = 0; x < bp->grid_w; x++) {
-      int i = y * bp->grid_w + x;
-      hexagon *h0 = &grid[i];
-      h0->x = x - bp->size/2; h0->y = y - bp->size/2; // Put 0,0 at the center
-      h0->pos.x = h0->x * w; // TODO - remove this as a derivative
-      if (h0->y & 1) h0->pos.x += w / 2; // Stagger into hex arrangement
-      h0->pos.y = h0->y * h;
-      h0->pos.z = 0;
-      h0->state = EMPTY;
-      h0->ratio = 0;
-      h0->doing = 0;
-
-      if (x == 0 && y == 0) printf("%s: %d,%d pos.x=%f pos.y=%f\n", __func__, h0->x,h0->y,h0->pos.x,h0->pos.y);
-      if (x == bp->grid_w/2 && y == bp->grid_h/2) printf("%s: %d,%d pos.x = %f pos.y = %f\n", __func__, h0->x,h0->y,h0->pos.x,h0->pos.y);
-      if (x == bp->grid_w-1 && y == bp->grid_h-1) printf("%s: %d,%d pos.x = %f pos.y = %f\n", __func__, h0->x,h0->y,h0->pos.x,h0->pos.y);
-    }
-  }
-
-  update_neighbors(bp);
-}*/
-
 static hexagon *neighbor(config *bp, hexagon *h0, int j) {
   // First value is arm, 2nd value is XE, XO, Y
   //   0,0   1,0   2,0   3,0   4,0               5   0
@@ -392,8 +355,8 @@ static void tick_hexagons (config *bp) {
   static int min_vx = 0, min_vy = 0, max_vx = 0, max_vy = 0;
   int this_min_vx = 0, this_min_vy = 0, this_max_vx = 0, this_max_vy = 0;
 
-  for (i = 0; i < bp->grid_w * bp->grid_h; i++) {
-    hexagon *h0 = &bp->hexagons[i];
+  for (i = 0; i < bp->hexagon_count; i++) {
+    hexagon *h0 = bp->hexagons[i];
     h0->invis = (do_expand && !bp->button_pressed && point_invis(h0));
 
     int adj_x = h0->x + bp->size/2 + bp->x_offset;
@@ -595,8 +558,8 @@ static void tick_hexagons (config *bp) {
     bp->state = FADE;
     bp->fade_ratio = 1;
 
-    for (i = 0; i < bp->grid_w * bp->grid_h; i++) {
-      hexagon *h = &bp->hexagons[i];
+    for (i = 0; i < bp->hexagon_count; i++) {
+      hexagon *h = bp->hexagons[i];
       if (h->state == IN || h->state == WAIT)
         h->state = OUT;
     }
@@ -644,8 +607,8 @@ static void draw_hexagons (ModeInfo *mi) {
   glBegin (wire ? GL_LINES : GL_TRIANGLES);
   glNormal3f (0, 0, 1);
 
-  for (i = 0; i < bp->grid_w * bp->grid_h; i++) {
-    hexagon *h = &bp->hexagons[i];
+  for (i = 0; i < bp->hexagon_count; i++) {
+    hexagon *h = bp->hexagons[i];
     int total_arms = 0;
     GLfloat color[4];
     int j;
