@@ -83,7 +83,10 @@ typedef struct {
    /   neighbours as we can keep all pointers to hexagons
    /   and the fixed array uses less memory (just a single
    /   pointer per entry, so a 1000 x 1000 grid will need only
-   /   8MB on a 64-bit system */
+   /   8MB on a 64-bit system>
+  hex_node **hex_table;    // Hash table of hexagons
+  int table_size;          // Size of the hash table
+*/
   int size, grid_w, grid_h;
   int x_offset, y_offset;
   hexagon *hexagons;
@@ -91,9 +94,9 @@ typedef struct {
   GLfloat fade_ratio;
 
   int ncolors;
-} hextrail_configuration;
+} config;
 
-static hextrail_configuration *bps = NULL;
+static config *bps = NULL;
 
 static Bool do_spin;
 static GLfloat speed;
@@ -134,7 +137,7 @@ static argtype vars[] = {
 ENTRYPOINT ModeSpecOpt hextrail_opts = {countof(opts), opts, countof(vars), vars, NULL};
 
 static void update_neighbors(ModeInfo *mi) {
-  hextrail_configuration *bp = &bps[MI_SCREEN(mi)];
+  config *bp = &bps[MI_SCREEN(mi)];
   int x, y;
 
   for (y = 0; y < bp->grid_h; y++) for (x = 0; x < bp->grid_w; x++) {
@@ -159,7 +162,7 @@ static void update_neighbors(ModeInfo *mi) {
 }
 
 static void make_plane (ModeInfo *mi) {
-  hextrail_configuration *bp = &bps[MI_SCREEN(mi)];
+  config *bp = &bps[MI_SCREEN(mi)];
   int x, y;
   GLfloat size, w, h;
   hexagon *grid;
@@ -217,7 +220,7 @@ static void make_plane (ModeInfo *mi) {
 
 
 static int add_arms (ModeInfo *mi, hexagon *h0) {
-  hextrail_configuration *bp = &bps[MI_SCREEN(mi)];
+  config *bp = &bps[MI_SCREEN(mi)];
   int i;
   int added = 0;
   int target = 1 + (random() % 5);
@@ -308,7 +311,7 @@ static Bool point_invis(hexagon *h0) {
 
 // TODO the function below can for the simple X by Y array of pointers to hexagons - is it possible to use 20-bit or 24-bit or 32-bit pointers rather than wasting 64-bits for each one?
 static void expand_plane(ModeInfo *mi, int direction) {
-  hextrail_configuration *bp = &bps[MI_SCREEN(mi)];
+  config *bp = &bps[MI_SCREEN(mi)];
   int new_grid_w = bp->grid_w, new_grid_h = bp->grid_h;
 
   /* Increase grid size */
@@ -396,7 +399,7 @@ static void expand_plane(ModeInfo *mi, int direction) {
 }
 
 static void reset_hextrail(ModeInfo *mi) {
-  hextrail_configuration *bp = &bps[MI_SCREEN(mi)];
+  config *bp = &bps[MI_SCREEN(mi)];
   if (MI_COUNT(mi) < 1) MI_COUNT(mi) = 1;
   free (bp->hexagons);
   bp->hexagons = NULL;
@@ -405,8 +408,10 @@ static void reset_hextrail(ModeInfo *mi) {
   make_plane (mi);
 }
 
+//static hexagon *add_hexagon(
+
 static void tick_hexagons (ModeInfo *mi) {
-  hextrail_configuration *bp = &bps[MI_SCREEN(mi)];
+  config *bp = &bps[MI_SCREEN(mi)];
   int i, j, doinga = 0, doingb = 0, ignorea = 0, ignoreb = 0;
   int empty = 0, vempty = 0; // TODO use this prior to fade
   int8_t dir = 0;
@@ -467,7 +472,7 @@ static void tick_hexagons (ModeInfo *mi) {
     if (debug) {
       printf("pos=%d,%d vis=(%d-%d,%d-%d) (%d-%d,%d-%d) arms=%d border=%d edge=%d, invis=%d\n",
               h0->x, h0->y, min_vx, max_vx, min_vy, max_vy,
-              min_x, max_x, min_y, max_y, h0->doing, h0->state != EMPTY, edge, h0->invis);
+              min_x, max_x, min_y, max_y, h0->doing, h0->state, edge, h0->invis);
 	  bp->debug = bp->now;
 	}
     // TODO use above values to work out if we can shift instead of expand plane
@@ -604,6 +609,7 @@ static void tick_hexagons (ModeInfo *mi) {
       if (h0->state == EMPTY && !h0->invis && add_arms(mi, h0)) {
         h0->ccolor = random() % bp->ncolors;
         started = True;
+		bp->pause_until = bp->now + 5;
         break;
       }
     } // Look for a suitable cell
@@ -648,7 +654,7 @@ static void draw_glow_point(XYZ p, GLfloat size, GLfloat scale,
 }
 
 static void draw_hexagons (ModeInfo *mi) {
-  hextrail_configuration *bp = &bps[MI_SCREEN(mi)];
+  config *bp = &bps[MI_SCREEN(mi)];
   int wire = MI_IS_WIREFRAME(mi);
   GLfloat length = sqrt(3) / 3;
   GLfloat size = length / MI_COUNT(mi);
@@ -993,7 +999,7 @@ ENTRYPOINT Bool hextrail_handle_event (ModeInfo *mi,
         XEvent *event
 #endif
         ) {
-  hextrail_configuration *bp = &bps[MI_SCREEN(mi)];
+  config *bp = &bps[MI_SCREEN(mi)];
 
   if (gltrackball_event_handler (event, bp->trackball,
               MI_WIDTH (mi), MI_HEIGHT (mi), &bp->button_down_p)) return True;
@@ -1049,7 +1055,7 @@ ENTRYPOINT Bool hextrail_handle_event (ModeInfo *mi,
 }
 
 ENTRYPOINT void init_hextrail (ModeInfo *mi) {
-  hextrail_configuration *bp;
+  config *bp;
 
   MI_INIT (mi, bps);
 
@@ -1083,7 +1089,7 @@ ENTRYPOINT void init_hextrail (ModeInfo *mi) {
 
 
 ENTRYPOINT void draw_hextrail (ModeInfo *mi) {
-  hextrail_configuration *bp = &bps[MI_SCREEN(mi)];
+  config *bp = &bps[MI_SCREEN(mi)];
 
 #ifdef USE_SDL
   if (!bp->gl_context) return;
@@ -1147,7 +1153,7 @@ ENTRYPOINT void draw_hextrail (ModeInfo *mi) {
 
 
 ENTRYPOINT void free_hextrail (ModeInfo *mi) {
-  hextrail_configuration *bp = &bps[MI_SCREEN(mi)];
+  config *bp = &bps[MI_SCREEN(mi)];
 
 #ifdef USE_SDL
   if (!bp->gl_context) return;
