@@ -74,8 +74,9 @@ typedef struct {
   Bool button_down_p, button_pressed;
   time_t now, pause_until, debug;
 
-  hexagon **hexagons;   // In order of creation
+  hexagon **hexagons;   // Dynamic array of pointers to hexagons
   hexagon **hex_grid;   // Lookup table of hexagons
+  int hexagon_count;    // Number of active hexagons
   int size, grid_w, grid_h;
   int x_offset, y_offset;
   enum { FIRST, DRAW, FADE } state;
@@ -124,6 +125,60 @@ static argtype vars[] = {
 
 ENTRYPOINT ModeSpecOpt hextrail_opts = {countof(opts), opts, countof(vars), vars, NULL};
 
+static hexagon *do_hexagon(config *bp, int x, int y) {
+  // Returns or creates a hexton at co-ords
+  int gx = x + bp->grid_w/2 + bp->x_offset;
+  int gy = y + bp->grid_h/2 + bp->y_offset;
+  if (gx < 0 || gx >= bp->grid_w || gy < 0 || gy >= bp->grid_h) {
+	  printf("%s: Out of bounds\n", __func__);
+	  // TODO - we could extend_grid here
+      return NULL;
+  }
+  hexagon *h0 = bp->hex_grid[gy * bp->grid_w + gx];
+  // We found an existing hexagon, so return it.
+  if (h0) return h0;
+
+  // TODO - is this ok to realloc 1 at a time like this?
+  hexagon **new_hexagons = (hexagon **)realloc(bp->hexagons, (bp->hexagon_count+1) * sizeof(hexagon *));
+  if (!new_hexagons) {
+	fprintf(stderr, "%s: Reallocate failed\n", __func__);
+	return NULL;
+  }
+
+  h0 = (hexagon *)malloc(sizeof(hexagon));
+  if (!h0) {
+	printf("%s: Malloc failed\n", __func__);
+	// TODO - if this fails, do we need to free the memory from the realloc above?
+	return NULL;
+  }
+
+  bp->hexagons = new_hexagons;
+  h0->x = x; h0->y = y;
+  GLfloat w = 2.0 / bp->size; // TODO - to delete
+  GLfloat h = w * sqrt(3) / 2; //       and below
+  h0->pos.x = x * w;
+  if (y & 1) h0->pos.x += w / 2; // Stagger into hex arrangement
+  h0->pos.y = y * h;
+  h0->pos.z = 0;
+  h0->state = EMPTY;
+  h0->ratio = 0;
+  h0->doing = 0;
+  //h0->ccolor = random() & bp->ncolors;
+  /*for (int i = 0; i < 6; i++) {
+    h0->arms[i].state = EMPTY;
+    h0->arms[i].ratio = 0;
+    h0->arms[i].speed = 0;
+    h0->neighbors[i] = NULL;
+  }*/
+
+  // Add to lookup table
+  // TODO - add code to derive idx for the lookup table entry
+  bp->hex_grid[gy * bp->grid_w + gx] = h0;
+  bp->hexagons[bp->hexagon_count++] = h0;
+
+  return h0;
+}
+
 static hexagon *neighbor(config *bp, hexagon *h0, int j) {
   // First value is arm, 2nd value is XE, XO, Y
   //   0,0   1,0   2,0   3,0   4,0               5   0
@@ -156,8 +211,7 @@ static int add_arms (config *bp, hexagon *h0) {
     int j = idx[i];
     arm *a0 = &h0->arms[j];
     if (a0->state != EMPTY) continue;	/* Arm already exists */
-	int nx, ny;
-    hexagon *h1 = neighbor(h0,j,&nx,&ny);
+    hexagon *h1 = neighbor(bp, h0, j);
     if (!h1) {
       //printf("pos=%d,%d No neighbour on arm %d\n", h0->x, h0->y, j);
 	  // TODO - need to create this offsets array
@@ -258,8 +312,9 @@ static void expand_grid(config *bp, int direction) {
   /* Copy existing hexagon pointers with position adjustment */
   int x, y;
   for (y = 0; y < bp->grid_h; y++) for (x = 0; x < bp->grid_w; x++) {
-    hexagon *old_idx = &bp->hex_grid[y * bp->grid_w + x];
-    hexagon *new_idx = &new_grid[(y + y_offset) * new_grid_w + x + x_offset];
+	// TODO below should I be using hexagon ** ?
+    hexagon *old_idx = bp->hex_grid[y * bp->grid_w + x];
+    hexagon *new_idx = new_grid[(y + y_offset) * new_grid_w + x + x_offset];
     *new_idx = *old_idx;
   }
 
@@ -295,60 +350,6 @@ static void reset_hextrail(config *bp) {
 
   bp->grid_w = bp->size; bp->grid_h = bp->size;
   //make_plane (bp);
-}
-
-static hexagon *do_hexagon(config *bp, int x, int y) {
-  // Returns or creates a hexton at co-ords
-  int gx = x + bp->grid_w/2 + bp->x_offset;
-  int gy = y + bp->grid_h/2 + bp->y_offset;
-  if (gx < 0 || gx >= bp->grid_w || gy < 0 || gy >= bp->grid_h) {
-	  printf("%s: Out of bounds\n", __func__);
-	  // TODO - we could extend_grid here
-      return NULL;
-  }
-  hexagon *h0 = bp->hex_grid[gy * bp->grid_w + gx];
-  // We found an existing hexagon, so return it.
-  if (h0) return h0;
-
-  // TODO - is this ok to realloc 1 at a time like this?
-  hexagon **new_hexagons = (hexagon **)realloc(bp->hexagons, (bp->hexagon_count+1) * sizeof(hexagon *));
-  if (!new_hexagons) {
-	printf(stderr, "%s: Reallocate failed\n", __func__);
-	return NULL;
-  }
-
-  hexagon *h0 = (hexagon *)malloc(sizeof(hexagon));
-  if (!h0) {
-	printf("%s: Malloc failed\n", __func__);
-	// TODO - if this fails, do we need to free the memory from the realloc above?
-	return NULL;
-  }
-
-  bp->hexagons = new_hexagons;
-  h0->x = x; h0->y = y;
-  GLfloat w = 2.0 / bp->size; // TODO - to delete
-  GLfloat h = w * sqrt(3) / 2; //       and below
-  h0->pos.x = x * w;
-  if (y & 1) h0->pos.x += w / 2; // Stagger into hex arrangement
-  h0->pos.y = y * h;
-  h0->pos.z = 0;
-  h0->state = EMPTY;
-  h0->ratio = 0;
-  h0->doing = 0;
-  //h0->ccolor = random() & bp->ncolors;
-  /*for (int i = 0; i < 6; i++) {
-    h0->arms[i].state = EMPTY;
-    h0->arms[i].ratio = 0;
-    h0->arms[i].speed = 0;
-    h0->neighbors[i] = NULL;
-  }*/
-
-  // Add to lookup table
-  // TODO - add code to derive idx for the lookup table entry
-  bp->hex_grid[gy * bp->grid_w + gx] = h0;
-  bp->hexagons[bp->hexagon_count++] = h0;
-
-  return h0;
 }
 
 static void tick_hexagons (config *bp) {
@@ -444,7 +445,7 @@ static void tick_hexagons (config *bp) {
           if (a0->ratio >= 1) {
             /* Just finished growing from center to edge.
                Pass the baton to this waiting neighbor. */
-            hexagon *h1 = h0->neighbors[j];
+            hexagon *h1 = neighbor(bp, h0, j);
             arm *a1 = &h1->arms[(j + 3) % 6];
             if (a1->state != WAIT) {
               printf("H0 (%d,%d)'s arm=%d connecting to H1 (%d,%d)'s arm_state=%d arm_ratio=%.1f\n", h0->x, h0->y, j, h1->x, h1->y, a1->state, a1->ratio);
@@ -473,7 +474,7 @@ static void tick_hexagons (config *bp) {
                Look for any available exits. */
             a0->state = DONE;
             //hexagon *h1 = h0->neighbors[(j + 3) % 6];
-            hexagon *h1 = h0->neighbors[j];
+            hexagon *h1 = neighbor(bp, h0, j);
             h1->doing--;
             a0->ratio = 1;
             add_arms(bp, h0);
@@ -515,7 +516,7 @@ static void tick_hexagons (config *bp) {
 
   min_vx = this_min_vx; max_vx = this_max_vx; min_vy = this_min_vy; max_vy = this_max_vy;
 
-  if (dir && do_expand) expand_plane(bp, dir);
+  if (dir && do_expand) expand_grid(bp, dir);
 
   if (bp->now > bp->debug) {
     printf("doinga=%d ignorea=%d doingb=%d ignoreb=%d vempty=%d empty=%d\n",
@@ -541,7 +542,7 @@ static void tick_hexagons (config *bp) {
         x = (random() % bp->grid_w) - bp->size;
         y = (random() % bp->grid_h) - bp->size;
       }
-      hexagon *h0 = do_hexagon(x, y);
+      hexagon *h0 = do_hexagon(bp, x, y);
       if (h0->state == EMPTY && !h0->invis && add_arms(bp, h0)) {
         h0->ccolor = random() % bp->ncolors;
         h0->state = DONE;
@@ -701,7 +702,7 @@ static void draw_hexagons (ModeInfo *mi) {
 
         /* Color of the outer point of the line is average color of
            this and the neighbor. */
-        HEXAGON_COLOR (ncolor, h->neighbors[j]);
+        HEXAGON_COLOR (ncolor, neighbor(bp, h, j));
         ncolor[0] = (ncolor[0] + color[0]) / 2;
         ncolor[1] = (ncolor[1] + color[1]) / 2;
         ncolor[2] = (ncolor[2] + color[2]) / 2;
@@ -719,7 +720,7 @@ static void draw_hexagons (ModeInfo *mi) {
           memcpy (color2, color,  sizeof(color1));
         }
 
-        if (! h->neighbors[j]) abort();  /* arm/neighbor mismatch */
+        //if (! h->neighbors[j]) abort();  /* arm/neighbor mismatch */
 
         /* Center */
         p[0].x = h->pos.x + xoff * size2 * thick2 + x * start;
@@ -1098,6 +1099,7 @@ ENTRYPOINT void free_hextrail (ModeInfo *mi) {
   if (bp->rot) free_rotator (bp->rot);
 #endif
   if (bp->colors) free (bp->colors);
+  for (int i = 0; i < bp->hexagon_count; i++) free(bp->hexagons[i]);
   free (bp->hexagons);
 
 #ifdef USE_SDL
