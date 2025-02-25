@@ -528,67 +528,64 @@ static void tick_hexagons (config *bp) {
   Bool try_new = False, started = False;
   static int fails = 0, ticks = 0;
   if ((doinga - ignorea) <= 0) {
-    for (i = 0; i < (bp->grid_w * bp->grid_h) / 3; i++) {
-	  int16_t x = 0, y = 0;
-      if (bp->state == FIRST) {
-        fails = 0;
-        bp->state = DRAW;
-        bp->fade_ratio = 1; // TODO what is this?
-        min_vx = 0; max_vx = 0; min_vy = 0; max_vy = 0;
-        min_x = 0; max_x = 0; min_y = 0; max_y = 0;
-        printf("New hextrail. vis=(%d-%d,%d-%d) (%d-%d,%d-%d)\n",
-                min_vx, max_vx, min_vy, max_vy, min_x, max_x, min_y, max_y);
-      } else {
-        int16_t empty_cells[1000][2]; int empty_count = 0;
-		for (int y = min_vy; y <= max_vy && empty_count < 1000; y++) {
-		  for (int x = min_vx; x <= max_vx && empty_count < 1000; x++) {
-			int gx = x + bp->grid_w/2 + bp->x_offset;
-			int gy = y + bp->grid_h/2 + bp->y_offset;
-			if (gx >= 0 && gx < bp->grid_w && gy >= 0 && gy < bp->grid_h) {
-			  hexagon *h = bp->hex_grid[gy * bp->grid_w + gx];
-			  if (!h && point_invis(bp,x,y)) {
-				empty_cells[empty_count][0] = x;
-				empty_cells[empty_count++][1] = y;
-			  }
-			}
-		  }
-		}
-		if (empty_count > 0) {
-		  int pick = random() % empty_count;
-		  x = empty_cells[pick][0]; y = empty_cells[pick][1];
-		}
-      }
-      hexagon *h0 = do_hexagon(bp, x, y);
-      if (!h0) {
-        static time_t debug = 0;
-        if (debug != bp->now) {
-          printf("%s: do_hexagon failed. try_new=%d x=%d y=%d\n", __func__,
-                try_new, x, y);
-          debug = bp->now;
-        }
-      } else if (h0->state == EMPTY && add_arms(bp, h0)) {
-        printf("hex created. Arms. doing=%d ticks=%d fails=%d pos=%d,%d\n",
-				h0->doing, ticks, fails, h0->x, h0->y);
-        fails = 0;
-        h0->ccolor = random() % bp->ncolors;
-        h0->state = DONE;
-        started = True;
-        if (try_new) bp->pause_until = bp->now + 5;
-        break;
-      } else {
-        fails++;
-        // TODO - this whole random pick and try to see if we fill is quite resource intensive, with about
-        // 20,000 fails per second! Instead it would be better to use our knowledge of the visible range
-        // Perform a loop through X and Y of that range and see if there are any empty cells (due to
-        // getting a NULL pointer from hex_grid. Then randomly pick one of the empty cells found.
-        static time_t debug = 0;
-        if (debug != bp->now) {
-          printf("hexagon created. doing=%d ticks=%d fails=%d pos=%d,%d empty=%d visible=%d\n",
-				  h0->doing, ticks, fails, h0->x, h0->y, h0->state == EMPTY, !h0->invis);
-          debug = bp->now;
+    int16_t x = 0, y = 0;
+    if (bp->state == FIRST) {
+      fails = 0;
+      bp->state = DRAW;
+      bp->fade_ratio = 1; // TODO what is this?
+      min_vx = 0; max_vx = 0; min_vy = 0; max_vy = 0;
+      min_x = 0; max_x = 0; min_y = 0; max_y = 0;
+      printf("New hextrail. vis=(%d-%d,%d-%d) (%d-%d,%d-%d)\n",
+              min_vx, max_vx, min_vy, max_vy, min_x, max_x, min_y, max_y);
+    } else {
+      int16_t empty_cells[1000][2]; int empty_count = 0;
+      for (int y = min_vy; y <= max_vy && empty_count < 1000; y++) {
+        for (int x = min_vx; x <= max_vx && empty_count < 1000; x++) {
+          int gx = x + bp->grid_w/2 + bp->x_offset;
+          int gy = y + bp->grid_h/2 + bp->y_offset;
+          if (gx >= 0 && gx < bp->grid_w && gy >= 0 && gy < bp->grid_h) {
+            hexagon *h = bp->hex_grid[gy * bp->grid_w + gx];
+            if (!h && point_invis(bp,x,y)) {
+              empty_cells[empty_count][0] = x;
+              empty_cells[empty_count++][1] = y;
+            }
+          }
         }
       }
-    } // Look for a suitable cell
+      if (empty_count > 0) {
+        int pick = random() % empty_count;
+        x = empty_cells[pick][0]; y = empty_cells[pick][1];
+      }
+    }
+    hexagon *h0 = do_hexagon(bp, x, y);
+    if (!h0) {
+      static time_t debug = 0;
+      if (debug != bp->now) {
+        printf("%s: do_hexagon failed. try_new=%d x=%d y=%d\n", __func__,
+              try_new, x, y);
+        debug = bp->now;
+      }
+    } else if (h0->state == EMPTY && add_arms(bp, h0)) {
+      printf("hex created. Arms. doing=%d ticks=%d fails=%d pos=%d,%d\n",
+          h0->doing, ticks, fails, h0->x, h0->y);
+      fails = 0;
+      h0->ccolor = random() % bp->ncolors;
+      h0->state = DONE;
+      started = True;
+      if (try_new) bp->pause_until = bp->now + 5;
+    } else {
+      fails++;
+      // TODO - this whole random pick and try to see if we fill is quite resource intensive, with about
+      // 20,000 fails per second! Instead it would be better to use our knowledge of the visible range
+      // Perform a loop through X and Y of that range and see if there are any empty cells (due to
+      // getting a NULL pointer from hex_grid. Then randomly pick one of the empty cells found.
+      static time_t debug = 0;
+      if (debug != bp->now) {
+        printf("hexagon created. doing=%d ticks=%d fails=%d pos=%d,%d empty=%d visible=%d\n",
+            h0->doing, ticks, fails, h0->x, h0->y, h0->state == EMPTY, !h0->invis);
+        debug = bp->now;
+      }
+    }
   } else ticks = 0;
 
   if (try_new && (started || doinga != ignorea))
