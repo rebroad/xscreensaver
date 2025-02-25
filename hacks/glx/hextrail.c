@@ -151,6 +151,7 @@ static hexagon *do_hexagon(config *bp, int x, int y) {
 	// TODO - if this fails, do we need to free the memory from the realloc above?
 	return NULL;
   }
+  memset (h0, 0, sizeof(hexagon));
 
   bp->hexagons = new_hexagons;
   h0->x = x; h0->y = y;
