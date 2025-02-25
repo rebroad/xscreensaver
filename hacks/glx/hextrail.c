@@ -138,11 +138,11 @@ static hexagon *do_hexagon(config *bp, int x, int y) {
   int gx = x + bp->grid_w/2 + bp->x_offset;
   int gy = y + bp->grid_h/2 + bp->y_offset;
   if (gx < 0 || gx >= bp->grid_w || gy < 0 || gy >= bp->grid_h) {
-	  static time_t debug = 0;
-	  if (debug != bp->now) {
-	    printf("%s: Out of bounds. grid=%d,%d coords=%d,%d\n", __func__, gx, gy, x, y);
-		debug = bp->now;
-	  }
+      static time_t debug = 0;
+      if (debug != bp->now) {
+        printf("%s: Out of bounds. grid=%d,%d coords=%d,%d\n", __func__, gx, gy, x, y);
+        debug = bp->now;
+      }
       return NULL;
   }
   hexagon *h0 = bp->hex_grid[gy * bp->grid_w + gx];
@@ -152,15 +152,15 @@ static hexagon *do_hexagon(config *bp, int x, int y) {
   // TODO - is this ok to realloc 1 at a time like this?
   hexagon **new_hexagons = (hexagon **)realloc(bp->hexagons, (bp->hexagon_count+1) * sizeof(hexagon *));
   if (!new_hexagons) {
-	fprintf(stderr, "%s: Reallocate failed\n", __func__);
-	return NULL;
+    fprintf(stderr, "%s: Reallocate failed\n", __func__);
+    return NULL;
   }
 
   h0 = (hexagon *)malloc(sizeof(hexagon));
   if (!h0) {
-	printf("%s: Malloc failed\n", __func__);
-	// TODO - if this fails, do we need to free the memory from the realloc above?
-	return NULL;
+    printf("%s: Malloc failed\n", __func__);
+    // TODO - if this fails, do we need to free the memory from the realloc above?
+    return NULL;
   }
   memset (h0, 0, sizeof(hexagon));
 
@@ -199,7 +199,7 @@ static hexagon *neighbor(config *bp, hexagon *h0, int j) {
   //      0,3   1,3   2,3   3,3   4,3
   //   0,4   1,4   2,4   3,4   4,4               3   2
   const int offset[6][3] = {
-	  {0, 1, -1}, {1, 1, 0}, {0, 1, 1}, {-1, 0, 1}, {-1, -1, 0}, {-1, 0, -1}
+      {0, 1, -1}, {1, 1, 0}, {0, 1, 1}, {-1, 0, 1}, {-1, -1, 0}, {-1, 0, -1}
   };
   int x = h0->x + offset[j][h0->y & 1], y = h0->y + offset[j][2];
   return do_hexagon(bp, x, y);
@@ -224,11 +224,7 @@ static int add_arms (config *bp, hexagon *h0) {
     arm *a0 = &h0->arms[j];
     if (a0->state != EMPTY) continue;	/* Arm already exists */
     hexagon *h1 = neighbor(bp, h0, j);
-    if (!h1) {
-      //printf("pos=%d,%d No neighbour on arm %d\n", h0->x, h0->y, j);
-	  // TODO - need to create this offsets array
-      continue;		/* No neighboring cell */
-    }
+    if (!h1) continue;		            /* No neighboring cell */
     if (h1->state != EMPTY) continue;	/* Occupado */
     if (a0->state != EMPTY) continue;   /* Arm already exists */
 
@@ -324,7 +320,7 @@ static void expand_grid(config *bp, int direction) {
   /* Copy existing hexagon pointers with position adjustment */
   int x, y;
   for (y = 0; y < bp->grid_h; y++) for (x = 0; x < bp->grid_w; x++) {
-	// TODO below should I be using hexagon ** ?
+    // TODO below should I be using hexagon ** ?
     hexagon *old_idx = bp->hex_grid[y * bp->grid_w + x];
     hexagon *new_idx = new_grid[(y + y_offset) * new_grid_w + x + x_offset];
     *new_idx = *old_idx;
@@ -339,17 +335,28 @@ static void reset_hextrail(config *bp) {
   // TODO - is this a good idea each time? Or better to zero the entries?
   for (int i = 0; i < bp->hexagon_count; i++) free(bp->hexagons[i]);
   // TODO - do we need to free(bp->hexagons)) also?
-  free (bp->hexagons);
+  if (bp->hexagons) free (bp->hexagons);
   bp->hexagons = NULL;
   // TODO - should we perhaps free (bp->hex_grid) also? Or zero it?
   memset(bp->hex_grid, 0, sizeof(&bp->hex_grid)); // TODO - is this right?
   bp->hexagon_count = 0;
   bp->state = FIRST;
   bp->fade_ratio = 1;
-  bp->ncolors = 8;
   bp->x_offset = 0; bp->y_offset = 0;
   if (do_expand && bp->button_pressed) printf("Setting button_pressed to False\n");
   bp->button_pressed = False;
+
+  bp->ncolors = 8;
+  if (!bp->colors) {
+#ifdef USE_SDL
+    bp->colors = (SDL_Color *) calloc(bp->ncolors, sizeof(SDL_Color));
+    make_smooth_colormap(bp->colors, &bp->ncolors, False, 0, False);
+#else
+    bp->colors = (XColor *) calloc(bp->ncolors, sizeof(XColor));
+    make_smooth_colormap (0, 0, 0, bp->colors, &bp->ncolors, False, 0, False);
+#endif
+  } else
+    printf("Didn't smooth. ncolors = %d\n", bp->ncolors);
 
   bp->grid_w = bp->size; bp->grid_h = bp->size;
 }
@@ -424,7 +431,7 @@ static void tick_hexagons (config *bp) {
       if (h0->invis) ignorea++;
     }
 
-    if (h0->state != DONE) {
+    if (h0->state != EMPTY && h0->state != DONE) {
       doingb++;
       if (h0->invis) ignoreb++;
     }
@@ -528,7 +535,7 @@ static void tick_hexagons (config *bp) {
     for (i = 0; i < (bp->grid_w * bp->grid_h) / 3; i++) {
       int x = 0, y = 0;
       if (bp->state == FIRST) {
-		fails = 0;
+        fails = 0;
         bp->state = DRAW;
         bp->fade_ratio = 1; // TODO what is this?
         min_vx = 0; max_vx = 0; min_vy = 0; max_vy = 0;
@@ -541,33 +548,33 @@ static void tick_hexagons (config *bp) {
         y = (random() % bp->grid_h) - bp->size / 2;
       }
       hexagon *h0 = do_hexagon(bp, x, y);
-	  if (!h0) {
-		static time_t debug = 0;
-		if (debug != bp->now) {
-		  printf("%s: do_hexagon failed. try_new=%d x=%d y=%d\n", __func__,
-				try_new, x, y);
-		  debug = bp->now;
-		}
-	  } else if (h0->state == EMPTY && !h0->invis && add_arms(bp, h0)) {
-		printf("hexagon created. Arms added. fails=%d pos=%d,%d\n", fails, x, y);
-		fails = 0;
+      if (!h0) {
+        static time_t debug = 0;
+        if (debug != bp->now) {
+          printf("%s: do_hexagon failed. try_new=%d x=%d y=%d\n", __func__,
+                try_new, x, y);
+          debug = bp->now;
+        }
+      } else if (h0->state == EMPTY && !h0->invis && add_arms(bp, h0)) {
+        printf("hexagon created. Arms added. fails=%d pos=%d,%d\n", fails, x, y);
+        fails = 0;
         h0->ccolor = random() % bp->ncolors;
         h0->state = DONE;
         started = True;
         if (try_new) bp->pause_until = bp->now + 5;
         break;
       } else {
-		fails++;
-		// TODO - this whole random pick and try to see if we fill is quite resource intensive, with about
-		// 20,000 fails per second! Instead it would be better to use our knowledge of the visible range
-		// Perform a loop through X and Y of that range and see if there are any empty cells (due to
-		// getting a NULL pointer from hex_grid. Then randomly pick one of the empty cells found.
-		static time_t debug = 0;
-		if (debug != bp->now) {
-		  printf("hexagon created. fails=%d pos=%d,%d empty=%d visible=%d\n", fails, x, y, h0->state == EMPTY, !h0->invis);
-		  debug = bp->now;
-		}
-	  }
+        fails++;
+        // TODO - this whole random pick and try to see if we fill is quite resource intensive, with about
+        // 20,000 fails per second! Instead it would be better to use our knowledge of the visible range
+        // Perform a loop through X and Y of that range and see if there are any empty cells (due to
+        // getting a NULL pointer from hex_grid. Then randomly pick one of the empty cells found.
+        static time_t debug = 0;
+        if (debug != bp->now) {
+          printf("hexagon created. fails=%d pos=%d,%d empty=%d visible=%d\n", fails, x, y, h0->state == EMPTY, !h0->invis);
+          debug = bp->now;
+        }
+      }
     } // Look for a suitable cell
   }
 
@@ -1034,17 +1041,6 @@ ENTRYPOINT void init_hextrail (ModeInfo *mi) {
   if (thickness > 0.5) thickness = 0.5;
 
   bp->hex_grid = (hexagon **)calloc(bp->size * bp->size, sizeof(hexagon *));
-
-  if (!bp->colors) {
-#ifdef USE_SDL
-    bp->colors = (SDL_Color *) calloc(bp->ncolors, sizeof(SDL_Color));
-    make_smooth_colormap(bp->colors, &bp->ncolors, False, 0, False);
-#else
-    bp->colors = (XColor *) calloc(bp->ncolors, sizeof(XColor));
-    make_smooth_colormap (0, 0, 0, bp->colors, &bp->ncolors, False, 0, False);
-#endif
-  } else
-    printf("Didn't smooth. ncolors = %d\n", bp->ncolors);
 
   reset_hextrail (bp);
 }
