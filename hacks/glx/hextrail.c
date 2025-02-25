@@ -130,8 +130,11 @@ static hexagon *do_hexagon(config *bp, int x, int y) {
   int gx = x + bp->grid_w/2 + bp->x_offset;
   int gy = y + bp->grid_h/2 + bp->y_offset;
   if (gx < 0 || gx >= bp->grid_w || gy < 0 || gy >= bp->grid_h) {
-	  printf("%s: Out of bounds\n", __func__);
-	  // TODO - we could extend_grid here
+	  static time_t debug = 0;
+	  if (debug != bp->now) {
+	    printf("%s: Out of bounds. grid=%d,%d coords=%d,%d\n", __func__, gx, gy, x, y);
+		debug = bp->now;
+	  }
       return NULL;
   }
   hexagon *h0 = bp->hex_grid[gy * bp->grid_w + gx];
@@ -544,7 +547,11 @@ static void tick_hexagons (config *bp) {
         y = (random() % bp->grid_h) - bp->size;
       }
       hexagon *h0 = do_hexagon(bp, x, y);
-      if (h0->state == EMPTY && !h0->invis && add_arms(bp, h0)) {
+	  if (!h0) {
+		printf("%s: do_hexagon failed. try_new=%d x=%d y=%d\n", __func__,
+				try_new, x, y);
+		bp->pause_until = bp->now + 5;
+	  } else if (h0->state == EMPTY && !h0->invis && add_arms(bp, h0)) {
         h0->ccolor = random() % bp->ncolors;
         h0->state = DONE;
         started = True;
