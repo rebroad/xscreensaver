@@ -84,6 +84,7 @@ typedef struct {
   hexagon **hexagons;   // Dynamic array of pointers to hexagons
   hexagon **hex_grid;   // Lookup table of hexagons
   int hexagon_count;    // Number of active hexagons
+  int hexagon_capacity; // Allocation for hexagons
   int size, grid_w, grid_h;
   int x_offset, y_offset;
   enum { FIRST, DRAW, FADE } state;
@@ -148,11 +149,14 @@ static hexagon *do_hexagon(config *bp, int x, int y) {
   // We found an existing hexagon, so return it.
   if (h0) return h0;
 
-  // TODO - is this ok to realloc 1 at a time like this?
-  hexagon **new_hexagons = (hexagon **)realloc(bp->hexagons, (bp->hexagon_count+1) * sizeof(hexagon *));
-  if (!new_hexagons) {
-    fprintf(stderr, "%s: Reallocate failed\n", __func__);
-    return NULL;
+  if (bp->hexagon_count >= bp->hexagon_capacity) {
+	bp->hexagon_capacity += 100;
+    hexagon **new_hexagons = (hexagon **)realloc(bp->hexagons, bp->hexagon_capacity * sizeof(hexagon *));
+    if (!new_hexagons) {
+      fprintf(stderr, "%s: Reallocate failed\n", __func__);
+      return NULL;
+	}
+    bp->hexagons = new_hexagons;
   }
 
   h0 = (hexagon *)malloc(sizeof(hexagon));
@@ -163,7 +167,6 @@ static hexagon *do_hexagon(config *bp, int x, int y) {
   }
   memset (h0, 0, sizeof(hexagon));
 
-  bp->hexagons = new_hexagons;
   h0->x = x; h0->y = y;
   h0->state = EMPTY;
   h0->ratio = 0;
