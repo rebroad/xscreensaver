@@ -414,7 +414,6 @@ static void tick_hexagons (config *bp) {
       if (adj_y == 0) edge |= 4;
       else if (adj_y == bp->grid_h - 1) edge |= 1;
       dir |= edge;
-      // TODO - test if we can shift instead of expand
     }
 
     if (debug) {
@@ -423,7 +422,8 @@ static void tick_hexagons (config *bp) {
               min_x, max_x, min_y, max_y, h0->doing, h0->state, edge, h0->invis);
       bp->debug = bp->now;
     }
-    // TODO use above values to work out if we can shift instead of expand plane
+    // TODO - if we can shift entries in hex_grid instead of expanding them, then do this
+    // instead, and allow one end (if it is entirely insible) to be deleted.
 
     if (h0->doing) {
       doinga++;
@@ -526,7 +526,7 @@ static void tick_hexagons (config *bp) {
 
   /* Start a new cell growing.  */
   Bool try_new = False, started = False;
-  static int fails = 0;
+  static int fails = 0, ticks = 0;
   if ((doinga - ignorea) <= 0) {
     for (i = 0; i < (bp->grid_w * bp->grid_h) / 3; i++) {
 	  int16_t x = 0, y = 0;
@@ -567,7 +567,8 @@ static void tick_hexagons (config *bp) {
           debug = bp->now;
         }
       } else if (h0->state == EMPTY && add_arms(bp, h0)) {
-        printf("hexagon created. Arms added. fails=%d pos=%d,%d\n", fails, x, y);
+        printf("hex created. Arms. doing=%d ticks=%d fails=%d pos=%d,%d\n",
+				h0->doing, ticks, fails, h0->x, h0->y);
         fails = 0;
         h0->ccolor = random() % bp->ncolors;
         h0->state = DONE;
@@ -582,12 +583,13 @@ static void tick_hexagons (config *bp) {
         // getting a NULL pointer from hex_grid. Then randomly pick one of the empty cells found.
         static time_t debug = 0;
         if (debug != bp->now) {
-          printf("hexagon created. fails=%d pos=%d,%d empty=%d visible=%d\n", fails, x, y, h0->state == EMPTY, !h0->invis);
+          printf("hexagon created. doing=%d ticks=%d fails=%d pos=%d,%d empty=%d visible=%d\n",
+				  h0->doing, ticks, fails, h0->x, h0->y, h0->state == EMPTY, !h0->invis);
           debug = bp->now;
         }
       }
     } // Look for a suitable cell
-  }
+  } else ticks = 0;
 
   if (try_new && (started || doinga != ignorea))
     printf("New cell: started=%d doinga=%d ignorea=%d doingb=%d ignoreb=%d\n",
