@@ -414,7 +414,7 @@ static void reset_hextrail(ModeInfo *mi) {
   make_plane (mi);
 }
 
-static hexagon *add_hexagon(config *bp, int x, int y) {
+/*static hexagon *add_hexagon(config *bp, int x, int y) {
   hexagon *h0 = (hexagon *)malloc(sizeof(hexagon));
   if (!h0) return NULL;
 
@@ -432,7 +432,7 @@ static hexagon *add_hexagon(config *bp, int x, int y) {
   h0->ratio = 0;
   h0->doing = 0;
   h0->ccolor = random() & bp->ncolors;
-}
+}*/
 
 static void tick_hexagons (ModeInfo *mi) {
   config *bp = &bps[MI_SCREEN(mi)];
@@ -632,8 +632,9 @@ static void tick_hexagons (ModeInfo *mi) {
       hexagon *h0 = &bp->hexagons[y * bp->grid_w + x];
       if (h0->state == EMPTY && !h0->invis && add_arms(mi, h0)) {
         h0->ccolor = random() % bp->ncolors;
+		h0->state = DONE;
         started = True;
-        bp->pause_until = bp->now + 5;
+		if (try_new) bp->pause_until = bp->now + 5;
         break;
       }
     } // Look for a suitable cell
