@@ -275,15 +275,17 @@ static Bool point_invis(config *bp, hexagon *h0) {
   gluProject((GLdouble)pos.x, (GLdouble)pos.y, (GLdouble)pos.z,
              model, proj, viewport, &winX, &winY, &winZ);
 
-  Bool is_visible = (winX >= viewport[0] && winX <= viewport[0] + viewport[2] &&
-          winY >= viewport[1] && winY <= viewport[1] + viewport[3] &&
-          winZ > 0 && winZ < 1);
+  if (winZ <= 0 || winZ >= 1) return 3;  // Far off in Z
 
-  /*if (h0->state != EMPTY && h0->invis == is_visible && is_visible)
-    printf("Visibility flip at (%d,%d): win=(%.1f, %.1f, %.1f), viewport=(%d,%d,%d,%d)\n",
-             h0->x, h0->y, winX, winY, winZ, viewport[0], viewport[1], viewport[2], viewport[3]);*/
+  int margin = 50;  // Pixels
+  if (winX < viewport[0] - margin || winX >viewport[0] + viewport[2] + margin ||
+      winY < viewport[1] - margin || winY > viewport[1] + viewport[3] + margin)
+      return 3;  // Far off
+  if (winX < viewport[0] || winX > viewport[0] + viewport[2] ||
+      winY < viewport[1] || winY <= viewport[1] + viewport[3])
+      return 1;  // Just off
 
-  return !is_visible;
+  return 0;  // Visible
 }
 
 // TODO - is it possible to use 20-bit or 24-bit or 32-bit pointers rather than wasting 64-bits for each one?
@@ -433,10 +435,7 @@ static void tick_hexagons (config *bp) {
       if (h0->invis) ignoreb++;
     }
 
-    // TODO - change point_invis to return a value based on how
-    // far off-screen. 1 for just-off. 2 for +5% off, 3 for +10%
-    // e.g. if (h0->invis > 1) continue;
-    if (do_expand && edge && h0->invis) continue;
+    if (do_expand && edge && h0->invis > 1) continue;
 
     /* Enlarge any still-growing arms if active.  */
     for (j = 0; j < 6; j++) {
