@@ -232,7 +232,10 @@ static int add_arms (config *bp, hexagon *h0) {
     // TODO - here we allocate memory for a new hexagon
     if (!h1) {
       //printf("pos=%d,%d No neighbour on arm %d\n", h0->x, h0->y, j);
-      // TODO - Allocate a hexagon here, either from the spare pool, or allocate memory for a new one.
+	  // TODO - need to create this offsets array
+      int nx = h0->x + offsets[j][h0->y & 1];
+      int ny = h0->y + offsets[j][2];
+	  h1 = add_hexagon(bp, nx, ny);
       continue;			/* No neighboring cell */
     }
     if (h1->state != EMPTY) continue;	/* Occupado */
@@ -405,11 +408,20 @@ static void reset_hextrail(config *bp) {
   make_plane (bp);
 }
 
-static hexagon *add_hexagon(config *bp, int gx, int gy) {
+static hexagon *add_hexagon(config *bp, int x, int y) {
+  int gx = x + bp->size/2 + bp->x_offset;
+  int gy = y + bp->size/2 + bp->y_offset;
   if (gx < 0 || gx >= bp->size || gy < 0 || gy >= bp->size) {
 	  printf("%s: Out of bounds\n", __func__);
       return NULL;
   }
+  // TODO - is this ok to realloc 1 at a time like this?
+  hexagon **new_hexagons = (hexagon **)realloc(bp->hexagons, (bp->hexagon_count+1) * sizeof(hexagon *));
+  if (!new_hexagons) {
+	printf(stderr, "%s: Reallocate failed\n", __func__);
+	return NULL;
+  }
+
   hexagon *h0 = (hexagon *)malloc(sizeof(hexagon));
   if (!h0) {
 	printf("%s: Malloc failed\n", __func__);
@@ -420,8 +432,6 @@ static hexagon *add_hexagon(config *bp, int gx, int gy) {
 	return NULL;
   }
 
-  int x = gx - bp->size/2 - bp->x_offset;
-  int y = gy - bp->size/2 - bp->y_offset;
   h0->x = x; h0->y = y;
   GLfloat w = 2.0 / bp->size; // TODO - to delete
   GLfloat h = w * sqrt(3) / 2; //       and below
@@ -443,7 +453,7 @@ static hexagon *add_hexagon(config *bp, int gx, int gy) {
   // Add to lookup table
   // TODO - add code to derive idx for the lookup table entry
   bp->hex_table[gx * 31 + gy] = h0;
-  bp->hexagon_count++;
+  bp->hexagons[bp->hexagon_count++] = h0;
 
   return h0;
 }
@@ -624,9 +634,8 @@ static void tick_hexagons (config *bp) {
   Bool try_new = False, started = False;
   if ((doinga - ignorea) <= 0) {
     for (i = 0; i < (bp->grid_w * bp->grid_h) / 3; i++) {
-      int x, y;
+      int x = 0, y = 0;
       if (bp->state == FIRST) {
-        x = bp->grid_w / 2; y = bp->grid_h / 2;
         bp->state = DRAW;
         bp->fade_ratio = 1; // TODO what is this?
         min_vx = 0; max_vx = 0; min_vy = 0; max_vy = 0;
@@ -636,8 +645,8 @@ static void tick_hexagons (config *bp) {
                 min_x, max_x, min_y, max_y);
       } else {
         try_new = True;
-        x = random() % bp->grid_w;
-        y = random() % bp->grid_h;
+        x = (random() % bp->grid_w) - bp->size;
+        y = (random() % bp->grid_h) - bp->size;
       }
       // TODO line below would be used for when we dynamically
       // allocate memory for new hexagons
