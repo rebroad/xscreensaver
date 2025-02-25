@@ -1016,12 +1016,9 @@ ENTRYPOINT void init_hextrail (ModeInfo *mi) {
   reshape_hextrail (mi, MI_WIDTH(mi), MI_HEIGHT(mi));
 
   bp->size = MI_COUNT(mi) * 2 + 1;
-  bp->rot = make_rotator(do_spin ? 0.002 : 0,
-                         do_spin ? 0.002 : 0,
-                         do_spin ? 0.002 : 0,
-                         1.0, // spin_accel
-                         do_wander ? 0.003 : 0,
-                         False);
+  bp->rot = make_rotator(do_spin ? 0.002 : 0, do_spin ? 0.002 : 0,
+                         do_spin ? 0.002 : 0, 1.0, // spin_accel
+                         do_wander ? 0.003 : 0, False);
   bp->trackball = gltrackball_init(True);
   gltrackball_reset(bp->trackball, -0.4 + frand(0.8),
                      -0.4 + frand(0.8));
