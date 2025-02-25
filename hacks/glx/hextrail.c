@@ -543,14 +543,17 @@ static void tick_hexagons (config *bp) {
                 min_x, max_x, min_y, max_y);
       } else {
         try_new = True;
-        x = (random() % bp->grid_w) - bp->size;
-        y = (random() % bp->grid_h) - bp->size;
+        x = (random() % bp->grid_w) - bp->size / 2;
+        y = (random() % bp->grid_h) - bp->size / 2;
       }
       hexagon *h0 = do_hexagon(bp, x, y);
 	  if (!h0) {
-		printf("%s: do_hexagon failed. try_new=%d x=%d y=%d\n", __func__,
+		static time_t debug = 0;
+		if (debug != bp->now) {
+		  printf("%s: do_hexagon failed. try_new=%d x=%d y=%d\n", __func__,
 				try_new, x, y);
-		bp->pause_until = bp->now + 5;
+		  debug = bp->now;
+		}
 	  } else if (h0->state == EMPTY && !h0->invis && add_arms(bp, h0)) {
         h0->ccolor = random() % bp->ncolors;
         h0->state = DONE;
