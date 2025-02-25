@@ -143,14 +143,21 @@ static void update_neighbors(ModeInfo *mi) {
   for (y = 0; y < bp->grid_h; y++) for (x = 0; x < bp->grid_w; x++) {
     hexagon *h0 = &bp->hexagons[y * bp->grid_w + x];
 
-# define NEIGHBOR(I,XE,XO,Y) do {                                   \
-      int x1 = x + (y & 1 ? (XO) : (XE)), y1 = y + (Y);             \
-      if (x1 >= 0 && x1 < bp->grid_w && y1 >= 0 && y1 < bp->grid_h) \
-        h0->neighbors[(I)] = &bp->hexagons[y1 * bp->grid_w + x1];   \
-      else                                                          \
-        h0->neighbors[(I)] = NULL;                                  \
+# define NEIGHBOR(I,XE,XO,Y) do {                                  \
+      int x1 = x + (y & 1 ? (XO) : (XE)), y1 = y + (Y);            \
+      if (x1 >= 0 && x1 < bp->grid_w && y1 >= 0 && y1 < bp->grid_h)\
+        h0->neighbors[(I)] = &bp->hexagons[y1 * bp->grid_w + x1];  \
+      else                                                         \
+        h0->neighbors[(I)] = NULL;                                 \
     } while (0)
 
+    /*   0,0   1,0   2,0   3,0   4,0
+            0,1   1,1   2,1   3,1   4,1
+         0,2   1,2   2,2   3,2   4,
+            0,3   1,3   2,3   3,3   4,3
+         0,4   1,4   2,4   3,4   4,4
+            0,5   1,5   2,5   3,5   4,5
+     */
     NEIGHBOR (0,  0,  1, -1);
     NEIGHBOR (1,  1,  1,  0);
     NEIGHBOR (2,  0,  1,  1);
@@ -164,7 +171,7 @@ static void update_neighbors(ModeInfo *mi) {
 static void make_plane (ModeInfo *mi) {
   config *bp = &bps[MI_SCREEN(mi)];
   int x, y;
-  GLfloat size, w, h;
+  GLfloat w, h;
   hexagon *grid;
 
   bp->grid_w = bp->size; bp->grid_h = bp->size;
@@ -190,9 +197,8 @@ static void make_plane (ModeInfo *mi) {
   } else
     printf("Didn't smooth. ncolors = %d\n", bp->ncolors);
 
-  size = 2.0 / bp->grid_w;
-  w = size;
-  h = size * sqrt(3) / 2;
+  w = 2.0 / bp->grid_w;
+  h = w * sqrt(3) / 2;
 
   bp->hexagons = grid;
 
@@ -346,7 +352,7 @@ static void expand_plane(ModeInfo *mi, int direction) {
   }
 
   /* Initialize new hexagons */
-  GLfloat w = 2.0 / bp->size; GLfloat h = w * sqrt(3) / 2;
+  GLfloat w = 2.0 / bp->size, h = w * sqrt(3) / 2;
 
   for (y = 0; y < new_grid_h; y++) for (x = 0; x < new_grid_w; x++) {
     hexagon *h0 = &new_hexagons[y * new_grid_w + x];
@@ -408,7 +414,25 @@ static void reset_hextrail(ModeInfo *mi) {
   make_plane (mi);
 }
 
-//static hexagon *add_hexagon(
+static hexagon *add_hexagon(config *bp, int x, int y) {
+  hexagon *h0 = (hexagon *)malloc(sizeof(hexagon));
+  if (!h0) return NULL;
+
+  h0->x = x; h0->y = y;
+  int adj_x = x + bp->size/2 + bp->x_offset;
+  int adj_y = y + bp->size/2 + bp->y_offset;
+  (void)adj_x; (void)adj_y; // TODO - add these to the hash table
+  GLfloat w = 2.0 / bp->size; // TODO - to delete
+  GLfloat h = w * sqrt(3) / 2; //       and below
+  h0->pos.x = x * w;
+  if (y & 1) h0->pos.x += w / 2; // Stagger into hex arrangement
+  h0->pos.y = y * h;
+  h0->pos.z = 0;
+  h0->state = EMPTY;
+  h0->ratio = 0;
+  h0->doing = 0;
+  h0->ccolor = random() & bp->ncolors;
+}
 
 static void tick_hexagons (ModeInfo *mi) {
   config *bp = &bps[MI_SCREEN(mi)];
@@ -473,8 +497,8 @@ static void tick_hexagons (ModeInfo *mi) {
       printf("pos=%d,%d vis=(%d-%d,%d-%d) (%d-%d,%d-%d) arms=%d border=%d edge=%d, invis=%d\n",
               h0->x, h0->y, min_vx, max_vx, min_vy, max_vy,
               min_x, max_x, min_y, max_y, h0->doing, h0->state, edge, h0->invis);
-	  bp->debug = bp->now;
-	}
+      bp->debug = bp->now;
+    }
     // TODO use above values to work out if we can shift instead of expand plane
 
     if (h0->doing) {
@@ -483,12 +507,12 @@ static void tick_hexagons (ModeInfo *mi) {
     }
 
     if (h0->state == EMPTY) {
-	  empty++;
-	  if (!h0->invis) vempty++;
-	} else if (h0->state != DONE) {
-	  doingb++;
-	  if (h0->invis) ignoreb++;
-	}
+      empty++;
+      if (!h0->invis) vempty++;
+    } else if (h0->state != DONE) {
+      doingb++;
+      if (h0->invis) ignoreb++;
+    }
 
     // TODO - change point_invis to return a value based on how
     // far off-screen. 1 for just-off. 2 for +5% off, 3 for +10%
@@ -578,9 +602,9 @@ static void tick_hexagons (ModeInfo *mi) {
   if (dir && do_expand) expand_plane(mi, dir);
 
   if (bp->now > bp->debug) {
-	printf("doinga=%d ignorea=%d doingb=%d ignoreb=%d vempty=%d empty=%d\n",
-		doinga, ignorea, doingb, ignoreb, vempty, empty);
-	bp->debug = bp->now;
+    printf("doinga=%d ignorea=%d doingb=%d ignoreb=%d vempty=%d empty=%d\n",
+        doinga, ignorea, doingb, ignoreb, vempty, empty);
+    bp->debug = bp->now;
   }
 
   /* Start a new cell growing.  */
@@ -609,7 +633,7 @@ static void tick_hexagons (ModeInfo *mi) {
       if (h0->state == EMPTY && !h0->invis && add_arms(mi, h0)) {
         h0->ccolor = random() % bp->ncolors;
         started = True;
-		bp->pause_until = bp->now + 5;
+        bp->pause_until = bp->now + 5;
         break;
       }
     } // Look for a suitable cell
@@ -617,11 +641,11 @@ static void tick_hexagons (ModeInfo *mi) {
 
   if (try_new && (started || doinga != ignorea))
     printf("New cell: started=%d doinga=%d ignorea=%d doingb=%d ignoreb=%d\n",
-			started, doinga, ignorea, doingb, ignoreb);
+            started, doinga, ignorea, doingb, ignoreb);
 
   if (!started && (doinga - ignorea) < 1 && (doingb - ignoreb) < 1 && bp->state != FADE) {
     printf("Fade started. doinga=%d doingb=%d ignorea=%d ignoreb=%d\n",
-			doinga, doingb, ignorea, ignoreb);
+            doinga, doingb, ignorea, ignoreb);
     bp->state = FADE;
     bp->fade_ratio = 1;
 
