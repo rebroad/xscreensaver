@@ -1,6 +1,14 @@
 /* hextrail, Copyright (c) 2022 Jamie Zawinski <jwz@jwz.org>
  */
 
+/* TODO:-
+ = hextrail - the end-points - draw these more slowly, like a decelleration (due to pressure).
+ = need an option to make it fill all screens (to use as a wayland screensaver)
+ = Enable P to toggle pause
+ = Measure average tick time (per second) FPS=TPS?
+ = Enable ability to click a hexagon and get info
+ */
+
 #define DEFAULTS	"*delay:	30000       \n" \
             "*showFPS:      False       \n" \
             "*wireframe:    False       \n" \
@@ -343,7 +351,6 @@ static void reset_hextrail(config *bp) {
   bp->button_pressed = False;
 
   bp->grid_w = bp->size; bp->grid_h = bp->size;
-  //make_plane (bp);
 }
 
 static void tick_hexagons (config *bp) {
@@ -526,8 +533,7 @@ static void tick_hexagons (config *bp) {
         min_vx = 0; max_vx = 0; min_vy = 0; max_vy = 0;
         min_x = 0; max_x = 0; min_y = 0; max_y = 0;
         printf("New hextrail. vis=(%d-%d,%d-%d) (%d-%d,%d-%d)\n",
-                min_vx, max_vx, min_vy, max_vy,
-                min_x, max_x, min_y, max_y);
+                min_vx, max_vx, min_vy, max_vy, min_x, max_x, min_y, max_y);
       } else {
         try_new = True;
         x = (random() % bp->grid_w) - bp->size / 2;
