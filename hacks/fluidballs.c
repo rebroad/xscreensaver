@@ -92,9 +92,7 @@ typedef struct {
 
 
 /* Draws the frames per second string */
-static void 
-draw_fps_string (b_state *state)
-{  
+static void draw_fps_string (b_state *state) {  
   XFillRectangle (state->dpy, state->b, state->erase_gc,
 		  0, state->xgwa.height - state->font_height*3 - 20,
 		  state->xgwa.width, state->font_height*3 + 20);
@@ -105,11 +103,8 @@ draw_fps_string (b_state *state)
 }
 
 /* Finds the origin of the window relative to the root window, by
-   walking up the window tree until it reaches the top.
- */
-static void
-window_origin (Display *dpy, Window window, int *x, int *y)
-{
+   walking up the window tree until it reaches the top.  */
+static void window_origin (Display *dpy, Window window, int *x, int *y) {
   XTranslateCoordinates (dpy, window, RootWindow (dpy, DefaultScreen (dpy)),
                          0, 0, x, y, &window);
 }
@@ -122,9 +117,7 @@ window_origin (Display *dpy, Window window, int *x, int *y)
    new position while the window is still being moved.  (Assuming the WM
    does OpaqueMove, of course.)
  */
-static void
-check_window_moved (b_state *state)
-{
+static void check_window_moved (b_state *state) {
   float oxmin = state->xmin;
   float oxmax = state->xmax;
   float oymin = state->ymin;
@@ -138,10 +131,8 @@ check_window_moved (b_state *state)
   state->ymax = state->ymin + state->xgwa.height - (state->font_height*3) -
     (state->font_height ? 22 : 0);
 
-  if (state->dbuf && (state->ba))
-    {
-      if (oxmax != state->xmax || oymax != state->ymax)
-	{
+  if (state->dbuf && (state->ba)) {
+    if (oxmax != state->xmax || oymax != state->ymax) {
 	  XFreePixmap (state->dpy, state->ba);
 	  state->ba = XCreatePixmap (state->dpy, state->window, 
 				     state->xgwa.width, state->xgwa.height,
@@ -150,46 +141,36 @@ check_window_moved (b_state *state)
 			  state->xgwa.width, state->xgwa.height);
 	  state->b = state->ba;
 	}
-    }
-  else 
-    {
-      /* Only need to erase the window if the origin moved */
-      if (oxmin != state->xmin || oymin != state->ymin)
-	XClearWindow (state->dpy, state->window);
-      else if (state->fps_p && oymax != state->ymax)
-	XFillRectangle (state->dpy, state->b, state->erase_gc,
+  } else {
+    /* Only need to erase the window if the origin moved */
+    if (oxmin != state->xmin || oymin != state->ymin)
+	  XClearWindow (state->dpy, state->window);
+    else if (state->fps_p && oymax != state->ymax)
+	  XFillRectangle (state->dpy, state->b, state->erase_gc,
 			0, state->xgwa.height - state->font_height*3,
 			state->xgwa.width, state->font_height*3);
-    }
+  }
 }
 
 
 /* Returns the position of the mouse relative to the root window.
  */
-static void
-query_mouse (b_state *state, int *x, int *y)
-{
+static void query_mouse (b_state *state, int *x, int *y) {
   Window root1, child1;
   int mouse_x, mouse_y, root_x, root_y;
   unsigned int mask;
   if (XQueryPointer (state->dpy, state->window, &root1, &child1,
-                     &root_x, &root_y, &mouse_x, &mouse_y, &mask))
-    {
-      *x = root_x;
-      *y = root_y;
-    }
-  else
-    {
-      *x = -9999;
-      *y = -9999;
-    }
+                     &root_x, &root_y, &mouse_x, &mouse_y, &mask)) {
+    *x = root_x;
+    *y = root_y;
+  } else {
+    *x = -9999;
+    *y = -9999;
+  }
 }
 
-/* Re-pick the colors of the balls, and the mouse-ball.
- */
-static void
-recolor (b_state *state)
-{
+/* Re-pick the colors of the balls, and the mouse-ball.  */
+static void recolor (b_state *state) {
   if (state->fg.flags)
     XFreeColors (state->dpy, state->xgwa.colormap, &state->fg.pixel, 1, 0);
   if (state->fg2.flags)
@@ -214,9 +195,7 @@ recolor (b_state *state)
 
 /* Initialize the state structure and various X data.
  */
-static void *
-fluidballs_init (Display *dpy, Window window)
-{
+static void * fluidballs_init (Display *dpy, Window window) {
   int i;
   float extx, exty;
   b_state *state = (b_state *) calloc (1, sizeof(*state));
@@ -234,29 +213,25 @@ fluidballs_init (Display *dpy, Window window)
   state->dbuf = False;
 # endif
 
-  if (state->dbuf)
-    {
+  if (state->dbuf) {
 #ifdef HAVE_DOUBLE_BUFFER_EXTENSION
-      state->dbeclear_p = get_boolean_resource (dpy, "useDBEClear", "Boolean");
-      if (state->dbeclear_p)
-        state->b = xdbe_get_backbuffer (dpy, window, XdbeBackground);
-      else
-        state->b = xdbe_get_backbuffer (dpy, window, XdbeUndefined);
-      state->backb = state->b;
+    state->dbeclear_p = get_boolean_resource (dpy, "useDBEClear", "Boolean");
+    if (state->dbeclear_p)
+      state->b = xdbe_get_backbuffer (dpy, window, XdbeBackground);
+    else
+      state->b = xdbe_get_backbuffer (dpy, window, XdbeUndefined);
+    state->backb = state->b;
 #endif /* HAVE_DOUBLE_BUFFER_EXTENSION */
 
-      if (!state->b)
-        {
-          state->ba = XCreatePixmap (state->dpy, state->window, 
+    if (!state->b) {
+      state->ba = XCreatePixmap (state->dpy, state->window, 
 				     state->xgwa.width, state->xgwa.height,
 				     state->xgwa.depth);
-          state->b = state->ba;
-        }
+      state->b = state->ba;
     }
-  else
-    {
-      state->b = state->window;
-    }
+  } else {
+    state->b = state->window;
+  }
 
   /* Select ButtonRelease events on the external window, if no other app has
      already selected it (only one app can select it at a time: BadAccess. */
@@ -301,17 +276,14 @@ fluidballs_init (Display *dpy, Window window)
   if (state->xgwa.width > 2560 || state->xgwa.height > 2560)
     state->max_radius *= 3;  /* Retina displays */
 
-  if (state->xgwa.width < 100 || state->xgwa.height < 100) /* tiny window */
-    {
-      if (state->max_radius > 5)
-        state->max_radius = 5;
-    }
+  if (state->xgwa.width < 100 || state->xgwa.height < 100) { /* tiny window */
+    if (state->max_radius > 5) state->max_radius = 5;
+  }
 
   state->random_sizes_p = get_boolean_resource (dpy, "random", "Random");
 
   /* If the initial window size is too small to hold all these balls,
-     make fewer of them...
-   */
+     make fewer of them...  */
   {
     float r = (state->random_sizes_p
                ? state->max_radius * 0.7
@@ -345,28 +317,26 @@ fluidballs_init (Display *dpy, Window window)
   state->shake_p = False;
 # endif
 
-
   state->fps_p = get_boolean_resource (dpy, "doFPS", "DoFPS");
-  if (state->fps_p)
-    {
-      char *fontname = get_string_resource (dpy, "fpsFont", "Font");
-      char *s;
-      if (!fontname) fontname = "monospace bold 18";
-      state->font =
+  if (state->fps_p) {
+    char *fontname = get_string_resource (dpy, "fpsFont", "Font");
+    char *s;
+    if (!fontname) fontname = "monospace bold 18";
+    state->font =
         load_xft_font_retry (dpy, screen_number (state->xgwa.screen),
                              fontname);
-      if (!state->font) abort();
-      s = get_string_resource (state->dpy, "textColor", "Foreground");
-      if (!s) s = strdup ("white");
-      XftColorAllocName (state->dpy, state->xgwa.visual, state->xgwa.colormap,
+    if (!state->font) abort();
+    s = get_string_resource (state->dpy, "textColor", "Foreground");
+    if (!s) s = strdup ("white");
+    XftColorAllocName (state->dpy, state->xgwa.visual, state->xgwa.colormap,
                          s, &state->xft_fg);
-      free (s);
-      state->xftdraw = XftDrawCreate (state->dpy, state->window,
+    free (s);
+    state->xftdraw = XftDrawCreate (state->dpy, state->window,
                                       state->xgwa.visual,
                                       state->xgwa.colormap);
-      state->font_height = state->font->ascent + state->font->descent;
-      state->font_baseline = state->font->descent;
-    }
+    state->font_height = state->font->ascent + state->font->descent;
+    state->font_baseline = state->font->descent;
+  }
 
   state->m   = (float *) malloc (sizeof (*state->m)   * (state->count + 1));
   state->r   = (float *) malloc (sizeof (*state->r)   * (state->count + 1));
@@ -377,21 +347,20 @@ fluidballs_init (Display *dpy, Window window)
   state->opx = (float *) malloc (sizeof (*state->opx) * (state->count + 1));
   state->opy = (float *) malloc (sizeof (*state->opy) * (state->count + 1));
 
-  for (i=1; i<=state->count; i++)
-    {
-      state->px[i] = frand(extx) + state->xmin;
-      state->py[i] = frand(exty) + state->ymin;
-      state->vx[i] = frand(0.2) - 0.1;
-      state->vy[i] = frand(0.2) - 0.1;
+  for (i=1; i<=state->count; i++) {
+    state->px[i] = frand(extx) + state->xmin;
+    state->py[i] = frand(exty) + state->ymin;
+    state->vx[i] = frand(0.2) - 0.1;
+    state->vy[i] = frand(0.2) - 0.1;
 
-      state->r[i] = (state->random_sizes_p
+    state->r[i] = (state->random_sizes_p
                      ? ((0.2 + frand(0.8)) * state->max_radius)
                      : state->max_radius);
-      /*state->r[i] = pow(frand(1.0), state->sizegamma) * state->max_radius;*/
+    /*state->r[i] = pow(frand(1.0), state->sizegamma) * state->max_radius;*/
 
-      /* state->m[i] = pow(state->r[i],2) * M_PI; */
-      state->m[i] = pow(state->r[i],3) * M_PI * 1.3333;
-    }
+    /* state->m[i] = pow(state->r[i],2) * M_PI; */
+    state->m[i] = pow(state->r[i],3) * M_PI * 1.3333;
+  }
 
   memcpy (state->opx, state->px, sizeof (*state->opx) * (state->count + 1));
   memcpy (state->opy, state->py, sizeof (*state->opx) * (state->count + 1));
@@ -400,17 +369,13 @@ fluidballs_init (Display *dpy, Window window)
 }
 
 
-/* Messes with gravity: permute "down" to be in a random direction.
- */
-static void
-shake (b_state *state)
-{
+/* Messes with gravity: permute "down" to be in a random direction.  */
+static void shake (b_state *state) {
   float a = state->accx;
   float b = state->accy;
   int i = random() % 4;
 
-  switch (i)
-    {
+  switch (i) {
     case 0:
       state->accx = a;
       state->accy = b;
@@ -430,7 +395,7 @@ shake (b_state *state)
     default:
       abort();
       break;
-    }
+  }
 
   state->time_since_shake = 0;
   recolor (state);
@@ -438,54 +403,48 @@ shake (b_state *state)
 
 
 /* Look at the current time, and update state->time_since_shake.
-   Draw the FPS display if desired.
- */
-static void
-check_wall_clock (b_state *state, float max_d)
-{
+   Draw the FPS display if desired.  */
+static void check_wall_clock (b_state *state, float max_d) {
   state->frame_count++;
   
 #if 0
   if (state->time_tick++ > 20)  /* don't call gettimeofday() too often -- it's slow. */
 #endif
-    {
-      struct timeval now;
+  {
+    struct timeval now;
 # ifdef GETTIMEOFDAY_TWO_ARGS
-      struct timezone tzp;
-      gettimeofday(&now, &tzp);
+    struct timezone tzp;
+    gettimeofday(&now, &tzp);
 # else
-      gettimeofday(&now);
+    gettimeofday(&now);
 # endif
 
-      if (state->last_time.tv_sec == 0)
-        state->last_time = now;
+    if (state->last_time.tv_sec == 0) state->last_time = now;
 
-      state->time_tick = 0;
+    state->time_tick = 0;
 #if 0
-      if (now.tv_sec == state->last_time.tv_sec)
-        return;
+    if (now.tv_sec == state->last_time.tv_sec) return;
 #endif
 
-      state->time_since_shake += (now.tv_sec - state->last_time.tv_sec);
+    state->time_since_shake += (now.tv_sec - state->last_time.tv_sec);
 
 # ifdef HAVE_MOBILE	/* Always obey real-world gravity */
-      {
-        float a = fabs (fabs(state->accx) > fabs(state->accy)
+    {
+      float a = fabs (fabs(state->accx) > fabs(state->accy)
                         ? state->accx : state->accy);
-        int rot = current_device_rotation();
-        switch (rot) {
+      int rot = current_device_rotation();
+      switch (rot) {
         case    0: case  360: state->accx =  0; state->accy =  a; break;
         case  -90:            state->accx = -a; state->accy =  0; break;
         case   90:            state->accx =  a; state->accy =  0; break;
         case  180: case -180: state->accx =  0; state->accy = -a; break;
         default: break;
-        }
       }
+    }
 # endif /* HAVE_MOBILE */
 
-      if (state->fps_p) 
-	{
-	  float elapsed = ((now.tv_sec  + (now.tv_usec  / 1000000.0)) -
+    if (state->fps_p) {
+      float elapsed = ((now.tv_sec  + (now.tv_usec  / 1000000.0)) -
 			   (state->last_time.tv_sec + (state->last_time.tv_usec / 1000000.0)));
 	  float fps = state->frame_count / elapsed;
 	  float cps = state->collision_count / elapsed;
@@ -497,17 +456,14 @@ check_wall_clock (b_state *state, float max_d)
 	  draw_fps_string(state);
 	}
 
-      state->frame_count = 0;
-      state->collision_count = 0;
-      state->last_time = now;
-    }
+    state->frame_count = 0;
+    state->collision_count = 0;
+    state->last_time = now;
+  }
 }
 
-/* Erases the balls at their previous positions, and draws the new ones.
- */
-static void
-repaint_balls (b_state *state)
-{
+/* Erases the balls at their previous positions, and draws the new ones.  */
+static void repaint_balls (b_state *state) {
   int a;
 # ifndef HAVE_JWXYZ
   int x1a, x2a, y1a, y2a;
@@ -519,58 +475,51 @@ repaint_balls (b_state *state)
   XClearWindow (state->dpy, state->b);
 #endif
 
-  for (a=1; a <= state->count; a++)
-    {
-      GC gc;
+  for (a=1; a <= state->count; a++) {
+    GC gc;
 # ifndef HAVE_JWXYZ
-      x1a = (state->opx[a] - state->r[a] - state->xmin);
-      y1a = (state->opy[a] - state->r[a] - state->ymin);
-      x2a = (state->opx[a] + state->r[a] - state->xmin);
-      y2a = (state->opy[a] + state->r[a] - state->ymin);
+    x1a = (state->opx[a] - state->r[a] - state->xmin);
+    y1a = (state->opy[a] - state->r[a] - state->ymin);
+    x2a = (state->opx[a] + state->r[a] - state->xmin);
+    y2a = (state->opy[a] + state->r[a] - state->ymin);
 # endif
 
-      x1b = (state->px[a] - state->r[a] - state->xmin);
-      y1b = (state->py[a] - state->r[a] - state->ymin);
-      x2b = (state->px[a] + state->r[a] - state->xmin);
-      y2b = (state->py[a] + state->r[a] - state->ymin);
+    x1b = (state->px[a] - state->r[a] - state->xmin);
+    y1b = (state->py[a] - state->r[a] - state->ymin);
+    x2b = (state->px[a] + state->r[a] - state->xmin);
+    y2b = (state->py[a] + state->r[a] - state->ymin);
 
 #ifndef HAVE_JWXYZ	/* Don't second-guess Quartz's double-buffering */
 #ifdef HAVE_DOUBLE_BUFFER_EXTENSION
-      if (!state->dbeclear_p || !state->backb)
+    if (!state->dbeclear_p || !state->backb)
 #endif /* HAVE_DOUBLE_BUFFER_EXTENSION */
 	{
 /*	  if (x1a != x1b || y1a != y1b)   -- leaves turds if we optimize this */
-	    {
-	      gc = state->erase_gc;
-	      XFillArc (state->dpy, state->b, gc,
-			x1a, y1a, x2a-x1a, y2a-y1a,
-			0, 360*64);
-	    }
+      {
+        gc = state->erase_gc;
+        XFillArc (state->dpy, state->b, gc,
+			x1a, y1a, x2a-x1a, y2a-y1a, 0, 360*64);
+	  }
 	}
 #endif /* !HAVE_JWXYZ */
 
-      if (state->mouse_ball == a)
-        gc = state->draw_gc2;
-      else
-        gc = state->draw_gc;
+    if (state->mouse_ball == a) gc = state->draw_gc2;
+    else gc = state->draw_gc;
 
-      XFillArc (state->dpy, state->b, gc,
-                x1b, y1b, x2b-x1b, y2b-y1b,
-                0, 360*64);
+    XFillArc (state->dpy, state->b, gc, x1b, y1b, x2b-x1b, y2b-y1b, 0, 360*64);
 
-      if (state->shake_p)
-        {
-          /* distance this ball moved this frame */
-          float d = ((state->px[a] - state->opx[a]) *
-                     (state->px[a] - state->opx[a]) +
-                     (state->py[a] - state->opy[a]) *
-                     (state->py[a] - state->opy[a]));
-          if (d > max_d) max_d = d;
-        }
-
-      state->opx[a] = state->px[a];
-      state->opy[a] = state->py[a];
+    if (state->shake_p) {
+      /* distance this ball moved this frame */
+      float d = ((state->px[a] - state->opx[a]) *
+                 (state->px[a] - state->opx[a]) +
+                 (state->py[a] - state->opy[a]) *
+                 (state->py[a] - state->opy[a]));
+      if (d > max_d) max_d = d;
     }
+
+    state->opx[a] = state->px[a];
+    state->opy[a] = state->py[a];
+  }
 
   if (state->fps_p
 #ifdef HAVE_DOUBLE_BUFFER_EXTENSION
@@ -580,40 +529,32 @@ repaint_balls (b_state *state)
     draw_fps_string(state);
 
 #ifdef HAVE_DOUBLE_BUFFER_EXTENSION
-  if (state->backb)
-    {
-      XdbeSwapInfo info[1];
-      info[0].swap_window = state->window;
-      info[0].swap_action = (state->dbeclear_p ? XdbeBackground : XdbeUndefined);
-      XdbeSwapBuffers (state->dpy, info, 1);
-    }
-  else
+  if (state->backb) {
+    XdbeSwapInfo info[1];
+    info[0].swap_window = state->window;
+    info[0].swap_action = (state->dbeclear_p ? XdbeBackground : XdbeUndefined);
+    XdbeSwapBuffers (state->dpy, info, 1);
+  } else
 #endif /* HAVE_DOUBLE_BUFFER_EXTENSION */
-  if (state->dbuf)
-    {
-      XCopyArea (state->dpy, state->b, state->window, state->erase_gc,
+  if (state->dbuf) {
+    XCopyArea (state->dpy, state->b, state->window, state->erase_gc,
 		 0, 0, state->xgwa.width, state->xgwa.height, 0, 0);
-    }
+  }
 
-  if (state->shake_p && state->time_since_shake > 5)
-    {
-      max_d /= state->max_radius;
-      if (max_d < state->shake_threshold ||  /* when its stable */
-          state->time_since_shake > 30)      /* or when 30 secs has passed */
-        {
-          shake (state);
-        }
+  if (state->shake_p && state->time_since_shake > 5) {
+    max_d /= state->max_radius;
+    if (max_d < state->shake_threshold ||  /* when its stable */
+          state->time_since_shake > 30) {    /* or when 30 secs has passed */
+      shake (state);
     }
+  }
 
   check_wall_clock (state, max_d);
 }
 
 
-/* Implements the laws of physics: move balls to their new positions.
- */
-static void
-update_balls (b_state *state)
-{
+/* Implements the laws of physics: move balls to their new positions.  */
+static void update_balls (b_state *state) {
   int a, b;
   float d, vxa, vya, vxb, vyb, dd, cdx, cdy;
   float ma, mb, vca, vcb, dva, dvb;
@@ -621,117 +562,105 @@ update_balls (b_state *state)
 
   check_window_moved (state);
 
-  /* If we're currently tracking the mouse, update that ball first.
-   */
-  if (state->mouse_ball != 0)
-    {
-      int mouse_x, mouse_y;
-      query_mouse (state, &mouse_x, &mouse_y);
-      state->px[state->mouse_ball] = mouse_x;
-      state->py[state->mouse_ball] = mouse_y;
-      state->vx[state->mouse_ball] =
+  /* If we're currently tracking the mouse, update that ball first.  */
+  if (state->mouse_ball != 0) {
+    int mouse_x, mouse_y;
+    query_mouse (state, &mouse_x, &mouse_y);
+    state->px[state->mouse_ball] = mouse_x;
+    state->py[state->mouse_ball] = mouse_y;
+    state->vx[state->mouse_ball] =
         (0.1 *
          (state->px[state->mouse_ball] - state->opx[state->mouse_ball]) *
          state->tc);
-      state->vy[state->mouse_ball] =
+    state->vy[state->mouse_ball] =
         (0.1 *
          (state->py[state->mouse_ball] - state->opy[state->mouse_ball]) *
          state->tc);
-    }
+  }
 
   /* For each ball, compute the influence of every other ball. */
   for (a=1; a <= state->count -  1; a++)
-    for (b=a + 1; b <= state->count; b++)
-      {
-         d = ((state->px[a] - state->px[b]) *
+    for (b=a + 1; b <= state->count; b++) {
+      d = ((state->px[a] - state->px[b]) *
               (state->px[a] - state->px[b]) +
               (state->py[a] - state->py[b]) *
               (state->py[a] - state->py[b]));
-         dee2 = (state->r[a] + state->r[b]) *
+      dee2 = (state->r[a] + state->r[b]) *
                 (state->r[a] + state->r[b]);
-         if (d < dee2)
-         {
-            state->collision_count++;
-            d = sqrt(d);
-            dd = state->r[a] + state->r[b] - d;
+      if (d < dee2) {
+        state->collision_count++;
+        d = sqrt(d);
+        dd = state->r[a] + state->r[b] - d;
 
-            cdx = (state->px[b] - state->px[a]) / d;
-            cdy = (state->py[b] - state->py[a]) / d;
+        cdx = (state->px[b] - state->px[a]) / d;
+        cdy = (state->py[b] - state->py[a]) / d;
 
-            /* Move each ball apart from the other by half the
-             * 'collision' distance.
-             */
-            state->px[a] -= 0.5 * dd * cdx;
-            state->py[a] -= 0.5 * dd * cdy;
-            state->px[b] += 0.5 * dd * cdx;
-            state->py[b] += 0.5 * dd * cdy;
+        /* Move each ball apart from the other by half the
+         * 'collision' distance.
+         */
+        state->px[a] -= 0.5 * dd * cdx;
+        state->py[a] -= 0.5 * dd * cdy;
+        state->px[b] += 0.5 * dd * cdx;
+        state->py[b] += 0.5 * dd * cdy;
 
-            ma = state->m[a];
-            mb = state->m[b];
+        ma = state->m[a];
+        mb = state->m[b];
 
-            vxa = state->vx[a];
-            vya = state->vy[a];
-            vxb = state->vx[b];
-            vyb = state->vy[b];
+        vxa = state->vx[a];
+        vya = state->vy[a];
+        vxb = state->vx[b];
+        vyb = state->vy[b];
 
-            vca = vxa * cdx + vya * cdy; /* the component of each velocity */
-            vcb = vxb * cdx + vyb * cdy; /* along the axis of the collision */
+        vca = vxa * cdx + vya * cdy; /* the component of each velocity */
+        vcb = vxb * cdx + vyb * cdy; /* along the axis of the collision */
 
-            /* elastic collison */
-            dva = (vca * (ma - mb) + vcb * 2 * mb) / (ma + mb) - vca;
-            dvb = (vcb * (mb - ma) + vca * 2 * ma) / (ma + mb) - vcb;
+        /* elastic collison */
+        dva = (vca * (ma - mb) + vcb * 2 * mb) / (ma + mb) - vca;
+        dvb = (vcb * (mb - ma) + vca * 2 * ma) / (ma + mb) - vcb;
 
-            dva *= state->e; /* some energy lost to inelasticity */
-            dvb *= state->e;
+        dva *= state->e; /* some energy lost to inelasticity */
+        dvb *= state->e;
 
 #if 0
-            dva += (frand (50) - 25) / ma;   /* q: why are elves so chaotic? */
-            dvb += (frand (50) - 25) / mb;   /* a: brownian motion. */
+        dva += (frand (50) - 25) / ma;   /* q: why are elves so chaotic? */
+        dvb += (frand (50) - 25) / mb;   /* a: brownian motion. */
 #endif
 
-            vxa += dva * cdx;
-            vya += dva * cdy;
-            vxb += dvb * cdx;
-            vyb += dvb * cdy;
+        vxa += dva * cdx;
+        vya += dva * cdy;
+        vxb += dvb * cdx;
+        vyb += dvb * cdy;
 
-            state->vx[a] = vxa;
-            state->vy[a] = vya;
-            state->vx[b] = vxb;
-            state->vy[b] = vyb;
-         }
+        state->vx[a] = vxa;
+        state->vy[a] = vya;
+        state->vx[b] = vxb;
+        state->vy[b] = vyb;
+	  }
+	}
+
+    /* Force all balls to be on screen.  */
+    for (a=1; a <= state->count; a++) {
+      if (state->px[a] <= (state->xmin + state->r[a])) {
+        state->px[a] = state->xmin + state->r[a];
+        state->vx[a] = -state->vx[a] * state->e;
       }
-
-   /* Force all balls to be on screen.
-    */
-  for (a=1; a <= state->count; a++)
-    {
-      if (state->px[a] <= (state->xmin + state->r[a]))
-        {
-          state->px[a] = state->xmin + state->r[a];
-          state->vx[a] = -state->vx[a] * state->e;
-        }
-      if (state->px[a] >= (state->xmax - state->r[a]))
-        {
-          state->px[a] = state->xmax - state->r[a];
-          state->vx[a] = -state->vx[a] * state->e;
-        }
-      if (state->py[a] <= (state->ymin + state->r[a]))
-        {
-          state->py[a] = state->ymin + state->r[a];
-          state->vy[a] = -state->vy[a] * state->e;
-        }
-      if (state->py[a] >= (state->ymax - state->r[a]))
-        {
-          state->py[a] = state->ymax - state->r[a];
-          state->vy[a] = -state->vy[a] * state->e;
-        }
+      if (state->px[a] >= (state->xmax - state->r[a])) {
+        state->px[a] = state->xmax - state->r[a];
+        state->vx[a] = -state->vx[a] * state->e;
+      }
+      if (state->py[a] <= (state->ymin + state->r[a])) {
+        state->py[a] = state->ymin + state->r[a];
+        state->vy[a] = -state->vy[a] * state->e;
+      }
+      if (state->py[a] >= (state->ymax - state->r[a])) {
+        state->py[a] = state->ymax - state->r[a];
+        state->vy[a] = -state->vy[a] * state->e;
+      }
     }
 
-  /* Apply gravity to all balls.
-   */
-  for (a=1; a <= state->count; a++)
-    if (a != state->mouse_ball)
-      {
+    /* Apply gravity to all balls.  */
+    for (a=1; a <= state->count; a++)
+      if (a != state->mouse_ball) {
         state->vx[a] += state->accx * state->tc;
         state->vy[a] += state->accy * state->tc;
         state->px[a] += state->vx[a] * state->tc;
@@ -743,60 +672,49 @@ update_balls (b_state *state)
 /* Handle X events, specifically, allow a ball to be picked up with the mouse.
  */
 static Bool
-fluidballs_event (Display *dpy, Window window, void *closure, XEvent *event)
-{
+fluidballs_event (Display *dpy, Window window, void *closure, XEvent *event) {
   b_state *state = (b_state *) closure;
 
-  if (event->xany.type == ButtonPress)
-    {
-      int i, rx, ry;
-      XTranslateCoordinates (dpy, window, RootWindow (dpy, DefaultScreen(dpy)),
-                             event->xbutton.x, event->xbutton.y, &rx, &ry,
-                             &window);
+  if (event->xany.type == ButtonPress) {
+    int i, rx, ry;
+    XTranslateCoordinates (dpy, window, RootWindow (dpy, DefaultScreen(dpy)),
+                           event->xbutton.x, event->xbutton.y, &rx, &ry,
+                           &window);
 
-      if (state->mouse_ball != 0)  /* second down-click?  drop the ball. */
-        {
-          state->mouse_ball = 0;
-          return True;
-        }
-      else
-        {
-          /* When trying to pick up a ball, first look for a click directly
-             inside the ball; but if we don't find it, expand the radius
-             outward until we find something nearby.
-           */
-          float max = state->max_radius * 4;
-          float step = max / 10;
-          float r2;
-          for (r2 = step; r2 < max; r2 += step) {
-            for (i = 1; i <= state->count; i++)
-              {
-                float d = ((state->px[i] - rx) * (state->px[i] - rx) +
-                           (state->py[i] - ry) * (state->py[i] - ry));
-                float r = state->r[i];
-                if (r2 > r) r = r2;
-                if (d < r*r)
-                  {
-                    state->mouse_ball = i;
-                    return True;
-                  }
-              }
-          }
-        }
-      return True;
-    }
-  else if (event->xany.type == ButtonRelease)   /* drop the ball */
-    {
+    if (state->mouse_ball != 0) { /* second down-click?  drop the ball. */
       state->mouse_ball = 0;
       return True;
+    } else {
+      /* When trying to pick up a ball, first look for a click directly
+         inside the ball; but if we don't find it, expand the radius
+         outward until we find something nearby.  */
+      float max = state->max_radius * 4;
+      float step = max / 10;
+      float r2;
+      for (r2 = step; r2 < max; r2 += step) {
+        for (i = 1; i <= state->count; i++) {
+          float d = ((state->px[i] - rx) * (state->px[i] - rx) +
+                     (state->py[i] - ry) * (state->py[i] - ry));
+          float r = state->r[i];
+          if (r2 > r) r = r2;
+          if (d < r*r) {
+            state->mouse_ball = i;
+            return True;
+          }
+        }
+      }
     }
+    return True;
+  } else if (event->xany.type == ButtonRelease) {  /* drop the ball */
+    state->mouse_ball = 0;
+    return True;
+  }
 
   return False;
 }
 
 static unsigned long
-fluidballs_draw (Display *dpy, Window window, void *closure)
-{
+fluidballs_draw (Display *dpy, Window window, void *closure) {
   b_state *state = (b_state *) closure;
   repaint_balls(state);
   update_balls(state);
@@ -805,21 +723,17 @@ fluidballs_draw (Display *dpy, Window window, void *closure)
 
 static void
 fluidballs_reshape (Display *dpy, Window window, void *closure, 
-                 unsigned int w, unsigned int h)
-{
+                 unsigned int w, unsigned int h) {
 }
 
 static void
-fluidballs_free (Display *dpy, Window window, void *closure)
-{
+fluidballs_free (Display *dpy, Window window, void *closure) {
   b_state *state = (b_state *) closure;
   XFreeGC (dpy, state->draw_gc);
   XFreeGC (dpy, state->draw_gc2);
   XFreeGC (dpy, state->erase_gc);
-  if (state->font)
-    XftFontClose (state->dpy, state->font);
-  if (state->xftdraw)
-    XftDrawDestroy (state->xftdraw);
+  if (state->font) XftFontClose (state->dpy, state->font);
+  if (state->xftdraw) XftDrawDestroy (state->xftdraw);
   free (state->m);
   free (state->r);
   free (state->vx);
