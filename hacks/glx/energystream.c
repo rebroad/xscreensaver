@@ -236,18 +236,14 @@ static void init_flare_stream (flare_stream *s, int num_flares, float bx, float 
   }
 }
 
-static void render_flare_stream (flare_stream *s, float cur_time, Vector *vx, Vector *vy, float alpha)
-{
+static void render_flare_stream (flare_stream *s, float cur_time, Vector *vx, Vector *vy, float alpha) {
   float fMultipler = 1;
   int i;
 
-  if (s->flare_tex == -1)
-    return;
-  if (!s->num_flares)
-    return;
+  if (s->flare_tex == -1) return;
+  if (!s->num_flares) return;
 
-  if (cur_time < change_time)
-    return;
+  if (cur_time < change_time) return;
 
   cur_time -= change_time;
 
@@ -258,18 +254,14 @@ static void render_flare_stream (flare_stream *s, float cur_time, Vector *vx, Ve
 
   glBegin (GL_QUADS);
 
-  if (cur_time + change_time > change_time1)
-  {
+  if (cur_time + change_time > change_time1) {
     if (cur_time + change_time > change_time2)
-    {
       fMultipler = 2.5;
-    }
     else
       fMultipler = 2;
   }
 
-  for (i = 0; i != s->num_flares; i++)
-  {
+  for (i = 0; i != s->num_flares; i++) {
     Vector flare_pos;
     Vector cc;
 
@@ -305,9 +297,7 @@ static void render_flare_stream (flare_stream *s, float cur_time, Vector *vx, Ve
   glEnd ();
 }
 
-ENTRYPOINT void
-init_stream (ModeInfo *mi)
-{
+ENTRYPOINT void init_stream (ModeInfo *mi) {
   stream_configuration *es;
   streamtime current_time;
 
@@ -359,9 +349,7 @@ init_stream (ModeInfo *mi)
   }
 }
 
-ENTRYPOINT void
-free_stream (ModeInfo * mi)
-{
+ENTRYPOINT void free_stream (ModeInfo * mi) {
   stream_configuration *es = &ess[MI_SCREEN(mi)];
   int i;
 
@@ -417,9 +405,7 @@ static void inverse_matrix (float m[16]) {
                 - a * (e * l - f * k)) * dW);
 }
 
-ENTRYPOINT void
-draw_stream (ModeInfo *mi)
-{
+ENTRYPOINT void draw_stream (ModeInfo *mi) {
   stream_configuration *es = &ess[MI_SCREEN(mi)];
   Display *dpy = MI_DISPLAY(mi);
   Window window = MI_WINDOW(mi);
@@ -431,8 +417,7 @@ draw_stream (ModeInfo *mi)
   Vector vy;
   GLfloat m[4*4];
 
-  if (!es->glx_context)
-    return;
+  if (!es->glx_context) return;
 
   gettime (&current_time);
 
@@ -467,9 +452,7 @@ draw_stream (ModeInfo *mi)
   {
     double x, y, z;
     get_position (es->rot, &x, &y, &z, !es->button_down_p);
-    glTranslatef((x - 0.5) * 8,
-                 (y - 0.5) * 8,
-                 (z - 0.5) * 15);
+    glTranslatef((x - 0.5) * 8, (y - 0.5) * 8, (z - 0.5) * 15);
 
     gltrackball_rotate (es->trackball);
 
@@ -479,19 +462,13 @@ draw_stream (ModeInfo *mi)
     glRotatef (z * 360, 0.0, 0.0, 1.0);
   }
 
-  if (cur_time > change_time1)
-  {
-    if (cur_time > change_time2)
-    {
+  if (cur_time > change_time1) {
+    if (cur_time > change_time2) {
       glRotatef (90, 0, 1, 0);
 
       if (cur_time > change_time3)
         es->start_time = GETSECS(current_time) * 1000 + GETMSECS(current_time) - 5000;
-    }
-    else
-    {
-      glRotatef (180, 0, 1, 0);
-    }
+    } else glRotatef (180, 0, 1, 0);
   }
 
   glEnable ( GL_FOG);
@@ -513,8 +490,7 @@ draw_stream (ModeInfo *mi)
 
   mi->polygon_count = 0;
 
-  for (i = 0; i != es->num_streams; i++)
-  {
+  for (i = 0; i != es->num_streams; i++) {
     mi->polygon_count += es->streams[i].num_flares;
     render_flare_stream (&es->streams[i], cur_time, &vx, &vy, alpha);
   }
