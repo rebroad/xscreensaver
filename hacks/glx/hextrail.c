@@ -359,6 +359,8 @@ static void reset_hextrail(ModeInfo *mi) {
     printf("Didn't smooth. ncolors = %d\n", bp->ncolors);
 
   bp->grid_w = bp->size; bp->grid_h = bp->size;
+  if (!bp->hex_grid)
+    bp->hex_grid = (hexagon **)calloc(bp->grid_w * bp->grid_h, sizeof(hexagon *));
 }
 
 static void tick_hexagons (ModeInfo *mi) {
@@ -1060,8 +1062,6 @@ ENTRYPOINT void init_hextrail (ModeInfo *mi) {
 
   if (thickness < 0.05) thickness = 0.05;
   if (thickness > 0.5) thickness = 0.5;
-
-  bp->hex_grid = (hexagon **)calloc(bp->size * bp->size, sizeof(hexagon *));
 
   reset_hextrail (mi);
 }
