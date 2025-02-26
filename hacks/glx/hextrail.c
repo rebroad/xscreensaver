@@ -365,7 +365,6 @@ static void tick_hexagons (ModeInfo *mi) {
 
   ticks++;
   for (i = 0; i < bp->hexagon_count; i++) {
-    iters++;
     hexagon *h0 = bp->hexagons[i];
     h0->invis = hex_invis(bp, h0->x, h0->y, 0, 0);
 
@@ -428,6 +427,7 @@ static void tick_hexagons (ModeInfo *mi) {
     }
 
     if (pausing || (do_expand && h0->invis > 1)) continue;
+    iters++;
 
     /* Enlarge any still-growing arms if active.  */
     for (j = 0; j < 6; j++) {
