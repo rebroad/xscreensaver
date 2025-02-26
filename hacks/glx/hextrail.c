@@ -102,7 +102,7 @@ static Bool do_wander;
 static Bool do_glow;
 static Bool do_neon;
 static Bool do_expand;
-static int8_t draw_invis = 3;
+static int8_t draw_invis = 1;
 static Bool pausing = False;
 static GLfloat thickness;
 
@@ -310,22 +310,17 @@ static Bool hex_invis(config *bp, int x, int y, int *sx, int *sy) {
   GLdouble radiusy = sqrt(yx_diff*yx_diff + yy_diff*yy_diff);
 
   // And now we take both radiuses and work out the maximum it could in reality.
-  GLdouble hyp_radius = sqrt(radiusx * radiusx + radiusy * radiusy);
   GLdouble radius = (radiusx > radiusy) ? radiusx : radiusy;
-
-  if (winX + hyp_radius < viewport[0] || winX - hyp_radius > viewport[0] + viewport[2] ||
-      winY + hyp_radius < viewport[1] || winY - hyp_radius > viewport[1] + viewport[3])
-      return 3;
 
   if (winX + radius < viewport[0] || winX - radius > viewport[0] + viewport[2] ||
       winY + radius < viewport[1] || winY - radius > viewport[1] + viewport[3])
-      return 2;
+      return 2; // Fully off-screen
 
   if (winX < viewport[0] || winX > viewport[0] + viewport[2] ||
       winY < viewport[1] || winY > viewport[1] + viewport[3])
-      return 1;
+      return 1; // Center is off-screen
 
-  return 0;
+  return 0; // Center is on-screen
 }
 
 // TODO - is it possible to use 20-bit or 24-bit or 32-bit pointers rather than wasting 64-bits for each one?
