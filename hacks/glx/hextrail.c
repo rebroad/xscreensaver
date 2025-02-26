@@ -323,48 +323,6 @@ static Bool hex_invis(config *bp, int x, int y, int *sx, int *sy) {
   return 0; // Center is on-screen
 }
 
-// TODO - is it possible to use 20-bit or 24-bit or 32-bit pointers rather than wasting 64-bits for each one?
-static void expand_grid(config *bp, int direction) {
-  int new_grid_w = bp->grid_w, new_grid_h = bp->grid_h;
-
-  /* Increase grid size */
-  if (direction & 8) new_grid_w += 2;
-  if (direction & 2) new_grid_w++;
-  if (direction & 4 || direction & 1) new_grid_h++;
-  /* Calculate copy offsets */
-  int x_offset = (direction & 8) ? 2 : 0;
-  int y_offset = (direction & 4) ? 1 : 0;
-
-  bp->debug = bp->now;
-  printf("Expanding grid: before = %d-%d,%d-%d after = %d-%d,%d-%d\n",
-          -bp->x_offset, -bp->y_offset, bp->grid_w - bp->x_offset, bp->grid_h - bp->y_offset,
-          -bp->x_offset - x_offset, -bp->y_offset - y_offset,
-          new_grid_w - bp->x_offset - x_offset, new_grid_h - bp->y_offset - y_offset);
-
-  bp->x_offset += x_offset; bp->y_offset += y_offset;
-
-  /* Allocate new grid */
-  hexagon **new_grid = (hexagon **)calloc(new_grid_w * new_grid_h, sizeof(hexagon *));
-  if (!new_grid) {
-    fprintf(stderr, "Failed to allocate memory for expanded grid\n");
-    return;
-  }
-
-  // TODO - perhaps we should enlarge the grid by a substantial percentage instead
-  // of 1 or 2 columns/rows at a time...
-
-  /* Copy existing hexagon pointers with position adjustment */
-  int x, y;
-  for (y = 0; y < bp->grid_h; y++) for (x = 0; x < bp->grid_w; x++) {
-    hexagon *h = bp->hex_grid[y * bp->grid_w + x];
-    new_grid[(y + y_offset) * new_grid_w + x + x_offset] = h;
-  }
-
-  bp->grid_w = new_grid_w; bp->grid_h = new_grid_h;
-  free(bp->hex_grid);
-  bp->hex_grid = new_grid;
-}
-
 static void reset_hextrail(ModeInfo *mi) {
   config *bp = &bps[MI_SCREEN(mi)];
   for (int i = 0; i < bp->hexagon_count; i++)
@@ -393,13 +351,14 @@ static void reset_hextrail(ModeInfo *mi) {
 
   bp->grid_w = bp->size * 4 + 1; bp->grid_h = bp->grid_w;
   if (!bp->hex_grid)
+    // TODO - is it possible to use 20-bit or 24-bit or 32-bit pointers rather than wasting 64-bits for each one?
     bp->hex_grid = (hexagon **)calloc(bp->grid_w * bp->grid_h, sizeof(hexagon *));
 }
 
 static void tick_hexagons (ModeInfo *mi) {
   config *bp = &bps[MI_SCREEN(mi)];
   int i, j, doinga = 0, doingb = 0, ignorea = 0, ignoreb = 0;
-  int8_t dir = 0; static int ticks = 0, iters = 0;
+  static int ticks = 0, iters = 0;
   static int min_x = 0, min_y = 0, max_x = 0, max_y = 0;
   static int min_vx = 0, min_vy = 0, max_vx = 0, max_vy = 0;
   int this_min_vx = 0, this_min_vy = 0, this_max_vx = 0, this_max_vy = 0;
@@ -408,11 +367,7 @@ static void tick_hexagons (ModeInfo *mi) {
   for (i = 0; i < bp->hexagon_count; i++) {
     iters++;
     hexagon *h0 = bp->hexagons[i];
-    int sx, sy; // Populate with display co-ords
-    h0->invis = hex_invis(bp, h0->x, h0->y, &sx, &sy);
-
-    int adj_x = h0->x + bp->grid_w/2 + bp->x_offset;
-    int adj_y = h0->y + bp->grid_h/2 + bp->y_offset;
+    h0->invis = hex_invis(bp, h0->x, h0->y, 0, 0);
 
     Bool debug = False;
 
@@ -455,26 +410,12 @@ static void tick_hexagons (ModeInfo *mi) {
       min_y = h0->y; debug = True;
     }
 
-    int8_t edge = 0;
-
-    // Logic to expand the X,Y lookup table
-    if (h0->doing && !h0->invis) {
-      // 1=vmax++, 2=hmax++, 4=vmin--, 8=hmin--
-      if (adj_x == 0) edge |= 8;
-      else if (adj_x == bp->grid_w - 1) edge |= 2;
-      if (adj_y == 0) edge |= 4;
-      else if (adj_y == bp->grid_h - 1) edge |= 1;
-      dir |= edge;
-    }
-
     if (debug) {
-      printf("pos=%d,%d i=%d vis=(%d-%d,%d-%d) (%d-%d,%d-%d) arms=%d border=%d edge=%d, invis=%d\n",
+      printf("pos=%d,%d i=%d vis=(%d-%d,%d-%d) (%d-%d,%d-%d) arms=%d border=%d invis=%d\n",
               h0->x, h0->y, i, min_vx, max_vx, min_vy, max_vy,
-              min_x, max_x, min_y, max_y, h0->doing, h0->state, edge, h0->invis);
+              min_x, max_x, min_y, max_y, h0->doing, h0->state, h0->invis);
       bp->debug = bp->now;
     }
-    // TODO - if we can shift entries in hex_grid instead of expanding them, then do this
-    // instead, and allow one end (if it is entirely insible) to be deleted.
 
     if (h0->doing) {
       doinga++;
@@ -486,7 +427,7 @@ static void tick_hexagons (ModeInfo *mi) {
       if (h0->invis) ignoreb++;
     }
 
-    if (do_expand && edge && h0->invis > 1) continue;
+    if (pausing || (do_expand && h0->invis > 1)) continue;
 
     /* Enlarge any still-growing arms if active.  */
     for (j = 0; j < 6; j++) {
@@ -567,8 +508,6 @@ static void tick_hexagons (ModeInfo *mi) {
   } // Loop through each hexagon
 
   min_vx = this_min_vx; max_vx = this_max_vx; min_vy = this_min_vy; max_vy = this_max_vy;
-
-  if (dir && do_expand) expand_grid(bp, dir);
 
   if (bp->now > bp->debug) {
     printf("doinga=%d ignorea=%d doingb=%d ignoreb=%d\n", doinga, ignorea, doingb, ignoreb);
