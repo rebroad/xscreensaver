@@ -102,7 +102,7 @@ static Bool do_wander;
 static Bool do_glow;
 static Bool do_neon;
 static Bool do_expand;
-static int8_t draw_invis = 2;
+static int8_t draw_invis = 3;
 static Bool pausing = False;
 static GLfloat thickness;
 
@@ -282,7 +282,6 @@ static Bool hex_invis(config *bp, int x, int y, int *sx, int *sy) {
   if (sy) *sy = winY;
 
   static time_t debug = 0;
-
   if (debug != bp->now) {
       printf("%s: winX=%d, winY=%d, winZ=%.1f vp=%d,%d\n", __func__,
               (int)winX, (int)winY, winZ, viewport[2], viewport[3]);
@@ -311,20 +310,22 @@ static Bool hex_invis(config *bp, int x, int y, int *sx, int *sy) {
   GLdouble radiusy = sqrt(yx_diff*yx_diff + yy_diff*yy_diff);
 
   // And now we take both radiuses and work out the maximum it could in reality.
-  //GLdouble radius = sqrt(radiusx * radiusx + radiusy * radiusy);
+  GLdouble hyp_radius = sqrt(radiusx * radiusx + radiusy * radiusy);
   GLdouble radius = (radiusx > radiusy) ? radiusx : radiusy;
 
-  /* Check if bounding circle is outside viewport */
+  if (winX + hyp_radius < viewport[0] || winX - hyp_radius > viewport[0] + viewport[2] ||
+      winY + hyp_radius < viewport[1] || winY - hyp_radius > viewport[1] + viewport[3])
+      return 3;
+
   if (winX + radius < viewport[0] || winX - radius > viewport[0] + viewport[2] ||
       winY + radius < viewport[1] || winY - radius > viewport[1] + viewport[3])
-      return 2;  // Completely outside
+      return 2;
 
-  /* Check if bounding circle intersects viewport edge */
-  if (winX - radius < viewport[0] || winX + radius > viewport[0] + viewport[2] ||
-      winY - radius < viewport[1] || winY + radius > viewport[1] + viewport[3])
-      return 1;  // Partially visible
+  if (winX < viewport[0] || winX > viewport[0] + viewport[2] ||
+      winY < viewport[1] || winY > viewport[1] + viewport[3])
+      return 1;
 
-  return 0;  // Fully visible
+  return 0;
 }
 
 // TODO - is it possible to use 20-bit or 24-bit or 32-bit pointers rather than wasting 64-bits for each one?
@@ -706,7 +707,7 @@ static void draw_hexagons (ModeInfo *mi) {
 
   for (i = 0; i < bp->hexagon_count; i++) {
     hexagon *h = bp->hexagons[i];
-	if (draw_invis < h->invis) continue;
+    if (draw_invis < h->invis) continue;
     XYZ pos;
     pos.x = h->x * wid + (h->y & 1) * wid / 2;
     pos.y = h->y * hgt; pos.z = 0;
@@ -1042,11 +1043,11 @@ ENTRYPOINT Bool hextrail_handle_event (ModeInfo *mi,
 
   if (gltrackball_event_handler (event, bp->trackball,
               MI_WIDTH (mi), MI_HEIGHT (mi), &bp->button_down_p)) {
-	if (bp->state == FADE) {
+    if (bp->state == FADE) {
       bp->state = DRAW;
-	  bp->fade_ratio = 1;
-	}
-	return True;
+      bp->fade_ratio = 1;
+    }
+    return True;
   }
 #ifdef USE_SDL
   else if (event->type == SDL_EVENT_KEY_DOWN) {
@@ -1079,7 +1080,10 @@ ENTRYPOINT Bool hextrail_handle_event (ModeInfo *mi,
       MI_COUNT(mi)--;
       if (MI_COUNT(mi) < 1) MI_COUNT(mi) = 1;
     } else if (c == 's') {
-      draw_invis = (int8_t)(draw_invis + 1) % 3;
+      draw_invis = (int8_t)(draw_invis - 1) % 4;
+      printf("%s: draw_invis = %d\n", __func__, draw_invis);
+    } else if (c == 'S') {
+      draw_invis = (int8_t)(draw_invis + 1) % 4;
       printf("%s: draw_invis = %d\n", __func__, draw_invis);
     } else if (c == 'p') {
       pausing = !pausing;
