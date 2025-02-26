@@ -258,7 +258,7 @@ h0->x, h0->y, j, h1->x, h1->y, h1->state);
 }
 
 /* Check if a point is within the visible frustum */
-static Bool point_invis(config *bp, int x, int y) {
+static Bool point_invis(config *bp, int x, int y, int *sx, int *sy) {
   GLfloat wid = 2.0 / bp->size;
   GLfloat hgt = wid * sqrt(3) / 2;
   XYZ pos;
@@ -277,10 +277,21 @@ static Bool point_invis(config *bp, int x, int y) {
   gluProject((GLdouble)pos.x, (GLdouble)pos.y, (GLdouble)pos.z,
              model, proj, viewport, &winX, &winY, &winZ);
 
+  if (sx) *sx = winX;
+  if (sy) *sy = winY;
+
+  static time_t debug = 0;
+
+  if (debug != bp->now) {
+	  printf("%s: winX=%d, winY=%d, winZ=%d vp=%d,%d,%d,%d\n", __func__,
+			  (int)winX, (int)winY, (int)winZ, viewport[0], viewport[1], viewport[2], viewport[3]);
+	  debug = bp->now;
+  }
+
   if (winZ <= 0 || winZ >= 1) return 3;  // Far off in Z
 
   int margin = 50;  // Pixels
-  if (winX < viewport[0] - margin || winX >viewport[0] + viewport[2] + margin ||
+  if (winX < viewport[0] - margin || winX > viewport[0] + viewport[2] + margin ||
       winY < viewport[1] - margin || winY > viewport[1] + viewport[3] + margin)
       return 3;  // Far off
   if (winX < viewport[0] || winX > viewport[0] + viewport[2] ||
@@ -375,7 +386,8 @@ static void tick_hexagons (ModeInfo *mi) {
   for (i = 0; i < bp->hexagon_count; i++) {
 	iters++;
     hexagon *h0 = bp->hexagons[i];
-    h0->invis = point_invis(bp, h0->x, h0->y);
+	int sx, sy; // Populate with display co-ords
+    h0->invis = point_invis(bp, h0->x, h0->y, &sx, &sy);
 
     int adj_x = h0->x + bp->grid_w/2 + bp->x_offset;
     int adj_y = h0->y + bp->grid_h/2 + bp->y_offset;
@@ -563,7 +575,7 @@ static void tick_hexagons (ModeInfo *mi) {
           int gy = y + bp->grid_h/2 + bp->y_offset;
           if (gx >= 0 && gx < bp->grid_w && gy >= 0 && gy < bp->grid_h) {
             hexagon *h = bp->hex_grid[gy * bp->grid_w + gx];
-            if (!h && point_invis(bp,x,y)) {
+            if (!h && point_invis(bp,x,y,0,0)) {
               empty_cells[empty_count][0] = x;
               empty_cells[empty_count++][1] = y;
             }
