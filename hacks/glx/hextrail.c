@@ -103,6 +103,7 @@ static Bool do_glow;
 static Bool do_neon;
 static Bool do_expand;
 static Bool draw_invis = True;
+static Bool pausing = False;
 static GLfloat thickness;
 
 static XrmOptionDescRec opts[] = {
@@ -1050,6 +1051,9 @@ ENTRYPOINT Bool hextrail_handle_event (ModeInfo *mi,
     } else if (c == 's') {
       draw_invis = !draw_invis;
       printf("%s: draw_invis = %d\n", __func__, draw_invis);
+    } else if (c == 'p') {
+      pausing = !pausing;
+      printf("%s: pausing = %d\n", __func__, pausing);
     }
 #ifdef USE_SDL
     else if (event->type == SDL_EVENT_QUIT) ;
@@ -1060,7 +1064,7 @@ ENTRYPOINT Bool hextrail_handle_event (ModeInfo *mi,
 
 #ifndef USE_SDL
   RESET:
-    reset_hextrail(mi);
+    //reset_hextrail(mi);
     return True;
 #endif
   }
@@ -1139,7 +1143,7 @@ ENTRYPOINT void draw_hextrail (ModeInfo *mi) {
   }
 
   bp->now = time(NULL);
-  if (bp->pause_until < bp->now) tick_hexagons (mi);
+  if (bp->pause_until < bp->now && !pausing) tick_hexagons (mi);
   draw_hexagons (mi);
 
   glPopMatrix ();
