@@ -150,12 +150,12 @@ static hexagon *do_hexagon(config *bp, int x, int y) {
   if (h0) return h0;
 
   if (bp->hexagon_count >= bp->hexagon_capacity) {
-	bp->hexagon_capacity += 100;
+    bp->hexagon_capacity += 100;
     hexagon **new_hexagons = (hexagon **)realloc(bp->hexagons, bp->hexagon_capacity * sizeof(hexagon *));
     if (!new_hexagons) {
       fprintf(stderr, "%s: Reallocate failed\n", __func__);
       return NULL;
-	}
+    }
     bp->hexagons = new_hexagons;
   }
 
@@ -330,11 +330,10 @@ static void expand_grid(config *bp, int direction) {
   bp->hex_grid = new_grid;
 }
 
-static void reset_hextrail(ModeInfo *mi) {
-  config *bp = &bps[MI_SCREEN(mi)];
+static void reset_hextrail(config *bp) {
   for (int i = 0; i < bp->hexagon_count; i++)
-	memset(bp->hexagons[i], 0, sizeof(hexagon));
-	//free(bp->hexagons[i]);
+    memset(bp->hexagons[i], 0, sizeof(hexagon));
+    //free(bp->hexagons[i]);
   bp->hexagon_count = 0;
   //if (bp->hexagons) free (bp->hexagons);
   //bp->hexagons = NULL;
@@ -358,14 +357,10 @@ static void reset_hextrail(ModeInfo *mi) {
   } else
     printf("Didn't smooth. ncolors = %d\n", bp->ncolors);
 
-  bp->size = MI_COUNT(mi);
-  bp->grid_w = bp->size * 4 + 1; bp->grid_h = bp->size * 4 + 1;
-  if (!bp->hex_grid)
-    bp->hex_grid = (hexagon **)calloc(bp->grid_w * bp->grid_h, sizeof(hexagon *));
+  bp->grid_w = bp->size; bp->grid_h = bp->size;
 }
 
-static void tick_hexagons (ModeInfo *mi) {
-  config *bp = &bps[MI_SCREEN(mi)];
+static void tick_hexagons (config *bp) {
   int i, j, doinga = 0, doingb = 0, ignorea = 0, ignoreb = 0;
   int8_t dir = 0;
   static int min_x = 0, min_y = 0, max_x = 0, max_y = 0;
@@ -376,8 +371,8 @@ static void tick_hexagons (ModeInfo *mi) {
     hexagon *h0 = bp->hexagons[i];
     h0->invis = (do_expand && !bp->button_pressed && point_invis(bp, h0->x, h0->y));
 
-    int adj_x = h0->x + bp->grid_w/2 + bp->x_offset;
-    int adj_y = h0->y + bp->grid_h/2 + bp->y_offset;
+    int adj_x = h0->x + bp->size/2 + bp->x_offset;
+    int adj_y = h0->y + bp->size/2 + bp->y_offset;
 
     Bool debug = False;
 
@@ -610,7 +605,7 @@ static void tick_hexagons (ModeInfo *mi) {
     }
   } else if (bp->state == FADE) {
     bp->fade_ratio -= 0.01 * speed;
-    if (bp->fade_ratio <= 0) reset_hextrail (mi);
+    if (bp->fade_ratio <= 0) reset_hextrail (bp);
   }
 }
 
@@ -634,7 +629,7 @@ static void draw_hexagons (ModeInfo *mi) {
   config *bp = &bps[MI_SCREEN(mi)];
   int wire = MI_IS_WIREFRAME(mi);
   GLfloat length = sqrt(3) / 3;
-  GLfloat size = length / bp->size;
+  GLfloat size = length / MI_COUNT(mi);
   GLfloat thick2 = thickness * bp->fade_ratio;
   GLfloat wid = 2.0 / bp->size;
   GLfloat hgt = wid * sqrt(3) / 2;
@@ -655,9 +650,9 @@ static void draw_hexagons (ModeInfo *mi) {
 
   for (i = 0; i < bp->hexagon_count; i++) {
     hexagon *h = bp->hexagons[i];
-	XYZ pos;
-	pos.x = h->x * wid + (h->y & 1) * wid / 2;
-	pos.y = h->y * hgt; pos.z = 0;
+    XYZ pos;
+    pos.x = h->x * wid + (h->y & 1) * wid / 2;
+    pos.y = h->y * hgt; pos.z = 0;
     int total_arms = 0;
     GLfloat color[4];
     int j;
@@ -746,11 +741,11 @@ static void draw_hexagons (ModeInfo *mi) {
 
         /* Color of the outer point of the line is average color of
            this and the neighbor. */
-		hexagon *hn = neighbor(bp, h, j);
-		if (!hn) {
-			printf("%s: h=%d,%d h=%d BAD NEIGHBOR\n", __func__, h->x, h->y, j);
-			continue;
-		}
+        hexagon *hn = neighbor(bp, h, j);
+        if (!hn) {
+            printf("%s: h=%d,%d h=%d BAD NEIGHBOR\n", __func__, h->x, h->y, j);
+            continue;
+        }
         HEXAGON_COLOR (ncolor, neighbor(bp, h, j)); // TODO - Fix SIGSEGV here
         ncolor[0] = (ncolor[0] + color[0]) / 2;
         ncolor[1] = (ncolor[1] + color[1]) / 2;
@@ -1031,7 +1026,7 @@ ENTRYPOINT Bool hextrail_handle_event (ModeInfo *mi,
 
 #ifndef USE_SDL
   RESET:
-    reset_hextrail(mi);
+    reset_hextrail(bp);
     return True;
 #endif
   }
@@ -1044,8 +1039,9 @@ ENTRYPOINT Bool hextrail_handle_event (ModeInfo *mi,
 }
 
 ENTRYPOINT void init_hextrail (ModeInfo *mi) {
+  config *bp;
   MI_INIT (mi, bps);
-  config *bp = &bps[MI_SCREEN(mi)];
+  bp = &bps[MI_SCREEN(mi)];
 
 #ifndef USE_SDL
   bp->glx_context = init_GL(mi);
@@ -1053,6 +1049,7 @@ ENTRYPOINT void init_hextrail (ModeInfo *mi) {
 
   reshape_hextrail (mi, MI_WIDTH(mi), MI_HEIGHT(mi));
 
+  bp->size = MI_COUNT(mi) * 2 + 1;
   bp->rot = make_rotator(do_spin ? 0.002 : 0, do_spin ? 0.002 : 0,
                          do_spin ? 0.002 : 0, 1.0, // spin_accel
                          do_wander ? 0.003 : 0, False);
@@ -1063,7 +1060,9 @@ ENTRYPOINT void init_hextrail (ModeInfo *mi) {
   if (thickness < 0.05) thickness = 0.05;
   if (thickness > 0.5) thickness = 0.5;
 
-  reset_hextrail (mi);
+  bp->hex_grid = (hexagon **)calloc(bp->size * bp->size, sizeof(hexagon *));
+
+  reset_hextrail (bp);
 }
 
 
@@ -1109,7 +1108,7 @@ ENTRYPOINT void draw_hextrail (ModeInfo *mi) {
   }
 
   bp->now = time(NULL);
-  if (bp->pause_until < bp->now) tick_hexagons (mi);
+  if (bp->pause_until < bp->now) tick_hexagons (bp);
   if (bp->button_down_p) {
     if (do_expand && !bp->button_pressed) printf("Button pressed\n");
     bp->button_pressed = True;
