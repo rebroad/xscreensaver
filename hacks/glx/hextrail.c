@@ -410,6 +410,17 @@ static void tick_hexagons (ModeInfo *mi) {
       }
     } // Visible and non-empty
 
+    if (h0->x > max_x) {
+      max_x = h0->x; debug = True;
+    } else if (h0->x < min_x) {
+      min_x = h0->x; debug = True;
+    }
+    if (h0->y > max_y) {
+      max_y = h0->y; debug = True;
+    } else if (h0->y < min_y) {
+      min_y = h0->y; debug = True;
+    }
+
     int8_t edge = 0;
 
     // Logic to expand the X,Y lookup table
