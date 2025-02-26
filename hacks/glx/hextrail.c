@@ -102,6 +102,7 @@ static Bool do_wander;
 static Bool do_glow;
 static Bool do_neon;
 static Bool do_expand;
+static Bool draw_invis = True;
 static GLfloat thickness;
 
 static XrmOptionDescRec opts[] = {
@@ -282,9 +283,9 @@ static Bool point_invis(config *bp, int x, int y, int *sx, int *sy) {
   static time_t debug = 0;
 
   if (debug != bp->now) {
-	  printf("%s: winX=%d, winY=%d, winZ=%.1f vp=%d,%d\n", __func__,
-			  (int)winX, (int)winY, winZ, viewport[2], viewport[3]);
-	  debug = bp->now;
+      printf("%s: winX=%d, winY=%d, winZ=%.1f vp=%d,%d\n", __func__,
+              (int)winX, (int)winY, winZ, viewport[2], viewport[3]);
+      debug = bp->now;
   }
 
   if (winZ <= 0 || winZ >= 1) return 3;  // Far off in Z
@@ -383,9 +384,9 @@ static void tick_hexagons (ModeInfo *mi) {
 
   ticks++;
   for (i = 0; i < bp->hexagon_count; i++) {
-	iters++;
+    iters++;
     hexagon *h0 = bp->hexagons[i];
-	int sx, sy; // Populate with display co-ords
+    int sx, sy; // Populate with display co-ords
     h0->invis = point_invis(bp, h0->x, h0->y, &sx, &sy);
 
     int adj_x = h0->x + bp->grid_w/2 + bp->x_offset;
@@ -447,7 +448,7 @@ static void tick_hexagons (ModeInfo *mi) {
     if (debug) {
       printf("pos=%d,%d i=%d vis=(%d-%d,%d-%d) (%d-%d,%d-%d) arms=%d border=%d edge=%d, invis=%d\n",
               h0->x, h0->y, i, min_vx, max_vx, min_vy, max_vy,
-			  min_x, max_x, min_y, max_y, h0->doing, h0->state, edge, h0->invis);
+              min_x, max_x, min_y, max_y, h0->doing, h0->state, edge, h0->invis);
       bp->debug = bp->now;
     }
     // TODO - if we can shift entries in hex_grid instead of expanding them, then do this
@@ -563,7 +564,7 @@ static void tick_hexagons (ModeInfo *mi) {
       bp->fade_ratio = 1; // TODO what is this?
       min_vx = 0; max_vx = 0; min_vy = 0; max_vy = 0;
       min_x = 0; max_x = 0; min_y = 0; max_y = 0;
-	  ticks = 0; iters = 0;
+      ticks = 0; iters = 0;
       printf("New hextrail. vis=(%d-%d,%d-%d) (%d-%d,%d-%d)\n",
               min_vx, max_vx, min_vy, max_vy, min_x, max_x, min_y, max_y);
     } else {
@@ -679,6 +680,7 @@ static void draw_hexagons (ModeInfo *mi) {
 
   for (i = 0; i < bp->hexagon_count; i++) {
     hexagon *h = bp->hexagons[i];
+	if (!draw_invis && h->invis) continue; // TODO temp
     XYZ pos;
     pos.x = h->x * wid + (h->y & 1) * wid / 2;
     pos.y = h->y * hgt; pos.z = 0;
@@ -1045,6 +1047,9 @@ ENTRYPOINT Bool hextrail_handle_event (ModeInfo *mi,
             ) {
       MI_COUNT(mi)--;
       if (MI_COUNT(mi) < 1) MI_COUNT(mi) = 1;
+    } else if (c == 's') {
+      draw_invis = !draw_invis;
+      printf("%s: draw_invis = %d\n", __func__, draw_invis);
     }
 #ifdef USE_SDL
     else if (event->type == SDL_EVENT_QUIT) ;
