@@ -9,10 +9,8 @@
 
 ## Code Style
 - C99 standard with GNU extensions (`-std=gnu99`)
-- Indent using spaces, not tabs
 - Keep functions and variable names descriptive
 - Use comments to explain complex logic
-- Use `/* multi-line */` comments instead of `//` single-line comments
 
 ## Project Structure
 - `/hacks/glx/` - OpenGL screensavers
@@ -23,7 +21,6 @@
 ## Debugging
 - Add temporary debug prints with `printf()`
 - Check the `verbose` flag in screensavers for debug output
-- Set `showFPS:True` in defaults to monitor performance
 
 ## Common Libraries/Utils
 - `rotator.h` - For rotation animations
