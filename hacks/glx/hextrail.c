@@ -358,7 +358,7 @@ static void reset_hextrail(ModeInfo *mi) {
   } else
     printf("Didn't smooth. ncolors = %d\n", bp->ncolors);
 
-  bp->grid_w = bp->size; bp->grid_h = bp->size;
+  bp->grid_w = bp->size * 2 + 1; bp->grid_h = bp->grid_w;
   if (!bp->hex_grid)
     bp->hex_grid = (hexagon **)calloc(bp->grid_w * bp->grid_h, sizeof(hexagon *));
 }
@@ -1052,7 +1052,7 @@ ENTRYPOINT void init_hextrail (ModeInfo *mi) {
 
   reshape_hextrail (mi, MI_WIDTH(mi), MI_HEIGHT(mi));
 
-  bp->size = MI_COUNT(mi) * 2 + 1;
+  bp->size = MI_COUNT(mi) * 2;
   bp->rot = make_rotator(do_spin ? 0.002 : 0, do_spin ? 0.002 : 0,
                          do_spin ? 0.002 : 0, 1.0, // spin_accel
                          do_wander ? 0.003 : 0, False);
