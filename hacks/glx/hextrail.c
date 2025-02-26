@@ -258,7 +258,7 @@ h0->x, h0->y, j, h1->x, h1->y, h1->state);
   return added;
 }
 
-/* Check if a point is within the visible frustum */
+/* Check if a hexagon is within the visible frustum using bounding circle test */
 static Bool point_invis(config *bp, int x, int y, int *sx, int *sy) {
   GLfloat wid = 2.0 / bp->size;
   GLfloat hgt = wid * sqrt(3) / 2;
@@ -291,15 +291,29 @@ static Bool point_invis(config *bp, int x, int y, int *sx, int *sy) {
 
   if (winZ <= 0 || winZ >= 1) return 2;  // Far off in Z
 
-  int margin = 50;  // Pixels
-  if (winX < viewport[0] - margin || winX > viewport[0] + viewport[2] + margin ||
-      winY < viewport[1] - margin || winY > viewport[1] + viewport[3] + margin)
-      return 2;  // Far off
-  if (winX < viewport[0] || winX > viewport[0] + viewport[2] ||
-      winY < viewport[1] || winY > viewport[1] + viewport[3])
-      return 1;  // Just off
+  /* Calculate bounding circle radius in screen space */
+  /* Use hexagon's width (wid) as the diameter, project a point that distance away */
+  XYZ edge_pos = pos;
+  edge_pos.x += wid/2;  // Move to edge of hexagon
 
-  return 0;  // Visible
+  GLdouble edge_x, edge_y, edge_z;
+  gluProject((GLdouble)edge_pos.x, (GLdouble)edge_pos.y, (GLdouble)edge_pos.z,
+             model, proj, viewport, &edge_x, &edge_y, &edge_z);
+
+  /* Calculate radius in screen space (accounting for perspective projection) */
+  GLdouble radius = sqrt(pow(edge_x - winX, 2) + pow(edge_y - winY, 2));
+
+  /* Check if bounding circle is outside viewport */
+  if (winX + radius < viewport[0] || winX - radius > viewport[0] + viewport[2] ||
+      winY + radius < viewport[1] || winY - radius > viewport[1] + viewport[3])
+      return 2;  // Completely outside
+
+  /* Check if bounding circle intersects viewport edge */
+  if (winX - radius < viewport[0] || winX + radius > viewport[0] + viewport[2] ||
+      winY - radius < viewport[1] || winY + radius > viewport[1] + viewport[3])
+      return 1;  // Partially visible
+
+  return 0;  // Fully visible
 }
 
 // TODO - is it possible to use 20-bit or 24-bit or 32-bit pointers rather than wasting 64-bits for each one?
