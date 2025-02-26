@@ -366,12 +366,14 @@ static void reset_hextrail(ModeInfo *mi) {
 static void tick_hexagons (ModeInfo *mi) {
   config *bp = &bps[MI_SCREEN(mi)];
   int i, j, doinga = 0, doingb = 0, ignorea = 0, ignoreb = 0;
-  int8_t dir = 0;
+  int8_t dir = 0; static int ticks = 0, iters = 0;
   static int min_x = 0, min_y = 0, max_x = 0, max_y = 0;
   static int min_vx = 0, min_vy = 0, max_vx = 0, max_vy = 0;
   int this_min_vx = 0, this_min_vy = 0, this_max_vx = 0, this_max_vy = 0;
 
+  ticks++;
   for (i = 0; i < bp->hexagon_count; i++) {
+	iters++;
     hexagon *h0 = bp->hexagons[i];
     h0->invis = point_invis(bp, h0->x, h0->y);
 
@@ -530,7 +532,7 @@ static void tick_hexagons (ModeInfo *mi) {
 
   /* Start a new cell growing.  */
   Bool try_new = False, started = False;
-  static int fails = 0, ticks = 0;
+  static int fails = 0;
   if ((doinga - ignorea) <= 0) {
     int16_t x = 0, y = 0;
     if (bp->state == FIRST) {
@@ -539,6 +541,7 @@ static void tick_hexagons (ModeInfo *mi) {
       bp->fade_ratio = 1; // TODO what is this?
       min_vx = 0; max_vx = 0; min_vy = 0; max_vy = 0;
       min_x = 0; max_x = 0; min_y = 0; max_y = 0;
+	  ticks = 0; iters = 0;
       printf("New hextrail. vis=(%d-%d,%d-%d) (%d-%d,%d-%d)\n",
               min_vx, max_vx, min_vy, max_vy, min_x, max_x, min_y, max_y);
     } else {
@@ -570,8 +573,8 @@ static void tick_hexagons (ModeInfo *mi) {
         debug = bp->now;
       }
     } else if (h0->state == EMPTY && add_arms(bp, h0)) {
-      printf("hex created. Arms. doing=%d ticks=%d fails=%d pos=%d,%d\n",
-          h0->doing, ticks, fails, h0->x, h0->y);
+      printf("hex created. Arms. doing=%d ticks=%d iters=%d fails=%d pos=%d,%d\n",
+          h0->doing, ticks, iters, fails, h0->x, h0->y);
       fails = 0;
       h0->ccolor = random() % bp->ncolors;
       h0->state = DONE;
@@ -590,15 +593,15 @@ static void tick_hexagons (ModeInfo *mi) {
         debug = bp->now;
       }
     }
-  } else ticks = 0;
+  }
 
   if (try_new && (started || doinga != ignorea))
     printf("New cell: started=%d doinga=%d ignorea=%d doingb=%d ignoreb=%d\n",
             started, doinga, ignorea, doingb, ignoreb);
 
   if (!started && (doinga - ignorea) < 1 && (doingb - ignoreb) < 1 && bp->state != FADE) {
-    printf("Fade started. doinga=%d doingb=%d ignorea=%d ignoreb=%d\n",
-            doinga, doingb, ignorea, ignoreb);
+    printf("Fade started. ticks=%d iters=%d doinga=%d doingb=%d ignorea=%d ignoreb=%d\n",
+            ticks, iters, doinga, doingb, ignorea, ignoreb);
     bp->state = FADE;
     bp->fade_ratio = 1;
 
