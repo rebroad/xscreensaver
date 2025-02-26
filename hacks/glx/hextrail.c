@@ -1033,7 +1033,6 @@ ENTRYPOINT Bool hextrail_handle_event (ModeInfo *mi,
     char c = 0;
     XLookupString (&event->xkey, &c, 1, &keysym, 0);
 #endif
-    printf("%s: c=%c (%d)\n", __func__, c, c);
 
     if (c == ' ' || c == '\t' || c == '\r' || c == '\n') ;
     else if (c == '>' || c == '.' || c == '+' || c == '=' ||
@@ -1059,7 +1058,7 @@ ENTRYPOINT Bool hextrail_handle_event (ModeInfo *mi,
       printf("%s: draw_invis = %d\n", __func__, draw_invis);
     } else if (c == 'p') {
       pausing = !pausing;
-      printf("%s: pausing = %d\n", __func__, pausing);
+      printf("%s: pausing = %d hexagons=%d\n", __func__, pausing, bp->hexagon_count+1);
     }
 #ifdef USE_SDL
     else if (event->type == SDL_EVENT_QUIT) ;
