@@ -305,11 +305,14 @@ static Bool hex_invis(config *bp, int x, int y, int *sx, int *sy) {
              model, proj, viewport, &edge_yx, &edge_yy, &edge_z);
 
   /* Calculate radius in screen space (accounting for perspective projection) */
-  GLdouble radiusx = sqrt(pow(edge_xx - winX, 2) + pow(edge_xy - winY, 2));
-  GLdouble radiusy = sqrt(pow(edge_yx - winX, 2) + pow(edge_yy - winY, 2));
+  GLdouble xx_diff = edge_xx - winX, xy_diff = edge_xy - winY;
+  GLdouble yx_diff = edge_yx - winX, yy_diff = edge_yy - winY;
+  GLdouble radiusx = sqrt(xx_diff*xx_diff + xy_diff*xy_diff);
+  GLdouble radiusy = sqrt(yx_diff*yx_diff + yy_diff*yy_diff);
 
   // And now we take both radiuses and work out the maximum it could in reality.
-  GLdouble radius = sqrt(radiusx * radiusx + radiusy * radiusy);
+  //GLdouble radius = sqrt(radiusx * radiusx + radiusy * radiusy);
+  GLdouble radius = (radiusx > radiusy) ? radiusx : radiusy;
 
   /* Check if bounding circle is outside viewport */
   if (winX + radius < viewport[0] || winX - radius > viewport[0] + viewport[2] ||
