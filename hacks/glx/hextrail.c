@@ -259,7 +259,7 @@ h0->x, h0->y, j, h1->x, h1->y, h1->state);
 }
 
 /* Check if a hexagon is within the visible frustum using bounding circle test */
-static Bool point_invis(config *bp, int x, int y, int *sx, int *sy) {
+static Bool hex_invis(config *bp, int x, int y, int *sx, int *sy) {
   GLfloat wid = 2.0 / bp->size;
   GLfloat hgt = wid * sqrt(3) / 2;
   XYZ pos;
@@ -293,15 +293,21 @@ static Bool point_invis(config *bp, int x, int y, int *sx, int *sy) {
 
   /* Calculate bounding circle radius in screen space */
   /* Use hexagon's width (wid) as the diameter, project a point that distance away */
-  XYZ edge_pos = pos;
-  edge_pos.x += wid/2;  // Move to edge of hexagon
+  XYZ edge_posx = pos;
+  XYZ edge_posy = pos;
+  edge_posx.x += wid/2;
+  edge_posy.y += hgt/2;
 
-  GLdouble edge_x, edge_y, edge_z;
-  gluProject((GLdouble)edge_pos.x, (GLdouble)edge_pos.y, (GLdouble)edge_pos.z,
-             model, proj, viewport, &edge_x, &edge_y, &edge_z);
+  GLdouble edge_xx, edge_xy, edge_yx, edge_yy, edge_z;
+  gluProject((GLdouble)edge_posx.x, (GLdouble)edge_posx.y, (GLdouble)edge_posx.z,
+             model, proj, viewport, &edge_xx, &edge_xy, &edge_z);
+  gluProject((GLdouble)edge_posy.x, (GLdouble)edge_posy.y, (GLdouble)edge_posy.z,
+             model, proj, viewport, &edge_yx, &edge_yy, &edge_z);
 
   /* Calculate radius in screen space (accounting for perspective projection) */
-  GLdouble radius = sqrt(pow(edge_x - winX, 2) + pow(edge_y - winY, 2));
+  GLdouble radiusx = sqrt(pow(edge_xx - winX, 2) + pow(edge_xy - winY, 2));
+  GLdouble radiusy = sqrt(pow(edge_yx - winX, 2) + pow(edge_yy - winY, 2));
+  GLdouble radius = (radiusx > radiusy) ? radiusx : radiusy;
 
   /* Check if bounding circle is outside viewport */
   if (winX + radius < viewport[0] || winX - radius > viewport[0] + viewport[2] ||
@@ -402,7 +408,7 @@ static void tick_hexagons (ModeInfo *mi) {
     iters++;
     hexagon *h0 = bp->hexagons[i];
     int sx, sy; // Populate with display co-ords
-    h0->invis = point_invis(bp, h0->x, h0->y, &sx, &sy);
+    h0->invis = hex_invis(bp, h0->x, h0->y, &sx, &sy);
 
     int adj_x = h0->x + bp->grid_w/2 + bp->x_offset;
     int adj_y = h0->y + bp->grid_h/2 + bp->y_offset;
@@ -590,7 +596,7 @@ static void tick_hexagons (ModeInfo *mi) {
           int gy = y + bp->grid_h/2 + bp->y_offset;
           if (gx >= 0 && gx < bp->grid_w && gy >= 0 && gy < bp->grid_h) {
             hexagon *h = bp->hex_grid[gy * bp->grid_w + gx];
-            if (!h && point_invis(bp,x,y,0,0)) {
+            if (!h && hex_invis(bp,x,y,0,0)) {
               empty_cells[empty_count][0] = x;
               empty_cells[empty_count++][1] = y;
             }
@@ -695,7 +701,7 @@ static void draw_hexagons (ModeInfo *mi) {
 
   for (i = 0; i < bp->hexagon_count; i++) {
     hexagon *h = bp->hexagons[i];
-	if (h->invis >= draw_invis) continue;
+	if (draw_invis < h->invis) continue;
     XYZ pos;
     pos.x = h->x * wid + (h->y & 1) * wid / 2;
     pos.y = h->y * hgt; pos.z = 0;
