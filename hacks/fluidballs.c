@@ -92,7 +92,7 @@ typedef struct {
 
 
 /* Draws the frames per second string */
-static void draw_fps_string (b_state *state) {  
+static void draw_fps_string (b_state *state) {
   XFillRectangle (state->dpy, state->b, state->erase_gc,
 		  0, state->xgwa.height - state->font_height*3 - 20,
 		  state->xgwa.width, state->font_height*3 + 20);
@@ -669,8 +669,7 @@ static void update_balls (b_state *state) {
 }
 
 
-/* Handle X events, specifically, allow a ball to be picked up with the mouse.
- */
+/* Handle X events, specifically, allow a ball to be picked up with the mouse.  */
 static Bool
 fluidballs_event (Display *dpy, Window window, void *closure, XEvent *event) {
   b_state *state = (b_state *) closure;
