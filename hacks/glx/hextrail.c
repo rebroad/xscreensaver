@@ -1016,7 +1016,13 @@ ENTRYPOINT Bool hextrail_handle_event (ModeInfo *mi,
   config *bp = &bps[MI_SCREEN(mi)];
 
   if (gltrackball_event_handler (event, bp->trackball,
-              MI_WIDTH (mi), MI_HEIGHT (mi), &bp->button_down_p)) return True;
+              MI_WIDTH (mi), MI_HEIGHT (mi), &bp->button_down_p)) {
+	if (bp->state == FADE) {
+      bp->state = DRAW;
+	  bp->fade_ratio = 1;
+	}
+	return True;
+  }
 #ifdef USE_SDL
   else if (event->type == SDL_EVENT_KEY_DOWN) {
     SDL_Keycode keysym = event->key.key;
