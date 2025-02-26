@@ -78,7 +78,7 @@ typedef struct {
 #endif
   rotator *rot;
   trackball_state *trackball;
-  Bool button_down_p, button_pressed;
+  Bool button_down_p;
   time_t now, pause_until, debug;
 
   hexagon **hexagons;   // Dynamic array of pointers to hexagons
@@ -343,8 +343,6 @@ static void reset_hextrail(ModeInfo *mi) {
   bp->state = FIRST;
   bp->fade_ratio = 1;
   bp->x_offset = 0; bp->y_offset = 0;
-  if (do_expand && bp->button_pressed) printf("Setting button_pressed to False\n");
-  bp->button_pressed = False;
 
   bp->ncolors = 8;
   if (!bp->colors) {
@@ -373,7 +371,7 @@ static void tick_hexagons (ModeInfo *mi) {
 
   for (i = 0; i < bp->hexagon_count; i++) {
     hexagon *h0 = bp->hexagons[i];
-    h0->invis = (do_expand && !bp->button_pressed && point_invis(bp, h0->x, h0->y));
+    h0->invis = point_invis(bp, h0->x, h0->y);
 
     int adj_x = h0->x + bp->grid_w/2 + bp->x_offset;
     int adj_y = h0->y + bp->grid_h/2 + bp->y_offset;
@@ -1110,10 +1108,6 @@ ENTRYPOINT void draw_hextrail (ModeInfo *mi) {
 
   bp->now = time(NULL);
   if (bp->pause_until < bp->now) tick_hexagons (mi);
-  if (bp->button_down_p) {
-    if (do_expand && !bp->button_pressed) printf("Button pressed\n");
-    bp->button_pressed = True;
-  }
   draw_hexagons (mi);
 
   glPopMatrix ();
