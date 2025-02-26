@@ -2,7 +2,6 @@
  */
 
 /* TODO:-
- = Fix premature fading due to ignores
  = Fix same colours being used on each new drawing
  = hextrail - the end-points - draw these more slowly, like a decelleration (due to pressure).
  = need an option to make it fill all screens (to use as a wayland screensaver)
@@ -283,8 +282,8 @@ static Bool point_invis(config *bp, int x, int y, int *sx, int *sy) {
   static time_t debug = 0;
 
   if (debug != bp->now) {
-	  printf("%s: winX=%d, winY=%d, winZ=%d vp=%d,%d,%d,%d\n", __func__,
-			  (int)winX, (int)winY, (int)winZ, viewport[0], viewport[1], viewport[2], viewport[3]);
+	  printf("%s: winX=%d, winY=%d, winZ=%.1f vp=%d,%d\n", __func__,
+			  (int)winX, (int)winY, winZ, viewport[2], viewport[3]);
 	  debug = bp->now;
   }
 
@@ -295,7 +294,7 @@ static Bool point_invis(config *bp, int x, int y, int *sx, int *sy) {
       winY < viewport[1] - margin || winY > viewport[1] + viewport[3] + margin)
       return 3;  // Far off
   if (winX < viewport[0] || winX > viewport[0] + viewport[2] ||
-      winY < viewport[1] || winY <= viewport[1] + viewport[3])
+      winY < viewport[1] || winY > viewport[1] + viewport[3])
       return 1;  // Just off
 
   return 0;  // Visible
