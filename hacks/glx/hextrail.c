@@ -330,7 +330,8 @@ static void expand_grid(config *bp, int direction) {
   bp->hex_grid = new_grid;
 }
 
-static void reset_hextrail(config *bp) {
+static void reset_hextrail(ModeInfo *mi) {
+  config *bp = &bps[MI_SCREEN(mi)];
   for (int i = 0; i < bp->hexagon_count; i++)
 	memset(bp->hexagons[i], 0, sizeof(hexagon));
 	//free(bp->hexagons[i]);
@@ -357,10 +358,14 @@ static void reset_hextrail(config *bp) {
   } else
     printf("Didn't smooth. ncolors = %d\n", bp->ncolors);
 
-  bp->grid_w = bp->size; bp->grid_h = bp->size;
+  bp->size = MI_COUNT(mi);
+  bp->grid_w = bp->size * 4 + 1; bp->grid_h = bp->size * 4 + 1;
+  if (!bp->hex_grid)
+    bp->hex_grid = (hexagon **)calloc(bp->grid_w * bp->grid_h, sizeof(hexagon *));
 }
 
-static void tick_hexagons (config *bp) {
+static void tick_hexagons (ModeInfo *mi) {
+  config *bp = &bps[MI_SCREEN(mi)];
   int i, j, doinga = 0, doingb = 0, ignorea = 0, ignoreb = 0;
   int8_t dir = 0;
   static int min_x = 0, min_y = 0, max_x = 0, max_y = 0;
@@ -371,8 +376,8 @@ static void tick_hexagons (config *bp) {
     hexagon *h0 = bp->hexagons[i];
     h0->invis = (do_expand && !bp->button_pressed && point_invis(bp, h0->x, h0->y));
 
-    int adj_x = h0->x + bp->size/2 + bp->x_offset;
-    int adj_y = h0->y + bp->size/2 + bp->y_offset;
+    int adj_x = h0->x + bp->grid_w/2 + bp->x_offset;
+    int adj_y = h0->y + bp->grid_h/2 + bp->y_offset;
 
     Bool debug = False;
 
@@ -605,7 +610,7 @@ static void tick_hexagons (config *bp) {
     }
   } else if (bp->state == FADE) {
     bp->fade_ratio -= 0.01 * speed;
-    if (bp->fade_ratio <= 0) reset_hextrail (bp);
+    if (bp->fade_ratio <= 0) reset_hextrail (mi);
   }
 }
 
@@ -629,7 +634,7 @@ static void draw_hexagons (ModeInfo *mi) {
   config *bp = &bps[MI_SCREEN(mi)];
   int wire = MI_IS_WIREFRAME(mi);
   GLfloat length = sqrt(3) / 3;
-  GLfloat size = length / MI_COUNT(mi);
+  GLfloat size = length / bp->size;
   GLfloat thick2 = thickness * bp->fade_ratio;
   GLfloat wid = 2.0 / bp->size;
   GLfloat hgt = wid * sqrt(3) / 2;
@@ -1026,7 +1031,7 @@ ENTRYPOINT Bool hextrail_handle_event (ModeInfo *mi,
 
 #ifndef USE_SDL
   RESET:
-    reset_hextrail(bp);
+    reset_hextrail(mi);
     return True;
 #endif
   }
@@ -1039,9 +1044,8 @@ ENTRYPOINT Bool hextrail_handle_event (ModeInfo *mi,
 }
 
 ENTRYPOINT void init_hextrail (ModeInfo *mi) {
-  config *bp;
   MI_INIT (mi, bps);
-  bp = &bps[MI_SCREEN(mi)];
+  config *bp = &bps[MI_SCREEN(mi)];
 
 #ifndef USE_SDL
   bp->glx_context = init_GL(mi);
@@ -1049,7 +1053,6 @@ ENTRYPOINT void init_hextrail (ModeInfo *mi) {
 
   reshape_hextrail (mi, MI_WIDTH(mi), MI_HEIGHT(mi));
 
-  bp->size = MI_COUNT(mi) * 2 + 1;
   bp->rot = make_rotator(do_spin ? 0.002 : 0, do_spin ? 0.002 : 0,
                          do_spin ? 0.002 : 0, 1.0, // spin_accel
                          do_wander ? 0.003 : 0, False);
@@ -1060,9 +1063,7 @@ ENTRYPOINT void init_hextrail (ModeInfo *mi) {
   if (thickness < 0.05) thickness = 0.05;
   if (thickness > 0.5) thickness = 0.5;
 
-  bp->hex_grid = (hexagon **)calloc(bp->size * bp->size, sizeof(hexagon *));
-
-  reset_hextrail (bp);
+  reset_hextrail (mi);
 }
 
 
@@ -1108,7 +1109,7 @@ ENTRYPOINT void draw_hextrail (ModeInfo *mi) {
   }
 
   bp->now = time(NULL);
-  if (bp->pause_until < bp->now) tick_hexagons (bp);
+  if (bp->pause_until < bp->now) tick_hexagons (mi);
   if (bp->button_down_p) {
     if (do_expand && !bp->button_pressed) printf("Button pressed\n");
     bp->button_pressed = True;
