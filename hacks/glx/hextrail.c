@@ -368,7 +368,7 @@ static void reset_hextrail(ModeInfo *mi) {
   } else
     printf("Didn't smooth. ncolors = %d\n", bp->ncolors);
 
-  bp->grid_w = bp->size * 2 + 1; bp->grid_h = bp->grid_w;
+  bp->grid_w = bp->size * 4 + 1; bp->grid_h = bp->grid_w;
   if (!bp->hex_grid)
     bp->hex_grid = (hexagon **)calloc(bp->grid_w * bp->grid_h, sizeof(hexagon *));
 }
@@ -445,9 +445,9 @@ static void tick_hexagons (ModeInfo *mi) {
     }
 
     if (debug) {
-      printf("pos=%d,%d vis=(%d-%d,%d-%d) (%d-%d,%d-%d) arms=%d border=%d edge=%d, invis=%d\n",
-              h0->x, h0->y, min_vx, max_vx, min_vy, max_vy,
-              min_x, max_x, min_y, max_y, h0->doing, h0->state, edge, h0->invis);
+      printf("pos=%d,%d i=%d vis=(%d-%d,%d-%d) (%d-%d,%d-%d) arms=%d border=%d edge=%d, invis=%d\n",
+              h0->x, h0->y, i, min_vx, max_vx, min_vy, max_vy,
+			  min_x, max_x, min_y, max_y, h0->doing, h0->state, edge, h0->invis);
       bp->debug = bp->now;
     }
     // TODO - if we can shift entries in hex_grid instead of expanding them, then do this
