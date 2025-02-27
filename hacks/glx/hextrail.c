@@ -435,7 +435,10 @@ static void tick_hexagons (ModeInfo *mi) {
       if (h0->invis) ignoreb++;
     }
 
-    if (pausing || (do_expand && h0->invis > 1)) continue;
+    if (pausing || (do_expand && h0->invis > 1)) {
+      h0->state = DONE;
+      continue;
+	}
     iters++;
 
     /* Enlarge any still-growing arms if active.  */
@@ -592,7 +595,7 @@ static void tick_hexagons (ModeInfo *mi) {
     printf("New cell: started=%d doinga=%d ignorea=%d doingb=%d ignoreb=%d\n",
             started, doinga, ignorea, doingb, ignoreb);
 
-  if (!started && (doinga - ignorea) < 1 && (doingb - ignoreb) < 1 && bp->state != FADE) {
+  if (!started && (doingb - ignoreb) < 1 && bp->state != FADE) {
     printf("Fade started. ticks=%d iters=%d doinga=%d doingb=%d ignorea=%d ignoreb=%d\n",
             ticks, iters, doinga, doingb, ignorea, ignoreb);
     bp->state = FADE;
@@ -1025,6 +1028,9 @@ ENTRYPOINT Bool hextrail_handle_event (ModeInfo *mi,
     } else if (c == 'S') {
       draw_invis = (int8_t)(draw_invis + 1) % 4;
       printf("%s: draw_invis = %d\n", __func__, draw_invis);
+    } else if (c == 'e') {
+      do_expand = !do_expand;
+      printf("%s: do_expand = %d\n", __func__, do_expand);
     } else if (c == 'p') {
       pausing = !pausing;
       printf("%s: pausing = %d hexagons=%d\n", __func__, pausing, bp->total_hexagons);
@@ -1072,7 +1078,7 @@ ENTRYPOINT void init_hextrail (ModeInfo *mi) {
   bp->chunk_count = 0;
 
   bp->size = MI_COUNT(mi) * 2;
-  bp->grid_w = bp->size * 4 + 1; bp->grid_h = bp->grid_w;
+  bp->grid_w = bp->size * 13 + 1; bp->grid_h = bp->grid_w;
   if (bp->grid_w > 255) {
 	bp->grid_w = 255; bp->grid_h = 255; // Given hex_grid is 16bit
   }
