@@ -12,6 +12,11 @@
 
 #include "screenhackI.h"
 
+#ifdef USE_SDL
+#include <SDL3/SDL.h>
+#include <GL/gl.h>
+#include <GL/glu.h>
+#endif
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>

@@ -61,7 +61,12 @@
 #include <stdlib.h>
 #include <math.h>
 #include <time.h>
+#ifdef USE_SDL
 #include <SDL3/SDL.h>
+#define Bool int
+#define False 0
+#define True 1
+#endif
 
 #ifdef __hpux
  /* Which of the ten billion standards does values.h belong to?
@@ -70,20 +75,20 @@
 #endif
 
 #ifdef HAVE_JWXYZ
-# include "jwxyz.h"
-# include <string.h> /* X11/Xos.h brings this in. */
+#include "jwxyz.h"
+#include <string.h> /* X11/Xos.h brings this in. */
 #else  /* real X11 */
 #ifndef USE_SDL
-# include <X11/Xlib.h>
-# include <X11/Xutil.h>
-# include <X11/Xresource.h>
-# include <X11/Xos.h>
+#include <X11/Xlib.h>
+#include <X11/Xutil.h>
+#include <X11/Xresource.h>
+#include <X11/Xos.h>
 #endif
 #endif /* !HAVE_JWXYZ */
 
 #ifdef HAVE_JWXYZ
-# define DEFAULT_VISUAL -1   /* From utils/visual.c. */
-# define GL_VISUAL	 -6
+#define DEFAULT_VISUAL -1   /* From utils/visual.c. */
+#define GL_VISUAL	 -6
 #endif /* HAVE_JWXYZ */
 
 #ifdef USE_GL
