@@ -167,13 +167,13 @@ static hexagon *do_hexagon(config *bp, int x, int y) {
   }
 
   if (bp->total_hexagons >= bp->chunk_count * HEXAGON_CHUNK_SIZE) {
-	hex_chunk **new_chunks = (hex_chunk **)realloc(bp->chunks, (bp->chunk_count+1) * sizeof(hex_chunk *));
+	hex_chunk **new_chunks = realloc(bp->chunks, (bp->chunk_count+1) * sizeof(hex_chunk *));
     if (!new_chunks) {
       fprintf(stderr, "Failed to allocate new chunk array\n");
       return NULL;
     }
 	bp->chunks = new_chunks;
-    bp->chunks[bp->chunk_count] = malloc(sizeof(hex_chunk));
+    bp->chunks[bp->chunk_count] = calloc(1, sizeof(hex_chunk));
 	if (!bp->chunks[bp->chunk_count]) {
 	  fprintf(stderr, "Failed to allocate chunk\n");
 	  return NULL;
@@ -182,7 +182,7 @@ static hexagon *do_hexagon(config *bp, int x, int y) {
     bp->chunk_count++;
   }
 
-  hexagon *h0 = (hexagon *)malloc(sizeof(hexagon));
+  hexagon *h0 = calloc(1, sizeof(hexagon));
   if (!h0) {
     printf("%s: Malloc failed\n", __func__);
     return NULL;
@@ -192,7 +192,6 @@ static hexagon *do_hexagon(config *bp, int x, int y) {
   current->used++;
   bp->total_hexagons++;
   bp->hex_grid[gy * bp->grid_w + gx] = bp->total_hexagons;
-  memset (h0, 0, sizeof(hexagon));
   h0->x = x; h0->y = y;
 
   return h0;
