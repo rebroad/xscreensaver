@@ -594,7 +594,7 @@ static void tick_hexagons (ModeInfo *mi) {
     bp->state = FADE;
     bp->fade_ratio = 1;
 
-    for (i = 0; i < bp->hexagon_count; i++) {
+    for (i = 1; i <= bp->hexagon_count; i++) {
       hexagon *h = bp->hexagons[i];
       if (h->state == IN || h->state == WAIT)
         h->state = OUT;
