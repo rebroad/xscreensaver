@@ -25,10 +25,11 @@
 #ifdef _Win32
 #include <windows.h>
 #endif
+#else
+#include "xlockmore.h"
+#endif
 #include <GL/gl.h>
 #include <GL/glu.h>
-#endif
-#include "xlockmore.h"
 #include "colors.h"
 #include "normals.h"
 #include "rotator.h"

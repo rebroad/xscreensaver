@@ -168,14 +168,16 @@
 #include "usleep.h"
 #include "hsv.h"
 #include "colors.h"
+#ifdef USE_SDL
+#include <SDL.h>
+#else
 #include "grabclient.h"
 #include "visual.h"
 #include "fps.h"
-#ifndef USE_SDL
 #include "resources.h"
 #include "xft.h"
-#endif
 #include "font-retry.h"
+#endif
 
 #ifdef HAVE_RECORD_ANIM
 # include "recanim.h"
@@ -221,7 +223,6 @@ typedef struct {
 #endif
 
 struct xscreensaver_function_table {
-
   const char *progclass;
   const char * const *defaults;
   const XrmOptionDescRec *options;
@@ -229,26 +230,29 @@ struct xscreensaver_function_table {
   void           (*setup_cb)   (struct xscreensaver_function_table *, void *);
   void *         setup_arg;
 
+#ifdef USE_SDL
+  void *         (*init_cb)    (SDL_Window *, SDL_GLContext);
+  unsigned long  (*draw_cb)    (SDL_Window *, void *);
+  void           (*reshape_cb) (SDL_Window *, void *, unsigned int w, unsigned int h);
+  Bool           (*event_cb)   (SDL_Window *, void *, SDL_Event *);
+  void           (*free_cb)    (SDL_Window *, void *);
+  void           (*fps_cb)     (SDL_Window *, fps_state *, void *);
+#else
   void *         (*init_cb)    (Display *, Window);
   unsigned long  (*draw_cb)    (Display *, Window, void *);
-  void           (*reshape_cb) (Display *, Window, void *,
-                                unsigned int w, unsigned int h);
-#ifdef USE_SDL
-  Bool           (*event_cb)   (Display *, Window, void *, SDL_Event *);
-#else
+  void           (*reshape_cb) (Display *, Window, void *, unsigned int w, unsigned int h);
   Bool           (*event_cb)   (Display *, Window, void *, XEvent *);
-#endif
   void           (*free_cb)    (Display *, Window, void *);
   void           (*fps_cb)     (Display *, Window, fps_state *, void *);
+#endif
+
   void           (*fps_free)   (fps_state *);
 
 # ifndef HAVE_JWXYZ
   Visual *       (*pick_visual_hook) (Screen *);
   Bool           (*validate_visual_hook) (Screen *, const char *, Visual *);
-# else
   int            visual;
 # endif
-
 };
 
 extern const char *progname;

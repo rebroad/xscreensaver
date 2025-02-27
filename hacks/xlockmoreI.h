@@ -85,6 +85,10 @@ typedef XEvent EventType;
 
 struct ModeInfo {
   struct xlockmore_function_table *xlmft;
+#ifdef USE_SDL
+  SDL_Window *window;
+  SDL_GLContext gl_context;
+#else
   Display *dpy;
   Window window;
   Bool root_p;
@@ -97,6 +101,7 @@ struct ModeInfo {
   unsigned long black;
   XWindowAttributes xgwa;
   GC gc;
+#endif
   long pause;
   Bool fullrandom;
   long cycles;
@@ -110,7 +115,9 @@ struct ModeInfo {
   long threed_delta;
   Bool wireframe_p;
   Bool is_drawn;
+#ifndef USE_SDL
   eraser_state *eraser;
+#endif
   Bool needs_clear;
 
   /* Used only by OpenGL programs, since FPS is tricky there. */
