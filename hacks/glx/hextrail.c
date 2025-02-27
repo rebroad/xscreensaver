@@ -1043,6 +1043,7 @@ ENTRYPOINT Bool hextrail_handle_event (ModeInfo *mi,
 
 #ifndef USE_SDL
   RESET:
+    bp->size = MI_COUNT(mi) * 2;
     return True;
 #endif
   }
@@ -1077,10 +1078,7 @@ ENTRYPOINT void init_hextrail (ModeInfo *mi) {
   bp->chunk_count = 0;
 
   bp->size = MI_COUNT(mi) * 2;
-  bp->grid_w = bp->size * 13 + 1; bp->grid_h = bp->grid_w;
-  if (bp->grid_w > 255) {
-	bp->grid_w = 255; bp->grid_h = 255; // Given hex_grid is 16bit
-  }
+  bp->grid_w = 255; bp->grid_h = 255; // Given hex_grid is 16bit
   bp->hex_grid = (uint16_t *)calloc(bp->grid_w * bp->grid_h, sizeof(uint16_t));
   reset_hextrail (mi);
 }
