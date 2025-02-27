@@ -18,8 +18,9 @@
 #include <time.h>
 
 #include "screenhackI.h"
+#ifndef USE_SDL
 #include "erase.h"
-
+#endif
 
 typedef struct ModeInfo ModeInfo;
 
