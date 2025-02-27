@@ -5,7 +5,6 @@
  = Fix same colours being used on each new drawing
  = hextrail - the end-points - draw these more slowly, like a decelleration (due to pressure).
  = need an option to make it fill all screens (to use as a wayland screensaver)
- = Enable P to toggle pause
  = Measure average tick time (per second) FPS=TPS?
  = Enable ability to click a hexagon and get info
  */
@@ -452,11 +451,11 @@ static void tick_hexagons (ModeInfo *mi) {
               a1->state = OUT;
               if (a1->speed > 0) a1->speed = -a1->speed;
             } else {
+              a1->state = IN;
+              a1->ratio = a0->ratio - 1;
+              a1->speed = a0->speed;
               a0->state = DONE;
               a0->ratio = 1;
-              a1->state = IN;
-              a1->ratio = 0;
-              a1->speed = a0->speed;
             }
           } else if (a0->ratio <= 0) {
             /* Just finished retreating back to center */
@@ -531,8 +530,7 @@ static void tick_hexagons (ModeInfo *mi) {
       min_vx = 0; max_vx = 0; min_vy = 0; max_vy = 0;
       min_x = 0; max_x = 0; min_y = 0; max_y = 0;
       ticks = 0; iters = 0;
-      printf("New hextrail. vis=(%d-%d,%d-%d) (%d-%d,%d-%d)\n",
-              min_vx, max_vx, min_vy, max_vy, min_x, max_x, min_y, max_y);
+      printf("New hextrail. capacity=%d\n", bp->hexagon_capacity);
     } else {
       int16_t empty_cells[1000][2]; int empty_count = 0;
       for (int y = min_vy; y <= max_vy && empty_count < 1000; y++) {
