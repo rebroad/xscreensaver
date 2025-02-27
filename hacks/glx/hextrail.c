@@ -158,9 +158,14 @@ static hexagon *do_hexagon(config *bp, int x, int y) {
     }
     return NULL;
   }
-  hexagon *h0 = bp->hexagons[bp->hex_grid[gy * bp->grid_w + gx]];
-  // We found an existing hexagon, so return it.
-  if (h0) return h0;
+
+  int grid_idx = bp->hex_grid[gy * bp->grid_w + gx];
+  if (grid_idx) {
+    // We found an existing hexagon, so return it.
+	int chunk_idx = (grid_idx - 1) / HEXAGON_CHUNK_SIZE;
+	int hex_ifx = (rid_idx - 1) % HEXAGON_CHUNK_SIZE;
+    return bp->chunks[chunk_idx]->chunk[hex_idx];
+  }
 
   if (bp->total_hexagons >= bp->chunk_count * HEXAGON_CHUNK_SIZE) {
 	hex_chunk **new_chunks = (hex_chunk **)realloc(bp->chunks, (bp->chunk_count+1) * sizeof(hex_chunk *));
@@ -1146,9 +1151,15 @@ ENTRYPOINT void free_hextrail (ModeInfo *mi) {
   if (bp->rot) free_rotator (bp->rot);
 #endif
   if (bp->colors) free (bp->colors);
-  for (int i = 0; i <= bp->hexagon_capacity; i++)
-	if (bp->hexagons[i]) free(bp->hexagons[i]);
-  free (bp->hexagons);
+
+  if (bp->chunks) {
+	for (int i = 0; i < bp->chunk_count; i++) if (bp->chunks[i]) {
+      for (int j = 0; j < bp->chunks[i]->used; j++)
+        if (bp->chunks[i]->chunk[j]) free(bp->chunks[i]->chunk[j]);
+      free(bp->chunks[i]);
+	}
+	free(bp->chunks);
+  }
 
 #ifdef USE_SDL
   if (bp->gl_context) SDL_GL_DestroyContext(bp->gl_context);
