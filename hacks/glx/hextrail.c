@@ -3,7 +3,7 @@
 
 /* TODO:-
  = Don't draw borders when the thickness of the line would be <1 pixel
- = Fix same colours being used on each new drawing
+ = Fix same colours being used on each new drawing (introduced in 5350f7ec5097c92481e)
  = hextrail - the end-points - draw these more slowly, like a decelleration (due to pressure).
  = need an option to make it fill all screens (to use as a wayland screensaver)
  = Measure average tick time (per second) FPS=TPS?
@@ -353,16 +353,14 @@ static void reset_hextrail(ModeInfo *mi) {
   bp->x_offset = 0; bp->y_offset = 0;
 
   bp->ncolors = 8;
-  if (!bp->colors) {
+  if (!bp->colors)
 #ifdef USE_SDL
     bp->colors = (SDL_Color *) calloc(bp->ncolors, sizeof(SDL_Color));
-    make_smooth_colormap(bp->colors, &bp->ncolors, False, 0, False);
+  make_smooth_colormap(bp->colors, &bp->ncolors, False, 0, False);
 #else
     bp->colors = (XColor *) calloc(bp->ncolors, sizeof(XColor));
-    make_smooth_colormap (0, 0, 0, bp->colors, &bp->ncolors, False, 0, False);
+  make_smooth_colormap (0, 0, 0, bp->colors, &bp->ncolors, False, 0, False);
 #endif
-  } else
-    printf("Didn't smooth. ncolors = %d\n", bp->ncolors);
 }
 
 static void tick_hexagons (ModeInfo *mi) {
