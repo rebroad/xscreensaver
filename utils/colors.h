@@ -14,6 +14,7 @@
 
 #ifdef USE_SDL
 #include <SDL3/SDL.h>
+#define Bool int
 #endif
 
 /* Like XFreeColors, but works on `XColor *' instead of `unsigned long *'
