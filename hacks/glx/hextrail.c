@@ -330,15 +330,21 @@ static Bool hex_invis(config *bp, int x, int y, int *sx, int *sy) {
 static void reset_hextrail(ModeInfo *mi) {
   config *bp = &bps[MI_SCREEN(mi)];
 
-  if (bp->chunks) for (int i = 0; i < bp->chunk_count; i++)
-    if (bp->chunks[i]) {
-      for (int k = 0; k < bp->chunks[i]->used; k++)
-        if (bp->chunks[i]->chunk[k]) {
-          free(bp->chunks[i]->chunk[k]);
-          bp->chunks[i]->chunk[k] = NULL;
-        }
-      bp->chunks[i]->used = 0;
+  if (bp->chunks) {
+	for (int i = 0; i < bp->chunk_count; i++) {
+      if (bp->chunks[i]) {
+        for (int k = 0; k < bp->chunks[i]->used; k++)
+          if (bp->chunks[i]->chunk[k]) {
+            free(bp->chunks[i]->chunk[k]);
+            bp->chunks[i]->chunk[k] = NULL;
+          }
+        bp->chunks[i]->used = 0;
+	  }
+      free(bp->chunks[i]);
+	  bp->chunks = NULL;
+	  bp->chunk_count = 0;
     }
+  }
 
   bp->total_hexagons = 0;
   memset(bp->hex_grid, 0, bp->grid_w * bp->grid_h * sizeof(uint16_t));
