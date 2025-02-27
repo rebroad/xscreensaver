@@ -5,7 +5,7 @@
  * the above copyright notice appear in all copies and that both that
  * copyright notice and this permission notice appear in supporting
  * documentation.  No representations are made about the suitability of this
- * software for any purpose.  It is provided "as is" without express or 
+ * software for any purpose.  It is provided "as is" without express or
  * implied warranty.
  */
 
@@ -242,15 +242,15 @@ struct xscreensaver_function_table {
   Bool           (*event_cb)   (Display *, Window, void *, XEvent *);
   void           (*free_cb)    (Display *, Window, void *);
   void           (*fps_cb)     (Display *, Window, fps_state *, void *);
-#ifndef HAVE_JWXYZ
-  Visual *       (*pick_visual_hook) (Screen *);
-  Bool           (*validate_visual_hook) (Screen *, const char *, Visual *);
-#endif
 #endif
 
   void           (*fps_free)   (fps_state *);
 
 #ifndef HAVE_JWXYZ
+#ifndef USE_SDL
+  Visual *       (*pick_visual_hook) (Screen *);
+  Bool           (*validate_visual_hook) (Screen *, const char *, Visual *);
+#endif
   int            visual;
 #endif
 };
