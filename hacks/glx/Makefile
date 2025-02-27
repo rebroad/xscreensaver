@@ -25,7 +25,7 @@ HACKDIR		= ${libexecdir}/xscreensaver
 HACK_CONF_DIR	= ${datadir}/xscreensaver/config
 
 MINGW_PREFIX = x86_64-w64-mingw32-
-WINDOWS_INCLUDE = -I../../hacks -I../../utils -I/usr/x86_64-w64-mingw32/include -I/usr/local/include
+WINDOWS_INCLUDE = -I../../hacks -I../../utils -I/usr/x86_64-w64-mingw32/include
 WINDOWS_LIBS = -L/usr/x86_64-w64-mingw32/lib -lopengl32 -lglut -lglu32 -lwinmm
 
 # SDL3 paths for Linux build
@@ -33,8 +33,6 @@ SDL3_LIBS = -L/usr/local/lib -lSDL3 -lGL
 SDL3_INCLUDE = -I/usr/local/include
 
 # SDL3 paths for Windows cross-compile
-WIN_SDL3_PATH = /usr/x86_64-w64-mingw32
-WIN_SDL3_INCLUDE = -I$(WIN_SDL3_PATH)/include
 WIN_SDL3_LIBS = -L$(WIN_SDL3_PATH)/lib -lSDL3 -lopengl32 -lglu32 -lmingw32 -mwindows -lm
 
 CC		= gcc -std=gnu99 -pedantic -Wall -Wnested-externs -Wstrict-prototypes -Wmissing-prototypes -Wno-overlength-strings
@@ -616,7 +614,7 @@ $(HACKDIR_OBJS):
 	$(MAKE2CC) -C $(HACK_BIN)  $(@F)
 
 HACK_CFLAGS_BASE=$(INCLUDES) $(DEFS) $(CPPFLAGS) $(CFLAGS) $(X_CFLAGS)
-SDL_CFLAGS_BASE=$(SDL3_INCLUDES_ $(INCLUDES) $(DEFS) $(CPPFLGAS) $(CFLAGS)
+SDL_CFLAGS_BASE=$(SDL3_INCLUDE) $(INCLUDES) $(DEFS) $(CPPFLGAS) $(CFLAGS)
 
 # How we build object files in this directory.
 .c.o:
@@ -625,7 +623,7 @@ SDL_CFLAGS_BASE=$(SDL3_INCLUDES_ $(INCLUDES) $(DEFS) $(CPPFLGAS) $(CFLAGS)
 %.sdl.o: %.c
 	$(CC) -c $(SDL_CFLAGS_BASE) -DUSE_SDL -o $@ $<
 
-WINDOWS_CFLAGS = $(WINDOWS_INCLUDE) $(WIN_SDL3_INCLUDE) -DUSE_SDL
+WINDOWS_CFLAGS = $(WINDOWS_INCLUDE) -DUSE_SDL
 %.win.o: %.c
 	$(MINGW_PREFIX)gcc -c $(WINDOWS_CFLAGS) -o $@ $<
 
