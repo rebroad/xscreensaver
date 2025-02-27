@@ -5,9 +5,10 @@
  = Collect all vertices into a dynamic array, then upload to a 1 or more VBOs - also fix glow effects.
  = Don't draw borders when the thickness of the line would be <1 pixel
  = hextrail - the end-points - draw these more slowly, like a decelleration (due to pressure).
- = need an option to make it fill all screens (to use as a wayland screensaver)
+ = need an option to make it fill all active displays (is -root supposed to do this?)
  = Measure average tick time (per second) FPS=TPS?
  = Enable ability to click a hexagon and get info
+ = Explore using the Z dimension - some undulation or ripple effect perhaps?
  */
 
 #define DEFAULTS	"*delay:	30000       \n" \
