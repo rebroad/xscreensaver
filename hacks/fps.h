@@ -15,7 +15,11 @@
 
 typedef struct fps_state fps_state;
 
+#ifdef USE_SDL
+extern fps_state *fps_init (SDL_Window *, SDL_GLContext);
+#else
 extern fps_state *fps_init (Display *, Window);
+#endif
 extern void fps_free (fps_state *);
 extern void fps_slept (fps_state *, unsigned long usecs);
 extern double fps_compute (fps_state *, unsigned long polys, double depth);

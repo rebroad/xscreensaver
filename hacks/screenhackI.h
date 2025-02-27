@@ -168,10 +168,10 @@
 #include "usleep.h"
 #include "hsv.h"
 #include "colors.h"
+#include "fps.h"
 #ifndef USE_SDL
 #include "grabclient.h"
 #include "visual.h"
-#include "fps.h"
 #include "resources.h"
 #include "xft.h"
 #include "font-retry.h"

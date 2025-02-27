@@ -64,14 +64,18 @@ typedef struct ModeInfo ModeInfo;
 /* These are only used in GL mode, but I don't understand why XCode
    isn't seeing the prototypes for them in glx/fps-gl.c... */
 extern void do_fps (ModeInfo *);
+#ifndef USE_SDL
 extern void xlockmore_gl_compute_fps (Display *, Window, fps_state *, void *);
 extern void xlockmore_gl_draw_fps (ModeInfo *);
 extern void xlockmore_gl_free_fps (fps_state *);
+#endif
 # define do_fps xlockmore_gl_draw_fps
 
 
 extern void xlockmore_setup (struct xscreensaver_function_table *, void *);
+#ifndef USE_SDL
 extern void xlockmore_do_fps (Display *, Window, fps_state *, void *);
+#endif
 extern void xlockmore_mi_init (ModeInfo *, size_t, void **);
 extern Bool xlockmore_no_events (ModeInfo *, XEvent *);
 
