@@ -329,6 +329,17 @@ static Bool hex_invis(config *bp, int x, int y, int *sx, int *sy) {
 
 static void reset_hextrail(ModeInfo *mi) {
   config *bp = &bps[MI_SCREEN(mi)];
+
+  if (bp->chunks) for (int i = 0; i < bp->chunk_count; i++)
+    if (bp->chunks[i]) {
+      for (int k = 0; k < bp->chunks[i]->used; k++)
+        if (bp->chunks[i]->chunk[k]) {
+          free(bp->chunks[i]->chunk[k]);
+          bp->chunks[i]->chunk[k] = NULL;
+        }
+      bp->chunks[i]->used = 0;
+    }
+
   bp->total_hexagons = 0;
   memset(bp->hex_grid, 0, bp->grid_w * bp->grid_h * sizeof(uint16_t));
   bp->state = FIRST;
@@ -346,13 +357,6 @@ static void reset_hextrail(ModeInfo *mi) {
 #endif
   } else
     printf("Didn't smooth. ncolors = %d\n", bp->ncolors);
-
-  bp->grid_w = bp->size * 4 + 1; bp->grid_h = bp->grid_w;
-  if (bp->grid_w > 255) {
-	bp->grid_w = 255; bp->grid_h = 255; // Given hex_grid is 16bit
-  }
-  if (!bp->hex_grid)
-    bp->hex_grid = (uint16_t *)calloc(bp->grid_w * bp->grid_h, sizeof(uint16_t)); // TODO this right?
 }
 
 static void tick_hexagons (ModeInfo *mi) {
@@ -1029,7 +1033,6 @@ ENTRYPOINT Bool hextrail_handle_event (ModeInfo *mi,
 
 #ifndef USE_SDL
   RESET:
-    //reset_hextrail(mi);
     return True;
 #endif
   }
@@ -1051,7 +1054,6 @@ ENTRYPOINT void init_hextrail (ModeInfo *mi) {
 
   reshape_hextrail (mi, MI_WIDTH(mi), MI_HEIGHT(mi));
 
-  bp->size = MI_COUNT(mi) * 2;
   bp->rot = make_rotator(do_spin ? 0.002 : 0, do_spin ? 0.002 : 0,
                          do_spin ? 0.002 : 0, 1.0, // spin_accel
                          do_wander ? 0.003 : 0, False);
@@ -1064,6 +1066,12 @@ ENTRYPOINT void init_hextrail (ModeInfo *mi) {
 
   bp->chunk_count = 0;
 
+  bp->size = MI_COUNT(mi) * 2;
+  bp->grid_w = bp->size * 4 + 1; bp->grid_h = bp->grid_w;
+  if (bp->grid_w > 255) {
+	bp->grid_w = 255; bp->grid_h = 255; // Given hex_grid is 16bit
+  }
+  bp->hex_grid = (uint16_t *)calloc(bp->grid_w * bp->grid_h, sizeof(uint16_t));
   reset_hextrail (mi);
 }
 
