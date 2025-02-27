@@ -166,13 +166,15 @@
 
 #include "yarandom.h"
 #include "usleep.h"
-#include "resources.h"
 #include "hsv.h"
 #include "colors.h"
 #include "grabclient.h"
 #include "visual.h"
 #include "fps.h"
+#ifndef USE_SDL
+#include "resources.h"
 #include "xft.h"
+#endif
 #include "font-retry.h"
 
 #ifdef HAVE_RECORD_ANIM
