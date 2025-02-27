@@ -67,6 +67,13 @@ typedef struct hexagon {
   Bool invis;
 } hexagon;
 
+#define HEXAGON_CHUNK_SIZE 1000
+
+type struct {
+  hexagon *chunk[HEXAGON_CHUNK_SIZE];
+  int used;
+} hex_chunk;
+
 typedef struct {
 #ifdef USE_SDL
   SDL_Window *window;
@@ -83,9 +90,11 @@ typedef struct {
   Bool button_down_p;
   time_t now, pause_until, debug;
 
-  hexagon **hexagons;   // Dynamic array of pointers to hexagons
+  hex_chunk **chunks;   // Array of pointers to chunks
+  //hexagon **hexagons;   // Dynamic array of pointers to hexagons
   uint16_t *hex_grid;   // Lookup table of hexagons
-  int hexagon_count;    // Number of active hexagons
+  int chunk_count;      // Total number of chunks
+  int total_hexagons;   // Number of active hexagons
   int hexagon_capacity; // Allocation for hexagons
   int size, grid_w, grid_h;
   int x_offset, y_offset;
@@ -137,8 +146,6 @@ static argtype vars[] = {
 
 ENTRYPOINT ModeSpecOpt hextrail_opts = {countof(opts), opts, countof(vars), vars, NULL};
 
-#define HEXAGON_CHUNK_SIZE 1000
-
 static hexagon *do_hexagon(config *bp, int x, int y) {
   // Returns or creates a hexton at co-ords
   int gx = x + bp->grid_w/2 + bp->x_offset;
@@ -155,7 +162,7 @@ static hexagon *do_hexagon(config *bp, int x, int y) {
   // We found an existing hexagon, so return it.
   if (h0) return h0;
 
-  if (bp->hexagon_count >= bp->hexagon_capacity) {
+  if (bp->total_hexagons >= bp->hexagon_capacity) {
     bp->hexagon_capacity += HEXAGON_CHUNK_SIZE;
 	if (bp->hexagon_capacity > bp->grid_w * bp->grid_h)
 	  bp->hexagon_capacity = bp->grid_w * bp->grid_h; // Includes the NULL hexagon
@@ -179,8 +186,8 @@ static hexagon *do_hexagon(config *bp, int x, int y) {
   h0->ratio = 0;
   h0->doing = 0;
 
-  bp->hexagons[++bp->hexagon_count] = h0; // Start at 1
-  bp->hex_grid[gy * bp->grid_w + gx] = bp->hexagon_count;
+  bp->hexagons[++bp->total_hexagons] = h0; // Start at 1
+  bp->hex_grid[gy * bp->grid_w + gx] = bp->total_hexagons;
 
   return h0;
 }
@@ -316,11 +323,11 @@ static Bool hex_invis(config *bp, int x, int y, int *sx, int *sy) {
 
 static void reset_hextrail(ModeInfo *mi) {
   config *bp = &bps[MI_SCREEN(mi)];
-  if (!bp->hexagon_count) {
+  if (!bp->total_hexagons) {
     bp->hexagons = (hexagon **)calloc(bp->hexagon_capacity, sizeof(hexagon *));
 	bp->hexagons[0] = NULL; // The empty one (probably already NULL!)
   }
-  bp->hexagon_count = 0;
+  bp->total_hexagons = 0;
   memset(bp->hex_grid, 0, bp->grid_w * bp->grid_h * sizeof(uint16_t));
   //bp->hexagon_capacity = 0;
   bp->state = FIRST;
@@ -356,7 +363,7 @@ static void tick_hexagons (ModeInfo *mi) {
   int this_min_vx = 0, this_min_vy = 0, this_max_vx = 0, this_max_vy = 0;
 
   ticks++;
-  for (i = 1; i <= bp->hexagon_count; i++) {
+  for (i = 1; i <= bp->total_hexagons; i++) {
     hexagon *h0 = bp->hexagons[i];
     h0->invis = hex_invis(bp, h0->x, h0->y, 0, 0);
 
@@ -580,7 +587,7 @@ static void tick_hexagons (ModeInfo *mi) {
     bp->state = FADE;
     bp->fade_ratio = 1;
 
-    for (i = 1; i <= bp->hexagon_count; i++) {
+    for (i = 1; i <= bp->total_hexagons; i++) {
       hexagon *h = bp->hexagons[i];
       if (h->state == IN || h->state == WAIT)
         h->state = OUT;
@@ -630,7 +637,7 @@ static void draw_hexagons (ModeInfo *mi) {
   glBegin (wire ? GL_LINES : GL_TRIANGLES);
   glNormal3f (0, 0, 1);
 
-  for (i = 1; i <= bp->hexagon_count; i++) {
+  for (i = 1; i <= bp->total_hexagons; i++) {
     hexagon *h = bp->hexagons[i];
     if (draw_invis < h->invis) continue;
     XYZ pos;
@@ -1011,7 +1018,7 @@ ENTRYPOINT Bool hextrail_handle_event (ModeInfo *mi,
       printf("%s: draw_invis = %d\n", __func__, draw_invis);
     } else if (c == 'p') {
       pausing = !pausing;
-      printf("%s: pausing = %d hexagons=%d\n", __func__, pausing, bp->hexagon_count);
+      printf("%s: pausing = %d hexagons=%d\n", __func__, pausing, bp->total_hexagons);
     }
 #ifdef USE_SDL
     else if (event->type == SDL_EVENT_QUIT) ;
