@@ -321,8 +321,6 @@ static void reset_hextrail(ModeInfo *mi) {
 	bp->hexagons[0] = NULL; // The empty one (probably already NULL!)
   }
   bp->hexagon_count = 0;
-  //if (bp->hexagons) free (bp->hexagons);
-  //bp->hexagons = NULL;
   memset(bp->hex_grid, 0, bp->grid_w * bp->grid_h * sizeof(uint16_t));
   //bp->hexagon_capacity = 0;
   bp->state = FIRST;
@@ -1138,7 +1136,8 @@ ENTRYPOINT void free_hextrail (ModeInfo *mi) {
   if (bp->rot) free_rotator (bp->rot);
 #endif
   if (bp->colors) free (bp->colors);
-  for (int i = 0; i < bp->hexagon_count; i++) free(bp->hexagons[i]);
+  for (int i = 0; i <= bp->hexagon_capacity; i++)
+	if (bp->hexagons[i]) free(bp->hexagons[i]);
   free (bp->hexagons);
 
 #ifdef USE_SDL
