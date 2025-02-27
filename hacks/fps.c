@@ -16,7 +16,11 @@
 
 #include <time.h>
 
+#ifdef USE_SDL
+fps_state * fps_init (SDL_Window *window, SDL_GLContext context) {
+#else
 fps_state * fps_init (Display *dpy, Window window) {
+#endif
   fps_state *st;
   const char *font;
   XftFont *f;
