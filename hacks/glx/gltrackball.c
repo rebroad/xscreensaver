@@ -16,24 +16,24 @@
 #include <stdlib.h>
 #include <string.h>
 
-# define Button4 4  /* WTF */
-# define Button5 5
-# define Button6 6
-# define Button7 7
+#define Button4 4  /* WTF */
+#define Button5 5
+#define Button6 6
+#define Button7 7
 
 #include "trackball.h"
 #include "gltrackball.h"
 
 #if defined(HAVE_IPHONE) || defined(HAVE_ANDROID)
   /* Surely this should be defined somewhere more centrally... */
-# define HAVE_MOBILE
+#define HAVE_MOBILE
 #endif
 
 /* Bah, copied from ../fps.h */
 #ifdef HAVE_MOBILE
   extern double current_device_rotation (void);
 #else
-# define current_device_rotation() (0)
+#define current_device_rotation() (0)
 #endif
 
 
