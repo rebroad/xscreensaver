@@ -646,11 +646,11 @@ static void run_screenhack_table_sdl(SDL_Window *window, SDL_GLContext gl_contex
 	SDL_GLContext gl_context;
   } state = {window, gl_context};
 
-  void *(*init_cb)(SDL_Window *, SDL_GLContext, void *) =
-    (void *(*)(SDL_Window *, SDL_GLContext, void *)) ft->init_cb;
+  void *(*init_cb)(SDL_Window *, SDL_GLContext) =
+    (void *(*)(SDL_Window *, SDL_GLContext)) ft->init_cb;
 
-  void *closure = init_cb(NULL, (Window)SDL_GetWindowID(window), &state);
-  fps_state *fpst = fps_init(NULL, (Window)SDL_GetWindowID(window));
+  void *closure = init_cb(window, gl_context);
+  fps_state *fpst = fps_init(window, gl_context);
   unsigned long delay = 0;
 
   SDL_Event event;
@@ -658,16 +658,16 @@ static void run_screenhack_table_sdl(SDL_Window *window, SDL_GLContext gl_contex
 
   while (running) {
     while (SDL_PollEvent(&event)) {
-      if (!ft->event_cb(NULL, (Window)SDL_GetWindowID(window), closure, &event))
+      if (!ft->event_cb(window, closure, &event))
         running = False;
     }
 
     if (!running) break;
 
-    delay = ft->draw_cb(NULL, (Window)SDL_GetWindowID(window), closure);
+    delay = ft->draw_cb(window, closure);
 
     if (fpst) {
-      ft->fps_cb(NULL, (Window)SDL_GetWindowID(window), fpst, closure);
+      ft->fps_cb(window, fpst, closure);
     }
 
     SDL_GL_SwapWindow(window);
@@ -675,14 +675,14 @@ static void run_screenhack_table_sdl(SDL_Window *window, SDL_GLContext gl_contex
   }
 
   if (fpst) ft->fps_free(fpst);
-  ft->free_cb(NULL, (Window)SDL_GetWindowID(window), closure);
+  ft->free_cb(window, closure);
 }
 
 SDL_Window *window = NULL;  // TODO - seems to be duplication?
 SDL_GLContext glContext = NULL;
 #endif // USE_SDL
 
-#ifdef _WIN32
+#if 0
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 				LPSTR lpCmdLine, int nCmdShow) {
   return SDL_main(__argc, __argv);
@@ -693,23 +693,22 @@ int main (int argc, char **argv) {
   printf("%s: %s\n", __FILE__, __func__);
   struct xscreensaver_function_table *ft = xscreensaver_function_table;
 
+#ifndef _WIN32
   fix_fds();
+#endif
 
   progname = argv[0];   /* reset later */
   progclass = ft->progclass;
 
   if (ft->setup_cb) ft->setup_cb (ft, ft->setup_arg);
 
-  merge_options ();
+  merge_options();
 
   /* Xt and xscreensaver predate the "--arg" convention, so convert
      double dashes to single. */
-  {
-    int i;
-    for (i = 1; i < argc; i++)
-      if (argv[i][0] == '-' && argv[i][1] == '-')
-        argv[i]++;
-  }
+
+    for (int i = 1; i < argc; i++)
+      if (argv[i][0] == '-' && argv[i][1] == '-') argv[i]++;
 
 #ifndef USE_SDL
   Display *dpy;
@@ -783,8 +782,8 @@ int main (int argc, char **argv) {
   SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
   SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
 
-  SDL_Window *window = SDL_CreateWindow(
-    ft->progclass, 1280, 720, SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE);
+  SDL_Window *window = SDL_CreateWindow(ft->progclass, 1280, 720,
+		  SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE);
 
   if (!window) {
     fprintf(stderr, "%s: Window creation failed: %s\n", progname, SDL_GetError());
@@ -845,11 +844,7 @@ int main (int argc, char **argv) {
   XA_NET_WM_PID = XInternAtom (dpy, "_NET_WM_PID", False);
   XA_NET_WM_PING = XInternAtom (dpy, "_NET_WM_PING", False);
 
-  {
-    char **s;
-    for (s = merged_defaults; *s; s++)
-      free(*s);
-  }
+  for (char **s = merged_defaults; *s; s++) free(*s);
 
   free (merged_options);
   free (merged_defaults);
