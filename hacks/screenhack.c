@@ -784,7 +784,7 @@ int main (int argc, char **argv) {
 
 #ifdef USE_SDL
   if (SDL_Init(SDL_INIT_VIDEO) != 0) {
-	fprintf(stderr, "SDL initialization failed: %s\n", SDL_GetError());
+    fprintf(stderr, "%s: SDL initialization failed: %s\n", progname, SDL_GetError());
 	return 1;
   }
 
@@ -795,17 +795,18 @@ int main (int argc, char **argv) {
   SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
 
   SDL_Window *window = SDL_CreateWindow(
-    ft->progclass, 1280, 720, SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE);
+    ft->progclass, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
+    1280, 720, SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE);
 
   if (!window) {
-	fprintf(stderr, "Window creation failed: %s\n", SDL_GetError());
+    fprintf(stderr, "%s: Window creation failed: %s\n", progname, SDL_GetError());
 	SDL_Quit();
 	return 1;
   }
 
   SDL_GLContext gl_context = SDL_GL_CreateContext(window);
   if (!gl_context) {
-	fprintf(stderr, "OpenGL context creation failed: %s\n", SDL_GetError());
+    fprintf(stderr, "%s: OpenGL context creation failed: %s\n", progname, SDL_GetError());
 	SDL_DestroyWindow(window);
 	SDL_Quit();
 	return 1;
