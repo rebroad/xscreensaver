@@ -12,10 +12,10 @@
 #ifndef __COLORS_H__
 #define __COLORS_H__
 
-#ifdef USE_SDL
+/*#ifdef USE_SDL
 #include <SDL3/SDL.h>
 #define Bool int
-#endif
+#endif*/
 
 /* Like XFreeColors, but works on `XColor *' instead of `unsigned long *'
  */
