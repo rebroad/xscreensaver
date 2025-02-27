@@ -2,8 +2,8 @@
  */
 
 /* TODO:-
+ = Collect all vertices into a dynamic array, then upload to a 1 or more VBOs - also fix glow effects.
  = Don't draw borders when the thickness of the line would be <1 pixel
- = Fix same colours being used on each new drawing (introduced in 5350f7ec5097c92481e)
  = hextrail - the end-points - draw these more slowly, like a decelleration (due to pressure).
  = need an option to make it fill all screens (to use as a wayland screensaver)
  = Measure average tick time (per second) FPS=TPS?
@@ -625,6 +625,23 @@ static void draw_glow_point(XYZ p, GLfloat size, GLfloat scale,
   glEnd();
 }
 
+#ifdef USE_SDL
+  # define HEXAGON_COLOR(V,H) do { \
+    int idx = (H)->ccolor; \
+    (V)[0] = bp->colors[idx].r / 255.0f * bp->fade_ratio; \
+    (V)[1] = bp->colors[idx].g / 255.0f * bp->fade_ratio; \
+    (V)[2] = bp->colors[idx].b / 255.0f * bp->fade_ratio; \
+    (V)[3] = bp->colors[idx].a / 255.0f; \
+  } while (0)
+#else
+  # define HEXAGON_COLOR(V,H) do { \
+    (V)[0] = bp->colors[(H)->ccolor].red   / 65535.0 * bp->fade_ratio; \
+    (V)[1] = bp->colors[(H)->ccolor].green / 65535.0 * bp->fade_ratio; \
+    (V)[2] = bp->colors[(H)->ccolor].blue  / 65535.0 * bp->fade_ratio; \
+    (V)[3] = 1; \
+  } while (0)
+#endif
+
 static void draw_hexagons (ModeInfo *mi) {
   config *bp = &bps[MI_SCREEN(mi)];
   int wire = MI_IS_WIREFRAME(mi);
@@ -633,7 +650,12 @@ static void draw_hexagons (ModeInfo *mi) {
   GLfloat thick2 = thickness * bp->fade_ratio;
   GLfloat wid = 2.0 / bp->size;
   GLfloat hgt = wid * sqrt(3) / 2;
-  int i, k;
+
+  // Dynamic array for vertices
+  /*Vertex *vertices = NULL;
+  int vertex_count = 0;
+  int vertex_capacity = 10000; // Initial guess
+  vertices = malloc(vertex_capacity * sizeof(Vertex));*/
 
 # undef H
 # define H 0.8660254037844386   /* sqrt(3)/2 */
@@ -648,39 +670,20 @@ static void draw_hexagons (ModeInfo *mi) {
   glBegin (wire ? GL_LINES : GL_TRIANGLES);
   glNormal3f (0, 0, 1);
 
+  int i, k;
   for (i=0;i<bp->chunk_count;i++) for (k=0;k<bp->chunks[i]->used;k++) {
     hexagon *h = bp->chunks[i]->chunk[k];
     if (draw_invis < h->invis) continue;
-    XYZ pos;
-    pos.x = h->x * wid + (h->y & 1) * wid / 2;
-    pos.y = h->y * hgt; pos.z = 0;
-    int total_arms = 0;
-    GLfloat color[4];
-    int j;
 
+    XYZ pos = { h->x * wid + (h->y & 1) * wid / 2, h->y * hgt, 0 };
+    GLfloat color[4];
+    HEXAGON_COLOR (color, h);
+
+    int j, total_arms = 0;
     for (j = 0; j < 6; j++) {
       arm *a = &h->arms[j];
       if (a->state == OUT || a->state == DONE) total_arms++;
     }
-
-#ifdef USE_SDL
-    # define HEXAGON_COLOR(V,H) do { \
-      int idx = (H)->ccolor; \
-      (V)[0] = bp->colors[idx].r / 255.0f * bp->fade_ratio; \
-      (V)[1] = bp->colors[idx].g / 255.0f * bp->fade_ratio; \
-      (V)[2] = bp->colors[idx].b / 255.0f * bp->fade_ratio; \
-      (V)[3] = bp->colors[idx].a / 255.0f; \
-    } while (0)
-#else
-    # define HEXAGON_COLOR(V,H) do { \
-      (V)[0] = bp->colors[(H)->ccolor].red   / 65535.0 * bp->fade_ratio; \
-      (V)[1] = bp->colors[(H)->ccolor].green / 65535.0 * bp->fade_ratio; \
-      (V)[2] = bp->colors[(H)->ccolor].blue  / 65535.0 * bp->fade_ratio; \
-      (V)[3] = 1; \
-    } while (0)
-#endif
-
-    HEXAGON_COLOR (color, h);
 
     for (j = 0; j < 6; j++) {
       arm *a = &h->arms[j];
