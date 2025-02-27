@@ -183,7 +183,7 @@ static hexagon *do_hexagon(config *bp, int x, int y) {
     bp->chunk_count++;
   }
 
-  h0 = (hexagon *)malloc(sizeof(hexagon));
+  hexagon *h0 = (hexagon *)malloc(sizeof(hexagon));
   if (!h0) {
     printf("%s: Malloc failed\n", __func__);
     return NULL;
@@ -194,13 +194,8 @@ static hexagon *do_hexagon(config *bp, int x, int y) {
   hex_chunk *current = bp->chunks[bp->chunk_count - 1];
   current->chunk[idx] = h0;
   current->used++;
-
   memset (h0, 0, sizeof(hexagon));
-
   h0->x = x; h0->y = y;
-  h0->state = EMPTY;
-  h0->ratio = 0;
-  h0->doing = 0;
 
   return h0;
 }
