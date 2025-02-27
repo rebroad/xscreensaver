@@ -91,7 +91,6 @@ typedef struct {
   time_t now, pause_until, debug;
 
   hex_chunk **chunks;   // Array of pointers to chunks
-  //hexagon **hexagons;   // Dynamic array of pointers to hexagons
   uint16_t *hex_grid;   // Lookup table of hexagons
   int chunk_count;      // Total number of chunks
   int total_hexagons;   // Number of active hexagons
@@ -359,15 +358,15 @@ static void reset_hextrail(ModeInfo *mi) {
 
 static void tick_hexagons (ModeInfo *mi) {
   config *bp = &bps[MI_SCREEN(mi)];
-  int i, j, doinga = 0, doingb = 0, ignorea = 0, ignoreb = 0;
+  int i, j, k, doinga = 0, doingb = 0, ignorea = 0, ignoreb = 0;
   static int ticks = 0, iters = 0;
   static int min_x = 0, min_y = 0, max_x = 0, max_y = 0;
   static int min_vx = 0, min_vy = 0, max_vx = 0, max_vy = 0;
   int this_min_vx = 0, this_min_vy = 0, this_max_vx = 0, this_max_vy = 0;
 
   ticks++;
-  for (i = 1; i <= bp->total_hexagons; i++) {
-    hexagon *h0 = bp->hexagons[i];
+  for(i=0;i<bp->chunk_count; i++) for(k=0;k<bp->chunks[i]->used;j++) {
+    hexagon *h0 = bp->chunks[i]->chunk[k];
     h0->invis = hex_invis(bp, h0->x, h0->y, 0, 0);
 
     Bool debug = False;
@@ -531,19 +530,18 @@ static void tick_hexagons (ModeInfo *mi) {
       printf("New hextrail. capacity=%d\n", bp->hexagon_capacity);
     } else {
       int16_t empty_cells[1000][2]; int empty_count = 0;
-      for (int y = min_vy; y <= max_vy && empty_count < 1000; y++) {
+      for (int y = min_vy; y <= max_vy && empty_count < 1000; y++)
         for (int x = min_vx; x <= max_vx && empty_count < 1000; x++) {
           int gx = x + bp->grid_w/2 + bp->x_offset;
           int gy = y + bp->grid_h/2 + bp->y_offset;
           if (gx >= 0 && gx < bp->grid_w && gy >= 0 && gy < bp->grid_h) {
-            hexagon *h = bp->hexagons[bp->hex_grid[gy * bp->grid_w + gx]];
-            if (!h && hex_invis(bp,x,y,0,0)) {
+            int idx = bp->hex_grid[gy * bp->grid_w + gx];
+            if (!idx && !hex_invis(bp,x,y,0,0)) {
               empty_cells[empty_count][0] = x;
               empty_cells[empty_count++][1] = y;
             }
-          }
+		  }
         }
-      }
       if (empty_count > 0) {
         int pick = random() % empty_count;
         x = empty_cells[pick][0]; y = empty_cells[pick][1];
