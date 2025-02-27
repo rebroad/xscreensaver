@@ -225,9 +225,9 @@ pick_best_visual_of_class (Screen *screen, int visual_class) {
           ((vi_out [i].depth == vi_out [best].depth) &&
            (vi_out [i].colormap_size > vi_out [best].colormap_size)))
         best = i;
-      visual = (best < out_count ? vi_out [best].visual : 0);
-      XFree ((char *) vi_out);
-      return visual;
+    visual = (best < out_count ? vi_out [best].visual : 0);
+    XFree ((char *) vi_out);
+    return visual;
   } else return 0;
 }
 
