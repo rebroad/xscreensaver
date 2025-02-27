@@ -67,9 +67,9 @@
 #endif /* __sgi */
 
 #include "screenhackI.h"
-#include "xmu.h"
 #include "version.h"
 #ifndef USE_SDL
+#include "xmu.h"
 #include "vroot.h"
 #endif
 #include "fps.h"
@@ -498,8 +498,8 @@ static void run_screenhack_table_sdl(SDL_Window *window, SDL_GLContext gl_contex
 	SDL_GLContext gl_context;
   } state = {window, gl_context};
 
-  void *(*init_cb)(Display *, Window, void *) =
-    (void *(*)(Display *, Window, void *)) ft->init_cb;
+  void *(*init_cb)(SDL_Window *, SDL_GLContext, void *) =
+    (void *(*)(SDL_Window *, SDL_GLContext, void *)) ft->init_cb;
 
   void *closure = init_cb(NULL, (Window)SDL_GetWindowID(window), &state);
   fps_state *fpst = fps_init(NULL, (Window)SDL_GetWindowID(window));
@@ -795,8 +795,7 @@ int main (int argc, char **argv) {
   SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
 
   SDL_Window *window = SDL_CreateWindow(
-    ft->progclass, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
-    1280, 720, SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE);
+    ft->progclass, 1280, 720, SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE);
 
   if (!window) {
     fprintf(stderr, "%s: Window creation failed: %s\n", progname, SDL_GetError());
