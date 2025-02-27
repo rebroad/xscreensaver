@@ -552,7 +552,8 @@ static void tick_hexagons (ModeInfo *mi) {
     if (!h0) {
       static time_t debug = 0;
       if (debug != bp->now) {
-        printf("%s: do_hexagon failed or not called. new=%d\n", __func__, new_hex);
+        printf("%s: !h0 new=%d doinga=%d,%d doingb=%d,%d ticks=%d fails=%d\n", __func__,
+				new_hex, doinga, ignorea, doingb, ignoreb, ticks, fails);
         debug = bp->now;
       }
     } else if (h0->state == EMPTY && add_arms(bp, h0)) {
