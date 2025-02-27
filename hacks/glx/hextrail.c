@@ -2,6 +2,7 @@
  */
 
 /* TODO:-
+ = Don't draw borders when the thickness of the line would be <1 pixel
  = Fix same colours being used on each new drawing
  = hextrail - the end-points - draw these more slowly, like a decelleration (due to pressure).
  = need an option to make it fill all screens (to use as a wayland screensaver)
