@@ -26,10 +26,10 @@
 #include <windows.h>
 #endif
 #else
-#include "xlockmore.h"
 #endif
 #include <GL/gl.h>
 #include <GL/glu.h>
+#include "xlockmore.h"
 #include "colors.h"
 #include "normals.h"
 #include "rotator.h"

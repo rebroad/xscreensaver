@@ -242,15 +242,17 @@ struct xscreensaver_function_table {
   Bool           (*event_cb)   (Display *, Window, void *, XEvent *);
   void           (*free_cb)    (Display *, Window, void *);
   void           (*fps_cb)     (Display *, Window, fps_state *, void *);
+#ifndef HAVE_JWXYZ
+  Visual *       (*pick_visual_hook) (Screen *);
+  Bool           (*validate_visual_hook) (Screen *, const char *, Visual *);
+#endif
 #endif
 
   void           (*fps_free)   (fps_state *);
 
-# ifndef HAVE_JWXYZ
-  Visual *       (*pick_visual_hook) (Screen *);
-  Bool           (*validate_visual_hook) (Screen *, const char *, Visual *);
+#ifndef HAVE_JWXYZ
   int            visual;
-# endif
+#endif
 };
 
 extern const char *progname;

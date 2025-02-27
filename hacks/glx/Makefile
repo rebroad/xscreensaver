@@ -1165,7 +1165,7 @@ hextrail-sdl: hextrail.sdl.o normals.sdl.o rotator.sdl.o gltrackball.sdl.o $(HAC
 	$(CC_HACK) -o $@ $^ $(HACK_LIBS) $(SDL3_LIBS)
 
 hextrail.exe: hextrail.win.o normals.win.o rotator.win.o gltrackball.win.o ${HACK_BIN}/screenhack.win.o ${HACK_DIR}/xlockmore.win.o ${UTILS_BIN}/yarandom.win.o ${UTILS_BIN}/colors.win.o
-	$(MINGW_PREFIX)gcc -mconsole -o $@ $^ $(WIN_SDL3_LIBS)
+	$(MINGW_PREFIX)gcc -L/usr/x86_64-w64-mingw32/lib -mconsole -o $@ $^ $(WIN_SDL3_LIBS)
 
 papercube:	papercube.o	$(HACK_TRACK_OBJS)
 	$(CC_HACK) -o $@ $@.o	$(HACK_TRACK_OBJS) $(HACK_LIBS)
