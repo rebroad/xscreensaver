@@ -219,8 +219,7 @@ screenhack_ehandler (Display *dpy, XErrorEvent *error)
   return 0;
 }
 
-static Bool
-MapNotify_event_p (Display *dpy, XEvent *event, XPointer window) {
+static Bool MapNotify_event_p (Display *dpy, XEvent *event, XPointer window) {
   return (event->xany.type == MapNotify &&
 	  event->xvisibility.window == (Window) window);
 }
@@ -231,10 +230,8 @@ static Atom XA_WM_PROTOCOLS, XA_WM_DELETE_WINDOW, XA_NET_WM_PID,
 
 /* Dead-trivial event handling: exits if "q" or "ESC" are typed.
    Exit if the WM_PROTOCOLS WM_DELETE_WINDOW ClientMessage is received.
-   Returns False if the screen saver should now terminate.
- */
-static Bool
-screenhack_handle_event_1 (Display *dpy, XEvent *event) {
+   Returns False if the screen saver should now terminate.  */
+static Bool screenhack_handle_event_1 (Display *dpy, XEvent *event) {
   switch (event->xany.type) {
     case KeyPress:
       {
@@ -360,7 +357,6 @@ visual_warning (Screen *screen, Window window, Visual *visual, Colormap cmap,
     if (! ft->validate_visual_hook (screen, win, visual)) exit (1);
   }
 }
-#endif
 
 
 static void fix_fds (void) {
@@ -389,7 +385,6 @@ static void fix_fds (void) {
   if (fd2 > 2) close (fd2);
 }
 
-#ifndef USE_SDL
 static Boolean screenhack_table_handle_events (Display *dpy,
                                 const struct xscreensaver_function_table *ft,
                                 Window window, void *closure
@@ -487,49 +482,7 @@ screenhack_do_fps (Display *dpy, Window w, fps_state *fpst, void *closure) {
   fps_compute (fpst, 0, -1);
   fps_draw (fpst);
 }
-#endif
 
-
-#ifdef USE_SDL
-static void run_screenhack_table_sdl(SDL_Window *window, SDL_GLContext gl_context,
-                                    const struct xscreensaver_function_table *ft) {
-  struct sdl_state {
-	SDL_Window *window;
-	SDL_GLContext gl_context;
-  } state = {window, gl_context};
-
-  void *(*init_cb)(SDL_Window *, SDL_GLContext, void *) =
-    (void *(*)(SDL_Window *, SDL_GLContext, void *)) ft->init_cb;
-
-  void *closure = init_cb(NULL, (Window)SDL_GetWindowID(window), &state);
-  fps_state *fpst = fps_init(NULL, (Window)SDL_GetWindowID(window));
-  unsigned long delay = 0;
-
-  SDL_Event event;
-  Bool running = True;
-
-  while (running) {
-    while (SDL_PollEvent(&event)) {
-      if (!ft->event_cb(NULL, (Window)SDL_GetWindowID(window), closure, &event))
-        running = False;
-    }
-
-    if (!running) break;
-
-    delay = ft->draw_cb(NULL, (Window)SDL_GetWindowID(window), closure);
-
-    if (fpst) {
-      ft->fps_cb(NULL, (Window)SDL_GetWindowID(window), fpst, closure);
-    }
-
-    SDL_GL_SwapWindow(window);
-    SDL_Delay(delay/1000); // Convert microseconds to milliseconds
-  }
-
-  if (fpst) ft->fps_free(fpst);
-  ft->free_cb(NULL, (Window)SDL_GetWindowID(window), closure);
-}
-#else
 static void
 run_screenhack_table (Display *dpy, 
                       Window window,
@@ -607,9 +560,7 @@ run_screenhack_table (Display *dpy,
   if (window2) ft->free_cb (dpy, window2, closure2);
 #endif
 }
-#endif
 
-#ifndef USE_SDL
 static Widget make_shell (Screen *screen, Widget toplevel, int width, int height) {
   Display *dpy = DisplayOfScreen (screen);
   Visual *visual = pick_visual (screen);
@@ -666,9 +617,7 @@ static Widget make_shell (Screen *screen, Widget toplevel, int width, int height
 
   return toplevel;
 }
-#endif
 
-#ifndef USE_SDL
 static void init_window (Display *dpy, Widget toplevel, const char *title) {
   long pid = getpid();
   Window window;
@@ -688,10 +637,50 @@ static void init_window (Display *dpy, Widget toplevel, const char *title) {
   XChangeProperty (dpy, window, XA_NET_WM_PID, XA_CARDINAL, 32,
                    PropModeReplace, (unsigned char *)&pid, 1);
 }
-#else
-SDL_Window *window = NULL;
+#else /* ifndef USE_SDL */
+
+static void run_screenhack_table_sdl(SDL_Window *window, SDL_GLContext gl_context,
+                                    const struct xscreensaver_function_table *ft) {
+  struct sdl_state {
+	SDL_Window *window;
+	SDL_GLContext gl_context;
+  } state = {window, gl_context};
+
+  void *(*init_cb)(SDL_Window *, SDL_GLContext, void *) =
+    (void *(*)(SDL_Window *, SDL_GLContext, void *)) ft->init_cb;
+
+  void *closure = init_cb(NULL, (Window)SDL_GetWindowID(window), &state);
+  fps_state *fpst = fps_init(NULL, (Window)SDL_GetWindowID(window));
+  unsigned long delay = 0;
+
+  SDL_Event event;
+  Bool running = True;
+
+  while (running) {
+    while (SDL_PollEvent(&event)) {
+      if (!ft->event_cb(NULL, (Window)SDL_GetWindowID(window), closure, &event))
+        running = False;
+    }
+
+    if (!running) break;
+
+    delay = ft->draw_cb(NULL, (Window)SDL_GetWindowID(window), closure);
+
+    if (fpst) {
+      ft->fps_cb(NULL, (Window)SDL_GetWindowID(window), fpst, closure);
+    }
+
+    SDL_GL_SwapWindow(window);
+    SDL_Delay(delay/1000); // Convert microseconds to milliseconds
+  }
+
+  if (fpst) ft->fps_free(fpst);
+  ft->free_cb(NULL, (Window)SDL_GetWindowID(window), closure);
+}
+
+SDL_Window *window = NULL;  // TODO - seems to be duplication?
 SDL_GLContext glContext = NULL;
-#endif
+#endif // USE_SDL
 
 #ifdef _WIN32
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
