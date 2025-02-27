@@ -158,12 +158,12 @@ static hexagon *do_hexagon(config *bp, int x, int y) {
     return NULL;
   }
 
-  int grid_idx = bp->hex_grid[gy * bp->grid_w + gx];
-  if (grid_idx) {
+  int idx = bp->hex_grid[gy * bp->grid_w + gx];
+  if (idx) { // Zero means empty
     // We found an existing hexagon, so return it.
-	int chunk_idx = (grid_idx - 1) / HEXAGON_CHUNK_SIZE;
-	int hex_idx = (grid_idx - 1) % HEXAGON_CHUNK_SIZE;
-    return bp->chunks[chunk_idx]->chunk[hex_idx];
+	int i = (idx-1) / HEXAGON_CHUNK_SIZE;
+	int k = (idx-1) % HEXAGON_CHUNK_SIZE;
+    return bp->chunks[i]->chunk[k];
   }
 
   if (bp->total_hexagons >= bp->chunk_count * HEXAGON_CHUNK_SIZE) {
@@ -187,12 +187,11 @@ static hexagon *do_hexagon(config *bp, int x, int y) {
     printf("%s: Malloc failed\n", __func__);
     return NULL;
   }
+  hex_chunk *current = bp->chunks[bp->chunk_count - 1];
+  current->chunk[bp->total_hexagons % HEXAGON_CHUNK_SIZE] = h0;
+  current->used++;
   bp->total_hexagons++;
   bp->hex_grid[gy * bp->grid_w + gx] = bp->total_hexagons;
-  int idx = (bp->total_hexagons) % HEXAGON_CHUNK_SIZE;
-  hex_chunk *current = bp->chunks[bp->chunk_count - 1];
-  current->chunk[idx] = h0;
-  current->used++;
   memset (h0, 0, sizeof(hexagon));
   h0->x = x; h0->y = y;
 
@@ -365,7 +364,7 @@ static void tick_hexagons (ModeInfo *mi) {
   int this_min_vx = 0, this_min_vy = 0, this_max_vx = 0, this_max_vy = 0;
 
   ticks++;
-  for(i=0;i<bp->chunk_count; i++) for(k=0;k<bp->chunks[i]->used;k++) {
+  for(i=0;i<bp->chunk_count;i++) for(k=0;k<bp->chunks[i]->used;k++) {
     hexagon *h0 = bp->chunks[i]->chunk[k];
     h0->invis = hex_invis(bp, h0->x, h0->y, 0, 0);
 
@@ -588,8 +587,8 @@ static void tick_hexagons (ModeInfo *mi) {
     bp->state = FADE;
     bp->fade_ratio = 1;
 
-    for (i=0;i<=bp->chunk_count;i++) for (k=0;k<bp->chunks[i]->used;j++) {
-      hexagon *h = bp->chunks[i]->chunk[j];
+    for (i=0;i<bp->chunk_count;i++) for (k=0;k<bp->chunks[i]->used;k++) {
+      hexagon *h = bp->chunks[i]->chunk[k];
       if (h->state == IN || h->state == WAIT)
         h->state = OUT;
     }
@@ -638,7 +637,7 @@ static void draw_hexagons (ModeInfo *mi) {
   glBegin (wire ? GL_LINES : GL_TRIANGLES);
   glNormal3f (0, 0, 1);
 
-  for (i=0;i<=bp->chunk_count;i++) for (k=0;k<bp->chunks[i]->used;k++) {
+  for (i=0;i<bp->chunk_count;i++) for (k=0;k<bp->chunks[i]->used;k++) {
     hexagon *h = bp->chunks[i]->chunk[k];
     if (draw_invis < h->invis) continue;
     XYZ pos;
@@ -1147,8 +1146,8 @@ ENTRYPOINT void free_hextrail (ModeInfo *mi) {
 
   if (bp->chunks) {
 	for (int i = 0; i < bp->chunk_count; i++) if (bp->chunks[i]) {
-      for (int j = 0; j < bp->chunks[i]->used; j++)
-        if (bp->chunks[i]->chunk[j]) free(bp->chunks[i]->chunk[j]);
+      for (int k = 0; k < bp->chunks[i]->used; k++)
+        if (bp->chunks[i]->chunk[k]) free(bp->chunks[i]->chunk[k]);
       free(bp->chunks[i]);
 	}
 	free(bp->chunks);
