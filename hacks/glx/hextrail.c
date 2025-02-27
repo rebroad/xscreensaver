@@ -1,5 +1,4 @@
-/* hextrail, Copyright (c) 2022 Jamie Zawinski <jwz@jwz.org>
- */
+/* hextrail, Copyright (c) 2022 Jamie Zawinski <jwz@jwz.org> */
 
 /* TODO:-
  = Collect all vertices into a dynamic array, then upload to a 1 or more VBOs - also fix glow effects.
@@ -1039,22 +1038,16 @@ ENTRYPOINT Bool hextrail_handle_event (ModeInfo *mi,
       printf("%s: pausing = %d hexagons=%d\n", __func__, pausing, bp->total_hexagons);
     }
 #ifdef USE_SDL
-    else if (event->type == SDL_EVENT_QUIT) ;
+    else if (event->type == SDL_EVENT_QUIT)
 #else
-    else if (screenhack_event_helper (MI_DISPLAY(mi), MI_WINDOW(mi), event)) ;
+    else if (screenhack_event_helper (MI_DISPLAY(mi), MI_WINDOW(mi), event))
 #endif
-    else return False;
+      return True;
+	else return False;
 
-#ifndef USE_SDL
-  RESET:
     bp->size = MI_COUNT(mi) * 2;
     return True;
-#endif
   }
-#ifndef USE_SDL
-  else if (screenhack_event_helper (MI_DISPLAY(mi), MI_WINDOW(mi), event))
-    goto RESET; // TODO - why?
-#endif
 
   return False;
 }
@@ -1063,7 +1056,15 @@ ENTRYPOINT void init_hextrail (ModeInfo *mi) {
   MI_INIT (mi, bps);
   config *bp = &bps[MI_SCREEN(mi)];
 
-#ifndef USE_SDL
+#ifdef USE_SDL
+  // SDL_GLContext is already created in main; store window for reference
+  bp->window = (SDL_Window *)mi->window; // Cast Window to SDL_Window*
+  bp->gl_context = SDL_GL_GetCurrentContext();
+  if (!bp->gl_context) {
+    fprintf(stderr, "%s: Failed to get SDL GL context\n", progname);
+	exit(1);
+  }
+#else
   bp->glx_context = init_GL(mi);
 #endif
 
@@ -1092,8 +1093,11 @@ ENTRYPOINT void draw_hextrail (ModeInfo *mi) {
   config *bp = &bps[MI_SCREEN(mi)];
 
 #ifdef USE_SDL
-  if (!bp->gl_context) return;
-  SDL_GL_MakeCurrent(bp->window, bp->gl_context);
+  if (!bp->gl_context || !bp->window) return;
+  if (SDL_GL_MakeCurrent(bp->window, bp->gl_context) < 0) {
+    fprintf(stderr, "%s: SDL_GL_MakeCurrent failed: %s\n", progname, SDL_GetError());
+	return;
+  }
 #else
   if (!bp->glx_context) return;
   Display *dpy = MI_DISPLAY(mi);
@@ -1102,22 +1106,18 @@ ENTRYPOINT void draw_hextrail (ModeInfo *mi) {
 #endif
 
   glShadeModel(GL_SMOOTH);
-
   glDisable(GL_DEPTH_TEST);
   glEnable(GL_NORMALIZE);
   glDisable(GL_CULL_FACE);
 
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-  glPushMatrix ();
-
+  glPushMatrix();
   {
     double x, y, z;
     get_position (bp->rot, &x, &y, &z, !bp->button_down_p);
     glTranslatef((x - 0.5) * 6, (y - 0.5) * 6, (z - 0.5) * 12);
-
     gltrackball_rotate (bp->trackball);
-
     get_rotation (bp->rot, &x, &y, &z, !bp->button_down_p);
     glRotatef (z * 360, 0.0, 0.0, 1.0);
   }
@@ -1155,13 +1155,14 @@ ENTRYPOINT void free_hextrail (ModeInfo *mi) {
   config *bp = &bps[MI_SCREEN(mi)];
 
 #ifdef USE_SDL
-  if (!bp->gl_context) return;
+  if (!bp->gl_context || !bp->window) return;
 #else
   if (!bp->glx_context) return;
   glXMakeCurrent(MI_DISPLAY(mi), MI_WINDOW(mi), *bp->glx_context);
+#endif
+
   if (bp->trackball) gltrackball_free (bp->trackball);
   if (bp->rot) free_rotator (bp->rot);
-#endif
   if (bp->colors) free (bp->colors);
 
   if (bp->chunks) {
@@ -1173,11 +1174,6 @@ ENTRYPOINT void free_hextrail (ModeInfo *mi) {
 	free(bp->chunks);
   }
 
-#ifdef USE_SDL
-  if (bp->gl_context) SDL_GL_DestroyContext(bp->gl_context);
-  if (bp->window) SDL_DestroyWindow(bp->window);
-  SDL_Quit();
-#endif
 }
 
 XSCREENSAVER_MODULE ("HexTrail", hextrail)
