@@ -515,10 +515,10 @@ static void tick_hexagons (ModeInfo *mi) {
   }
 
   /* Start a new cell growing.  */
-  Bool try_new = False, started = False;
+  Bool new_hex = False, started = False;
   static int fails = 0;
   if ((doinga - ignorea) <= 0) {
-    int16_t x = 0, y = 0;
+    hexagon *h0 = NULL;
     if (bp->state == FIRST) {
       fails = 0;
       bp->state = DRAW;
@@ -527,6 +527,7 @@ static void tick_hexagons (ModeInfo *mi) {
       min_x = 0; max_x = 0; min_y = 0; max_y = 0;
       ticks = 0; iters = 0;
       printf("New hextrail. capacity=%d\n", bp->hexagon_capacity);
+	  h0 = do_hexagon(bp, 0, 0);
     } else {
       int16_t empty_cells[1000][2]; int empty_count = 0;
       for (int y = min_vy; y <= max_vy && empty_count < 1000; y++)
@@ -543,15 +544,15 @@ static void tick_hexagons (ModeInfo *mi) {
         }
       if (empty_count > 0) {
         int pick = random() % empty_count;
-        x = empty_cells[pick][0]; y = empty_cells[pick][1];
+		int x = empty_cells[pick][0], y = empty_cells[pick][1];
+        new_hex = True; printf("Empty_count = %d picked=%d,%d\n", empty_count, x, y);
+		do_hexagon(bp, x, y);
       }
     }
-    hexagon *h0 = do_hexagon(bp, x, y);
     if (!h0) {
       static time_t debug = 0;
       if (debug != bp->now) {
-        printf("%s: do_hexagon failed. try_new=%d x=%d y=%d\n", __func__,
-              try_new, x, y);
+        printf("%s: do_hexagon failed or not called. new=%d\n", __func__, new_hex);
         debug = bp->now;
       }
     } else if (h0->state == EMPTY && add_arms(bp, h0)) {
@@ -561,7 +562,7 @@ static void tick_hexagons (ModeInfo *mi) {
       h0->ccolor = random() % bp->ncolors;
       h0->state = DONE;
       started = True;
-      if (try_new) bp->pause_until = bp->now + 5;
+      if (new_hex) bp->pause_until = bp->now + 5;
     } else {
       fails++;
       // TODO - this whole random pick and try to see if we fill is quite resource intensive, with about
@@ -570,14 +571,14 @@ static void tick_hexagons (ModeInfo *mi) {
       // getting a NULL pointer from hex_grid. Then randomly pick one of the empty cells found.
       static time_t debug = 0;
       if (debug != bp->now) {
-        printf("hexagon created. doing=%d ticks=%d fails=%d pos=%d,%d empty=%d visible=%d\n",
+        printf("hexagon created. doing=%d ticks=%d fails=%d h0=%d,%d empty=%d visible=%d\n",
             h0->doing, ticks, fails, h0->x, h0->y, h0->state == EMPTY, !h0->invis);
         debug = bp->now;
       }
     }
   }
 
-  if (try_new && (started || doinga != ignorea))
+  if (new_hex && (started || doinga != ignorea))
     printf("New cell: started=%d doinga=%d ignorea=%d doingb=%d ignoreb=%d\n",
             started, doinga, ignorea, doingb, ignoreb);
 
@@ -585,12 +586,10 @@ static void tick_hexagons (ModeInfo *mi) {
     printf("Fade started. ticks=%d iters=%d doinga=%d doingb=%d ignorea=%d ignoreb=%d\n",
             ticks, iters, doinga, doingb, ignorea, ignoreb);
     bp->state = FADE;
-    bp->fade_ratio = 1;
 
     for (i=0;i<bp->chunk_count;i++) for (k=0;k<bp->chunks[i]->used;k++) {
       hexagon *h = bp->chunks[i]->chunk[k];
-      if (h->state == IN || h->state == WAIT)
-        h->state = OUT;
+      if (h->state == IN || h->state == WAIT) h->state = OUT;
     }
   } else if (bp->state == FADE) {
     bp->fade_ratio -= 0.01 * speed;
