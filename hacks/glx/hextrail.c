@@ -69,7 +69,7 @@ typedef struct hexagon {
 
 #define HEXAGON_CHUNK_SIZE 1000
 
-type struct {
+typedef struct {
   hexagon *chunk[HEXAGON_CHUNK_SIZE];
   int used;
 } hex_chunk;
@@ -162,7 +162,7 @@ static hexagon *do_hexagon(config *bp, int x, int y) {
   if (grid_idx) {
     // We found an existing hexagon, so return it.
 	int chunk_idx = (grid_idx - 1) / HEXAGON_CHUNK_SIZE;
-	int hex_ifx = (rid_idx - 1) % HEXAGON_CHUNK_SIZE;
+	int hex_idx = (grid_idx - 1) % HEXAGON_CHUNK_SIZE;
     return bp->chunks[chunk_idx]->chunk[hex_idx];
   }
 
@@ -365,7 +365,7 @@ static void tick_hexagons (ModeInfo *mi) {
   int this_min_vx = 0, this_min_vy = 0, this_max_vx = 0, this_max_vy = 0;
 
   ticks++;
-  for(i=0;i<bp->chunk_count; i++) for(k=0;k<bp->chunks[i]->used;j++) {
+  for(i=0;i<bp->chunk_count; i++) for(k=0;k<bp->chunks[i]->used;k++) {
     hexagon *h0 = bp->chunks[i]->chunk[k];
     h0->invis = hex_invis(bp, h0->x, h0->y, 0, 0);
 
@@ -588,8 +588,8 @@ static void tick_hexagons (ModeInfo *mi) {
     bp->state = FADE;
     bp->fade_ratio = 1;
 
-    for (i = 1; i <= bp->total_hexagons; i++) {
-      hexagon *h = bp->hexagons[i];
+    for (i=0;i<=bp->chunk_count;i++) for (k=0;k<bp->chunks[i]->used;j++) {
+      hexagon *h = bp->chunks[i]->chunk[j];
       if (h->state == IN || h->state == WAIT)
         h->state = OUT;
     }
@@ -623,7 +623,7 @@ static void draw_hexagons (ModeInfo *mi) {
   GLfloat thick2 = thickness * bp->fade_ratio;
   GLfloat wid = 2.0 / bp->size;
   GLfloat hgt = wid * sqrt(3) / 2;
-  int i;
+  int i, k;
 
 # undef H
 # define H 0.8660254037844386   /* sqrt(3)/2 */
@@ -638,8 +638,8 @@ static void draw_hexagons (ModeInfo *mi) {
   glBegin (wire ? GL_LINES : GL_TRIANGLES);
   glNormal3f (0, 0, 1);
 
-  for (i = 1; i <= bp->total_hexagons; i++) {
-    hexagon *h = bp->hexagons[i];
+  for (i=0;i<=bp->chunk_count;i++) for (k=0;k<bp->chunks[i]->used;k++) {
+    hexagon *h = bp->chunks[i]->chunk[k];
     if (draw_invis < h->invis) continue;
     XYZ pos;
     pos.x = h->x * wid + (h->y & 1) * wid / 2;
