@@ -166,9 +166,7 @@
 #include "usleep.h"
 #include "hsv.h"
 #include "colors.h"
-#ifdef USE_SDL
-#include <SDL.h>
-#else
+#ifndef USE_SDL
 #include "grabclient.h"
 #include "visual.h"
 #include "fps.h"
