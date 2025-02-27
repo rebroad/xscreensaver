@@ -148,16 +148,16 @@ ERROR!  Sorry, xlockmore.h requires ANSI C (gcc, for example.)
 #define ABS(a)((a)<0 ? -(a) : (a))
 
 /* Maximum possible number of colors (*not* default number of colors.) */
+#ifndef NUMCOLORS
 #define NUMCOLORS 256
-
+#endif
 
 /* In an Xlib world, we define two global symbols here:
    a struct in `MODULENAME_xscreensaver_function_table',
    and a pointer to that in `xscreensaver_function_table'.
 
    In a Cocoa or Android world, we only define the prefixed symbol;
-   the un-prefixed symbol does not exist.
- */
+   the un-prefixed symbol does not exist.  */
 #ifdef HAVE_MOBILE
 # define XSCREENSAVER_LINK(NAME)
 #else
