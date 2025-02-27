@@ -76,6 +76,8 @@ typedef struct {
   GLXContext *glx_context;
   XColor *colors;
 #endif
+  GLdouble model[16], proj[16];
+  GLint viewport[4];
   rotator *rot;
   trackball_state *trackball;
   Bool button_down_p;
@@ -261,18 +263,11 @@ static Bool hex_invis(config *bp, int x, int y, int *sx, int *sy) {
   XYZ pos;
   pos.x = x * wid + (y & 1) * wid / 2;
   pos.y = y * hgt; pos.z = 0;
-  GLdouble model[16], proj[16];
-  GLint viewport[4];
   GLdouble winX, winY, winZ;
-
-  /* Get current matrices and viewport */
-  glGetDoublev(GL_MODELVIEW_MATRIX, model);
-  glGetDoublev(GL_PROJECTION_MATRIX, proj);
-  glGetIntegerv(GL_VIEWPORT, viewport);
 
   /* Project point to screen coordinates */
   gluProject((GLdouble)pos.x, (GLdouble)pos.y, (GLdouble)pos.z,
-             model, proj, viewport, &winX, &winY, &winZ);
+             bp->model, bp->proj, bp->viewport, &winX, &winY, &winZ);
 
   if (sx) *sx = winX;
   if (sy) *sy = winY;
@@ -280,7 +275,7 @@ static Bool hex_invis(config *bp, int x, int y, int *sx, int *sy) {
   static time_t debug = 0;
   if (debug != bp->now) {
       printf("%s: winX=%d, winY=%d, winZ=%.1f vp=%d,%d\n", __func__,
-              (int)winX, (int)winY, winZ, viewport[2], viewport[3]);
+              (int)winX, (int)winY, winZ, bp->viewport[2], bp->viewport[3]);
       debug = bp->now;
   }
 
@@ -295,9 +290,9 @@ static Bool hex_invis(config *bp, int x, int y, int *sx, int *sy) {
 
   GLdouble edge_xx, edge_xy, edge_yx, edge_yy, edge_z;
   gluProject((GLdouble)edge_posx.x, (GLdouble)edge_posx.y, (GLdouble)edge_posx.z,
-             model, proj, viewport, &edge_xx, &edge_xy, &edge_z);
+             bp->model, bp->proj, bp->viewport, &edge_xx, &edge_xy, &edge_z);
   gluProject((GLdouble)edge_posy.x, (GLdouble)edge_posy.y, (GLdouble)edge_posy.z,
-             model, proj, viewport, &edge_yx, &edge_yy, &edge_z);
+             bp->model, bp->proj, bp->viewport, &edge_yx, &edge_yy, &edge_z);
 
   /* Calculate radius in screen space (accounting for perspective projection) */
   GLdouble xx_diff = edge_xx - winX, xy_diff = edge_xy - winY;
@@ -308,12 +303,12 @@ static Bool hex_invis(config *bp, int x, int y, int *sx, int *sy) {
   // And now we take both radiuses and work out the maximum it could in reality.
   GLdouble radius = (radiusx > radiusy) ? radiusx : radiusy;
 
-  if (winX + radius < viewport[0] || winX - radius > viewport[0] + viewport[2] ||
-      winY + radius < viewport[1] || winY - radius > viewport[1] + viewport[3])
+  if (winX + radius < bp->viewport[0] || winX - radius > bp->viewport[0] + bp->viewport[2] ||
+      winY + radius < bp->viewport[1] || winY - radius > bp->viewport[1] + bp->viewport[3])
       return 2; // Fully off-screen
 
-  if (winX < viewport[0] || winX > viewport[0] + viewport[2] ||
-      winY < viewport[1] || winY > viewport[1] + viewport[3])
+  if (winX < bp->viewport[0] || winX > bp->viewport[0] + bp->viewport[2] ||
+      winY < bp->viewport[1] || winY > bp->viewport[1] + bp->viewport[3])
       return 1; // Center is off-screen
 
   return 0; // Center is on-screen
@@ -321,12 +316,7 @@ static Bool hex_invis(config *bp, int x, int y, int *sx, int *sy) {
 
 static void reset_hextrail(ModeInfo *mi) {
   config *bp = &bps[MI_SCREEN(mi)];
-  if (bp->hexagon_count)
-    for (int i = 1; i <= bp->hexagon_count; i++)
-      // We empty the hexagons themselves, but don't free up bp->hexagons until exit
-      memset(bp->hexagons[i], 0, sizeof(hexagon));
-      //free(bp->hexagons[i]);
-  else {
+  if (!bp->hexagon_count) {
     bp->hexagons = (hexagon **)calloc(bp->hexagon_capacity, sizeof(hexagon *));
 	bp->hexagons[0] = NULL; // The empty one (probably already NULL!)
   }
@@ -938,8 +928,7 @@ static void draw_hexagons (ModeInfo *mi) {
 
 
 /* Window management, etc */
-ENTRYPOINT void
-reshape_hextrail (ModeInfo *mi, int width, int height) {
+ENTRYPOINT void reshape_hextrail (ModeInfo *mi, int width, int height) {
   GLfloat h = (GLfloat) height / (GLfloat) width;
   int y = 0;
 
@@ -1116,7 +1105,12 @@ ENTRYPOINT void draw_hextrail (ModeInfo *mi) {
   }
 
   bp->now = time(NULL);
-  if (bp->pause_until < bp->now && !pausing) tick_hexagons (mi);
+  if (bp->pause_until < bp->now && !pausing) {
+    glGetDoublev(GL_MODELVIEW_MATRIX, bp->model);
+    glGetDoublev(GL_PROJECTION_MATRIX, bp->proj);
+    glGetIntegerv(GL_VIEWPORT, bp->viewport);
+    tick_hexagons (mi);
+  }
   draw_hexagons (mi);
 
   glPopMatrix ();
