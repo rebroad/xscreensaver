@@ -25,7 +25,7 @@ HACKDIR		= ${libexecdir}/xscreensaver
 HACK_CONF_DIR	= ${datadir}/xscreensaver/config
 
 MINGW_PREFIX = x86_64-w64-mingw32-
-WINDOWS_INCLUDE = -I../../hacks -I../../utils -I/usr/local/include -I/usr/x86_64-w64-mingw32/include
+WINDOWS_INCLUDE = -I../../hacks -I../../utils -I/usr/x86_64-w64-mingw32/include -I/usr/local/include
 WINDOWS_LIBS = -L/usr/x86_64-w64-mingw32/lib -lopengl32 -lglut -lglu32 -lwinmm
 
 # SDL3 paths for Linux build
