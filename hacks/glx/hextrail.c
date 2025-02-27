@@ -83,7 +83,7 @@ typedef struct {
   time_t now, pause_until, debug;
 
   hexagon **hexagons;   // Dynamic array of pointers to hexagons
-  hexagon **hex_grid;   // Lookup table of hexagons
+  uint16_t *hex_grid;   // Lookup table of hexagons
   int hexagon_count;    // Number of active hexagons
   int hexagon_capacity; // Allocation for hexagons
   int size, grid_w, grid_h;
@@ -136,24 +136,28 @@ static argtype vars[] = {
 
 ENTRYPOINT ModeSpecOpt hextrail_opts = {countof(opts), opts, countof(vars), vars, NULL};
 
+#define HEXAGON_CHUNK_SIZE 1000
+
 static hexagon *do_hexagon(config *bp, int x, int y) {
   // Returns or creates a hexton at co-ords
   int gx = x + bp->grid_w/2 + bp->x_offset;
   int gy = y + bp->grid_h/2 + bp->y_offset;
   if (gx < 0 || gx >= bp->grid_w || gy < 0 || gy >= bp->grid_h) {
-      static time_t debug = 0;
-      if (debug != bp->now) {
-        printf("%s: Out of bounds. grid=%d,%d coords=%d,%d\n", __func__, gx, gy, x, y);
-        debug = bp->now;
-      }
-      return NULL;
+    static time_t debug = 0;
+    if (debug != bp->now) {
+      printf("%s: Out of bounds. grid=%d,%d coords=%d,%d\n", __func__, gx, gy, x, y);
+      debug = bp->now;
+    }
+    return NULL;
   }
-  hexagon *h0 = bp->hex_grid[gy * bp->grid_w + gx];
+  hexagon *h0 = bp->hexagons[bp->hex_grid[gy * bp->grid_w + gx]];
   // We found an existing hexagon, so return it.
   if (h0) return h0;
 
   if (bp->hexagon_count >= bp->hexagon_capacity) {
-    bp->hexagon_capacity += 100;
+    bp->hexagon_capacity += HEXAGON_CHUNK_SIZE;
+	if (bp->hexagon_capacity > bp->grid_w * bp->grid_h)
+	  bp->hexagon_capacity = bp->grid_w * bp->grid_h; // Includes the NULL hexagon
     hexagon **new_hexagons = (hexagon **)realloc(bp->hexagons, bp->hexagon_capacity * sizeof(hexagon *));
     if (!new_hexagons) {
       fprintf(stderr, "%s: Reallocate failed\n", __func__);
@@ -173,16 +177,9 @@ static hexagon *do_hexagon(config *bp, int x, int y) {
   h0->state = EMPTY;
   h0->ratio = 0;
   h0->doing = 0;
-  //h0->ccolor = random() & bp->ncolors;
-  /*for (int i = 0; i < 6; i++) {
-    h0->arms[i].state = EMPTY;
-    h0->arms[i].ratio = 0;
-    h0->arms[i].speed = 0;
-    h0->neighbors[i] = NULL;
-  }*/
 
-  bp->hex_grid[gy * bp->grid_w + gx] = h0;
-  bp->hexagons[bp->hexagon_count++] = h0;
+  bp->hexagons[++bp->hexagon_count] = h0; // Start at 1
+  bp->hex_grid[gy * bp->grid_w + gx] = bp->hexagon_count;
 
   return h0;
 }
@@ -325,13 +322,19 @@ static Bool hex_invis(config *bp, int x, int y, int *sx, int *sy) {
 
 static void reset_hextrail(ModeInfo *mi) {
   config *bp = &bps[MI_SCREEN(mi)];
-  for (int i = 0; i < bp->hexagon_count; i++)
-    memset(bp->hexagons[i], 0, sizeof(hexagon));
-    //free(bp->hexagons[i]);
+  if (bp->hexagon_count)
+    for (int i = 1; i <= bp->hexagon_count; i++)
+      // We empty the hexagons themselves, but don't free up bp->hexagons until exit
+      memset(bp->hexagons[i], 0, sizeof(hexagon));
+      //free(bp->hexagons[i]);
+  else {
+    bp->hexagons = (hexagon **)calloc(bp->hexagon_capacity, sizeof(hexagon *));
+	bp->hexagons[0] = NULL; // The empty one (probably already NULL!)
+  }
   bp->hexagon_count = 0;
   //if (bp->hexagons) free (bp->hexagons);
   //bp->hexagons = NULL;
-  memset(bp->hex_grid, 0, bp->grid_w * bp->grid_h * sizeof(hexagon *));
+  memset(bp->hex_grid, 0, bp->grid_w * bp->grid_h * sizeof(uint16_t));
   //bp->hexagon_capacity = 0;
   bp->state = FIRST;
   bp->fade_ratio = 1;
@@ -350,9 +353,11 @@ static void reset_hextrail(ModeInfo *mi) {
     printf("Didn't smooth. ncolors = %d\n", bp->ncolors);
 
   bp->grid_w = bp->size * 4 + 1; bp->grid_h = bp->grid_w;
+  if (bp->grid_w > 255) {
+	bp->grid_w = 255; bp->grid_h = 255; // Given hex_grid is 16bit
+  }
   if (!bp->hex_grid)
-    // TODO - is it possible to use 20-bit or 24-bit or 32-bit pointers rather than wasting 64-bits for each one?
-    bp->hex_grid = (hexagon **)calloc(bp->grid_w * bp->grid_h, sizeof(hexagon *));
+    bp->hex_grid = (uint16_t *)calloc(bp->grid_w * bp->grid_h, sizeof(uint16_t)); // TODO this right?
 }
 
 static void tick_hexagons (ModeInfo *mi) {
@@ -364,7 +369,7 @@ static void tick_hexagons (ModeInfo *mi) {
   int this_min_vx = 0, this_min_vy = 0, this_max_vx = 0, this_max_vy = 0;
 
   ticks++;
-  for (i = 0; i < bp->hexagon_count; i++) {
+  for (i = 1; i <= bp->hexagon_count; i++) {
     hexagon *h0 = bp->hexagons[i];
     h0->invis = hex_invis(bp, h0->x, h0->y, 0, 0);
 
@@ -535,7 +540,7 @@ static void tick_hexagons (ModeInfo *mi) {
           int gx = x + bp->grid_w/2 + bp->x_offset;
           int gy = y + bp->grid_h/2 + bp->y_offset;
           if (gx >= 0 && gx < bp->grid_w && gy >= 0 && gy < bp->grid_h) {
-            hexagon *h = bp->hex_grid[gy * bp->grid_w + gx];
+            hexagon *h = bp->hexagons[bp->hex_grid[gy * bp->grid_w + gx]];
             if (!h && hex_invis(bp,x,y,0,0)) {
               empty_cells[empty_count][0] = x;
               empty_cells[empty_count++][1] = y;
@@ -639,7 +644,7 @@ static void draw_hexagons (ModeInfo *mi) {
   glBegin (wire ? GL_LINES : GL_TRIANGLES);
   glNormal3f (0, 0, 1);
 
-  for (i = 0; i < bp->hexagon_count; i++) {
+  for (i = 1; i <= bp->hexagon_count; i++) {
     hexagon *h = bp->hexagons[i];
     if (draw_invis < h->invis) continue;
     XYZ pos;
@@ -1021,7 +1026,7 @@ ENTRYPOINT Bool hextrail_handle_event (ModeInfo *mi,
       printf("%s: draw_invis = %d\n", __func__, draw_invis);
     } else if (c == 'p') {
       pausing = !pausing;
-      printf("%s: pausing = %d hexagons=%d\n", __func__, pausing, bp->hexagon_count+1);
+      printf("%s: pausing = %d hexagons=%d\n", __func__, pausing, bp->hexagon_count);
     }
 #ifdef USE_SDL
     else if (event->type == SDL_EVENT_QUIT) ;
@@ -1064,6 +1069,8 @@ ENTRYPOINT void init_hextrail (ModeInfo *mi) {
 
   if (thickness < 0.05) thickness = 0.05;
   if (thickness > 0.5) thickness = 0.5;
+
+  bp->hexagon_capacity = HEXAGON_CHUNK_SIZE;
 
   reset_hextrail (mi);
 }
