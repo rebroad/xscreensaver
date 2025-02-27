@@ -162,16 +162,20 @@ static hexagon *do_hexagon(config *bp, int x, int y) {
   // We found an existing hexagon, so return it.
   if (h0) return h0;
 
-  if (bp->total_hexagons >= bp->hexagon_capacity) {
-    bp->hexagon_capacity += HEXAGON_CHUNK_SIZE;
-	if (bp->hexagon_capacity > bp->grid_w * bp->grid_h)
-	  bp->hexagon_capacity = bp->grid_w * bp->grid_h; // Includes the NULL hexagon
-    hexagon **new_hexagons = (hexagon **)realloc(bp->hexagons, bp->hexagon_capacity * sizeof(hexagon *));
-    if (!new_hexagons) {
-      fprintf(stderr, "%s: Reallocate failed\n", __func__);
+  if (bp->total_hexagons >= bp->chunk_count * HEXAGON_CHUNK_SIZE) {
+	hex_chunk **new_chunks = (hex_chunk **)realloc(bp->chunks, (bp->chunk_count+1) * sizeof(hex_chunk *));
+    if (!new_chunks) {
+      fprintf(stderr, "Failed to allocate new chunk array\n");
       return NULL;
     }
-    bp->hexagons = new_hexagons;
+	bp->chunks = new_chunks;
+    bp->chunks[bp->chunk_count] = malloc(sizeof(hex_chunk));
+	if (!bp->chunks[bp->chunk_count]) {
+	  fprintf(stderr, "Failed to allocate chunk\n");
+	  return NULL;
+	}
+	bp->chunks[bp->chunk_count]->used = 0;
+    bp->chunk_count++;
   }
 
   h0 = (hexagon *)malloc(sizeof(hexagon));
@@ -179,15 +183,19 @@ static hexagon *do_hexagon(config *bp, int x, int y) {
     printf("%s: Malloc failed\n", __func__);
     return NULL;
   }
+  bp->total_hexagons++;
+  bp->hex_grid[gy * bp->grid_w + gx] = bp->total_hexagons;
+  int idx = (bp->total_hexagons) % HEXAGON_CHUNK_SIZE;
+  hex_chunk *current = bp->chunks[bp->chunk_count - 1];
+  current->chunk[idx] = h0;
+  current->used++;
+
   memset (h0, 0, sizeof(hexagon));
 
   h0->x = x; h0->y = y;
   h0->state = EMPTY;
   h0->ratio = 0;
   h0->doing = 0;
-
-  bp->hexagons[++bp->total_hexagons] = h0; // Start at 1
-  bp->hex_grid[gy * bp->grid_w + gx] = bp->total_hexagons;
 
   return h0;
 }
@@ -323,13 +331,8 @@ static Bool hex_invis(config *bp, int x, int y, int *sx, int *sy) {
 
 static void reset_hextrail(ModeInfo *mi) {
   config *bp = &bps[MI_SCREEN(mi)];
-  if (!bp->total_hexagons) {
-    bp->hexagons = (hexagon **)calloc(bp->hexagon_capacity, sizeof(hexagon *));
-	bp->hexagons[0] = NULL; // The empty one (probably already NULL!)
-  }
   bp->total_hexagons = 0;
   memset(bp->hex_grid, 0, bp->grid_w * bp->grid_h * sizeof(uint16_t));
-  //bp->hexagon_capacity = 0;
   bp->state = FIRST;
   bp->fade_ratio = 1;
   bp->x_offset = 0; bp->y_offset = 0;
@@ -1062,7 +1065,7 @@ ENTRYPOINT void init_hextrail (ModeInfo *mi) {
   if (thickness < 0.05) thickness = 0.05;
   if (thickness > 0.5) thickness = 0.5;
 
-  bp->hexagon_capacity = HEXAGON_CHUNK_SIZE;
+  bp->chunk_count = 0;
 
   reset_hextrail (mi);
 }
