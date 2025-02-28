@@ -19,9 +19,11 @@
 #include "xlockmoreI.h"
 #include "screenhack.h"
 
+#ifndef USE_SDL
 #ifndef HAVE_JWXYZ
 # include <X11/Intrinsic.h>
 #endif /* !HAVE_JWXYZ */
+#endif
 
 #include <assert.h>
 #include <float.h>
@@ -34,22 +36,25 @@ extern const char *progclass;
 
 extern struct xlockmore_function_table xlockmore_function_table;
 
+#ifdef USE_SDL
+static void *xlockmore_init (SDL_Window *window, SDL_GLContext context,
+		struct xlockmore_function_table *);
+static unsigned long xlockmore_draw (SDL_Window *window, void *closure);
+static void xlockmore_reshape (SDL_Window *window, void *closure,
+		unsigned int w, unsigned int h);
+static Bool xlockmore_event (SDL_Window *window, void *closure, SDL_Event *event);
+static void xlockmore_free (SDL_Window *window, void *closure);
+#else
 static void *xlockmore_init (Display *, Window, struct xlockmore_function_table *);
 static unsigned long xlockmore_draw (Display *, Window, void *);
 static void xlockmore_reshape (Display *, Window, void *, unsigned int w, unsigned int h);
-static Bool xlockmore_event (Display *, Window, void *,
-#ifdef USE_SDL
-        SDL_Event *
-#else
-        XEvent *
-#endif
-		);
+static Bool xlockmore_event (Display *, Window, void *, XEvent *);
 static void xlockmore_free (Display *, Window, void *);
+#endif
 
 
 void xlockmore_setup (struct xscreensaver_function_table *xsft, void *arg) {
-  struct xlockmore_function_table *xlmft = 
-    (struct xlockmore_function_table *) arg;
+  struct xlockmore_function_table *xlmft = (struct xlockmore_function_table *) arg;
   int i, j;
   char *s;
   XrmOptionDescRec *new_options;
@@ -60,7 +65,11 @@ void xlockmore_setup (struct xscreensaver_function_table *xsft, void *arg) {
 # undef ya_rand_init
   ya_rand_init (0);
 
+#ifdef USE_SDL
+  xsft->init_cb    = (void *(*) (SDL_Window *, SDL_GLContext)) xlockmore_init;
+#else
   xsft->init_cb    = (void *(*) (Display *, Window)) xlockmore_init;
+#endif
   xsft->draw_cb    = xlockmore_draw;
   xsft->reshape_cb = xlockmore_reshape;
   xsft->event_cb   = xlockmore_event;
@@ -264,6 +273,7 @@ static void xlockmore_free_screens (ModeInfo *mi) {
 
 
 static void xlockmore_read_resources (ModeInfo *mi) {
+#ifndef USE_SDL
   Display *dpy = mi->dpy;
   ModeSpecOpt *xlockmore_opts = mi->xlmft->opts;
   int i;
@@ -319,6 +329,7 @@ static void xlockmore_read_resources (ModeInfo *mi) {
       default: abort ();
 	}
   }
+#endif
 }
 
 
@@ -338,20 +349,30 @@ static void xlockmore_read_resources (ModeInfo *mi) {
    dynamically expanding this array won't work.  */
 
 
-static void * xlockmore_init (Display *dpy, Window window, 
-                struct xlockmore_function_table *xlmft) {
+static void * xlockmore_init (
+#ifdef USE_SDL
+		SDL_Window *window, SDL_GLContext context,
+#else
+		Display *dpy, Window window,
+#endif
+		struct xlockmore_function_table *xlmft) {
   ModeInfo *mi = (ModeInfo *) calloc (1, sizeof(*mi));
+#ifndef USE_SDL
   XGCValues gcv;
   XColor color;
+#endif
   int i;
   Bool root_p;
 
   if (! xlmft) abort();
   mi->xlmft = xlmft;
-
-  mi->dpy = dpy;
-  mi->window = window;
 #ifndef USE_SDL
+  mi->dpy = dpy;
+#endif
+  mi->window = window;
+#ifdef USE_SDL
+  mi->gl_context = context;
+#else
   XGetWindowAttributes (dpy, window, &mi->xgwa);
 #endif
   
@@ -372,6 +393,7 @@ static void * xlockmore_init (Display *dpy, Window window,
     mi->screen_number = i;
   }
 
+#ifndef USE_SDL
   root_p = (window == RootWindowOfScreen (mi->xgwa.screen));
 
 #ifndef HAVE_JWXYZ
@@ -423,11 +445,7 @@ static void * xlockmore_init (Display *dpy, Window window,
     switch (mi->xlmft->desired_color_scheme) {
       case color_scheme_uniform:
         make_uniform_colormap (
-#ifdef USE_SDL
-				  SDL_Color *colors,
-#else
 				  mi->xgwa.screen, mi->xgwa.visual, mi->xgwa.colormap, mi->colors,
-#endif
 				  &mi->npixels, True, &mi->writable_p, True);
         break;
       case color_scheme_smooth:
@@ -485,16 +503,23 @@ static void * xlockmore_init (Display *dpy, Window window,
   else if (mi->pause > 100000000) mi->pause = 100000000;
   
   xlockmore_read_resources (mi);
+#endif /* !USE_SDL */
 
   return mi;
 }
 
 
 static void xlockmore_clear (ModeInfo *mi) {
+#ifdef USE_SDL
+  SDL_GL_MakeCurrent(mi->window, mi->gl_context);
+  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+  SDL_GL_SwapWindow(mi->window);
+#else
 # ifndef HAVE_ANDROID
   /* TODO: Clear the window for Xlib hacks on Android. */
   XClearWindow (mi->dpy, mi->window);
 # endif
+#endif
 }
 
 
@@ -529,7 +554,13 @@ static void xlockmore_check_init (ModeInfo *mi) {
 }
 
 
-static unsigned long xlockmore_draw (Display *dpy, Window window, void *closure) {
+static unsigned long xlockmore_draw (
+#ifdef USE_SDL
+		SDL_Window *window,
+#else
+		Display *dpy, Window window,
+#endif
+		void *closure) {
   ModeInfo *mi = (ModeInfo *) closure;
   unsigned long orig_pause = mi->pause;
   unsigned long this_pause;
@@ -541,14 +572,18 @@ static unsigned long xlockmore_draw (Display *dpy, Window window, void *closure)
 
   if (mi->needs_clear) {
     /* OpenGL hacks never get here. */
+#ifndef USE_SDL
     if (!mi->is_drawn) {
+#endif
       xlockmore_clear (mi);
+#ifndef USE_SDL
     } else {
       mi->eraser = erase_window (dpy, window, mi->eraser);
       /* Delay calls to xlockmore hooks while the erase animation is running. */
       if (mi->eraser)
         return 33333;
     }
+#endif
     mi->needs_clear = False;
   }
 
@@ -562,18 +597,25 @@ static unsigned long xlockmore_draw (Display *dpy, Window window, void *closure)
 }
 
 
-static void xlockmore_reshape (Display *dpy, Window window, void *closure,
-                 unsigned int w, unsigned int h) {
+static void xlockmore_reshape (
+#ifdef USE_SDL
+		SDL_Window *window,
+#else
+		Display *dpy, Window window,
+#endif
+		void *closure, unsigned int w, unsigned int h) {
   ModeInfo *mi = (ModeInfo *) closure;
   if (mi) {
     /* Ignore spurious resize events, because xlockmore_do_init usually clears
        the screen, and there's no reason to do that if we don't have to.  */
+#ifndef USE_SDL
 # ifndef HAVE_MOBILE
     /* These are not spurious on mobile: they are rotations. */
     if (mi->xgwa.width == w && mi->xgwa.height == h) return;
 # endif
     mi->xgwa.width = w;
     mi->xgwa.height = h;
+#endif // !USE_SDL
 
     /* Finish any erase operations. */
     if (mi->needs_clear) {
@@ -591,7 +633,13 @@ static void xlockmore_reshape (Display *dpy, Window window, void *closure,
   }
 }
 
-static Bool xlockmore_event (Display *dpy, Window window, void *closure,
+static Bool xlockmore_event (
+#ifdef USE_SDL
+		SDL_Window *window,
+#else
+		Display *dpy, Window window,
+#endif
+		void *closure,
 #ifdef USE_SDL
 		SDL_Event *event
 #else
@@ -611,7 +659,11 @@ static Bool xlockmore_event (Display *dpy, Window window, void *closure,
       return mi->xlmft->hack_handle_events (mi, event);
     }
 
+#ifdef USE_SDL
+	if (event->type == SDL_EVENT_QUIT) {
+#else
     if (screenhack_event_helper (mi->dpy, mi->window, event)) {
+#endif
       /* If a clear is in progress, don't interrupt or restart it. */
       if (mi->needs_clear) {
         if (mi->xlmft->hack_free) mi->xlmft->hack_free (mi);
@@ -632,7 +684,13 @@ void xlockmore_do_fps (Display *dpy, Window w, fps_state *fpst, void *closure) {
 }
 
 
-static void xlockmore_free (Display *dpy, Window window, void *closure) {
+static void xlockmore_free (
+#ifdef USE_SDL
+		SDL_Window *window,
+#else
+		Display *dpy, Window window,
+#endif
+		void *closure) {
   ModeInfo *mi = (ModeInfo *) closure;
 
 # ifdef HAVE_JWZGLES
@@ -640,7 +698,9 @@ static void xlockmore_free (Display *dpy, Window window, void *closure) {
     mi->xlmft->jwzgles_make_current (mi->jwzgles_state);
 # endif
 
+#ifndef USE_SDL
   if (mi->eraser) eraser_free (mi->eraser);
+#endif // !USE_SDL
 
   /* Some hacks may need to do things with their Display * on cleanup. And
      under JWXYZ, the Display * for this hack gets cleaned up right after
@@ -656,8 +716,10 @@ static void xlockmore_free (Display *dpy, Window window, void *closure) {
   mi->xlmft->live_displays &= ~(1ul << mi->screen_number);
   if (!mi->xlmft->live_displays) xlockmore_release_screens (mi);
 
+#ifndef USE_SDL
   XFreeGC (dpy, mi->gc);
   free_colors (mi->xgwa.screen, mi->xgwa.colormap, mi->colors, mi->npixels);
+#endif
   free (mi->colors);
   free (mi->pixels);
 
