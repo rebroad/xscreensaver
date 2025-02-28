@@ -624,14 +624,14 @@ static void init_window (Display *dpy, Widget toplevel, const char *title) {
 #else /* ifndef USE_SDL */
 
 static void run_sdl_loop(SDL_Window **windows, SDL_GLContext *contexts,
-		void **closures, int num_displays) {
+		void **closures, int num_windows) {
   struct xscreensaver_function_table *ft = xscreensaver_function_table;
   Bool running = True;
   SDL_Event event;
 
   while (running) {
     while (SDL_PollEvent(&event)) {
-      for (int i = 0; i < num_displays; i++) {
+      for (int i = 0; i < num_windows; i++) {
         if (windows[i] && !ft->event_cb(windows[i], closures[i], &event)) {
           running = False;
 		  break;
@@ -640,7 +640,7 @@ static void run_sdl_loop(SDL_Window **windows, SDL_GLContext *contexts,
     }
     if (!running) break;
 
-	for (int i = 0; i < num_displays; i++) {
+	for (int i = 0; i < num_windows; i++) {
 	  if (windows[i]) {
 		SDL_GL_MakeCurrent(windows[i], contexts[i]);
         ft->draw_cb(windows[i], closures[i]);
@@ -751,8 +751,9 @@ int main (int argc, char **argv) {
   SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
   SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
 
-  int num_displays = SDL_GetDisplays();
-  if (num_displays <= 0) {
+  int num_displays = 0;
+  SDL_DisplayID *displays = SDL_GetDisplays(&num_displays);
+  if (!displays || num_displays <= 0) {
 	fprintf(stderr, "%s:No displays detected: %s\n", progname, SDL_GetError());
 	SDL_Quit();
 	return 1;
@@ -761,13 +762,13 @@ int main (int argc, char **argv) {
   Bool fullscreen = get_boolean_resource(NULL, "fullscreen", "Fullscreen");
   int window_count = fullscreen ? num_displays : 1;
 
-  SDL_Window **windows = calloc(num_displays, sizeof(SDL_Window *));
-  SDL_GLContext *contexts = calloc(num_displays, sizeof(SDL_GLContext));
-  void **closures = calloc(num_displays, sizeof(void *));
+  SDL_Window **windows = calloc(window_count, sizeof(SDL_Window *));
+  SDL_GLContext *contexts = calloc(window_count, sizeof(SDL_GLContext));
+  void **closures = calloc(window_count, sizeof(void *));
 
   for (int i = 0; i < window_count; i++) {
 	SDL_Rect bounds;
-	SDL_GetDisplayBounds(displays[i], &bounds);
+	SDL_GetDisplayBounds(displays[i % num_displays], &bounds);
 	Uint32 flags = SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE;
 	if (fullscreen) flags |= SDL_WINDOW_FULLSCREEN;
 
@@ -785,7 +786,7 @@ int main (int argc, char **argv) {
       continue;
     }
 
-	closures[i] = ft->init_cb(windows[i], contexts[i], ft->setup_arg);
+	closures[i] = ft->init_cb(windows[i], contexts[i]);
 	if (!closures[i]) {
       fprintf(stderr, "%s: Initialization failed for display %s\n", progname, i);
       SDL_GL_DeleteContext(contexts[i]);
@@ -803,7 +804,8 @@ int main (int argc, char **argv) {
   }
 
   free(windows); free(contexts); free(closures);
-  SDL_free(displays); SDL_Quit();
+  SDL_free(displays);
+  SDL_Quit();
 #else /* ! USE_SDL */
   XWindowAttributes xgwa;
   Window window;
