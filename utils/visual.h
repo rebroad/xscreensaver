@@ -12,6 +12,7 @@
 #ifndef __VISUAL_H__
 #define __VISUAL_H__
 
+#ifndef USE_SDL
 extern Visual *get_visual (Screen *, const char *name, Bool, Bool);
 extern Visual *get_visual_resource (Screen *, char *, char *, Bool);
 extern int visual_depth (Screen *, Visual *);
@@ -28,5 +29,6 @@ extern void visual_rgb_masks (Screen *screen, Visual *visual,
                               unsigned long *red_mask,
                               unsigned long *green_mask,
                               unsigned long *blue_mask);
+#endif // USE_SDL
 
 #endif /* __VISUAL_H__ */
