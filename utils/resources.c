@@ -16,12 +16,12 @@ extern char *progname;
 
 
 #if !defined(HAVE_COCOA) && !defined(HAVE_ANDROID)
+#ifndef USE_SDL
 
 #include <X11/Xresource.h>
 
 /* These are the Xlib/Xrm versions of these functions.
-   The Cocoa versions are on OSX/XScreenSaverView.m.
- */
+   The Cocoa versions are on OSX/XScreenSaverView.m.  */
 
 extern char *progclass;
 extern XrmDatabase XtDatabase (Display *);
@@ -37,9 +37,7 @@ static unsigned int get_time_resource (Display *dpy,
 # define _tolower(c)  ((c) - 'A' + 'a')
 #endif
 
-char *
-get_string_resource (Display *dpy, char *res_name, char *res_class)
-{
+char * get_string_resource (Display *dpy, char *res_name, char *res_class) {
   XrmValue value;
   char	*type;
   char full_name [1024], full_class [1024];
@@ -50,19 +48,16 @@ get_string_resource (Display *dpy, char *res_name, char *res_class)
   strcpy (full_class, progclass);
   strcat (full_class, ".");
   strcat (full_class, res_class);
-  if (XrmGetResource (XtDatabase (dpy), full_name, full_class, &type, &value))
-    {
-      char *str = (char *) malloc (value.size + 1);
-      strncpy (str, (char *) value.addr, value.size);
-      str [value.size] = 0;
-      return str;
-    }
+  if (XrmGetResource (XtDatabase (dpy), full_name, full_class, &type, &value)) {
+    char *str = (char *) malloc (value.size + 1);
+    strncpy (str, (char *) value.addr, value.size);
+    str [value.size] = 0;
+    return str;
+  }
   return 0;
 }
 
-Bool 
-get_boolean_resource (Display *dpy, char *res_name, char *res_class)
-{
+Bool get_boolean_resource ( Display *dpy, char *res_name, char *res_class) {
   char *tmp, buf [100];
   char *s = get_string_resource (dpy, res_name, res_class);
   char *os = s;
@@ -136,11 +131,20 @@ get_float_resource (Display *dpy, char *res_name, char *res_class)
   return 0.0;
 }
 
+#else // !USE_SDL
+Bool get_boolean_resource (vois *dpy, const char *name, const char *class) {
+  for (int i = 0; i < merged_options_size; i++) {
+	if (strcmp(merged_options[i].option + 1, name) == 0) {
+	  return strcmp(merged_options[i].value, "True") == 0;
+	}
+  }
+  return False;
+}
+#endif
 #endif /* !HAVE_COCOA && !HAVE_ANDROID */
+#ifndef USE_SDL
 
-
-/* These functions are the same with Xlib, Cocoa and Android:
- */
+/* These functions are the same with Xlib, Cocoa and Android: */
 
 
 unsigned int
@@ -201,8 +205,7 @@ get_pixel_resource (Display *dpy, Colormap cmap,
 
 
 int
-parse_time (const char *string, Bool seconds_default_p, Bool silent_p)
-{
+parse_time (const char *string, Bool seconds_default_p, Bool silent_p) {
   unsigned int h, m, s;
   char c;
   if (3 == sscanf (string,   " %u : %2u : %2u %c", &h, &m, &s, &c))
@@ -242,8 +245,7 @@ parse_time (const char *string, Bool seconds_default_p, Bool silent_p)
 }
 
 static unsigned int 
-get_time_resource (Display *dpy, char *res_name, char *res_class, Bool sec_p)
-{
+get_time_resource (Display *dpy, char *res_name, char *res_class, Bool sec_p) {
   int val;
   char *s = get_string_resource (dpy, res_name, res_class);
   if (!s) return 0;
@@ -253,14 +255,12 @@ get_time_resource (Display *dpy, char *res_name, char *res_class, Bool sec_p)
 }
 
 unsigned int 
-get_seconds_resource (Display *dpy, char *res_name, char *res_class)
-{
+get_seconds_resource (Display *dpy, char *res_name, char *res_class) {
   return get_time_resource (dpy, res_name, res_class, True);
 }
 
 unsigned int 
-get_minutes_resource (Display *dpy, char *res_name, char *res_class)
-{
+get_minutes_resource (Display *dpy, char *res_name, char *res_class) {
   return get_time_resource (dpy, res_name, res_class, False);
 }
 
@@ -271,11 +271,9 @@ get_minutes_resource (Display *dpy, char *res_name, char *res_class)
    The idea here is that most hacks interpret to clicks or basic
    keypresses as "change it up".
 
-   This isn't really the right file for this, but whatever.
- */
+   This isn't really the right file for this, but whatever.  */
 Bool
-screenhack_event_helper (Display *dpy, Window window, XEvent *event)
-{
+screenhack_event_helper (Display *dpy, Window window, XEvent *event) {
   if (event->xany.type == KeyPress)
     {
       KeySym keysym;
@@ -295,3 +293,4 @@ screenhack_event_helper (Display *dpy, Window window, XEvent *event)
 
   return False;
 }
+#endif // ifndef USE_SDL

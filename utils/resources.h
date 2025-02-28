@@ -12,6 +12,9 @@
 #ifndef __XSCREENSAVER_RESOURCES_H__
 #define __XSCREENSAVER_RESOURCES_H__
 
+#ifdef USE_SDL
+extern Bool get_boolean_resource (void *,char*,char*);
+#else
 extern char *get_string_resource (Display*,char*,char*);
 extern Bool get_boolean_resource (Display*,char*,char*);
 extern int get_integer_resource (Display*,char*,char*);
@@ -37,5 +40,6 @@ xscreensaver_logo (Screen *screen, Visual *visual,
    keypresses as "change it up".
  */
 extern Bool screenhack_event_helper (Display *, Window, XEvent *);
+#endif // else USE_SDL
 
 #endif /* __XSCREENSAVER_RESOURCES_H__ */
