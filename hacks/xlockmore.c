@@ -611,14 +611,18 @@ static void xlockmore_reshape (
   if (mi) {
     /* Ignore spurious resize events, because xlockmore_do_init usually clears
        the screen, and there's no reason to do that if we don't have to.  */
-#ifndef USE_SDL
+#ifdef USE_SDL
+	int current_w, current_h;
+	SDL_GetWindowSize(window, &current_w, &current_h);
+	if (current_w == w && current_h == h) return;
+#else
 #ifndef HAVE_MOBILE
     /* These are not spurious on mobile: they are rotations. */
     if (mi->xgwa.width == w && mi->xgwa.height == h) return;
 #endif
     mi->xgwa.width = w;
     mi->xgwa.height = h;
-#endif // !USE_SDL
+#endif // else USE_SDL
 
     /* Finish any erase operations. */
     if (mi->needs_clear) {
@@ -628,7 +632,7 @@ static void xlockmore_reshape (
 
     /* If there hasn't been an init yet, init now, but don't call reshape_##.  */
     if (xlockmore_got_init (mi) && mi->xlmft->hack_reshape) {
-      mi->xlmft->hack_reshape (mi, mi->xgwa.width, mi->xgwa.height);
+      mi->xlmft->hack_reshape (mi, w, h);
     } else {
       mi->is_drawn = False;
       xlockmore_do_init (mi);
