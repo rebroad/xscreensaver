@@ -357,7 +357,10 @@ static void * xlockmore_init (
 #endif
 		struct xlockmore_function_table *xlmft) {
   ModeInfo *mi = (ModeInfo *) calloc (1, sizeof(*mi));
-#ifndef USE_SDL
+#ifdef USE_SDL
+  mi->window = window;
+  mi->gl_context = context;
+#else
   XGCValues gcv;
   XColor color;
 #endif
@@ -368,11 +371,7 @@ static void * xlockmore_init (
   mi->xlmft = xlmft;
 #ifndef USE_SDL
   mi->dpy = dpy;
-#endif
   mi->window = window;
-#ifdef USE_SDL
-  mi->gl_context = context;
-#else
   XGetWindowAttributes (dpy, window, &mi->xgwa);
 #endif
   
@@ -384,9 +383,8 @@ static void * xlockmore_init (
   {
     const int size = XLOCKMORE_NUM_SCREENS;
     int i;
-    for (i = 0; i < size; i++) {
+    for (i = 0; i < size; i++)
       if (! (xlmft->live_displays & (1ul << i))) break;
-    }
     if (i >= size) abort();
     xlmft->live_displays |= 1ul << i;
     xlmft->got_init &= ~(1ul << i);
