@@ -21,7 +21,9 @@
 #ifdef HAVE_JWXYZ
 # include "jwxyz.h"
 #else /* real X11 */
+#ifndef USE_SDL
 # include <X11/Xlib.h>
 # include <X11/Xutil.h>
 # include <X11/Xos.h>
+#endif /* !USE_SDL */
 #endif /* !HAVE_JWXYZ */
