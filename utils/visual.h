@@ -12,6 +12,7 @@
 #ifndef __VISUAL_H__
 #define __VISUAL_H__
 
+#ifndef USE_SDL
 extern Visual *get_visual (Screen *, const char *name, Bool, Bool);
 extern Visual *get_visual_resource (Screen *, char *, char *, Bool);
 extern int visual_depth (Screen *, Visual *);
@@ -32,6 +33,7 @@ extern void visual_rgb_masks (Screen *screen, Visual *visual,
 extern Visual *get_gl_visual (Screen *);
 extern void describe_gl_visual (FILE *, Screen *, Visual *, Bool priv_cmap_p);
 extern Bool validate_gl_visual (FILE *, Screen *, const char *, Visual *);
+#endif // USE_SDL
 
 #ifdef __egl_h_  /* EGL/egl.h included */
 extern void get_egl_config (Display *, EGLDisplay *, EGLint vid, EGLConfig *);

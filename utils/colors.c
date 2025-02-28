@@ -16,7 +16,9 @@
 #include "utils.h"
 #include "hsv.h"
 #include "yarandom.h"
+#ifndef USE_SDL
 #include "visual.h"
+#endif
 #include "colors.h"
 
 extern char *progname;

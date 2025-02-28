@@ -13,6 +13,8 @@
 #define __XSCREENSAVER_RESOURCES_H__
 
 #ifdef USE_SDL
+#include "sdlcompat.h"
+
 extern Bool get_boolean_resource (void *,char*,char*);
 #else
 extern char *get_string_resource (Display*,char*,char*);

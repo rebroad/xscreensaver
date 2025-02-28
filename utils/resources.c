@@ -132,7 +132,7 @@ get_float_resource (Display *dpy, char *res_name, char *res_class)
 }
 
 #else // !USE_SDL
-Bool get_boolean_resource (vois *dpy, const char *name, const char *class) {
+Bool get_boolean_resource (void *dpy, const char *name, const char *class) {
   for (int i = 0; i < merged_options_size; i++) {
 	if (strcmp(merged_options[i].option + 1, name) == 0) {
 	  return strcmp(merged_options[i].value, "True") == 0;
