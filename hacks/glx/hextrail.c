@@ -949,16 +949,22 @@ static void draw_hexagons (ModeInfo *mi) {
 
 /* Window management, etc */
 ENTRYPOINT void reshape_hextrail (ModeInfo *mi, int width, int height) {
-  GLfloat h = (GLfloat) height / (GLfloat) width;
+  config *bp = &bps[MI_SCREEN(mi)];
+  GLfloat h = (GLfloat)height / (GLfloat)width;
   int y = 0;
 
   if (width > height * 3) {   /* tiny window: show middle */
     height = width * 9/16;
-    y = -height/2;
-    h = height / (GLfloat) width;
+    y = -height / 2;
+    h = height / (GLfloat)width;
   }
 
-  glViewport (0, y, (GLint) width, (GLint) height);
+  glViewport(0, y, (GLint)width, (GLint)height);
+  printf("%s: width=%d height=%d\n", __func__, width, height);
+  bp->viewport[0] = 0;
+  bp->viewport[1] = y;
+  bp->viewport[2] = width;
+  bp->viewport[3] = height;
   glMatrixMode(GL_PROJECTION);
   glLoadIdentity();
   gluPerspective (30.0, 1/h, 1.0, 100.0);
@@ -970,7 +976,7 @@ ENTRYPOINT void reshape_hextrail (ModeInfo *mi, int width, int height) {
     GLfloat s = (MI_WIDTH(mi) < MI_HEIGHT(mi)
                  ? (MI_WIDTH(mi) / (GLfloat) MI_HEIGHT(mi))
                  : 1);
-    glScalef (s, s, s);
+    glScalef (s, s, s); // TODO - what does this do?
   }
 
   glClear(GL_COLOR_BUFFER_BIT);
@@ -1107,7 +1113,6 @@ ENTRYPOINT void draw_hextrail (ModeInfo *mi) {
   glDisable(GL_DEPTH_TEST);
   glEnable(GL_NORMALIZE);
   glDisable(GL_CULL_FACE);
-
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
   glPushMatrix();
@@ -1131,7 +1136,6 @@ ENTRYPOINT void draw_hextrail (ModeInfo *mi) {
   if (bp->pause_until < bp->now && !pausing) {
     glGetDoublev(GL_MODELVIEW_MATRIX, bp->model);
     glGetDoublev(GL_PROJECTION_MATRIX, bp->proj);
-    glGetIntegerv(GL_VIEWPORT, bp->viewport);
     tick_hexagons (mi);
   }
   draw_hexagons (mi);
