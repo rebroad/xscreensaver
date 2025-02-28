@@ -539,10 +539,12 @@ static void xlockmore_do_init (ModeInfo *mi) {
 
 
 static void xlockmore_abort_erase (ModeInfo *mi) {
+#ifndef USE_SDL
   if (mi->eraser) {
     eraser_free (mi->eraser);
     mi->eraser = NULL;
   }
+#endif
   mi->needs_clear = False;
 }
 
