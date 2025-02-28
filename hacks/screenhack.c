@@ -771,7 +771,11 @@ int main (int argc, char **argv) {
 	return 1;
   }
 
+#ifdef USE_SDL
+  Bool fullscreen = get_boolean_option(argc, argv, "-fullscreen");
+#else
   Bool fullscreen = get_boolean_resource(NULL, "fullscreen", "Fullscreen");
+#endif
   int window_count = fullscreen ? num_displays : 1;
 
   SDL_Window **windows = calloc(window_count, sizeof(SDL_Window *));
