@@ -114,6 +114,7 @@ static XrmOptionDescRec default_options [] = {
   { "-window-id", ".windowID",		XrmoptionSepArg, 0 },
   { "-fps",	".doFPS",		XrmoptionNoArg, "True" },
   { "-no-fps",  ".doFPS",		XrmoptionNoArg, "False" },
+  { "-fullscreen", ".fullscreen", XrmoptionNoArg, "True" },
 
 # ifdef DEBUG_PAIR
   { "-pair",	".pair",		XrmoptionNoArg, "True" },
@@ -134,6 +135,7 @@ static char *default_defaults[] = {
   "*mono:		false",
   "*installColormap:	false",
   "*doFPS:		false",
+  "*fullscreen:     false",
   "*multiSample:	false",
   "*visualID:		default",
   "*windowID:		",
@@ -148,20 +150,13 @@ static char **merged_defaults;
 
 static void merge_options (void) {
   struct xscreensaver_function_table *ft = xscreensaver_function_table;
-
   const XrmOptionDescRec *options = ft->options;
-  const char * const *defaults    = ft->defaults;
-  const char *progclass           = ft->progclass;
+  const char * const *defaults = ft->defaults;
+  const char *progclass  = ft->progclass;
 
-  int def_opts_size, opts_size;
-  int def_defaults_size, defaults_size;
-
-  for (def_opts_size = 0; default_options[def_opts_size].option;
-       def_opts_size++)
-    ;
-  for (opts_size = 0; options[opts_size].option; opts_size++)
-    ;
-
+  int def_opts_size = 0, opts_size = 0, def_defaults_size = 0, defaults_size = 0;
+  for (; default_options[def_opts_size].option; def_opts_size++);
+  for (; options[opts_size].option; opts_size++);
   merged_options_size = def_opts_size + opts_size;
   merged_options = (XrmOptionDescRec *)
     malloc ((merged_options_size + 1) * sizeof(*default_options));
@@ -170,16 +165,12 @@ static void merge_options (void) {
   memcpy (merged_options + def_opts_size, options,
 	  ((opts_size + 1) * sizeof(*default_options)));
 
-  for (def_defaults_size = 0; default_defaults[def_defaults_size];
-       def_defaults_size++)
-    ;
-  for (defaults_size = 0; defaults[defaults_size]; defaults_size++)
-    ;
+  for (; default_defaults[def_defaults_size]; def_defaults_size++);
+  for (; defaults[defaults_size]; defaults_size++);
   merged_defaults = (char **)
-    malloc ((def_defaults_size + defaults_size + 1) * sizeof (*defaults));;
-  memcpy (merged_defaults, default_defaults,
-	  def_defaults_size * sizeof(*defaults));
-  memcpy (merged_defaults + def_defaults_size, defaults,
+      malloc ((def_defaults_size + defaults_size + 1) * sizeof (*defaults));
+  memcpy(merged_defaults, default_defaults, def_defaults_size * sizeof(*defaults));
+  memcpy(merged_defaults + def_defaults_size, defaults,
 	  (defaults_size + 1) * sizeof(*defaults));
 
   /* This totally sucks.  Xt should behave like this by default.
@@ -189,28 +180,21 @@ static void merge_options (void) {
   {
     char **s;
     for (s = merged_defaults; *s; s++)
-      if (**s == '.')
-	{
-	  const char *oldr = *s;
-	  char *newr = (char *) malloc(strlen(oldr) + strlen(progclass) + 3);
-	  strcpy (newr, progclass);
-	  strcat (newr, oldr);
-	  *s = newr;
-	}
-      else
-        *s = strdup (*s);
+      if (**s == '.') {
+        const char *oldr = *s;
+        char *newr = (char *) malloc(strlen(oldr) + strlen(progclass) + 3);
+        strcpy (newr, progclass);
+        strcat (newr, oldr);
+        *s = newr;
+      } else *s = strdup (*s);
   }
 }
 
-
 /* Make the X errors print out the name of this program, so we have some
-   clue which one has a bug when they die under the screensaver.
- */
+   clue which one has a bug when they die under the screensaver.  */
 
 #ifndef USE_SDL
-static int
-screenhack_ehandler (Display *dpy, XErrorEvent *error)
-{
+static int screenhack_ehandler (Display *dpy, XErrorEvent *error) {
   fprintf (stderr, "\nX error in %s:\n", progname);
   if (XmuPrintDefaultErrorMessage (dpy, error, stderr))
     exit (-1);
@@ -639,47 +623,32 @@ static void init_window (Display *dpy, Widget toplevel, const char *title) {
 }
 #else /* ifndef USE_SDL */
 
-static void run_screenhack_table_sdl(SDL_Window *window, SDL_GLContext gl_context,
-                                    const struct xscreensaver_function_table *ft) {
-  struct sdl_state {
-	SDL_Window *window;
-	SDL_GLContext gl_context;
-  } state = {window, gl_context};
-
-  void *(*init_cb)(SDL_Window *, SDL_GLContext) =
-    (void *(*)(SDL_Window *, SDL_GLContext)) ft->init_cb;
-
-  void *closure = init_cb(window, gl_context);
-  fps_state *fpst = fps_init(window, gl_context);
-  unsigned long delay = 0;
-
-  SDL_Event event;
+static void run_sdl_loop(SDL_Window **windows, SDL_GLContext *contexts,
+		void **closures, int num_displays) {
+  struct xscreensaver_function_table *ft = xscreensaver_function_table;
   Bool running = True;
+  SDL_Event event;
 
   while (running) {
     while (SDL_PollEvent(&event)) {
-      if (!ft->event_cb(window, closure, &event))
-        running = False;
+      for (int i = 0; i < num_displays; i++) {
+        if (windows[i] && !ft->event_cb(windows[i], closures[i], &event)) {
+          running = False;
+		  break;
+		}
+	  }
     }
-
     if (!running) break;
 
-    delay = ft->draw_cb(window, closure);
-
-    if (fpst) {
-      ft->fps_cb(window, fpst, closure);
-    }
-
-    SDL_GL_SwapWindow(window);
-    SDL_Delay(delay/1000); // Convert microseconds to milliseconds
+	for (int i = 0; i < num_displays; i++) {
+	  if (windows[i]) {
+		SDL_GL_MakeCurrent(windows[i], contexts[i]);
+        ft->draw_cb(window, closure);
+        SDL_GL_SwapWindow(window);
+	  }
+	}
   }
-
-  if (fpst) ft->fps_free(fpst);
-  ft->free_cb(window, closure);
 }
-
-SDL_Window *window = NULL;  // TODO - seems to be duplication?
-SDL_GLContext glContext = NULL;
 #endif // USE_SDL
 
 #if 0
@@ -784,20 +753,25 @@ int main (int argc, char **argv) {
 
   int num_displays = SDL_GetDisplayCount();
   if (num_displays <= 0) {
-	fprintf(stderr, "%s:No displays detected: %s\n", progname, SDL_GerError());
+	fprintf(stderr, "%s:No displays detected: %s\n", progname, SDL_GetError());
 	SDL_Quit();
 	return 1;
   }
+
+  Bool fullscreen = get_boolean_resource(NULL, "fullscreen", "Fullscreen");
+  int window_count = fullscreen ? num_displays : 1;
 
   SDL_Window **windows = calloc(num_displays, sizeof(SDL_Window *));
   SDL_GLcontext **contexts = calloc(num_displays, sizeof(SDL_GLContext));
   void **closures = calloc(num_displays, sizeof(void *));
 
-  for (int i = 0; i < num_displays; i++) {
+  for (int i = 0; i < window_count; i++) {
 	SDL_Rect bounds;
-	SDL_GetDisplayBounds(i, &bounds);
-	windows[i] = SDL_CreateWindow(ft->progclass, bounds.w, bounds.h, 
-		  SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | SDL_WINDOW_FULLSCREEN_DESKTOP);
+	SDL_GetDisplayBounds(displays[i], &bounds);
+	Uint32 flags = SDL_WINDOW_OPEN_GL | SDL_WINDOW_RESIZABLE;
+	if (fullscreen) flags |= SDL_WINDOW_FULLSCREEN;
+
+	windows[i] = SDL_CreateWindow(progclass, bounds.w, bounds.h, flags);
     if (!windows[i]) {
       fprintf(stderr, "%s: Window %d creation failed: %s\n", progname, i, SDL_GetError());
 	  continue;
@@ -813,46 +787,23 @@ int main (int argc, char **argv) {
 
 	closures[i] = ft->init_cb(windows[i], contexts[i], ft->setup_arg);
 	if (!closures[i]) {
-      fprintf(stdeerr, "%s: Initialization failed for display %s\n", progname, i);
+      fprintf(stderr, "%s: Initialization failed for display %s\n", progname, i);
       SDL_GL_DeleteContext(contexts[i]);
       SDL_DestroyWindow(windows[i]);
 	  windows[i] = NULL; contexts[i] = NULL;
 	}
   }
 
-  //run_screenhack_table_sdl(window, gl_context, ft); // TODO - we don't use this...?
-
-  Bool running = True;
-  SDL_Event event;
-  while (running) {
-	while (SDL_PollEvent(&event)) {
-	  for (int i = 0; i < num_displays; i++) {
-		if (window[i] && ft->event_cb(windows[i], closures[i], &event)) {
-          running = False;
-		  break;
-		}
-	  }
-	}
-
-	if (!running) break;
-
-	for (int i = 0; i < num_displays; i++) {
-	  if (windows[i]) {
-		SDL_GL_MakeCurrent(windows[i], contexts[i]);
-		ft->draw_cb(windows[i], closures[i]);
-		SDL_GL_SwapWindow(windows[i]);
-	  }
-	}
-  }
+  run_sdl_loop(windows, contexts, closures, window_count);
 
   for (int i = 0; i < num_displays; i++) {
 	if (closures[i]) ft->free_cb(windows[i], closures[i]);
-	if (contexts[i]) SDL_GL_DeleteConext(contexts[i]);
+	if (contexts[i]) SDL_GL_DeleteContext(contexts[i]);
 	if (windows[i]) SDL_DestroyWindow(windows[i]);
   }
 
   free(windows); free(contexts); free(closures);
-  SDL_Quit();
+  SDL_free(displays); SDL_Quit();
 #else /* ! USE_SDL */
   XWindowAttributes xgwa;
   Window window;
