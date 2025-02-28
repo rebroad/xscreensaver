@@ -762,13 +762,13 @@ int main (int argc, char **argv) {
   int window_count = fullscreen ? num_displays : 1;
 
   SDL_Window **windows = calloc(num_displays, sizeof(SDL_Window *));
-  SDL_GLContext **contexts = calloc(num_displays, sizeof(SDL_GLContext));
+  SDL_GLContext *contexts = calloc(num_displays, sizeof(SDL_GLContext));
   void **closures = calloc(num_displays, sizeof(void *));
 
   for (int i = 0; i < window_count; i++) {
 	SDL_Rect bounds;
 	SDL_GetDisplayBounds(displays[i], &bounds);
-	Uint32 flags = SDL_WINDOW_OPEN_GL | SDL_WINDOW_RESIZABLE;
+	Uint32 flags = SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE;
 	if (fullscreen) flags |= SDL_WINDOW_FULLSCREEN;
 
 	windows[i] = SDL_CreateWindow(progclass, bounds.w, bounds.h, flags);
