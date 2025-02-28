@@ -275,8 +275,26 @@ static void xlockmore_free_screens (ModeInfo *mi) {
 }
 
 
+#ifdef USE_SDL
+// TODO - can this be merged with xlockmore_read_resources?
+static void set_option_vars(ModeInfo *mi, ModeSpecOpt *opts) {
+    for (int i = 0; i < opts->numvarsdesc; i++) {
+        argtype *var = &opts->vars[i];
+        switch (var->type) {
+            case t_Bool:
+                *(Bool *)var->var = get_boolean_option(var->name);
+                break;
+            case t_Float:
+                *(float *)var->var = get_float_option(var->name);
+                break;
+            // Add t_Int, t_String if needed
+            default:
+                break;
+        }
+    }
+}
+#else
 static void xlockmore_read_resources (ModeInfo *mi) {
-#ifndef USE_SDL
   Display *dpy = mi->dpy;
   ModeSpecOpt *xlockmore_opts = mi->xlmft->opts;
   int i;
@@ -332,8 +350,8 @@ static void xlockmore_read_resources (ModeInfo *mi) {
       default: abort ();
 	}
   }
-#endif
 }
+#endif // else USE_SDL
 
 
 /* We keep a list of all of the screen numbers that are in use and not
@@ -364,7 +382,9 @@ static void *xlockmore_init (
   mi->xlmft = xlmft;
   mi->window = window;
   mi->gl_context = context;
-  mi->fps_p = get_boolean_option(argc, argc, "-fps");
+
+  mi->fps_p = get_boolean_option("doFPS");
+  set_option_vars(mi, xlmft->opts);
 
   if (mi->fps_p) mi->fpst = fps_init(window, context);
 #else
