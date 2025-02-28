@@ -51,6 +51,7 @@
 #define SDL_MAIN_HANDLED
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_main.h>
+#include <string.h>
 #else
 #include <X11/Intrinsic.h>
 #include <X11/IntrinsicP.h>
@@ -620,7 +621,7 @@ static void init_window (Display *dpy, Widget toplevel, const char *title) {
   XChangeProperty (dpy, window, XA_NET_WM_PID, XA_CARDINAL, 32,
                    PropModeReplace, (unsigned char *)&pid, 1);
 }
-#else /* ifndef USE_SDL */
+#else /* !USE_SDL */
 
 static void run_sdl_loop(SDL_Window **windows, SDL_GLContext *contexts,
 		void **closures, int num_windows) {
@@ -656,7 +657,62 @@ static void run_sdl_loop(SDL_Window **windows, SDL_GLContext *contexts,
 	}
   }
 }
-#endif // USE_SDL
+
+// Simple key-value store for options
+typedef struct {
+    char *name;
+    char *value;
+} OptionValue;
+
+static OptionValue *options_store;
+static int options_count;
+
+static void parse_options(int argc, char **argv, const XrmOptionDescRec *opts) {
+    options_store = calloc(argc, sizeof(OptionValue));
+    options_count = 0;
+
+    for (int i = 1; i < argc; i++) {
+        for (int j = 0; opts[j].option; j++) {
+            if (strcmp(argv[i], opts[j].option) == 0) {
+                options_store[options_count].name = strdup(opts[j].specifier + 1); // Skip '.'
+                if (opts[j].argKind == XrmoptionNoArg) {
+                    options_store[options_count].value = strdup("True");
+                } else if (i + 1 < argc && argv[i + 1][0] != '-') {
+                    options_store[options_count].value = strdup(argv[++i]);
+                } else {
+                    options_store[options_count].value = strdup(""); // Missing arg
+                }
+                options_count++;
+                break;
+            }
+        }
+    }
+}
+
+static Bool get_boolean_option(const char *name) {
+    for (int i = 0; i < options_count; i++) {
+        if (strcmp(options_store[i].name, name) == 0) {
+            char *val = options_store[i].value;
+            if (!val || !*val || !strcmp(val, "True") || !strcmp(val, "on") || !strcmp(val, "yes"))
+                return True;
+            if (!strcmp(val, "False") || !strcmp(val, "off") || !strcmp(val, "no"))
+                return False;
+            fprintf(stderr, "%s: %s must be boolean, not %s\n", progname, name, val);
+            return False;
+        }
+    }
+    return False; // Default
+}
+
+static float get_float_option(const char *name) {
+    for (int i = 0; i < options_count; i++) {
+        if (strcmp(options_store[i].name, name) == 0 && options_store[i].value) {
+            return atof(options_store[i].value);
+        }
+    }
+    return 0.0f; // Default
+}
+#endif // else !USE_SDL
 
 #if 0
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
@@ -677,7 +733,6 @@ int main (int argc, char **argv) {
   progclass = ft->progclass;
 
   if (ft->setup_cb) ft->setup_cb (ft, ft->setup_arg);
-
   merge_options();
 
   /* Xt and xscreensaver predate the "--arg" convention, so convert
@@ -686,7 +741,9 @@ int main (int argc, char **argv) {
     for (int i = 1; i < argc; i++)
       if (argv[i][0] == '-' && argv[i][1] == '-') argv[i]++;
 
-#ifndef USE_SDL
+#ifdef USE_SDL
+	parse_options(argc, argv, merged_options);
+#else
   Display *dpy;
   Widget toplevel;
   XtAppContext app;
