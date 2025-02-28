@@ -109,12 +109,14 @@ static XrmOptionDescRec default_options [] = {
   { "-window",	".root",		XrmoptionNoArg, "False" },
   { "-mono",	".mono",		XrmoptionNoArg, "True" },
   { "-install",	".installColormap",	XrmoptionNoArg, "True" },
-  { "-noinstall",".installColormap",	XrmoptionNoArg, "False" },
-  { "-visual",	".visualID",		XrmoptionSepArg, 0 },
-  { "-window-id", ".windowID",		XrmoptionSepArg, 0 },
-  { "-fps",	".doFPS",		XrmoptionNoArg, "True" },
+  { "-noinstall",".installColormap",XrmoptionNoArg, "False" },
+  { "-visual",	".visualID",	XrmoptionSepArg, 0 },
+  { "-window-id", ".windowID",	XrmoptionSepArg, 0 },
+  { "-fps",	    ".doFPS",		XrmoptionNoArg, "True" },
   { "-no-fps",  ".doFPS",		XrmoptionNoArg, "False" },
-  { "-fullscreen", ".fullscreen", XrmoptionNoArg, "True" },
+#ifdef USE_SDL
+  { "-fullscreen", ".fullscreen",XrmoptionNoArg, "True" }, // TODO for X11 also?
+#endif
 
 # ifdef DEBUG_PAIR
   { "-pair",	".pair",		XrmoptionNoArg, "True" },
@@ -135,7 +137,9 @@ static char *default_defaults[] = {
   "*mono:		false",
   "*installColormap:	false",
   "*doFPS:		false",
-  "*fullscreen:     false",
+#ifdef USE_SDL
+  "*fullscreen:     false", // TODO - Add for X11 also?
+#endif
   "*multiSample:	false",
   "*visualID:		default",
   "*windowID:		",
@@ -649,8 +653,8 @@ static void run_sdl_loop(SDL_Window **windows, SDL_GLContext *contexts,
 	for (int i = 0; i < num_windows; i++) {
 	  if (windows[i]) {
 		SDL_GL_MakeCurrent(windows[i], contexts[i]);
-        ft->draw_cb(windows[i], closures[i]);
-		//ModeInfo *mi = (ModeInfo *)closures[i]; // TODO is this necessary in the main loop?
+        ft->draw_cb(windows[i], closures[i]); // TODO - Includes do_fps?
+		//ModeInfo *mi = (ModeInfo *)closures[i];
 		//if (mi->fpst) ft->fps_cb(windows[i], mi->fpst, closures[i]);
         SDL_GL_SwapWindow(windows[i]);
 	  }
@@ -738,11 +742,11 @@ int main (int argc, char **argv) {
   /* Xt and xscreensaver predate the "--arg" convention, so convert
      double dashes to single. */
 
-    for (int i = 1; i < argc; i++)
-      if (argv[i][0] == '-' && argv[i][1] == '-') argv[i]++;
+  for (int i = 1; i < argc; i++)
+    if (argv[i][0] == '-' && argv[i][1] == '-') argv[i]++;
 
 #ifdef USE_SDL
-	parse_options(argc, argv, merged_options);
+  parse_options(argc, argv, merged_options);
 #else
   Display *dpy;
   Widget toplevel;
@@ -823,11 +827,7 @@ int main (int argc, char **argv) {
 	return 1;
   }
 
-#ifdef USE_SDL
-  Bool fullscreen = get_boolean_option(argc, argv, "-fullscreen");
-#else
-  Bool fullscreen = get_boolean_resource(NULL, "fullscreen", "Fullscreen");
-#endif
+  Bool fullscreen = get_boolean_option("fullscreen");
   int window_count = fullscreen ? num_displays : 1;
 
   SDL_Window **windows = calloc(window_count, sizeof(SDL_Window *));
