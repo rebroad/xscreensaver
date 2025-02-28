@@ -959,11 +959,9 @@ ENTRYPOINT void reshape_hextrail (ModeInfo *mi, int width, int height) {
   }
 
   glViewport (0, y, (GLint) width, (GLint) height);
-
   glMatrixMode(GL_PROJECTION);
   glLoadIdentity();
   gluPerspective (30.0, 1/h, 1.0, 100.0);
-
   glMatrixMode(GL_MODELVIEW);
   glLoadIdentity();
   gluLookAt( 0.0, 0.0, 30.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0);
