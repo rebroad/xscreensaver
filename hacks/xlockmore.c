@@ -352,7 +352,7 @@ static void xlockmore_read_resources (ModeInfo *mi) {
    dynamically expanding this array won't work.  */
 
 
-static void * xlockmore_init (
+static void *xlockmore_init (
 #ifdef USE_SDL
 		SDL_Window *window, SDL_GLContext context,
 #else
@@ -361,9 +361,12 @@ static void * xlockmore_init (
 		struct xlockmore_function_table *xlmft) {
   ModeInfo *mi = (ModeInfo *) calloc (1, sizeof(*mi));
 #ifdef USE_SDL
+  mi->xlmft = xlmft;
   mi->window = window;
   mi->gl_context = context;
   mi->fps_p = get_boolean_option(argc, argc, "-fps");
+
+  if (mi->fps_p) mi->fpst = fps_init(window, context, mi->fps_p);
 #else
   XGCValues gcv;
   XColor color;
