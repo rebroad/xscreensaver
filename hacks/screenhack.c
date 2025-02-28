@@ -92,8 +92,7 @@
 #endif
 
 
-/* This is defined by the SCREENHACK_MAIN() macro via screenhack.h.
- */
+/* This is defined by the SCREENHACK_MAIN() macro via screenhack.h.  */
 extern struct xscreensaver_function_table *xscreensaver_function_table;
 
 const char *progname;   /* used by hacks in error messages */
@@ -655,6 +654,13 @@ static void run_sdl_loop(SDL_Window **windows, SDL_GLContext *contexts,
 	}
   }
 }
+
+static Bool get_boolean_option(int argc, char **argv, const char *option) {
+    for (int i = 1; i < argc; i++) {
+        if (strcmp(argv[i], option) == 0) return True;
+    }
+    return False;
+}
 #endif // USE_SDL
 
 #if 0
@@ -795,7 +801,7 @@ int main (int argc, char **argv) {
 	closures[i] = ft->init_cb(windows[i], contexts[i]);
 	if (!closures[i]) {
       fprintf(stderr, "%s: Initialization failed for display %s\n", progname, i);
-      SDL_GL_DeleteContext(contexts[i]);
+      SDL_GL_DestroyContext(contexts[i]);
       SDL_DestroyWindow(windows[i]);
 	  windows[i] = NULL; contexts[i] = NULL;
 	}
@@ -805,7 +811,7 @@ int main (int argc, char **argv) {
 
   for (int i = 0; i < num_displays; i++) {
 	if (closures[i]) ft->free_cb(windows[i], closures[i]);
-	if (contexts[i]) SDL_GL_DeleteContext(contexts[i]);
+	if (contexts[i]) SDL_GL_DestroyContext(contexts[i]);
 	if (windows[i]) SDL_DestroyWindow(windows[i]);
   }
 
