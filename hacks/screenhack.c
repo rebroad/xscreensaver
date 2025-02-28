@@ -632,7 +632,13 @@ static void run_sdl_loop(SDL_Window **windows, SDL_GLContext *contexts,
   while (running) {
     while (SDL_PollEvent(&event)) {
       for (int i = 0; i < num_windows; i++) {
-        if (windows[i] && !ft->event_cb(windows[i], closures[i], &event)) {
+		if (!windows[i]) continue;
+		if (event.type == SDL_EVENT_WINDOW_RESIZED &&
+				event.window.windowID == SDL_GetWindowID(windows[i])) {
+		  ft->reshape_cb(windows[i], closures[i], event.window.data1, event.window.data2);
+		}
+        if (!ft->event_cb(windows[i], closures[i], &event)) {
+		  printf("%s: event.ty[e = %d\n", __func__, event.type);
           running = False;
 		  break;
 		}
