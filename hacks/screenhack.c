@@ -782,27 +782,76 @@ int main (int argc, char **argv) {
   SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
   SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
 
-  SDL_Window *window = SDL_CreateWindow(ft->progclass, 1280, 720,
-		  SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE);
-
-  if (!window) {
-    fprintf(stderr, "%s: Window creation failed: %s\n", progname, SDL_GetError());
+  int num_displays = SDL_GetDisplayCount();
+  if (num_displays <= 0) {
+	fprintf(stderr, "%s:No displays detected: %s\n", progname, SDL_GerError());
 	SDL_Quit();
 	return 1;
   }
 
-  SDL_GLContext gl_context = SDL_GL_CreateContext(window);
-  if (!gl_context) {
-    fprintf(stderr, "%s: OpenGL context creation failed: %s\n", progname, SDL_GetError());
-	SDL_DestroyWindow(window);
-	SDL_Quit();
-	return 1;
+  SDL_Window **windows = calloc(num_displays, sizeof(SDL_Window *));
+  SDL_GLcontext **contexts = calloc(num_displays, sizeof(SDL_GLContext));
+  void **closures = calloc(num_displays, sizeof(void *));
+
+  for (int i = 0; i < num_displays; i++) {
+	SDL_Rect bounds;
+	SDL_GetDisplayBounds(i, &bounds);
+	windows[i] = SDL_CreateWindow(ft->progclass, bounds.w, bounds.h, 
+		  SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | SDL_WINDOW_FULLSCREEN_DESKTOP);
+    if (!windows[i]) {
+      fprintf(stderr, "%s: Window %d creation failed: %s\n", progname, i, SDL_GetError());
+	  continue;
+    }
+
+    contexts[i] = SDL_GL_CreateContext(window[i]);
+    if (!contexts[i]) {
+      fprintf(stderr, "%s:GL context %d creation failed: %s\n", progname, i, SDL_GetError());
+	  SDL_DestroyWindow(windows[i]);
+	  windows[i] = NULL;
+      continue;
+    }
+
+	closures[i] = ft->init_cb(windows[i], contexts[i], ft->setup_arg);
+	if (!closures[i]) {
+      fprintf(stdeerr, "%s: Initialization failed for display %s\n", progname, i);
+      SDL_GL_DeleteContext(contexts[i]);
+      SDL_DestroyWindow(windows[i]);
+	  windows[i] = NULL; contexts[i] = NULL;
+	}
   }
 
-  run_screenhack_table_sdl(window, gl_context, ft);
+  //run_screenhack_table_sdl(window, gl_context, ft); // TODO - we don't use this...?
 
-  SDL_GL_DeleteContext(gl_context);
-  SDL_DestroyWindow(window);
+  Bool running = True;
+  SDL_Event event;
+  while (running) {
+	while (SDL_PollEvent(&event)) {
+	  for (int i = 0; i < num_displays; i++) {
+		if (window[i] && ft->event_cb(windows[i], closures[i], &event)) {
+          running = False;
+		  break;
+		}
+	  }
+	}
+
+	if (!running) break;
+
+	for (int i = 0; i < num_displays; i++) {
+	  if (windows[i]) {
+		SDL_GL_MakeCurrent(windows[i], contexts[i]);
+		ft->draw_cb(windows[i], closures[i]);
+		SDL_GL_SwapWindow(windows[i]);
+	  }
+	}
+  }
+
+  for (int i = 0; i < num_displays; i++) {
+	if (closures[i]) ft->free_cb(windows[i], closures[i]);
+	if (contexts[i]) SDL_GL_DeleteConext(contexts[i]);
+	if (windows[i]) SDL_DestroyWindow(windows[i]);
+  }
+
+  free(windows); free(contexts); free(closures);
   SDL_Quit();
 #else /* ! USE_SDL */
   XWindowAttributes xgwa;

@@ -96,16 +96,16 @@ struct ModeInfo {
   Display *dpy;
   Window window;
   Bool root_p;
-  int screen_number;
-  int npixels;
-  unsigned long *pixels;
   XColor *colors;
-  Bool writable_p;
   unsigned long white;
   unsigned long black;
   XWindowAttributes xgwa;
   GC gc;
 #endif
+  int screen_number;
+  int npixels;
+  unsigned long *pixels;
+  Bool writable_p;
   long pause;
   Bool fullrandom;
   long cycles;
