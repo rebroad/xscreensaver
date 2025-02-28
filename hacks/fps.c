@@ -129,9 +129,16 @@ fps_state * fps_init (Display *dpy, Window window) {
 }
 
 void fps_free (fps_state *st) {
+  if (!st) return;
+#ifdef USE_SDL
+  if (st->font) TTF_CloseFont(st->font);
+  if (st->renderer) SDL_DestroyRenderer(st->renderer);
+  TTF_Quit();
+#else
   if (st->xftdraw) XftDrawDestroy (st->xftdraw);
   if (st->erase_gc) XFreeGC (st->dpy, st->erase_gc);
   if (st->font) XftFontClose (st->dpy, st->font);
+#endif
   free (st);
 }
 
@@ -243,22 +250,33 @@ fps_compute (fps_state *st, unsigned long polys, double depth) {
 
 /* This function is used only in Xlib mode.  For GL mode, see glx/fps-gl.c.  */
 void fps_draw (fps_state *st) {
+  if (!st) return;
+#ifdef USE_SDL
+  if (!st->renderer) return;
+  int lh = TTF_FontLineSkip(st->font);
+#else
   XWindowAttributes xgwa;
+  XGetWindowAttributes (st->dpy, st->window, &xgwa);
+  int lh = st->font->ascent + st->font->descent;
+#endif
   const char *string = st->string;
   const char *s;
-  int x = st->x;
-  int y = st->y;
+  int x = st->x, y = st->y;
   int lines = 1;
-  int lh = st->font->ascent + st->font->descent;
-
-  XGetWindowAttributes (st->dpy, st->window, &xgwa);
 
   for (s = string; *s; s++) if (*s == '\n') lines++;
 
   if (y < 0) y = -y + (lines-1) * lh;
+#ifdef USE_SDL
+  else {
+    int w, h;
+    SDL_GetWindowSize(st->window, &w, &h); // TODO - no access to ModeInfo?
+	y = h - y - lh * (lines - 1);
+  }
+#else
   else y = xgwa.height - y;
-
   y -= lh * (lines-1) + st->font->descent;
+#endif
 
   /* clear the background */
   if (st->clear_p) {
@@ -268,7 +286,7 @@ void fps_draw (fps_state *st) {
     int maxw = 0;
     while (lines) {
       s = strchr (string, '\n');
-      if (! s) s = string + strlen(string);
+      if (!s) s = string + strlen(string);
 # if 0
       {
         XGlyphInfo overall;
@@ -286,10 +304,16 @@ void fps_draw (fps_state *st) {
       lines--;
     }
     w = maxw;
+#ifdef USE_SDL
+	// TODO - do we need to update h?
+	SDL_Rect rect = {x - 5, y - lh, maxw + 10, h + 10};
+	SDL_SetRenderDrawColor(st->renderer, st->bg.r, st->bg.g st->bg.b, st->bg.a);
+	SDL_RenderFillRect(st->renderer, &rect);
+#else
     h = olines * (st->font->ascent + st->font->descent);
-
     XFillRectangle (st->dpy, st->window, st->erase_gc, x - st->font->descent,
 			          y - lh, w + 2*st->font->descent, h + 2*st->font->descent);
+#endif
 
     lines = olines;
     string = ostring;
@@ -299,11 +323,28 @@ void fps_draw (fps_state *st) {
   while (lines) {
     s = strchr (string, '\n');
     if (! s) s = string + strlen(string);
+#ifdef USE_SDL
+	SDL_Surface *text_surface = TTF_RenderText_Blended(st->font, string, st->fg);
+    if (text_surface) {
+      SDL_Texture *texture = SDL_CreateTextureFromSurface(st->renderer, text_surface);
+      if (texture) {
+        int w = text_surface->w, h = text_surface->h;
+        SDL_Rect dst = {x, y, w, h};
+        SDL_RenderCopy(st->renderer, texture, NULL, &dst);
+        SDL_DestroyTexture(texture);
+      }
+      SDL_DestroySurface(text_surface);
+    }
+#else
     XftDrawStringUtf8 (st->xftdraw, &st->fg, st->font,
                        x, y, (FcChar8 *) string, s - string);
+#endif
     string = s;
     string++;
     lines--;
     y += lh;
   }
+#ifdef USE_SDL
+  SDL_RenderPresent(st->renderer);
+#endif
 }
