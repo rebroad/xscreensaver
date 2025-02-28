@@ -83,7 +83,7 @@ fps_state * fps_init (Display *dpy, Window window) {
   st->font = TTF_OpenFont("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 18);
 #endif
   if (!st->font) {
-	fprintf(stderr, "%s: Failed to load font: %s\n", __func__, TTF_GetError());
+	fprintf(stderr, "%s: Failed to load font: %s\n", __func__, SDL_GetError());
 	TTF_Quit();
 	SDL_DestroyRenderer(st->renderer);
 	free(st);
