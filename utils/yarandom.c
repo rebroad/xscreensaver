@@ -58,8 +58,13 @@
 #ifdef HAVE_UNISTD_H
 # include <unistd.h>  /* for getpid() */
 #endif
-#include <sys/time.h> /* for gettimeofday() */
 
+#ifdef _WIN32
+# include <process.h>  /* for _getpid() */
+# define getpid _getpid
+#endif
+
+#include <sys/time.h> /* for gettimeofday() */
 #include "yarandom.h"
 # undef ya_rand_init
 
@@ -103,12 +108,16 @@ ya_rand_init(unsigned int seed)
   if (seed == 0)
     {
       struct timeval tp;
+#ifdef _WIN32
+	  gettimeofday(&tp, NULL);
+#else
 #ifdef GETTIMEOFDAY_TWO_ARGS
       struct timezone tzp;
       gettimeofday(&tp, &tzp);
 #else
       gettimeofday(&tp);
 #endif
+#endif // _WIN32
       /* Since the multiplications will have a larger effect on the
          upper bits than the lower bits, after every addition in the
          seed, perform a bitwise rotate by an odd number, resulting
