@@ -57,7 +57,7 @@ char * get_string_resource (Display *dpy, char *res_name, char *res_class) {
   return 0;
 }
 
-Bool get_boolean_resource ( Display *dpy, char *res_name, char *res_class) {
+Bool get_boolean_resource(Display *dpy, char *res_name, char *res_class) {
   char *tmp, buf [100];
   char *s = get_string_resource (dpy, res_name, res_class);
   char *os = s;
@@ -137,6 +137,29 @@ Bool get_boolean_resource (void *dpy, const char *name, const char *class) {
 	if (strcmp(merged_options[i].option + 1, name) == 0) {
 	  return strcmp(merged_options[i].value, "True") == 0;
 	}
+  }
+  return False;
+}
+
+// TODO above and below are temporary kludges. What I think we need is a get_boolean_resource like the X11 version but just taking from the command-line and passing onto the hacks as the current X11 version does.
+static Bool get_boolean_option(int argc, char **argv, const char *option) {
+  for (int i = 1; i < argc; i++) {
+    if (strcmp(argv[i], option) == 0) {
+      if (i + 1 < argc && argv[i + 1][0] != '-') {
+        char *val = argv[++i];
+        char buf[100];
+        char *tmp = buf;
+        while (*val) *tmp++ = tolower(*val++);
+        *tmp = 0;
+        if (!strcmp(buf, "on") || !strcmp(buf, "true") || !strcmp(buf, "yes"))
+          return True;
+        if (!strcmp(buf, "off") || !strcmp(buf, "false") || !strcmp(buf, "no"))
+          return False;
+        fprintf(stderr, "%s: %s must be boolean, not %s.\n", progname, option, buf);
+        return False;
+      }
+      return True; // Flag presence defaults to True
+    }
   }
   return False;
 }

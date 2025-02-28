@@ -649,19 +649,12 @@ static void run_sdl_loop(SDL_Window **windows, SDL_GLContext *contexts,
 	  if (windows[i]) {
 		SDL_GL_MakeCurrent(windows[i], contexts[i]);
         ft->draw_cb(windows[i], closures[i]);
-		ModeInfo *mi = (ModeInfo *)closures[i]; // TODO is this necessary in the main loop?
-		if (mi->fpst) ft->fps_cv(windows[i], mi->fpst, closures[i]);
+		//ModeInfo *mi = (ModeInfo *)closures[i]; // TODO is this necessary in the main loop?
+		//if (mi->fpst) ft->fps_cb(windows[i], mi->fpst, closures[i]);
         SDL_GL_SwapWindow(windows[i]);
 	  }
 	}
   }
-}
-
-static Bool get_boolean_option(int argc, char **argv, const char *option) {
-    for (int i = 1; i < argc; i++) {
-        if (strcmp(argv[i], option) == 0) return True;
-    }
-    return False;
 }
 #endif // USE_SDL
 
