@@ -366,7 +366,7 @@ static void *xlockmore_init (
   mi->gl_context = context;
   mi->fps_p = get_boolean_option(argc, argc, "-fps");
 
-  if (mi->fps_p) mi->fpst = fps_init(window, context, mi->fps_p);
+  if (mi->fps_p) mi->fpst = fps_init(window, context);
 #else
   XGCValues gcv;
   XColor color;
