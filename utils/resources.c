@@ -16,7 +16,16 @@ extern char *progname;
 
 
 #if !defined(HAVE_COCOA) && !defined(HAVE_ANDROID)
-#ifndef USE_SDL
+#ifdef USE_SDL
+Bool get_boolean_resource (void *dpy, const char *name, const char *class) {
+  for (int i = 0; i < merged_options_size; i++) {
+	if (strcmp(merged_options[i].option + 1, name) == 0) {
+	  return strcmp(merged_options[i].value, "True") == 0;
+	}
+  }
+  return False;
+}
+#else // USE_SDL
 
 #include <X11/Xresource.h>
 
@@ -115,8 +124,7 @@ get_integer_resource (Display *dpy, char *res_name, char *res_class)
 }
 
 double
-get_float_resource (Display *dpy, char *res_name, char *res_class)
-{
+get_float_resource (Display *dpy, char *res_name, char *res_class) {
   double val;
   char c, *s = get_string_resource (dpy, res_name, res_class);
   if (! s) return 0.0;
@@ -131,49 +139,14 @@ get_float_resource (Display *dpy, char *res_name, char *res_class)
   return 0.0;
 }
 
-#else // !USE_SDL
-Bool get_boolean_resource (void *dpy, const char *name, const char *class) {
-  for (int i = 0; i < merged_options_size; i++) {
-	if (strcmp(merged_options[i].option + 1, name) == 0) {
-	  return strcmp(merged_options[i].value, "True") == 0;
-	}
-  }
-  return False;
-}
-
-// TODO above and below are temporary kludges. What I think we need is a get_boolean_resource like the X11 version but just taking from the command-line and passing onto the hacks as the current X11 version does.
-static Bool get_boolean_option(int argc, char **argv, const char *option) {
-  for (int i = 1; i < argc; i++) {
-    if (strcmp(argv[i], option) == 0) {
-      if (i + 1 < argc && argv[i + 1][0] != '-') {
-        char *val = argv[++i];
-        char buf[100];
-        char *tmp = buf;
-        while (*val) *tmp++ = tolower(*val++);
-        *tmp = 0;
-        if (!strcmp(buf, "on") || !strcmp(buf, "true") || !strcmp(buf, "yes"))
-          return True;
-        if (!strcmp(buf, "off") || !strcmp(buf, "false") || !strcmp(buf, "no"))
-          return False;
-        fprintf(stderr, "%s: %s must be boolean, not %s.\n", progname, option, buf);
-        return False;
-      }
-      return True; // Flag presence defaults to True
-    }
-  }
-  return False;
-}
-#endif
+#endif // else USE_SDL
 #endif /* !HAVE_COCOA && !HAVE_ANDROID */
 #ifndef USE_SDL
 
 /* These functions are the same with Xlib, Cocoa and Android: */
 
-
-unsigned int
-get_pixel_resource (Display *dpy, Colormap cmap,
-                    char *res_name, char *res_class)
-{
+unsigned int get_pixel_resource (Display *dpy, Colormap cmap,
+                    char *res_name, char *res_class) {
   XColor color;
   char *s = get_string_resource (dpy, res_name, res_class);
   char *s2;
