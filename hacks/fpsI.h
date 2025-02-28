@@ -16,18 +16,26 @@
 #include "fps.h"
 
 struct fps_state {
+#ifdef USE_SDL
+  SDL_Window *window;
+  SDL_Rendered *renderer;
+  TTF_Font *font;
+  SDL_Color fg;
+  SDL_Color bg;
+#else
   Display *dpy;
   Window window;
-  int x, y, em;
   XftFont *font;
+  XftColor fg;
+  XftDraw *xftdraw;
+#endif
+  int x, y, em;
   Bool clear_p;
   char string[1024];
 
   /* for glx/fps-gl.c */
   void *gl_fps_data;
 
-  XftColor fg;
-  XftDraw *xftdraw;
   GC erase_gc;
 
   int last_ifps;

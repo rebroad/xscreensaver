@@ -11,7 +11,9 @@
  */
 
 #include "screenhackI.h"
+#ifndef USE_SDL
 #include "xft.h"
+#endif
 #include "fpsI.h"
 
 #include <time.h>
@@ -20,13 +22,12 @@
 fps_state * fps_init (SDL_Window *window, SDL_GLContext context) {
 #else
 fps_state * fps_init (Display *dpy, Window window) {
-#endif
-  fps_state *st;
-  const char *font;
   XftFont *f;
-  Bool top_p;
   XWindowAttributes xgwa;
   XGCValues gcv;
+#endif
+  const char *font;
+  Bool top_p;
   char *s;
 
   if (! get_boolean_resource (dpy, "doFPS", "DoFPS")) return 0;
@@ -35,16 +36,47 @@ fps_state * fps_init (Display *dpy, Window window) {
 
   top_p = get_boolean_resource (dpy, "fpsTop", "FPSTop");
 
-  st = (fps_state *) calloc (1, sizeof(*st));
+  fps_state *st = (fps_state *) calloc (1, sizeof(*st));
+  if (!st) {
+	fprintf(stderr, "%s: calloc fps_state failed\n", __func__);
+	return NULL;
+  }
 
-  st->dpy = dpy;
   st->window = window;
+#ifdef USE_SDL
+  st->renderer = SDL_CreateRenderer(window, NULL, SDL_RENDERER_ACCELERATED);
+  if (!st->renderer) {
+	fprintf(stderr, "%s: Failed to create SDL renderer: %s\n", __func__, SDL_GetError());
+	free(st);
+	return NULL;
+  }
+#else
+  st->dpy = dpy;
+#endif
   st->clear_p = get_boolean_resource (dpy, "fpsSolid", "FPSSolid");
 
+#ifdef USE_SDL
+  if (TTF_Init() < 0) {
+	fprintf(stderr, "%s: TTF_Init failed: %s\n", __func__, TTF_GetError());
+	SDL_DestroyRenderer(st->renderer);
+	free(st);
+    return NULL;
+  }
+
+  st->font = TTF_OpenFont("C:/Windows/Fonts/ariel.ttf", 18);
+  if (!st->font) {
+	fprintf(stderr, "%s: Failed to load font: %s\n", __func__, TTF_GetError());
+	TTF_Quit();
+	SDL_DestroyRenderer(st->renderer);
+	free(st);
+	return NULL;
+  }
+
+  st->fg = (SDL_Color){255, 255, 255, 255};
+  st->bg = (SDL_Color){0, 0, 0, 255};
+#else
   font = get_string_resource (dpy, "fpsFont", "Font");
-
   XGetWindowAttributes (dpy, window, &xgwa);
-
   if (!font) font = "monospace bold 18";   /* also texfont.c */
   f = load_xft_font_retry (dpy, screen_number (xgwa.screen), font);
   if (!f) abort();
@@ -54,13 +86,16 @@ fps_state * fps_init (Display *dpy, Window window) {
   XftColorAllocName (st->dpy, xgwa.visual, xgwa.colormap, s, &st->fg);
   free (s);
   st->xftdraw = XftDrawCreate (dpy, window, xgwa.visual, xgwa.colormap);
-  gcv.foreground =
-    get_pixel_resource (st->dpy, xgwa.colormap, "background", "Background");
+  gcv.foreground = get_pixel_resource (st->dpy, xgwa.colormap, "background", "Background");
   st->erase_gc = XCreateGC (dpy, window, GCForeground, &gcv);
-
   st->font = f;
-  st->x = 10;
-  st->y = 10;
+#endif
+  st->x = 10; st->y = 10;
+#ifdef USE_SDL
+  st->clear_p = True; // Default to solid background
+  st->em = 10; // Refined later on
+  // TODO - need to mimic the top_p functionality also
+#else
   if (top_p) st->y = - (st->font->ascent + st->font->descent + 10);
 
   {
@@ -78,8 +113,17 @@ fps_state * fps_init (Display *dpy, Window window) {
     st->x += 18; st->y += 18 * (top_p ? -1 : 1);
   }
 # endif
+#endif // else USE_SDL
 
   strcpy (st->string, "FPS: ... ");
+
+#ifdef USE_SDL
+  SDL_Surface *text_surface = TTF_RenderText_Blended(st->font, "m", st->fg);
+  if (text_surface) {
+	st->em = text_surface->w;
+	SDL_DestroySurface(text_surface);
+  }
+#endif
 
   return st;
 }
