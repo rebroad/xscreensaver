@@ -34,7 +34,9 @@ fps_state * fps_init (Display *dpy, Window window) {
   Bool top_p;
   char *s;
 
-#ifndef USE_SDL
+#ifdef USE_SDL
+  if (! get_boolean_resource (0, "doFPS", "DoFPS")) return 0; // TODO - implemented?
+#else
   if (! get_boolean_resource (dpy, "doFPS", "DoFPS")) return 0;
 #endif
 
@@ -58,10 +60,11 @@ fps_state * fps_init (Display *dpy, Window window) {
 	free(st);
 	return NULL;
   }
+  st->clear_p = get_boolean_resource (0, "fpsSolid", "FPSSolid");
 #else
   st->dpy = dpy;
-#endif
   st->clear_p = get_boolean_resource (dpy, "fpsSolid", "FPSSolid");
+#endif
 
 #ifdef USE_SDL
   if (TTF_Init() < 0) {
@@ -342,7 +345,7 @@ void fps_draw (fps_state *st) {
 	SDL_Surface *text = TTF_RenderText_Blended(st->font, string, st->fg);
     if (text) {
       SDL_Texture *tex = SDL_CreateTextureFromSurface(st->renderer, text);
-      if (texture) {
+      if (tex) {
         SDL_Rect dst = {(float)x, (float)y, (float)text->w, (float)text->h};
         SDL_RenderCopy(st->renderer, tex, NULL, &dst);
         SDL_DestroyTexture(tex);
