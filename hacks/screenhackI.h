@@ -63,6 +63,7 @@
 #include <time.h>
 #ifdef USE_SDL
 #include <SDL3/SDL.h>
+#include <SDL3/SDL_ttf.h>
 #define Bool int
 #define False 0
 #define True 1
