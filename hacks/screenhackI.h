@@ -174,10 +174,10 @@
 #include "hsv.h"
 #include "colors.h"
 #include "fps.h"
+#include "resources.h"
 #ifndef USE_SDL
 #include "grabclient.h"
 #include "visual.h"
-#include "resources.h"
 #include "xft.h"
 #include "font-retry.h"
 #endif
