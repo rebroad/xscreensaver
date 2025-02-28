@@ -144,27 +144,29 @@ void fps_free (fps_state *st) {
 
 
 void fps_slept (fps_state *st, unsigned long usecs) {
-  st->slept += usecs;
+  if (st) st->slept += usecs;
 }
 
 
-double
-fps_compute (fps_state *st, unsigned long polys, double depth) {
+double fps_compute (fps_state *st, unsigned long polys, double depth) {
   if (! st) return 0;  /* too early? */
 
   /* Every N frames (where N is approximately one second's worth of frames)
      check the wall clock.  We do this because checking the wall clock is
      a slow operation.  */
   if (st->frame_count++ >= st->last_ifps) {
+#ifdef _WIN32
+	gettimeofday(&st->this_frame_end, NULL);
+#else
 # ifdef GETTIMEOFDAY_TWO_ARGS
     struct timezone tzp;
     gettimeofday(&st->this_frame_end, &tzp);
 # else
     gettimeofday(&st->this_frame_end);
 # endif
+#endif // else _WIN32
 
-    if (st->prev_frame_end.tv_sec == 0)
-      st->prev_frame_end = st->this_frame_end;
+    if (st->prev_frame_end.tv_sec == 0) st->prev_frame_end = st->this_frame_end;
   }
 
   /* If we've probed the wall-clock time, regenerate the string.  */
