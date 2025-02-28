@@ -30,11 +30,15 @@ fps_state * fps_init (Display *dpy, Window window) {
   Bool top_p;
   char *s;
 
+#ifndef USE_SDL
   if (! get_boolean_resource (dpy, "doFPS", "DoFPS")) return 0;
+#endif
 
   if (!strcasecmp (progname, "BSOD")) return 0;  /* Never worked right */
 
+#ifndef USE_SDL
   top_p = get_boolean_resource (dpy, "fpsTop", "FPSTop");
+#endif
 
   fps_state *st = (fps_state *) calloc (1, sizeof(*st));
   if (!st) {
@@ -309,7 +313,7 @@ void fps_draw (fps_state *st) {
 #ifdef USE_SDL
 	// TODO - do we need to update h?
 	SDL_Rect rect = {x - 5, y - lh, maxw + 10, h + 10};
-	SDL_SetRenderDrawColor(st->renderer, st->bg.r, st->bg.g st->bg.b, st->bg.a);
+	SDL_SetRenderDrawColor(st->renderer, st->bg.r, st->bg.g, st->bg.b, st->bg.a);
 	SDL_RenderFillRect(st->renderer, &rect);
 #else
     h = olines * (st->font->ascent + st->font->descent);

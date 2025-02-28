@@ -18,7 +18,7 @@
 struct fps_state {
 #ifdef USE_SDL
   SDL_Window *window;
-  SDL_Rendered *renderer;
+  SDL_Renderer *renderer;
   TTF_Font *font;
   SDL_Color fg;
   SDL_Color bg;
@@ -36,7 +36,9 @@ struct fps_state {
   /* for glx/fps-gl.c */
   void *gl_fps_data;
 
+#ifndef USE_SDL
   GC erase_gc;
+#endif
 
   int last_ifps;
   double last_fps;
