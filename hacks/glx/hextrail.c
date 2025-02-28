@@ -10,12 +10,12 @@
  = Explore using the Z dimension - some undulation or ripple effect perhaps?
  */
 
-#define DEFAULTS	"*delay:	30000       \n" \
-            "*showFPS:      False       \n" \
-            "*wireframe:    False       \n" \
-            "*count:        20          \n" \
-            "*suppressRotationAnimation: True\n" \
-			"*allDisplays: False\n"
+#define DEFAULTS "*delay: 30000\n" \
+                 "*showFPS: False\n" \
+                 "*wireframe: False\n" \
+                 "*count: 20\n" \
+                 "*suppressRotationAnimation: True\n" \
+                 "*allDisplays: False\n"
 
 # define release_hextrail 0
 
@@ -42,13 +42,13 @@
 #ifdef USE_GL /* whole file */
 
 
-#define DEF_SPIN         "True"
-#define DEF_WANDER       "True"
-#define DEF_GLOW         "False"
-#define DEF_NEON         "False"
-#define DEF_EXPAND       "False"
-#define DEF_SPEED        "1.0"
-#define DEF_THICKNESS    "0.15"
+#define DEF_SPIN "True"
+#define DEF_WANDER "True"
+#define DEF_GLOW "False"
+#define DEF_NEON "False"
+#define DEF_EXPAND "False"
+#define DEF_SPEED "1.0"
+#define DEF_THICKNESS "0.15"
 #define DEF_ALL_DISPLAYS "False"
 
 #define BELLRAND(n) ((frand((n)) + frand((n)) + frand((n))) / 3)
@@ -94,11 +94,11 @@ typedef struct {
   Bool button_down_p;
   time_t now, pause_until, debug;
 
-  hex_chunk **chunks;   // Array of pointers to chunks
-  uint16_t *hex_grid;   // Lookup table of hexagons
-  int chunk_count;      // Total number of chunks
-  int total_hexagons;   // Number of active hexagons
-  int hexagon_capacity; // Allocation for hexagons
+  hex_chunk **chunks;
+  uint16_t *hex_grid;
+  int chunk_count;
+  int total_hexagons
+  int hexagon_capacity;
   int size, grid_w, grid_h;
   int x_offset, y_offset;
   enum { FIRST, DRAW, FADE } state;
