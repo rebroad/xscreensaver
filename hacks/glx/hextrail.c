@@ -15,6 +15,7 @@
             "*wireframe:    False       \n" \
             "*count:        20          \n" \
             "*suppressRotationAnimation: True\n" \
+			"*allDisplays: False\n"
 
 # define release_hextrail 0
 
@@ -41,13 +42,14 @@
 #ifdef USE_GL /* whole file */
 
 
-#define DEF_SPIN        "True"
-#define DEF_WANDER      "True"
-#define DEF_GLOW        "False"
-#define DEF_NEON        "False"
-#define DEF_EXPAND      "False"
-#define DEF_SPEED       "1.0"
-#define DEF_THICKNESS   "0.15"
+#define DEF_SPIN         "True"
+#define DEF_WANDER       "True"
+#define DEF_GLOW         "False"
+#define DEF_NEON         "False"
+#define DEF_EXPAND       "False"
+#define DEF_SPEED        "1.0"
+#define DEF_THICKNESS    "0.15"
+#define DEF_ALL_DISPLAYS "False"
 
 #define BELLRAND(n) ((frand((n)) + frand((n)) + frand((n))) / 3)
 
@@ -107,15 +109,10 @@ typedef struct {
 
 static config *bps = NULL;
 
-static Bool do_spin;
-static GLfloat speed;
-static Bool do_wander;
-static Bool do_glow;
-static Bool do_neon;
-static Bool do_expand;
+static Bool do_spin, do_wander, do_glow, do_neon, do_expand, do_all_displays;
+static GLfloat speed, thickness;
 static int8_t draw_invis = 1;
 static Bool pausing = False;
-static GLfloat thickness;
 
 static XrmOptionDescRec opts[] = {
   { "-spin",   ".spin",   XrmoptionNoArg, "True" },
@@ -130,9 +127,8 @@ static XrmOptionDescRec opts[] = {
   { "-expand", ".expand", XrmoptionNoArg, "True" },
   { "+expand", ".expand", XrmoptionNoArg, "False" },
   { "-thickness", ".thickness", XrmoptionSepArg, 0 },
-#ifdef USE_SDL
-  { 0, 0, 0, 0 }
-#endif
+  { "-all-displays", ".allDisplays", XrmoptionNoArg, "True" },
+  { "+all-displays", ".allDisplays", XrmoptionNoArg, "False" },
 };
 
 static argtype vars[] = {
@@ -143,6 +139,7 @@ static argtype vars[] = {
   {&do_expand, "expand", "Expand", DEF_EXPAND, t_Bool},
   {&speed,     "speed",  "Speed",  DEF_SPEED,  t_Float},
   {&thickness, "thickness", "Thickness", DEF_THICKNESS, t_Float},
+  {&do_all_displays, "allDisplays", "AllDisplays", DEF_ALL_DISPLAYS, t_Bool},
 };
 
 ENTRYPOINT ModeSpecOpt hextrail_opts = {countof(opts), opts, countof(vars), vars, NULL};
@@ -954,7 +951,7 @@ ENTRYPOINT void reshape_hextrail (ModeInfo *mi, int width, int height) {
   int y = 0;
 
   if (width > height * 3) {   /* tiny window: show middle */
-    height = width * 9/16;
+    height = width * 9 / 16;
     y = -height / 2;
     h = height / (GLfloat)width;
   }
@@ -972,13 +969,8 @@ ENTRYPOINT void reshape_hextrail (ModeInfo *mi, int width, int height) {
   glLoadIdentity();
   gluLookAt( 0.0, 0.0, 30.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0);
 
-  {
-    GLfloat s = (MI_WIDTH(mi) < MI_HEIGHT(mi)
-                 ? (MI_WIDTH(mi) / (GLfloat) MI_HEIGHT(mi))
-                 : 1);
-    glScalef (s, s, s); // TODO - what does this do?
-  }
-
+  GLfloat s = (MI_WIDTH(mi) < MI_HEIGHT(mi) ? (MI_WIDTH(mi) / (GLfloat) MI_HEIGHT(mi)) : 1);
+  glScalef (s, s, s); // TODO - what does this do?
   glClear(GL_COLOR_BUFFER_BIT);
 }
 
@@ -992,7 +984,7 @@ ENTRYPOINT Bool hextrail_handle_event (ModeInfo *mi,
   config *bp = &bps[MI_SCREEN(mi)];
 
   if (gltrackball_event_handler (event, bp->trackball,
-              MI_WIDTH (mi), MI_HEIGHT (mi), &bp->button_down_p)) {
+              MI_WIDTH(mi), MI_HEIGHT(mi), &bp->button_down_p)) {
     if (bp->state == FADE) {
       bp->state = DRAW;
       bp->fade_ratio = 1;
@@ -1057,6 +1049,118 @@ ENTRYPOINT Bool hextrail_handle_event (ModeInfo *mi,
   return False;
 }
 
+#ifdef USE_SDL
+static void run_sdl_loop(SDL_Window **windows, SDL_GLContext *contexts, void **closures, int num_windows) {
+    Bool running = True;
+    SDL_Event event;
+
+    while (running) {
+        while (SDL_PollEvent(&event)) {
+            for (int i = 0; i < num_windows; i++) {
+                if (!windows[i]) continue;
+                if (event.type == SDL_EVENT_WINDOW_RESIZED &&
+                    event.window.windowID == SDL_GetWindowID(windows[i])) {
+                    reshape_hextrail((ModeInfo *)closures[i], event.window.data1, event.window.data2);
+                }
+                if (!hextrail_handle_event((ModeInfo *)closures[i], &event)) {
+                    running = False;
+                    break;
+                }
+            }
+        }
+        if (!running) break;
+
+        for (int i = 0; i < num_windows; i++) {
+            if (windows[i]) {
+                SDL_GL_MakeCurrent(windows[i], contexts[i]);
+                draw_hextrail((ModeInfo *)closures[i]);
+                SDL_GL_SwapWindow(windows[i]);
+            }
+        }
+    }
+}
+
+int main(int argc, char **argv) {
+    progname = argv[0];
+    progclass = "HexTrail";
+
+    merge_options();
+    parse_options(argc, argv, merged_options);
+
+    if (SDL_Init(SDL_INIT_VIDEO) != 0) {
+        fprintf(stderr, "%s: SDL initialization failed: %s\n", progname, SDL_GetError());
+        return 1;
+    }
+
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
+    SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
+    SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
+
+    int num_displays = 0;
+    SDL_DisplayID *displays = SDL_GetDisplays(&num_displays);
+    if (!displays || num_displays <= 0) {
+        fprintf(stderr, "%s: No displays detected: %s\n", progname, SDL_GetError());
+        SDL_Quit();
+        return 1;
+    }
+
+    int window_count = do_all_displays ? num_displays : 1;
+    SDL_Window **windows = calloc(window_count, sizeof(SDL_Window *));
+    SDL_GLContext *contexts = calloc(window_count, sizeof(SDL_GLContext));
+    void **closures = calloc(window_count, sizeof(void *));
+
+    for (int i = 0; i < window_count; i++) {
+        SDL_Rect bounds;
+        SDL_GetDisplayBounds(displays[i % num_displays], &bounds);
+        Uint32 flags = SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE;
+        if (do_all_displays) flags |= SDL_WINDOW_FULLSCREEN;
+
+        windows[i] = SDL_CreateWindow(progclass, 800, 600, flags);
+        if (!windows[i]) {
+            fprintf(stderr, "%s: Window %d creation failed: %s\n", progname, i, SDL_GetError());
+            continue;
+        }
+
+        contexts[i] = SDL_GL_CreateContext(windows[i]);
+        if (!contexts[i]) {
+            fprintf(stderr, "%s: GL context %d creation failed: %s\n", progname, i, SDL_GetError());
+            SDL_DestroyWindow(windows[i]);
+            windows[i] = NULL;
+            continue;
+        }
+
+        ModeInfo *mi = calloc(1, sizeof(ModeInfo));
+        mi->window = windows[i];
+        mi->gl_context = contexts[i];
+        mi->screen_number = i;
+        mi->pause = 30000; // TODO - what is this?
+        mi->batchcount = 20;
+        mi->fps_p = get_boolean_option("doFPS");
+
+        init_hextrail(mi);
+        closures[i] = mi;
+    }
+
+    run_sdl_loop(windows, contexts, closures, window_count);
+
+    for (int i = 0; i < window_count; i++) {
+        if (closures[i]) free_hextrail((ModeInfo *)closures[i]);
+        if (contexts[i]) SDL_GL_DestroyContext(contexts[i]);
+        if (windows[i]) SDL_DestroyWindow(windows[i]);
+        free(closures[i]);
+    }
+
+    free(windows);
+    free(contexts);
+    free(closures);
+    SDL_free(displays);
+    SDL_Quit();
+    return 0;
+}
+#endif // USE_SDL
+
 ENTRYPOINT void init_hextrail (ModeInfo *mi) {
   MI_INIT (mi, bps);
   config *bp = &bps[MI_SCREEN(mi)];
@@ -1073,7 +1177,7 @@ ENTRYPOINT void init_hextrail (ModeInfo *mi) {
   bp->glx_context = init_GL(mi);
 #endif
 
-  reshape_hextrail (mi, MI_WIDTH(mi), MI_HEIGHT(mi));
+  reshape_hextrail(mi, MI_WIDTH(mi), MI_HEIGHT(mi));
 
   bp->rot = make_rotator(do_spin ? 0.002 : 0, do_spin ? 0.002 : 0,
                          do_spin ? 0.002 : 0, 1.0, // spin_accel
@@ -1175,7 +1279,6 @@ ENTRYPOINT void free_hextrail (ModeInfo *mi) {
 	}
 	free(bp->chunks);
   }
-
 }
 
 XSCREENSAVER_MODULE ("HexTrail", hextrail)
