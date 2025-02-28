@@ -35,14 +35,17 @@ fps_state * fps_init (Display *dpy, Window window) {
   char *s;
 
 #ifdef USE_SDL
-  if (! get_boolean_resource (0, "doFPS", "DoFPS")) return 0; // TODO - implemented?
+  if (!get_boolean_option("doFPS"))
 #else
-  if (! get_boolean_resource (dpy, "doFPS", "DoFPS")) return 0;
+  if (! get_boolean_resource (dpy, "doFPS", "DoFPS"))
 #endif
+	return 0;
 
   if (!strcasecmp (progname, "BSOD")) return 0;  /* Never worked right */
 
-#ifndef USE_SDL
+#ifdef USE_SDL
+  top_p = get_boolean_option("FPSTop");
+#else
   top_p = get_boolean_resource (dpy, "fpsTop", "FPSTop");
 #endif
 
@@ -60,7 +63,7 @@ fps_state * fps_init (Display *dpy, Window window) {
 	free(st);
 	return NULL;
   }
-  st->clear_p = get_boolean_resource (0, "fpsSolid", "FPSSolid");
+  st->clear_p = get_boolean_option("fpsSolid");
 #else
   st->dpy = dpy;
   st->clear_p = get_boolean_resource (dpy, "fpsSolid", "FPSSolid");
@@ -68,7 +71,7 @@ fps_state * fps_init (Display *dpy, Window window) {
 
 #ifdef USE_SDL
   if (TTF_Init() < 0) {
-	fprintf(stderr, "%s: TTF_Init failed: %s\n", __func__, TTF_GetError());
+	fprintf(stderr, "%s: TTF_Init failed: %s\n", __func__, SDL_GetError());
 	SDL_DestroyRenderer(st->renderer);
 	free(st);
     return NULL;
@@ -89,7 +92,7 @@ fps_state * fps_init (Display *dpy, Window window) {
 
   st->fg = (SDL_Color){255, 255, 255, 255};
   st->bg = (SDL_Color){0, 0, 0, 255};
-#else
+#else // USE_SDL
   font = get_string_resource (dpy, "fpsFont", "Font");
   XGetWindowAttributes (dpy, window, &xgwa);
   if (!font) font = "monospace bold 18";   /* also texfont.c */
@@ -104,7 +107,7 @@ fps_state * fps_init (Display *dpy, Window window) {
   gcv.foreground = get_pixel_resource (st->dpy, xgwa.colormap, "background", "Background");
   st->erase_gc = XCreateGC (dpy, window, GCForeground, &gcv);
   st->font = f;
-#endif
+#endif // else USE_SDL
   st->x = 10; st->y = 10;
 #ifdef USE_SDL
   st->clear_p = True; // Default to solid background
@@ -130,16 +133,15 @@ fps_state * fps_init (Display *dpy, Window window) {
 # endif
 #endif // else USE_SDL
 
-  strcpy (st->string, "FPS: ... ");
-
 #ifdef USE_SDL
-  SDL_Surface *text_surface = TTF_RenderText_Blended(st->font, "m", st->fg);
+  SDL_Surface *text_surface = TTF_RenderText_Blended(st->font, "m", strlen("m"),st->fg);
   if (text_surface) {
 	st->em = text_surface->w;
 	SDL_DestroySurface(text_surface);
   }
 #endif
 
+  strcpy (st->string, "FPS: ... ");
   return st;
 }
 
@@ -270,7 +272,7 @@ void fps_draw (fps_state *st) {
   if (!st) return;
 #ifdef USE_SDL
   if (!st->renderer) return;
-  int lh = TTF_FontLineSkip(st->font);
+  int lh = TTF_GetFontLineSkip(st->font);
 #else
   XWindowAttributes xgwa;
   XGetWindowAttributes (st->dpy, st->window, &xgwa);
@@ -342,11 +344,11 @@ void fps_draw (fps_state *st) {
     s = strchr (string, '\n');
     if (! s) s = string + strlen(string);
 #ifdef USE_SDL
-	SDL_Surface *text = TTF_RenderText_Blended(st->font, string, st->fg);
+	SDL_Surface *text = TTF_RenderText_Blended(st->font, string, s - string, st->fg);
     if (text) {
       SDL_Texture *tex = SDL_CreateTextureFromSurface(st->renderer, text);
       if (tex) {
-        SDL_Rect dst = {(float)x, (float)y, (float)text->w, (float)text->h};
+        SDL_FRect dst = {(float)x, (float)y, (float)text->w, (float)text->h};
         SDL_RenderCopy(st->renderer, tex, NULL, &dst);
         SDL_DestroyTexture(tex);
       }
