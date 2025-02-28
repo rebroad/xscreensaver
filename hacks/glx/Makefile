@@ -33,7 +33,7 @@ SDL3_LIBS = -L/usr/local/lib -lSDL3 -lGL
 SDL3_INCLUDE = -I/usr/local/include
 
 # SDL3 paths for Windows cross-compile
-WIN_SDL3_LIBS = -L$(WIN_SDL3_PATH)/lib -lSDL3 -lopengl32 -lglu32 -lmingw32 -mwindows -lm
+WIN_SDL3_LIBS = -L$(WIN_SDL3_PATH)/lib -lSDL3 -lSDL3_ttf -lopengl32 -lglu32 -lmingw32 -mwindows -lm
 
 CC		= gcc -std=gnu99 -pedantic -Wall -Wnested-externs -Wstrict-prototypes -Wmissing-prototypes -Wno-overlength-strings
 CFLAGS		= -g -O2
