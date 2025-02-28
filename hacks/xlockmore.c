@@ -363,6 +363,7 @@ static void * xlockmore_init (
 #ifdef USE_SDL
   mi->window = window;
   mi->gl_context = context;
+  mi->fps_p = get_boolean_option(argc, argc, "-fps");
 #else
   XGCValues gcv;
   XColor color;

@@ -320,7 +320,8 @@ void fps_draw (fps_state *st) {
     w = maxw;
 #ifdef USE_SDL
 	// TODO - do we need to update h?
-	SDL_Rect rect = {x - 5, y - lh, maxw + 10, h + 10};
+	//SDL_Rect rect = {x - 5, y - lh, maxw + 10, h + 10};
+	SDL_Rect rect = {(float)(x - 5), (float)(y - lh), (float)(maxw + 10), (float)(olines * lh + 10)};
 	SDL_SetRenderDrawColor(st->renderer, st->bg.r, st->bg.g, st->bg.b, st->bg.a);
 	SDL_RenderFillRect(st->renderer, &rect);
 #else
@@ -338,23 +339,21 @@ void fps_draw (fps_state *st) {
     s = strchr (string, '\n');
     if (! s) s = string + strlen(string);
 #ifdef USE_SDL
-	SDL_Surface *text_surface = TTF_RenderText_Blended(st->font, string, st->fg);
-    if (text_surface) {
-      SDL_Texture *texture = SDL_CreateTextureFromSurface(st->renderer, text_surface);
+	SDL_Surface *text = TTF_RenderText_Blended(st->font, string, st->fg);
+    if (text) {
+      SDL_Texture *tex = SDL_CreateTextureFromSurface(st->renderer, text);
       if (texture) {
-        int w = text_surface->w, h = text_surface->h;
-        SDL_Rect dst = {x, y, w, h};
-        SDL_RenderCopy(st->renderer, texture, NULL, &dst);
-        SDL_DestroyTexture(texture);
+        SDL_Rect dst = {(float)x, (float)y, (float)text->w, (float)text->h};
+        SDL_RenderCopy(st->renderer, tex, NULL, &dst);
+        SDL_DestroyTexture(tex);
       }
-      SDL_DestroySurface(text_surface);
+      SDL_DestroySurface(text);
     }
 #else
     XftDrawStringUtf8 (st->xftdraw, &st->fg, st->font,
                        x, y, (FcChar8 *) string, s - string);
 #endif
-    string = s;
-    string++;
+    string = s + 1;
     lines--;
     y += lh;
   }

@@ -1142,7 +1142,7 @@ ENTRYPOINT void draw_hextrail (ModeInfo *mi) {
 
   glPopMatrix ();
 
-  if (mi->fps_p) do_fps (mi);
+  if (mi->fps_p) do_fps(mi);
   glFinish();
 
 #ifdef USE_SDL
