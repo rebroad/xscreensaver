@@ -1059,10 +1059,10 @@ ENTRYPOINT void init_hextrail (ModeInfo *mi) {
 
 #ifdef USE_SDL
   // SDL_GLContext is already created in main; store window for reference
-  bp->window = (SDL_Window *)mi->window; // Cast Window to SDL_Window*
-  bp->gl_context = SDL_GL_GetCurrentContext();
-  if (!bp->gl_context) {
-    fprintf(stderr, "%s: Failed to get SDL GL context\n", progname);
+  bp->window = mi->window;
+  bp->gl_context = mi->gl_context;
+  if (!bp->gl_context || !bp->window) {
+    fprintf(stderr, "%s: Invalid SDL GL context or window\n", progname);
 	exit(1);
   }
 #else
@@ -1094,7 +1094,6 @@ ENTRYPOINT void draw_hextrail (ModeInfo *mi) {
   config *bp = &bps[MI_SCREEN(mi)];
 
 #ifdef USE_SDL
-  if (!bp->gl_context || !bp->window) return;
   if (SDL_GL_MakeCurrent(bp->window, bp->gl_context) < 0) {
     fprintf(stderr, "%s: SDL_GL_MakeCurrent failed: %s\n", progname, SDL_GetError());
 	return;
