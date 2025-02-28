@@ -1,12 +1,4 @@
 /* xscreensaver, Copyright © 1992-2023 Jamie Zawinski <jwz@jwz.org>
- *
- * Permission to use, copy, modify, distribute, and sell this software and its
- * documentation for any purpose is hereby granted without fee, provided that
- * the above copyright notice appear in all copies and that both that
- * copyright notice and this permission notice appear in supporting
- * documentation.  No representations are made about the suitability of this
- * software for any purpose.  It is provided "as is" without express or
- * implied warranty.
  */
 
 /* Found in Don Hopkins' .plan file:
@@ -63,6 +55,7 @@
 #include <time.h>
 #ifdef USE_SDL
 #include <SDL3/SDL.h>
+#include <SDL3/SDL_ttf.h>
 #define Bool int
 #define False 0
 #define True 1

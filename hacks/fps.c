@@ -11,7 +11,11 @@
  */
 
 #include "screenhackI.h"
-#ifndef USE_SDL
+#ifdef USE_SDL
+#ifdef _WIN32
+#include <sys/time.h>
+#endif
+#else
 #include "xft.h"
 #endif
 #include "fpsI.h"
@@ -48,7 +52,7 @@ fps_state * fps_init (Display *dpy, Window window) {
 
   st->window = window;
 #ifdef USE_SDL
-  st->renderer = SDL_CreateRenderer(window, NULL, SDL_RENDERER_ACCELERATED);
+  st->renderer = SDL_CreateRenderer(window, NULL);
   if (!st->renderer) {
 	fprintf(stderr, "%s: Failed to create SDL renderer: %s\n", __func__, SDL_GetError());
 	free(st);
@@ -67,7 +71,11 @@ fps_state * fps_init (Display *dpy, Window window) {
     return NULL;
   }
 
+#ifdef _WIN32
   st->font = TTF_OpenFont("C:/Windows/Fonts/ariel.ttf", 18);
+#else
+  st->font = TTF_OpenFont("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 18);
+#endif
   if (!st->font) {
 	fprintf(stderr, "%s: Failed to load font: %s\n", __func__, TTF_GetError());
 	TTF_Quit();
