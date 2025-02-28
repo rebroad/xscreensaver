@@ -19,7 +19,10 @@
 #include "xlockmoreI.h"
 #include "screenhack.h"
 
-#ifndef USE_SDL
+#ifdef USE_SDL
+#include <GL/gl.h>
+#include <GL/glu.h>
+#else
 #ifndef HAVE_JWXYZ
 # include <X11/Intrinsic.h>
 #endif /* !HAVE_JWXYZ */
@@ -607,10 +610,10 @@ static void xlockmore_reshape (
     /* Ignore spurious resize events, because xlockmore_do_init usually clears
        the screen, and there's no reason to do that if we don't have to.  */
 #ifndef USE_SDL
-# ifndef HAVE_MOBILE
+#ifndef HAVE_MOBILE
     /* These are not spurious on mobile: they are rotations. */
     if (mi->xgwa.width == w && mi->xgwa.height == h) return;
-# endif
+#endif
     mi->xgwa.width = w;
     mi->xgwa.height = h;
 #endif // !USE_SDL
@@ -675,7 +678,13 @@ static Bool xlockmore_event (
   return False;
 }
 
-void xlockmore_do_fps (Display *dpy, Window w, fps_state *fpst, void *closure) {
+void xlockmore_do_fps (
+#ifdef USE_SDL
+		SDL_Window *window,
+#else
+		Display *dpy, Window w,
+#endif
+		fps_state *fpst, void *closure) {
   ModeInfo *mi = (ModeInfo *) closure;
   fps_compute (fpst, 0, mi ? mi->recursion_depth : -1);
   fps_draw (fpst);
@@ -717,8 +726,8 @@ static void xlockmore_free (
 #ifndef USE_SDL
   XFreeGC (dpy, mi->gc);
   free_colors (mi->xgwa.screen, mi->xgwa.colormap, mi->colors, mi->npixels);
-#endif
   free (mi->colors);
+#endif
   free (mi->pixels);
 
 # ifdef HAVE_JWZGLES
