@@ -649,6 +649,8 @@ static void run_sdl_loop(SDL_Window **windows, SDL_GLContext *contexts,
 	  if (windows[i]) {
 		SDL_GL_MakeCurrent(windows[i], contexts[i]);
         ft->draw_cb(windows[i], closures[i]);
+		ModeInfo *mi = (ModeInfo *)closures[i]; // TODO is this necessary in the main loop?
+		if (mi->fpst) ft->fps_cv(windows[i], mi->fpst, closures[i]);
         SDL_GL_SwapWindow(windows[i]);
 	  }
 	}
