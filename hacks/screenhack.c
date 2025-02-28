@@ -643,8 +643,8 @@ static void run_sdl_loop(SDL_Window **windows, SDL_GLContext *contexts,
 	for (int i = 0; i < num_displays; i++) {
 	  if (windows[i]) {
 		SDL_GL_MakeCurrent(windows[i], contexts[i]);
-        ft->draw_cb(window, closure);
-        SDL_GL_SwapWindow(window);
+        ft->draw_cb(windows[i], closures[i]);
+        SDL_GL_SwapWindow(windows[i]);
 	  }
 	}
   }
@@ -751,7 +751,7 @@ int main (int argc, char **argv) {
   SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
   SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
 
-  int num_displays = SDL_GetDisplayCount();
+  int num_displays = SDL_GetDisplays();
   if (num_displays <= 0) {
 	fprintf(stderr, "%s:No displays detected: %s\n", progname, SDL_GetError());
 	SDL_Quit();
@@ -762,7 +762,7 @@ int main (int argc, char **argv) {
   int window_count = fullscreen ? num_displays : 1;
 
   SDL_Window **windows = calloc(num_displays, sizeof(SDL_Window *));
-  SDL_GLcontext **contexts = calloc(num_displays, sizeof(SDL_GLContext));
+  SDL_GLContext **contexts = calloc(num_displays, sizeof(SDL_GLContext));
   void **closures = calloc(num_displays, sizeof(void *));
 
   for (int i = 0; i < window_count; i++) {
@@ -777,7 +777,7 @@ int main (int argc, char **argv) {
 	  continue;
     }
 
-    contexts[i] = SDL_GL_CreateContext(window[i]);
+    contexts[i] = SDL_GL_CreateContext(windows[i]);
     if (!contexts[i]) {
       fprintf(stderr, "%s:GL context %d creation failed: %s\n", progname, i, SDL_GetError());
 	  SDL_DestroyWindow(windows[i]);
