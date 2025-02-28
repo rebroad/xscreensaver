@@ -16,10 +16,8 @@
 #include "utils.h"
 #include "hsv.h"
 
-void
-hsv_to_rgb (int h, double s, double v,
-	    unsigned short *r, unsigned short *g, unsigned short *b)
-{
+void hsv_to_rgb (int h, double s, double v,
+	    unsigned short *r, unsigned short *g, unsigned short *b) {
   double H, S, V, R, G, B;
   double p1, p2, p3;
   double f;
@@ -50,8 +48,7 @@ hsv_to_rgb (int h, double s, double v,
 
 void
 rgb_to_hsv (unsigned short r, unsigned short g, unsigned short b,
-	    int *h, double *s, double *v)
-{
+	    int *h, double *s, double *v) {
   double R, G, B, H, S, V;
   double cmax, cmin;
   double cmm;
