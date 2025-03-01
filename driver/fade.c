@@ -188,8 +188,7 @@ static int xi_opcode = -1;
    Motion aborts fade-out, but only clicks and keys abort fade-in.
  */
 static Bool
-user_event_p (Display *dpy, XEvent *event, XPointer arg)
-{
+user_event_p (Display *dpy, XEvent *event, XPointer arg) {
   Bool motion_p = *((Bool *) arg);
 
   switch (event->xany.type) {
@@ -242,8 +241,7 @@ user_event_p (Display *dpy, XEvent *event, XPointer arg)
 
 
 static Bool
-user_active_p (XtAppContext app, Display *dpy, Bool fade_out_p)
-{
+user_active_p (XtAppContext app, Display *dpy, Bool fade_out_p) {
   XEvent event;
   XtInputMask m;
   Bool motion_p = fade_out_p;   /* Motion aborts fade-out, not fade-in. */
@@ -271,8 +269,7 @@ user_active_p (XtAppContext app, Display *dpy, Bool fade_out_p)
 
   /* If there is user activity, bug out.  (Bug out on keypresses or
      mouse presses, but not motion, and not release events.  Bugging
-     out on motion made the unfade hack be totally useless, I think.)
-   */
+     out on motion made the unfade hack be totally useless, I think.) */
   if (XCheckIfEvent (dpy, &event, &user_event_p, (XPointer) &motion_p))
     {
       if (verbose_p > 1)
@@ -295,9 +292,7 @@ user_active_p (XtAppContext app, Display *dpy, Bool fade_out_p)
 }
 
 
-static void
-flush_user_input (Display *dpy)
-{
+static void flush_user_input (Display *dpy) {
   XEvent event;
   Bool motion_p = True;
   while (XCheckIfEvent (dpy, &event, &user_event_p, (XPointer) &motion_p))
@@ -321,8 +316,7 @@ flush_user_input (Display *dpy)
 static Bool error_handler_hit_p = False;
 
 static int
-ignore_all_errors_ehandler (Display *dpy, XErrorEvent *error)
-{
+ignore_all_errors_ehandler (Display *dpy, XErrorEvent *error) {
   if (verbose_p > 1)
     XmuPrintDefaultErrorMessage (dpy, error, stderr);
   error_handler_hit_p = True;
@@ -333,8 +327,7 @@ ignore_all_errors_ehandler (Display *dpy, XErrorEvent *error)
 /* Like XDestroyWindow, but destroys the window later, on a timer.  This is
    necessary to work around a KDE 5 compositor bug.  Without this, destroying
    an old window causes the desktop to briefly become visible, even though a
-   new window has already been mapped that is obscuring both of them!
- */
+   new window has already been mapped that is obscuring both of them!  */
 typedef struct {
   XtAppContext app;
   Display *dpy;
@@ -342,8 +335,7 @@ typedef struct {
 } defer_destroy_closure;
 
 static void
-defer_destroy_handler (XtPointer closure, XtIntervalId *id)
-{
+defer_destroy_handler (XtPointer closure, XtIntervalId *id) {
   defer_destroy_closure *c = (defer_destroy_closure *) closure;
   XErrorHandler old_handler;
   XSync (c->dpy, False);
@@ -360,8 +352,7 @@ defer_destroy_handler (XtPointer closure, XtIntervalId *id)
 
 /* Used here and in windows.c */
 void
-defer_XDestroyWindow (XtAppContext app, Display *dpy, Window w)
-{
+defer_XDestroyWindow (XtAppContext app, Display *dpy, Window w) {
   defer_destroy_closure *c = (defer_destroy_closure *) malloc (sizeof (*c));
   c->app = app;
   c->dpy = dpy;
@@ -375,8 +366,7 @@ Bool
 fade_screens (XtAppContext app, Display *dpy,
               Window *saver_windows, int nwindows,
               double seconds, Bool out_p, Bool from_desktop_p,
-              void **closureP)
-{
+              void **closureP) {
   int status = False;
   fade_state *state = 0;
 
@@ -464,13 +454,11 @@ fade_screens (XtAppContext app, Display *dpy,
    Returns:
    0: faded normally
    1: canceled by user activity
-  -1: unable to fade because the extension isn't supported.
- */
+  -1: unable to fade because the extension isn't supported.  */
 static int
 colormap_fade (XtAppContext app, Display *dpy,
                Window *saver_windows, int nwindows,
-               double seconds, Bool out_p, Bool from_desktop_p)
-{
+               double seconds, Bool out_p, Bool from_desktop_p) {
   int status = -1;
   Colormap *window_cmaps = 0;
   int i, j, k;
@@ -552,8 +540,7 @@ colormap_fade (XtAppContext app, Display *dpy,
         double ratio = (end_time - now) / seconds;
         if (!out_p) ratio = 1-ratio;
 
-        /* For each screen, compute the current value of each color...
-         */
+        /* For each screen, compute the current value of each color...  */
         orig_screen_colors = orig_colors;
         screen_colors = current_colors;
         for (j = 0; j < nscreens; j++)
@@ -572,8 +559,7 @@ colormap_fade (XtAppContext app, Display *dpy,
             orig_screen_colors += ncolors;
           }
 
-        /* Put the colors into the maps...
-         */
+        /* Put the colors into the maps...  */
         screen_colors = current_colors;
         for (j = 0; j < nscreens; j++)
           {
@@ -588,8 +574,7 @@ colormap_fade (XtAppContext app, Display *dpy,
           }
 
         /* Put the maps on the screens, and then take the windows off the
-           screen.  (only need to do this the first time through the loop.)
-         */
+           screen.  (only need to do this the first time through the loop.) */
         if (!installed)
           {
             for (j = 0; j < ncmaps; j++)
@@ -633,8 +618,7 @@ colormap_fade (XtAppContext app, Display *dpy,
   if (current_colors) free (current_colors);
 
   /* If we've been given windows to raise after blackout, raise them before
-     releasing the colormaps.
-   */
+     releasing the colormaps.  */
   if (out_p)
     {
       for (i = 0; i < nwindows; i++)
@@ -647,8 +631,7 @@ colormap_fade (XtAppContext app, Display *dpy,
 
   /* Now put the target maps back.
      If we're fading out, use the given cmap (or the default cmap, if none.)
-     If we're fading in, always use the default cmap.
-   */
+     If we're fading in, always use the default cmap.  */
   for (i = 0; i < nscreens; i++)
     {
       Colormap cmap = window_cmaps[i];
@@ -658,8 +641,7 @@ colormap_fade (XtAppContext app, Display *dpy,
     }
 
   /* The fade (in or out) is complete, so we don't need the black maps on
-     stage any more.
-   */
+     stage any more.  */
   for (i = 0; i < ncmaps; i++)
     if (fade_cmaps[i])
       {
@@ -703,8 +685,7 @@ static void sgi_whack_gamma(Display *dpy, int screen,
 /* Returns:
    0: faded normally
    1: canceled by user activity
-  -1: unable to fade because the extension isn't supported.
- */
+  -1: unable to fade because the extension isn't supported.  */
 static int
 sgi_gamma_fade (XtAppContext app, Display *dpy,
 		Window *saver_windows, int nwindows,
@@ -722,8 +703,7 @@ sgi_gamma_fade (XtAppContext app, Display *dpy,
              blurb(), (out_p ? "out" : "in"));
 
   /* Get the current gamma maps for all screens.
-     Bug out and return -1 if we can't get them for some screen.
-   */
+     Bug out and return -1 if we can't get them for some screen.  */
   for (screen = 0; screen < nscreens; screen++)
     {
       if (!XSGIvcQueryGammaMap(dpy, screen, info[screen].gamma_map,
@@ -869,8 +849,7 @@ sgi_gamma_fade (XtAppContext app, Display *dpy,
 
 static void
 sgi_whack_gamma (Display *dpy, int screen, struct screen_sgi_gamma_info *info,
-                 float ratio)
-{
+                 float ratio) {
   int k;
 
   if (ratio < 0) ratio = 0;
@@ -922,8 +901,7 @@ static Bool xf86_whack_gamma (Display *dpy, int screen,
 static int
 xf86_gamma_fade (XtAppContext app, Display *dpy,
                  Window *saver_windows, int nwindows,
-                 double seconds, Bool out_p)
-{
+                 double seconds, Bool out_p) {
   int nscreens = ScreenCount(dpy);
   int screen;
   int status = -1;

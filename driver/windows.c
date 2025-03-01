@@ -91,8 +91,7 @@ store_saver_status (saver_info *si)
      These properties are not used on the windows created by "xscreensaver-gfx"
      for use by the display hacks.
 
-     See the different version of this function in xscreensaver.c.
-   */
+     See the different version of this function in xscreensaver.c.  */
   Display *dpy = si->dpy;
   Window w = RootWindow (dpy, 0);  /* always screen 0 */
   Atom type;
@@ -147,8 +146,7 @@ store_saver_status (saver_info *si)
   XUngrabServer (dpy);
   XSync (dpy, False);
 
-  if (si->prefs.debug_p && si->prefs.verbose_p)
-    {
+  if (si->prefs.debug_p && si->prefs.verbose_p) {
       int i;
       fprintf (stderr, "%s: wrote status property: 0x%lx: ", blurb(),
                (unsigned long) w);
@@ -165,17 +163,14 @@ store_saver_status (saver_info *si)
             fprintf (stderr, "%lu", status[i]);
         }
       fprintf (stderr, "\n");
-    }
+  }
 
   free (status);
-  if (dataP)
-    XFree (dataP);
+  if (dataP) XFree (dataP);
 }
 
 
-static void
-initialize_screensaver_window_1 (saver_screen_info *ssi)
-{
+static void initialize_screensaver_window_1 (saver_screen_info *ssi) {
   saver_info *si = ssi->global;
   saver_preferences *p = &si->prefs;
   Bool install_cmap_p = ssi->install_cmap_p;   /* not p->install_cmap_p */
@@ -184,8 +179,7 @@ initialize_screensaver_window_1 (saver_screen_info *ssi)
      no way of knowing what some random client may have done to us in the
      meantime.  We could just destroy and recreate the window, but that has
      its own set of problems.  (Update: that's exactly what we're doing
-     these days.)
-   */
+     these days.) */
   XColor black;
   XSetWindowAttributes attrs;
   unsigned long attrmask;
@@ -194,36 +188,30 @@ initialize_screensaver_window_1 (saver_screen_info *ssi)
 
   black.red = black.green = black.blue = 0;
 
-  if (ssi->cmap == DefaultColormapOfScreen (ssi->screen))
-    ssi->cmap = 0;
+  if (ssi->cmap == DefaultColormapOfScreen (ssi->screen)) ssi->cmap = 0;
 
   if (ssi->current_visual != DefaultVisualOfScreen (ssi->screen))
     /* It's not the default visual, so we have no choice but to install. */
     install_cmap_p = True;
 
-  if (install_cmap_p)
-    {
-      if (! ssi->cmap)
-	{
+  if (install_cmap_p) {
+    if (! ssi->cmap) {
 	  ssi->cmap = XCreateColormap (si->dpy,
 				       RootWindowOfScreen (ssi->screen),
 				      ssi->current_visual, AllocNone);
 	  if (! XAllocColor (si->dpy, ssi->cmap, &black)) abort ();
 	  ssi->black_pixel = black.pixel;
 	}
-    }
-  else
-    {
-      Colormap def_cmap = DefaultColormapOfScreen (ssi->screen);
-      if (ssi->cmap)
-	{
+  } else {
+    Colormap def_cmap = DefaultColormapOfScreen (ssi->screen);
+    if (ssi->cmap) {
 	  XFreeColors (si->dpy, ssi->cmap, &ssi->black_pixel, 1, 0);
 	  if (ssi->cmap != def_cmap)
 	    XFreeColormap (si->dpy, ssi->cmap);
 	}
-      ssi->cmap = def_cmap;
-      ssi->black_pixel = BlackPixelOfScreen (ssi->screen);
-    }
+    ssi->cmap = def_cmap;
+    ssi->black_pixel = BlackPixelOfScreen (ssi->screen);
+  }
 
   attrmask = (CWOverrideRedirect | CWEventMask | CWBackingStore | CWColormap |
 	      CWBackPixel | CWBackingPixel | CWBorderPixel);
@@ -241,16 +229,12 @@ initialize_screensaver_window_1 (saver_screen_info *ssi)
 
   printed_visual_info = True;  /* Too noisy */
 
-  if (!p->verbose_p || printed_visual_info)
-    ;
-  else if (ssi->current_visual == DefaultVisualOfScreen (ssi->screen))
-    {
+  if (!p->verbose_p || printed_visual_info) ;
+  else if (ssi->current_visual == DefaultVisualOfScreen (ssi->screen)) {
       fprintf (stderr, "%s: %d: visual ", blurb(), ssi->number);
       describe_visual (stderr, ssi->screen, ssi->current_visual,
 		       install_cmap_p);
-    }
-  else
-    {
+  } else {
       fprintf (stderr, "%s: using visual:   ", blurb());
       describe_visual (stderr, ssi->screen, ssi->current_visual,
 		       install_cmap_p);
@@ -258,17 +242,15 @@ initialize_screensaver_window_1 (saver_screen_info *ssi)
       describe_visual (stderr, ssi->screen,
 		       DefaultVisualOfScreen (ssi->screen),
 		       ssi->install_cmap_p);
-    }
+  }
   printed_visual_info = True;
 
-  if (ssi->error_dialog)
-    {
+  if (ssi->error_dialog) {
       defer_XDestroyWindow (si->app, si->dpy, ssi->error_dialog);
       ssi->error_dialog = 0;
-    }
+  }
 
-  if (ssi->screensaver_window)
-    {
+  if (ssi->screensaver_window) {
       XWindowChanges changes;
       unsigned int changesmask = CWX|CWY|CWWidth|CWHeight|CWBorderWidth;
       changes.x = ssi->x;
@@ -280,42 +262,33 @@ initialize_screensaver_window_1 (saver_screen_info *ssi)
       /* XConfigureWindow and XChangeWindowAttributes can fail if a hack did
          something weird to the window.  In that case, we must destroy and
          re-create it. */
-      if (! (XConfigureWindow (si->dpy, ssi->screensaver_window,
-                               changesmask, &changes) &&
+      if (! (XConfigureWindow (si->dpy, ssi->screensaver_window, changesmask, &changes) &&
              XChangeWindowAttributes (si->dpy, ssi->screensaver_window,
-                                      attrmask, &attrs)))
-        {
+                                      attrmask, &attrs))) {
           horked_window = ssi->screensaver_window;
           ssi->screensaver_window = 0;
-        }
-    }
+      }
+  }
 
-  if (!ssi->screensaver_window)
-    {
-      ssi->screensaver_window =
-	XCreateWindow (si->dpy, RootWindowOfScreen (ssi->screen),
-                       ssi->x, ssi->y, ssi->width, ssi->height,
-                       0, ssi->current_depth, InputOutput,
-		       ssi->current_visual, attrmask, &attrs);
+  if (!ssi->screensaver_window) {
+      ssi->screensaver_window = XCreateWindow (si->dpy, RootWindowOfScreen(ssi->screen),
+                       ssi->x, ssi->y, ssi->width, ssi->height, 0, ssi->current_depth,
+					   InputOutput, ssi->current_visual, attrmask, &attrs);
       xscreensaver_set_wm_atoms (si->dpy, ssi->screensaver_window,
                                  ssi->width, ssi->height, 0);
 
-      if (horked_window)
-        {
+      if (horked_window) {
           fprintf (stderr,
             "%s: someone horked our saver window (0x%lx)!  Recreating it...\n",
                    blurb(), (unsigned long) horked_window);
           defer_XDestroyWindow (si->app, si->dpy, horked_window);
-        }
+      }
 
-      if (p->verbose_p > 1)
-	fprintf (stderr, "%s: %d: saver window is 0x%lx\n",
-                 blurb(), ssi->number,
-                 (unsigned long) ssi->screensaver_window);
-    }
+      if (p->verbose_p > 1) fprintf (stderr, "%s: %d: saver window is 0x%lx\n",
+                 blurb(), ssi->number, (unsigned long) ssi->screensaver_window);
+  }
 
-  if (!ssi->cursor)
-    {
+  if (!ssi->cursor) {
       Pixmap bit =
         XCreatePixmapFromBitmapData (si->dpy, ssi->screensaver_window,
                                      "\000", 1, 1,
@@ -325,107 +298,87 @@ initialize_screensaver_window_1 (saver_screen_info *ssi)
       ssi->cursor = XCreatePixmapCursor (si->dpy, bit, bit, &black, &black,
 					 0, 0);
       XFreePixmap (si->dpy, bit);
-    }
+  }
 
   XSetWindowBackground (si->dpy, ssi->screensaver_window, ssi->black_pixel);
 
-  if (si->demoing_p)
-    XUndefineCursor (si->dpy, ssi->screensaver_window);
-  else
-    XDefineCursor (si->dpy, ssi->screensaver_window, ssi->cursor);
+  if (si->demoing_p) XUndefineCursor (si->dpy, ssi->screensaver_window);
+  else XDefineCursor (si->dpy, ssi->screensaver_window, ssi->cursor);
 }
 
 
-void
-initialize_screensaver_window (saver_info *si)
-{
+void initialize_screensaver_window (saver_info *si) {
   int i;
   for (i = 0; i < si->nscreens; i++)
     initialize_screensaver_window_1 (&si->screens[i]);
 }
 
 
-static void
-raise_window (saver_screen_info *ssi)
-{
+static void raise_window (saver_screen_info *ssi) {
   saver_info *si = ssi->global;
-  if (ssi->error_dialog)
-    {
+  if (ssi->error_dialog) {
       /* Make the error be topmost, and the saver be directly below it. */
       Window windows[2];
       windows[0] = ssi->error_dialog;
       windows[1] = ssi->screensaver_window;
       XMapRaised (si->dpy, windows[0]);
       XRestackWindows (si->dpy, windows, countof(windows));
-    }
-  else
-    XMapRaised (si->dpy, ssi->screensaver_window);
+  } else XMapRaised (si->dpy, ssi->screensaver_window);
 
-  if (ssi->cmap)
-    XInstallColormap (si->dpy, ssi->cmap);
+  if (ssi->cmap) XInstallColormap (si->dpy, ssi->cmap);
 }
 
 
 /* Called when the RANDR (Resize and Rotate) extension tells us that
    the size of the screen has changed while the screen was blanked.
    Call update_screen_layout() first, then call this to synchronize
-   the size of the saver windows to the new sizes of the screens.
- */
-void
-resize_screensaver_window (saver_info *si)
-{
+   the size of the saver windows to the new sizes of the screens.  */
+void resize_screensaver_window (saver_info *si) {
   saver_preferences *p = &si->prefs;
   int i;
 
-  for (i = 0; i < si->nscreens; i++)
-    {
+  for (i = 0; i < si->nscreens; i++) {
       saver_screen_info *ssi = &si->screens[i];
       XWindowAttributes xgwa;
 
       /* Make sure a window exists -- it might not if a monitor was just
-         added for the first time.
-       */
-      if (! ssi->screensaver_window)
-        {
+         added for the first time.  */
+      if (! ssi->screensaver_window) {
           initialize_screensaver_window_1 (ssi);
-          if (p->verbose_p)
-            fprintf (stderr,
+          if (p->verbose_p) fprintf (stderr,
                      "%s: %d: newly added window 0x%lx %dx%d+%d+%d\n",
                      blurb(), i, (unsigned long) ssi->screensaver_window,
                      ssi->width, ssi->height, ssi->x, ssi->y);
-        }
+      }
 
       /* Make sure the window is the right size -- it might not be if
          the monitor changed resolution, or if a badly-behaved hack
-         screwed with it.
-       */
+         screwed with it.  */
       XGetWindowAttributes (si->dpy, ssi->screensaver_window, &xgwa);
       if (xgwa.x      != ssi->x ||
           xgwa.y      != ssi->y ||
           xgwa.width  != ssi->width ||
-          xgwa.height != ssi->height)
-        {
+          xgwa.height != ssi->height) {
           XWindowChanges changes;
-          unsigned int changesmask = CWX|CWY|CWWidth|CWHeight|CWBorderWidth;
-          changes.x      = ssi->x;
-          changes.y      = ssi->y;
-          changes.width  = ssi->width;
-          changes.height = ssi->height;
-          changes.border_width = 0;
+        unsigned int changesmask = CWX|CWY|CWWidth|CWHeight|CWBorderWidth;
+        changes.x      = ssi->x;
+        changes.y      = ssi->y;
+        changes.width  = ssi->width;
+        changes.height = ssi->height;
+        changes.border_width = 0;
 
-          if (p->verbose_p)
-            fprintf (stderr,
+        if (p->verbose_p) fprintf (stderr,
                      "%s: %d: resize 0x%lx from %dx%d+%d+%d to %dx%d+%d+%d\n",
                      blurb(), i, (unsigned long) ssi->screensaver_window,
                      xgwa.width, xgwa.height, xgwa.x, xgwa.y,
                      ssi->width, ssi->height, ssi->x, ssi->y);
 
-          if (! XConfigureWindow (si->dpy, ssi->screensaver_window,
+        if (! XConfigureWindow (si->dpy, ssi->screensaver_window,
                                   changesmask, &changes))
-            fprintf (stderr, "%s: %d: someone horked our saver window"
+          fprintf (stderr, "%s: %d: someone horked our saver window"
                      " (0x%lx)!  Unable to resize it!\n",
                      blurb(), i, (unsigned long) ssi->screensaver_window);
-        }
+      }
 
       /* Now (if blanked) make sure that it's mapped and running a hack --
          it might not be if we just added it.  (We also might be re-using
@@ -433,43 +386,33 @@ resize_screensaver_window (saver_info *si)
          removed and re-added.)
 
          Note that spawn_screenhack() calls select_visual() which may destroy
-         and re-create the window via initialize_screensaver_window_1().
-       */
+         and re-create the window via initialize_screensaver_window_1().  */
       raise_window (ssi);
       XSync (si->dpy, False);
-      if (! ssi->pid)
-        spawn_screenhack (ssi);
-    }
+      if (! ssi->pid) spawn_screenhack (ssi);
+  }
 
-  /* Kill off any savers running on no-longer-extant monitors.
-   */
-  for (; i < si->ssi_count; i++)
-    {
+  /* Kill off any savers running on no-longer-extant monitors.  */
+  for (; i < si->ssi_count; i++) {
       saver_screen_info *ssi = &si->screens[i];
-      if (ssi->pid)
-        kill_screenhack (ssi);
-      if (ssi->screensaver_window)
-        {
+      if (ssi->pid) kill_screenhack (ssi);
+      if (ssi->screensaver_window) {
           XUnmapWindow (si->dpy, ssi->screensaver_window);
-        }
-    }
+      }
+  }
 }
 
 
-static void 
-raise_windows (saver_info *si)
-{
+static void raise_windows (saver_info *si) {
   int i;
-  for (i = 0; i < si->nscreens; i++)
-    {
+  for (i = 0; i < si->nscreens; i++) {
       saver_screen_info *ssi = &si->screens[i];
       raise_window (ssi);
-    }
+  }
 }
 
 
-/* Called only once, before the main loop begins.
- */
+/* Called only once, before the main loop begins.  */
 void blank_screen (saver_info *si) {
   saver_preferences *p = &si->prefs;
   Bool user_active_p = False;
@@ -652,8 +595,7 @@ void unblank_screen (saver_info *si) {
 }
 
 
-static Visual *
-get_screen_gl_visual (saver_info *si, int real_screen_number) {
+static Visual * get_screen_gl_visual (saver_info *si, int real_screen_number) {
   int nscreens = ScreenCount (si->dpy);
 
   if (! si->best_gl_visuals) {

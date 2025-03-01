@@ -939,8 +939,7 @@ error_handler (Display *dpy, XErrorEvent *event)
 /* Check for other running instances of XScreenSaver, gnome-screensaver, etc.
  */
 static void
-ensure_no_screensaver_running (Display *dpy)
-{
+ensure_no_screensaver_running (Display *dpy) {
   int screen, nscreens = ScreenCount (dpy);
 
   /* Silently ignore BadWindow race conditions. */
@@ -1404,11 +1403,8 @@ grab_keyboard_and_mouse (Screen *screen)
 }
 
 
-/* Which screen is the mouse on?
- */
-static Screen *
-mouse_screen (Display *dpy)
-{
+/* Which screen is the mouse on?  */
+static Screen * mouse_screen (Display *dpy) {
   int i, nscreens = ScreenCount (dpy);
   if (nscreens > 1)
     for (i = 0; i < nscreens; i++)
