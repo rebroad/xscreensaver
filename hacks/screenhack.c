@@ -627,40 +627,6 @@ static void init_window (Display *dpy, Widget toplevel, const char *title) {
 }
 #else /* !USE_SDL */
 
-static void run_sdl_loop(SDL_Window **windows, SDL_GLContext *contexts,
-		void **closures, int num_windows) {
-  struct xscreensaver_function_table *ft = xscreensaver_function_table;
-  Bool running = True;
-  SDL_Event event;
-
-  while (running) {
-    while (SDL_PollEvent(&event)) {
-      for (int i = 0; i < num_windows; i++) {
-		if (!windows[i]) continue;
-		if (event.type == SDL_EVENT_WINDOW_RESIZED &&
-				event.window.windowID == SDL_GetWindowID(windows[i])) {
-		  ft->reshape_cb(windows[i], closures[i], event.window.data1, event.window.data2);
-		}
-        if (!ft->event_cb(windows[i], closures[i], &event)) {
-		  printf("%s: event.ty[e = %d\n", __func__, event.type);
-          running = False;
-		  break;
-		}
-	  }
-    }
-    if (!running) break;
-
-	for (int i = 0; i < num_windows; i++) {
-	  if (windows[i]) {
-		SDL_GL_MakeCurrent(windows[i], contexts[i]);
-        ft->draw_cb(windows[i], closures[i]); // TODO - Includes do_fps?
-		//ModeInfo *mi = (ModeInfo *)closures[i];
-		//if (mi->fpst) ft->fps_cb(windows[i], mi->fpst, closures[i]);
-        SDL_GL_SwapWindow(windows[i]);
-	  }
-	}
-  }
-}
 
 // Simple key-value store for options
 typedef struct {
@@ -716,18 +682,60 @@ static float get_float_option(const char *name) {
     }
     return 0.0f; // Default
 }
-#endif // else !USE_SDL
 
-#if 0
-int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
-				LPSTR lpCmdLine, int nCmdShow) {
-  return SDL_main(__argc, __argv);
+static void init_function_table(void) {
+	// TODO - Does this really need its own function?
+	if (!xscreensaver_function_table) {
+		fprintf(stderr, "%s: xscreensaver_function_table not initialized by hack\n", progname);
+		exit(1);
+	}
 }
-#endif
+
+static void run_sdl_loop(SDL_Window **windows, SDL_GLContext *contexts,
+		void **closures, int num_windows) {
+  struct xscreensaver_function_table *ft = xscreensaver_function_table;
+  Bool running = True;
+  SDL_Event event;
+
+  while (running) {
+    while (SDL_PollEvent(&event)) {
+      for (int i = 0; i < num_windows; i++) {
+		if (!windows[i]) continue;
+		if (event.type == SDL_EVENT_WINDOW_RESIZED &&
+		    event.window.windowID == SDL_GetWindowID(windows[i])) {
+		  ft->reshape_cb(windows[i], closures[i], event.window.data1, event.window.data2);
+		}
+        if (!ft->event_cb(windows[i], closures[i], &event)) {
+		  printf("%s: event.type = %d\n", __func__, event.type);
+          running = False;
+		  break;
+		}
+	  }
+    }
+    if (!running) break;
+
+	for (int i = 0; i < num_windows; i++) {
+	  if (windows[i]) {
+		SDL_GL_MakeCurrent(windows[i], contexts[i]);
+        ft->draw_cb(windows[i], closures[i]);
+		if (closures[i]) { // ModeInfo *mi = (ModeInfo *)closures[i];
+		  if (((ModeInfo *)closures[i])->fpst)
+			ft->fps_cb(windows[i], ((ModeInfo *)closures[i])->fpst, closures[i]);
+		}
+        SDL_GL_SwapWindow(windows[i]);
+	  }
+	}
+  }
+}
+#endif // else !USE_SDL
 
 int main (int argc, char **argv) {
   printf("%s: %s\n", __FILE__, __func__);
+#ifdef USE_SDL
+  struct xscreensaver_function_table *ft;
+#else
   struct xscreensaver_function_table *ft = xscreensaver_function_table;
+#endif
 
 #ifndef _WIN32
   fix_fds();
@@ -736,7 +744,20 @@ int main (int argc, char **argv) {
   progname = argv[0];   /* reset later */
   progclass = ft->progclass;
 
-  if (ft->setup_cb) ft->setup_cb (ft, ft->setup_arg);
+#ifdef USE_SDL
+  if (SDL_Init(SDL_INIT_VIDEO) != 0) {
+	fprintf(stderr, "%s: SDL initialization failed: %s\n", progname, SDL_GetError());
+	return 1;
+  }
+
+  if (TTF_Init() < 0) {
+	fprintf(stderr, "%s: TTF_Init failed: %s\n", progname, TTF_GetError());
+	SDL_Quit();
+	return 1;
+  }
+#endif
+
+  if (ft->setup_cb) ft->setup_cb (ft, ft->setup_arg); // TODO - Only for X11?
   merge_options();
 
   /* Xt and xscreensaver predate the "--arg" convention, so convert
@@ -808,10 +829,14 @@ int main (int argc, char **argv) {
   }
 
 #ifdef USE_SDL
-  if (SDL_Init(SDL_INIT_VIDEO) != 0) {
-    fprintf(stderr, "%s: SDL initialization failed: %s\n", progname, SDL_GetError());
-	return 1;
+  // Call the hack's setup function if it exists
+  if (xscreensaver_function_table && xscreensaver_function_table->setup_cb) {
+	xscreensaver_function_table->setup_cb(xscreensaver_function_table,
+			xscreensaver_function_table->setup_arg);
   }
+
+  init_function_table();
+  ft = xscreensaver_function_table;
 
   SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
   SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
@@ -819,6 +844,8 @@ int main (int argc, char **argv) {
   SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
   SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
 
+  Bool fullscreen = get_boolean_option("fullscreen");
+  int width = 1280, height = 720;
   int num_displays = 0;
   SDL_DisplayID *displays = SDL_GetDisplays(&num_displays);
   if (!displays || num_displays <= 0) {
@@ -827,7 +854,6 @@ int main (int argc, char **argv) {
 	return 1;
   }
 
-  Bool fullscreen = get_boolean_option("fullscreen");
   int window_count = fullscreen ? num_displays : 1;
 
   SDL_Window **windows = calloc(window_count, sizeof(SDL_Window *));
@@ -836,11 +862,14 @@ int main (int argc, char **argv) {
 
   for (int i = 0; i < window_count; i++) {
 	SDL_Rect bounds;
-	SDL_GetDisplayBounds(displays[i % num_displays], &bounds);
 	Uint32 flags = SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE;
-	if (fullscreen) flags |= SDL_WINDOW_FULLSCREEN;
+	if (fullscreen) {
+	  SDL_GetDisplayBounds(displays[i % num_displays], &bounds);
+      flags |= SDL_WINDOW_FULLSCREEN;
+	  width = bounds.w; height = bounds.y;
+	}
 
-	windows[i] = SDL_CreateWindow(progclass, bounds.w, bounds.h, flags);
+	windows[i] = SDL_CreateWindow(progclass, width, height, flags);
     if (!windows[i]) {
       fprintf(stderr, "%s: Window %d creation failed: %s\n", progname, i, SDL_GetError());
 	  continue;
@@ -874,6 +903,12 @@ int main (int argc, char **argv) {
   free(windows); free(contexts); free(closures);
   SDL_free(displays);
   SDL_Quit();
+
+  for (int i = 0; i < options_count; i++) {
+	free(options_store[i].name);
+	free(options_store[i].value);
+  }
+  free(options_store);
 #else /* ! USE_SDL */
   XWindowAttributes xgwa;
   Window window;

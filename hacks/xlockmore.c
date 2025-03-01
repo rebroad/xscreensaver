@@ -287,7 +287,20 @@ static void set_option_vars(ModeInfo *mi, ModeSpecOpt *opts) {
             case t_Float:
                 *(float *)var->var = get_float_option(var->name);
                 break;
-            // Add t_Int, t_String if needed
+            case t_Int: {
+                const char *val = NULL;
+                for (int j = 0; j < options_count; j++) {
+                    if (strcmp(options_store[j].name, var->name) == 0) {
+                        val = options_store[j].value;
+                        break;
+                    }
+                }
+                *(int *)var->var = val ? atoi(val) : 0;
+                break;
+            }
+            case t_String:
+                // Add if needed by other hacks
+                break;
             default:
                 break;
         }
@@ -378,14 +391,13 @@ static void *xlockmore_init (
 #endif
 		struct xlockmore_function_table *xlmft) {
   ModeInfo *mi = (ModeInfo *) calloc (1, sizeof(*mi));
-#ifdef USE_SDL
+  if (!xlmft) abort();
   mi->xlmft = xlmft;
+#ifdef USE_SDL
   mi->window = window;
   mi->gl_context = context;
-
   mi->fps_p = get_boolean_option("doFPS");
   set_option_vars(mi, xlmft->opts);
-
   if (mi->fps_p) mi->fpst = fps_init(window, context);
 #else
   XGCValues gcv;
