@@ -395,17 +395,18 @@ static void *xlockmore_init (
   if (!xlmft) abort();
   mi->xlmft = xlmft;
 #ifdef USE_SDL
+  void *dpy = NULL;
   mi->window = window;
   mi->gl_context = context;
-  mi->fps_p = get_boolean_option("doFPS");
-  set_option_vars(mi, xlmft->opts);
-  if (mi->fps_p) mi->fpst = fps_init(window, context);
+  //mi->fps_p = get_boolean_option("doFPS");
+  //set_option_vars(mi, xlmft->opts);
+  //if (mi->fps_p) mi->fpst = fps_init(window, context);
 #else
   XGCValues gcv;
   XColor color;
+  Bool root_p;
 #endif
   int i;
-  Bool root_p;
 
   if (! xlmft) abort();
   mi->xlmft = xlmft;
@@ -420,16 +421,15 @@ static void *xlockmore_init (
      screen number.
 
      Find the first empty slot in live_displays and plug us in.  */
-  {
-    const int size = XLOCKMORE_NUM_SCREENS;
-    int i;
-    for (i = 0; i < size; i++)
-      if (! (xlmft->live_displays & (1ul << i))) break;
-    if (i >= size) abort();
-    xlmft->live_displays |= 1ul << i;
-    xlmft->got_init &= ~(1ul << i);
-    mi->screen_number = i;
-  }
+
+  const int size = XLOCKMORE_NUM_SCREENS;
+  for (int i = 0; i < size; i++)
+    if (!(xlmft->live_displays & (1ul << i))) {
+      xlmft->live_displays |= 1ul << i;
+      xlmft->got_init &= ~(1ul << i);
+      mi->screen_number = i;
+	  break;
+	}
 
 #ifndef USE_SDL
   root_p = (window == RootWindowOfScreen (mi->xgwa.screen));
@@ -442,12 +442,10 @@ static void *xlockmore_init (
 #endif /* !HAVE_JWXYZ */
 
   if (mi->xlmft->hack_release) {
-/*
-    fprintf (
+/*  fprintf (
       stderr,
       "%s: WARNING: hack_release is not usually recommended; see MI_INIT.\n",
-      progname);
-*/
+      progname); */
   }
 
   color.flags = DoRed|DoGreen|DoBlue;
@@ -534,14 +532,19 @@ static void *xlockmore_init (
 
   mi->wireframe_p = get_boolean_resource (dpy, "wireframe", "Boolean");
   mi->root_p = root_p;
+#endif // !USE_SDL
   mi->fps_p = get_boolean_resource (dpy, "doFPS", "DoFPS");
   mi->recursion_depth = -1;  /* see fps.c */
 
   if (mi->pause < 0) mi->pause = 0;
   else if (mi->pause > 100000000) mi->pause = 100000000;
   
-  xlockmore_read_resources (mi);
-#endif /* !USE_SDL */
+#ifdef USE_SDL
+  if (mi->fps_p) mi->fpst = fps_init(window, context);
+  xlockmore_set_vars(mi, xlmft->opts);
+#else
+  xlockmore_read_resources(mi);
+#endif
 
   return mi;
 }

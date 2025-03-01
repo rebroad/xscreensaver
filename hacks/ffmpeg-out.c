@@ -38,6 +38,7 @@
 #endif
 
 #include <libavformat/avformat.h>
+#include <libavcodec/avcodec.h>
 #include <libswscale/swscale.h>
 #include <libswresample/swresample.h>
 
@@ -47,7 +48,7 @@
 
 
 struct av_stream {
-  AVCodec *codec;
+  const AVCodec *codec;
   AVStream *st;
   AVCodecContext *ctx;
   AVFrame *frame;
@@ -107,29 +108,22 @@ flush_packets (AVFormatContext *oc, struct av_stream *ost)
 
 
 static void
-write_frame (AVFormatContext *oc, struct av_stream *ost)
-{
+write_frame (AVFormatContext *oc, struct av_stream *ost) {
   av_check (avcodec_send_frame (ost->ctx, ost->frame));
   flush_packets (oc, ost);
 }
 
 
 #ifdef HAVE_CH_LAYOUT
-
-AVChannelLayout
-guess_channel_layout (int channels)
-{
+AVChannelLayout guess_channel_layout (int channels);
+AVChannelLayout guess_channel_layout (int channels) {
   return (channels <= 1 ? (AVChannelLayout)AV_CHANNEL_LAYOUT_MONO : (AVChannelLayout)AV_CHANNEL_LAYOUT_STEREO);
 }
-
 #else   /* !HAVE_CH_LAYOUT */
-
-static uint64_t
-guess_channel_layout (int channels)
-{
+static uint64_t guess_channel_layout (int channels);
+static uint64_t guess_channel_layout (int channels) {
   return (channels <= 1 ? AV_CH_LAYOUT_MONO : AV_CH_LAYOUT_STEREO);
 }
-
 #endif  /* !HAVE_CH_LAYOUT */
 
 
@@ -137,8 +131,7 @@ static void
 get_audio_frame (AVFormatContext *audio_fmt_ctx,
                  struct av_stream *audio_ist, AVPacket *audio_pkt,
                  struct SwrContext *swr_ctx,
-                 struct av_stream *audio_ost)
-{
+                 struct av_stream *audio_ost) {
   int ret;
   for (;;)
     {
