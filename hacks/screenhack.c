@@ -478,11 +478,18 @@ screenhack_do_fps (Display *dpy, Window w, fps_state *fpst, void *closure) {
   fps_draw (fpst);
 }
 
-static void
-run_screenhack_table (Display *dpy,
-                      Window window,
+static void run_screenhack_table (
+#ifdef USE_SDL
+		void *dpy, void *window, void *context,
+#else
+		Display *dpy, Window window,
+#endif
 # ifdef DEBUG_PAIR
+#ifdef USE_SDL
+                      void *window2, void *context2,
+#else
                       Window window2,
+#endif
 # endif
 # ifdef HAVE_RECORD_ANIM
                       record_anim_state *anim_state,
@@ -494,22 +501,28 @@ run_screenhack_table (Display *dpy,
      actually call them with 3, for the benefit of xlockmore_init() and
      xlockmore_setup().
    */
+#ifdef USE_SDL
+  void *(*init_cb)(void *, void *) = ft->init_cb;
+  void *closure = init_cb (window, context);
+#else
   void *(*init_cb) (Display *, Window, void *) =
     (void *(*) (Display *, Window, void *)) ft->init_cb;
-
   void (*fps_cb) (Display *, Window, fps_state *, void *) = ft->fps_cb;
-
   void *closure = init_cb (dpy, window, ft->setup_arg);
+#endif
+
   fps_state *fpst = fps_init (dpy, window);
   unsigned long delay = 0;
 
 #ifdef DEBUG_PAIR
-  void *closure2 = 0;
-  fps_state *fpst2 = 0;
+#ifdef USE_SDL
+  void *closure2 = window2 ? init_cb (window2, contexr2) : 0;
+#else // USE_SDL
+  void *closure2 = window2 ? init_cb (dpy, window2, ft->setup_arg) : 0;
+#endif // else USE_SDL
+  fps_state *fpst2 = window2 ? fps_init (dpy, window2) : 0;
   unsigned long delay2 = 0;
-  if (window2) closure2 = init_cb (dpy, window2, ft->setup_arg);
-  if (window2) fpst2 = fps_init (dpy, window2);
-#endif
+#endif // DEBUG_PAIR
 
   if (! closure)  /* if it returns nothing, it can't possibly be re-entrant. */
     abort();
@@ -517,43 +530,59 @@ run_screenhack_table (Display *dpy,
   if (! fps_cb) fps_cb = screenhack_do_fps;
 
   while (1) {
-    if (! usleep_and_process_events (dpy, ft,
-                                       window, fpst, closure, delay
+#ifdef USE_SDL
+    SDL_Event event;
+	while (SDL_PollEvent(&event)) {
+	  if (!ft->event_cb(window, closure, &event)
+#ifdef DEBUG_PAIR
+	    || (window2 && !ft->event_cb(window2, closure2, &event))
+#endif
+		) break;
+	  if (event.type == SDL_EVENT_WINDOW_RESIZED)
+		ft->reshape_cb(window, closure, event.window,data1, event.window,data2);
+	}
+#else // USE_SDL
+    if (! usleep_and_process_events (dpy, ft, window, fpst, closure, delay
 #ifdef DEBUG_PAIR
                                        , window2, fpst2, closure2, delay2
-#endif
+#endif // DEBUG_PAID
 #ifdef HAVE_RECORD_ANIM
                                        , anim_state
-#endif
+#endif // HAVE_RECORD_ANIM
                                        ))
       break;
+#endif // else USE_SDL
 
     delay = ft->draw_cb (dpy, window, closure);
-#ifdef DEBUG_PAIR
-    delay2 = 0;
-    if (window2) delay2 = ft->draw_cb (dpy, window2, closure2);
-#endif
-
     if (fpst) fps_cb (dpy, window, fpst, closure);
 #ifdef DEBUG_PAIR
-    if (fpst2) fps_cb (dpy, window2, fpst2, closure2);
-#endif
-  }
+    if (window2) {
+      delay2 = ft->draw_cb (dpy, window2, closure2);
+      if (fpst2) fps_cb (dpy, window2, fpst2, closure2);
+	}
+#endif // DEBUG_PAIR
+#ifdef USE_SDL
+	SDL_GL_SwapWindow(window);
+	SDL_Delay(16); // ~60 FPS cap
+#else
+	// TODO - no need for glXSwapBuffers(dpy, window); here?
+#endif // USE_SDL
+  } // while running
 
 #ifdef HAVE_RECORD_ANIM
   /* Exiting before target frames hit: write the video anyway. */
   if (anim_state) screenhack_record_anim_free (anim_state);
-#endif
+#endif // HAVE_RECORD_ANIM
 
   if (fpst) ft->fps_free (fpst);
 #ifdef DEBUG_PAIR
   if (fpst2) ft->fps_free (fpst2);
-#endif
+#endif // DEBUG_PAIR
 
   ft->free_cb (dpy, window, closure);
 #ifdef DEBUG_PAIR
   if (window2) ft->free_cb (dpy, window2, closure2);
-#endif
+#endif // DEBUG_PAIR
 }
 
 static Widget make_shell (Screen *screen, Widget toplevel, int width, int height) {
@@ -635,69 +664,6 @@ static void init_window (Display *dpy, Widget toplevel, const char *title) {
 #else /* !USE_SDL */
 
 
-// Simple key-value store for options
-typedef struct {
-    char *name;
-    char *value;
-} OptionValue;
-
-static OptionValue *options_store;
-static int options_count;
-
-static void parse_options(int argc, char **argv, const XrmOptionDescRec *opts) {
-    options_store = calloc(argc, sizeof(OptionValue));
-    options_count = 0;
-
-    for (int i = 1; i < argc; i++) {
-        for (int j = 0; opts[j].option; j++) {
-            if (strcmp(argv[i], opts[j].option) == 0) {
-                options_store[options_count].name = strdup(opts[j].specifier + 1); // Skip '.'
-                if (opts[j].argKind == XrmoptionNoArg) {
-                    options_store[options_count].value = strdup("True");
-                } else if (i + 1 < argc && argv[i + 1][0] != '-') {
-                    options_store[options_count].value = strdup(argv[++i]);
-                } else {
-                    options_store[options_count].value = strdup(""); // Missing arg
-                }
-                options_count++;
-                break;
-            }
-        }
-    }
-}
-
-static Bool get_boolean_option(const char *name) {
-    for (int i = 0; i < options_count; i++) {
-        if (strcmp(options_store[i].name, name) == 0) {
-            char *val = options_store[i].value;
-            if (!val || !*val || !strcmp(val, "True") || !strcmp(val, "on") || !strcmp(val, "yes"))
-                return True;
-            if (!strcmp(val, "False") || !strcmp(val, "off") || !strcmp(val, "no"))
-                return False;
-            fprintf(stderr, "%s: %s must be boolean, not %s\n", progname, name, val);
-            return False;
-        }
-    }
-    return False; // Default
-}
-
-static float get_float_option(const char *name) {
-    for (int i = 0; i < options_count; i++) {
-        if (strcmp(options_store[i].name, name) == 0 && options_store[i].value) {
-            return atof(options_store[i].value);
-        }
-    }
-    return 0.0f; // Default
-}
-
-static void init_function_table(void) {
-    // TODO - Does this really need its own function?
-    if (!xscreensaver_function_table) {
-        fprintf(stderr, "%s: xscreensaver_function_table not initialized by hack\n", progname);
-        exit(1);
-    }
-}
-
 static void run_sdl_loop(SDL_Window **windows, SDL_GLContext *contexts,
                          void **closures, int num_windows) {
     struct xscreensaver_function_table *ft = xscreensaver_function_table;
@@ -774,7 +740,7 @@ int main (int argc, char **argv) {
     if (argv[i][0] == '-' && argv[i][1] == '-') argv[i]++;
 
 #ifdef USE_SDL
-  parse_options(argc, argv, merged_options);
+  sdl_init_resources(argc, argv, merged_options, merged_defaults);
 #else
   Display *dpy;
   Widget toplevel;
