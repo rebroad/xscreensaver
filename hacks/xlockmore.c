@@ -414,6 +414,7 @@ static void *xlockmore_init (
   mi->dpy = dpy;
   mi->window = window;
   XGetWindowAttributes (dpy, window, &mi->xgwa);
+  printf("%s: %xd%x\n", __func__, mi->xgwa.width, mi->xgwa.height);
 #endif
   
   /* In Cocoa and Android-based xscreensaver, as well as with DEBUG_PAIR,
@@ -540,7 +541,7 @@ static void *xlockmore_init (
   else if (mi->pause > 100000000) mi->pause = 100000000;
   
 #ifdef USE_SDL
-  if (mi->fps_p) mi->fpst = fps_init(window, context);
+  //if (mi->fps_p) mi->fpst = fps_init(window, context);
   xlockmore_set_vars(mi, xlmft->opts);
 #else
   xlockmore_read_resources(mi);
