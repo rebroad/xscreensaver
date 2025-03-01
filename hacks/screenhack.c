@@ -63,6 +63,7 @@
 #endif // else USE_SDL
 
 #include <stdio.h>
+#include <ctype.h>
 
 #ifdef __sgi
 # include <X11/SGIScheme.h>	/* for SgiUseSchemes() */
@@ -122,7 +123,7 @@ static XrmOptionDescRec default_options [] = {
   { "-window-id", ".windowID",	XrmoptionSepArg, 0 },
   { "-fps",	    ".doFPS",		XrmoptionNoArg, "True" },
   { "-no-fps",  ".doFPS",		XrmoptionNoArg, "False" },
-  { "-fullscreen", ".fullscreen", XrmoptionNoArg, "all" },
+  { "-fullscreen", ".fullscreen", XrmoptionNoArg, "False" },
 # ifdef DEBUG_PAIR
   { "-pair",	".pair",		XrmoptionNoArg, "True" },
 # endif
@@ -885,12 +886,18 @@ int main (int argc, char **argv) {
   if (CellsOfScreen (DefaultScreenOfDisplay (dpy)) <= 2) mono_p = True;
 
   Bool root_p = get_boolean_resource(dpy, "root", "Boolean");
-  Bool fullscreen_p = get_boolean_resource(dpy, "fullscreen", "Boolean");
-  int fullscreen_display = -1;  // -1 means all displays, N means display N
-  if (fullscreen_p) {
-    char *fs_val = get_string_resource(dpy, "fullscreen", "Fullscreen");
-    if (fs_val && strcmp(fs_val, "all") != 0) {
-      fullscreen_display = atoi(fs_val);  /* Specific display index */
+  Bool fullscreen_p = False;
+  int fullscreen_display = -1;
+  char *fs_val = get_string_resource(dpy, "fullscreen", "Boolean");
+  if (fs_val) {
+    if (!strcasecmp(fs_val, "true") || !strcasecmp(fs_val, "on") ||
+        !strcasecmp(fs_val, "yes")) {
+      fullscreen_p = True;
+    } else if (!strcasecmp(fs_val, "all")) {
+      fullscreen_p = True;
+    } else if (isdigit(fs_val[0])) {
+      fullscreen_p = True;
+      fullscreen_display = atoi(fs_val);
     }
     free(fs_val);
   }
