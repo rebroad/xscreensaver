@@ -899,6 +899,9 @@ int main (int argc, char **argv) {
     }
   }
 
+  // TODO - I notice that fp->init_cb is run before the main loop, wheras in the X11
+  // implementation it's run before the while loop, but within run_screenhack_table
+  // - does running the init within loop function provide any benefit?
   run_sdl_loop(windows, contexts, closures, window_count);
 
   for (int i = 0; i < num_displays; i++) {
