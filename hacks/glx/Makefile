@@ -37,7 +37,7 @@ WIN_SDL3_LIBS = -L$(WIN_SDL3_PATH)/lib -lSDL3 -lSDL3_ttf -lopengl32 -lglu32 -lmi
 CC		= gcc -std=gnu99 -pedantic -Wall -Wnested-externs -Wstrict-prototypes -Wmissing-prototypes -Wno-overlength-strings
 CFLAGS		= -g -O2
 LDFLAGS		=  -L${exec_prefix}/lib
-DEFS		= -DSTANDALONE -DUSE_GL -DHAVE_CONFIG_H
+DEFS		= -DSTANDALONE -DUSE_GL -DHAVE_CONFIG_H -DHAVE_RECORD_ANIM
 PERL		= /usr/bin/perl
 
 THREAD_LIBS	= -lpthread
@@ -609,7 +609,7 @@ SDL_CFLAGS_BASE=$(SDL3_INCLUDE) $(INCLUDES) $(DEFS) $(CPPFLGAS) $(CFLAGS)
 
 # How we build object files in this directory.
 .c.o:
-	$(CC) -c $(HACK_CFLAGS_BASE) -DHAVE_RECORD_ANIM $<
+	$(CC) -c $(HACK_CFLAGS_BASE) $<
 
 %.sdl.o: %.c
 	$(CC) -c $(SDL_CFLAGS_BASE) -DUSE_SDL -o $@ $<
