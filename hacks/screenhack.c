@@ -886,6 +886,7 @@ int main (int argc, char **argv) {
 
   Bool root_p = get_boolean_resource(dpy, "root", "Boolean");
   Bool fullscreen_p = get_boolean_resource(dpy, "fullscreen", "Boolean");
+  int fullscreen_display = -1;  // -1 means all displays, N means display N
   if (fullscreen_p) {
     char *fs_val = get_string_resource(dpy, "fullscreen", "Fullscreen");
     if (fs_val && strcmp(fs_val, "all") != 0) {
@@ -908,6 +909,9 @@ int main (int argc, char **argv) {
   }
 
   /* Determine display configuration */
+  Window *windows = NULL;
+  Widget *toplevels = NULL;
+  int window_count = 1;
   if (fullscreen_p && !root_p) {
     int num_screens = 0;
     XineramaScreenInfo *xsi = NULL;
@@ -924,7 +928,6 @@ int main (int argc, char **argv) {
                 progname, fullscreen_display, num_screens);
         fullscreen_display = 0;  /* Default to primary */
       }
-      window_count = 1;
     } else {
       /* All displays mode */
       window_count = num_screens;
