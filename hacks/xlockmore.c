@@ -414,7 +414,7 @@ static void *xlockmore_init (
   mi->dpy = dpy;
   mi->window = window;
   XGetWindowAttributes (dpy, window, &mi->xgwa);
-  printf("%s: %xd%x\n", __func__, mi->xgwa.width, mi->xgwa.height);
+  printf("%s: %dx%d\n", __func__, mi->xgwa.width, mi->xgwa.height);
 #endif
   
   /* In Cocoa and Android-based xscreensaver, as well as with DEBUG_PAIR,
