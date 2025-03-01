@@ -14,8 +14,7 @@
                  "*showFPS: False\n" \
                  "*wireframe: False\n" \
                  "*count: 20\n" \
-                 "*suppressRotationAnimation: True\n" \
-                 "*allDisplays: False\n"
+                 "*suppressRotationAnimation: True\n"
 
 # define release_hextrail 0
 
@@ -49,7 +48,6 @@
 #define DEF_EXPAND "False"
 #define DEF_SPEED "1.0"
 #define DEF_THICKNESS "0.15"
-#define DEF_ALL_DISPLAYS "False"
 
 #define BELLRAND(n) ((frand((n)) + frand((n)) + frand((n))) / 3)
 
@@ -109,7 +107,7 @@ typedef struct {
 
 static config *bps = NULL;
 
-static Bool do_spin, do_wander, do_glow, do_neon, do_expand, do_all_displays;
+static Bool do_spin, do_wander, do_glow, do_neon, do_expand;
 static GLfloat speed, thickness;
 static int8_t draw_invis = 1;
 static Bool pausing = False;
@@ -127,8 +125,6 @@ static XrmOptionDescRec opts[] = {
   { "-expand", ".expand", XrmoptionNoArg, "True" },
   { "+expand", ".expand", XrmoptionNoArg, "False" },
   { "-thickness", ".thickness", XrmoptionSepArg, 0 },
-  { "-all-displays", ".allDisplays", XrmoptionNoArg, "True" },
-  { "+all-displays", ".allDisplays", XrmoptionNoArg, "False" },
 };
 
 static argtype vars[] = {
@@ -139,7 +135,6 @@ static argtype vars[] = {
   {&do_expand, "expand", "Expand", DEF_EXPAND, t_Bool},
   {&speed,     "speed",  "Speed",  DEF_SPEED,  t_Float},
   {&thickness, "thickness", "Thickness", DEF_THICKNESS, t_Float},
-  {&do_all_displays, "allDisplays", "AllDisplays", DEF_ALL_DISPLAYS, t_Bool},
 };
 
 ENTRYPOINT ModeSpecOpt hextrail_opts = {countof(opts), opts, countof(vars), vars, NULL};
