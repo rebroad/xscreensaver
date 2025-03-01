@@ -479,8 +479,8 @@ screenhack_do_fps (Display *dpy, Window w, fps_state *fpst, void *closure) {
 }
 
 static void run_screenhack_table (
-#ifdef USE_SDL
-		void *dpy, void *window, void *context,
+#ifdef USE_SDL // TODO what type is dpy?
+		void *dpy, SDL_Window *window, SDL_GLContext *context,
 #else
 		Display *dpy, Window window,
 #endif
@@ -661,46 +661,7 @@ static void init_window (Display *dpy, Widget toplevel, const char *title) {
   XChangeProperty (dpy, window, XA_NET_WM_PID, XA_CARDINAL, 32,
                    PropModeReplace, (unsigned char *)&pid, 1);
 }
-#else /* !USE_SDL */
-
-
-static void run_sdl_loop(SDL_Window **windows, SDL_GLContext *contexts,
-                         void **closures, int num_windows) {
-    struct xscreensaver_function_table *ft = xscreensaver_function_table;
-    Bool running = True;
-    SDL_Event event;
-
-    while (running) {
-        while (SDL_PollEvent(&event)) {
-            for (int i = 0; i < num_windows; i++) {
-                if (!windows[i]) continue;
-                if (event.type == SDL_EVENT_WINDOW_RESIZED &&
-                    event.window.windowID == SDL_GetWindowID(windows[i])) {
-                    ft->reshape_cb(windows[i], closures[i], event.window.data1, event.window.data2);
-                }
-                if (!ft->event_cb(windows[i], closures[i], &event)) {
-                    printf("%s: event.type = %d\n", __func__, event.type);
-                    running = False;
-                    break;
-                }
-            }
-        }
-        if (!running) break;
-
-        for (int i = 0; i < num_windows; i++) {
-            if (windows[i]) {
-                SDL_GL_MakeCurrent(windows[i], contexts[i]);
-                ft->draw_cb(windows[i], closures[i]);
-                ModeInfo *mi = (ModeInfo *)closures[i];
-                if (mi && mi->fpst) {
-                    ft->fps_cb(windows[i], mi->fpst, closures[i]);
-                }
-                SDL_GL_SwapWindow(windows[i]);
-            }
-        }
-    }
-}
-#endif // else !USE_SDL
+#endif // !USE_SDL
 
 int main (int argc, char **argv) {
   printf("%s: %s\n", __FILE__, __func__);
