@@ -814,22 +814,10 @@ int main (int argc, char **argv) {
       fprintf(stderr, "%s:GL context %d creation failed: %s\n", progname, i, SDL_GetError());
       SDL_DestroyWindow(windows[i]);
       windows[i] = NULL;
-      continue;
-    }
-
-    closures[i] = ft->init_cb(windows[i], contexts[i]);
-    if (!closures[i]) {
-      fprintf(stderr, "%s: Initialization failed for display %s\n", progname, i);
-      SDL_GL_DestroyContext(contexts[i]);
-      SDL_DestroyWindow(windows[i]);
-      windows[i] = NULL; contexts[i] = NULL;
     }
   }
 
-  // TODO - I notice that fp->init_cb is run before the main loop, wheras in the X11
-  // implementation it's run before the while loop, but within run_screenhack_table
-  // - does running the init within loop function provide any benefit?
-  run_sdl_loop(windows, contexts, closures, window_count);
+  run_screenhack_table(NULL, window, context, ft);
 
   for (int i = 0; i < num_displays; i++) {
     if (closures[i]) ft->free_cb(windows[i], closures[i]);
