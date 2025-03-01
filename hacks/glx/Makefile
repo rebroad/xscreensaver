@@ -57,7 +57,7 @@ PROG_SETCAP	=
 SETCAP_FLAGS	= cap_net_raw=p
 
 X_PRE_LIBS	=  -lSM -lICE
-X_EXTRA_LIBS	=
+X_EXTRA_LIBS	= -lXinerama
 XFT_LIBS	= -lXft
 
 # Note: see comment in ../../driver/Makefile.in for explanation of X_LIBS, etc.
@@ -596,6 +596,7 @@ $(HACK_BIN)/screenhack.o:	$(HACK_SRC)/screenhack.c
 $(HACK_BIN)/xlockmore.o:	$(HACK_SRC)/xlockmore.c
 $(HACK_BIN)/fps.o:		$(HACK_SRC)/fps.c
 $(HACK_BIN)/ffmpeg-out.o:	$(HACK_SRC)/ffmpeg-out.c
+$(HACK_BIN)/recanim.o:	$(HACK_SRC)/recanim.c
 
 $(UTILDIR_OBJS):
 	$(MAKE2CC) -C $(UTILS_BIN) $(@F)
