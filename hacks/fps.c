@@ -285,11 +285,11 @@ void fps_draw (fps_state *st) {
 
   for (s = string; *s; s++) if (*s == '\n') lines++;
 
-  if (y < 0) y = -y + (lines-1) * lh;
+  if (y < 0) y = -y + (lines-1) * lh; // TODO - what is this line for?
 #ifdef USE_SDL
   else {
     int w, h;
-    SDL_GetWindowSize(st->window, &w, &h); // TODO - no access to ModeInfo?
+    SDL_GetWindowSize(st->window, &w, &h); // TODO - We don't already know?
 	y = h - y - lh * (lines - 1);
   }
 #else
@@ -299,27 +299,26 @@ void fps_draw (fps_state *st) {
 
   /* clear the background */
   if (st->clear_p) {
-    int w, h;
+    int maxw = 0;
     int olines = lines;
     const char *ostring = string;
-    int maxw = 0;
+    int w, h;
     while (lines) {
       s = strchr (string, '\n');
       if (!s) s = string + strlen(string);
-# if 0
-      {
-        XGlyphInfo overall;
-        XftTextExtentsUtf8 (st->dpy, st->font, (FcChar8 *) string, 
-                            s - string, &overall);
-        w = overall.width - overall.x + st->em;
-      }
-# else
+#ifdef USE_SDL
+	  // TODO - Isn't it also slow on SDL and better to use the times 12 guess?
+	  SDL_Surface *text = TTF_RenderText_Blended(st->font, string, st->fg);
+	  if (text) {
+		if (text->w > maxw) maxw = text->w;
+		SDL_DestroySurface(text);
+	  }
+#else
       /* Measuring the font is slow, let's just assume this will fit. */
       w = st->em * 12;   /* "Load: 100.0%" */
-# endif
       if (w > maxw) maxw = w;
-      string = s;
-      string++;
+#endif
+      string = s + 1;
       lines--;
     }
     w = maxw;
@@ -334,7 +333,6 @@ void fps_draw (fps_state *st) {
     XFillRectangle (st->dpy, st->window, st->erase_gc, x - st->font->descent,
 			          y - lh, w + 2*st->font->descent, h + 2*st->font->descent);
 #endif
-
     lines = olines;
     string = ostring;
   }
@@ -349,14 +347,13 @@ void fps_draw (fps_state *st) {
       SDL_Texture *tex = SDL_CreateTextureFromSurface(st->renderer, text);
       if (tex) {
         SDL_FRect dst = {(float)x, (float)y, (float)text->w, (float)text->h};
-        SDL_RenderCopy(st->renderer, tex, NULL, &dst);
+        SDL_RenderTexture(st->renderer, tex, NULL, &dst);
         SDL_DestroyTexture(tex);
       }
       SDL_DestroySurface(text);
     }
 #else
-    XftDrawStringUtf8 (st->xftdraw, &st->fg, st->font,
-                       x, y, (FcChar8 *) string, s - string);
+    XftDrawStringUtf8 (st->xftdraw, &st->fg, st->font, x, y, (FcChar8 *) string, s - string);
 #endif
     string = s + 1;
     lines--;

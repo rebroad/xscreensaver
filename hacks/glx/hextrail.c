@@ -1,10 +1,10 @@
 /* hextrail, Copyright (c) 2022 Jamie Zawinski <jwz@jwz.org> */
 
-/* TODO:-
+/* low-priority TODOs:-
  = Collect all vertices into a dynamic array, then upload to a 1 or more VBOs - also fix glow effects.
  = Don't draw borders when the thickness of the line would be <1 pixel
  = hextrail - the end-points - draw these more slowly, like a decelleration (due to pressure).
- = need an option to make it fill all active displays (is -root supposed to do this?)
+ = need an option to make it fill all active displays (wasn't -root supposed to do this?)
  = Measure average tick time (per second) FPS=TPS?
  = Enable ability to click a hexagon and get info
  = Explore using the Z dimension - some undulation or ripple effect perhaps?
@@ -257,7 +257,6 @@ static int add_arms (config *bp, hexagon *h0) {
     } else
       printf("H0 (%d,%d) arm%d out to H1 (%d,%d)->state=%d\n",
 h0->x, h0->y, j, h1->x, h1->y, h1->state);
-      // TODO - find out which arm of H1 is already WAITing and the ratio of the OUT arm heading to it.
 
     added++;
     if (added >= target) break;
@@ -531,7 +530,7 @@ static void tick_hexagons (ModeInfo *mi) {
     if (bp->state == FIRST) {
       fails = 0;
       bp->state = DRAW;
-      bp->fade_ratio = 1; // TODO what is this?
+      bp->fade_ratio = 1;
       min_vx = 0; max_vx = 0; min_vy = 0; max_vy = 0;
       min_x = 0; max_x = 0; min_y = 0; max_y = 0;
       ticks = 0; iters = 0;
@@ -575,10 +574,6 @@ static void tick_hexagons (ModeInfo *mi) {
       if (new_hex) bp->pause_until = bp->now + 5;
     } else {
       fails++;
-      // TODO - this whole random pick and try to see if we fill is quite resource intensive, with about
-      // 20,000 fails per second! Instead it would be better to use our knowledge of the visible range
-      // Perform a loop through X and Y of that range and see if there are any empty cells (due to
-      // getting a NULL pointer from hex_grid. Then randomly pick one of the empty cells found.
       static time_t debug = 0;
       if (debug != bp->now) {
         printf("hexagon created. doing=%d ticks=%d fails=%d h0=%d,%d empty=%d visible=%d\n",
@@ -748,7 +743,7 @@ static void draw_hexagons (ModeInfo *mi) {
             printf("%s: h=%d,%d h=%d BAD NEIGHBOR\n", __func__, h->x, h->y, j);
             continue;
         }
-        HEXAGON_COLOR (ncolor, neighbor(bp, h, j)); // TODO - Fix SIGSEGV here
+        HEXAGON_COLOR (ncolor, neighbor(bp, h, j));
         ncolor[0] = (ncolor[0] + color[0]) / 2;
         ncolor[1] = (ncolor[1] + color[1]) / 2;
         ncolor[2] = (ncolor[2] + color[2]) / 2;
@@ -1048,118 +1043,6 @@ ENTRYPOINT Bool hextrail_handle_event (ModeInfo *mi,
 
   return False;
 }
-
-#ifdef USE_SDL
-static void run_sdl_loop(SDL_Window **windows, SDL_GLContext *contexts, void **closures, int num_windows) {
-    Bool running = True;
-    SDL_Event event;
-
-    while (running) {
-        while (SDL_PollEvent(&event)) {
-            for (int i = 0; i < num_windows; i++) {
-                if (!windows[i]) continue;
-                if (event.type == SDL_EVENT_WINDOW_RESIZED &&
-                    event.window.windowID == SDL_GetWindowID(windows[i])) {
-                    reshape_hextrail((ModeInfo *)closures[i], event.window.data1, event.window.data2);
-                }
-                if (!hextrail_handle_event((ModeInfo *)closures[i], &event)) {
-                    running = False;
-                    break;
-                }
-            }
-        }
-        if (!running) break;
-
-        for (int i = 0; i < num_windows; i++) {
-            if (windows[i]) {
-                SDL_GL_MakeCurrent(windows[i], contexts[i]);
-                draw_hextrail((ModeInfo *)closures[i]);
-                SDL_GL_SwapWindow(windows[i]);
-            }
-        }
-    }
-}
-
-int main(int argc, char **argv) {
-    progname = argv[0];
-    progclass = "HexTrail";
-
-    merge_options();
-    parse_options(argc, argv, merged_options);
-
-    if (SDL_Init(SDL_INIT_VIDEO) != 0) {
-        fprintf(stderr, "%s: SDL initialization failed: %s\n", progname, SDL_GetError());
-        return 1;
-    }
-
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
-    SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
-    SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
-
-    int num_displays = 0;
-    SDL_DisplayID *displays = SDL_GetDisplays(&num_displays);
-    if (!displays || num_displays <= 0) {
-        fprintf(stderr, "%s: No displays detected: %s\n", progname, SDL_GetError());
-        SDL_Quit();
-        return 1;
-    }
-
-    int window_count = do_all_displays ? num_displays : 1;
-    SDL_Window **windows = calloc(window_count, sizeof(SDL_Window *));
-    SDL_GLContext *contexts = calloc(window_count, sizeof(SDL_GLContext));
-    void **closures = calloc(window_count, sizeof(void *));
-
-    for (int i = 0; i < window_count; i++) {
-        SDL_Rect bounds;
-        SDL_GetDisplayBounds(displays[i % num_displays], &bounds);
-        Uint32 flags = SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE;
-        if (do_all_displays) flags |= SDL_WINDOW_FULLSCREEN;
-
-        windows[i] = SDL_CreateWindow(progclass, 800, 600, flags);
-        if (!windows[i]) {
-            fprintf(stderr, "%s: Window %d creation failed: %s\n", progname, i, SDL_GetError());
-            continue;
-        }
-
-        contexts[i] = SDL_GL_CreateContext(windows[i]);
-        if (!contexts[i]) {
-            fprintf(stderr, "%s: GL context %d creation failed: %s\n", progname, i, SDL_GetError());
-            SDL_DestroyWindow(windows[i]);
-            windows[i] = NULL;
-            continue;
-        }
-
-        ModeInfo *mi = calloc(1, sizeof(ModeInfo));
-        mi->window = windows[i];
-        mi->gl_context = contexts[i];
-        mi->screen_number = i;
-        mi->pause = 30000; // TODO - what is this?
-        mi->batchcount = 20;
-        mi->fps_p = get_boolean_option("doFPS");
-
-        init_hextrail(mi);
-        closures[i] = mi;
-    }
-
-    run_sdl_loop(windows, contexts, closures, window_count);
-
-    for (int i = 0; i < window_count; i++) {
-        if (closures[i]) free_hextrail((ModeInfo *)closures[i]);
-        if (contexts[i]) SDL_GL_DestroyContext(contexts[i]);
-        if (windows[i]) SDL_DestroyWindow(windows[i]);
-        free(closures[i]);
-    }
-
-    free(windows);
-    free(contexts);
-    free(closures);
-    SDL_free(displays);
-    SDL_Quit();
-    return 0;
-}
-#endif // USE_SDL
 
 ENTRYPOINT void init_hextrail (ModeInfo *mi) {
   MI_INIT (mi, bps);
