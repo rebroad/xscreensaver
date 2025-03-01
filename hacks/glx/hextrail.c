@@ -97,7 +97,7 @@ typedef struct {
   hex_chunk **chunks;
   uint16_t *hex_grid;
   int chunk_count;
-  int total_hexagons
+  int total_hexagons;
   int hexagon_capacity;
   int size, grid_w, grid_h;
   int x_offset, y_offset;
