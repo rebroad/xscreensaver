@@ -602,7 +602,7 @@ static Widget make_shell (Screen *screen, Widget toplevel, int width, int height
                      XtNheight, height,
                      XtNinput, True,  /* for WM_HINTS */
                      NULL);
-	printf("%s: After XtVaSetValues: %dx%d\n", __func__, XtNwidth, XtNheight);
+	printf("%s: After XtVaSetValues: %sx%s\n", __func__, XtNwidth, XtNheight);
     XtRealizeWidget (toplevel);
     window = XtWindow (toplevel);
 
@@ -633,10 +633,10 @@ static Widget make_shell (Screen *screen, Widget toplevel, int width, int height
                                 XtNinput, True,  /* for WM_HINTS */
                                 NULL);
 
-	printf("%s: After XtVaAppCreateShell: %dx%d %dx%d\n", __func__, x, y, XtNwidth, XtNheight);
+	printf("%s: After XtVaAppCreateShell: %dx%d %sx%s\n", __func__, width, height, XtNwidth, XtNheight);
     if (!toplevel) { /* kludge for the second window in -pair mode... */
       XtVaSetValues (new, XtNx, 0, XtNy, 550, NULL);
-	  printf("%s: After 2nd XtVaSetValues: %dx%d %dx%d\n", __func__, x, y, XtNx, XtNy);
+	  printf("%s: After 2nd XtVaSetValues: %sx%s\n", __func__, XtNx, XtNy);
 	}
 
     XtRealizeWidget (new);
