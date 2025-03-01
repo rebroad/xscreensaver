@@ -1005,9 +1005,7 @@ usage(const char *err)
   exit (1);
 }
 
-int
-main (int argc, char **argv)
-{
+int main (int argc, char **argv) {
   int i;
   const char *infiles[1000];
   const char *outfile = 0;

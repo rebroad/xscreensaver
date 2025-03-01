@@ -496,15 +496,14 @@ static void run_screenhack_table (
 # endif
                       const struct xscreensaver_function_table *ft)
 {
-
-  /* Kludge: even though the init_cb functions are declared to take 2 args,
-     actually call them with 3, for the benefit of xlockmore_init() and
-     xlockmore_setup().
-   */
 #ifdef USE_SDL
   void *(*init_cb)(void *, void *) = ft->init_cb;
+  void (*fps_cb)(void *, fps_state *, void *) = ft->fps_cb;
   void *closure = init_cb (window, context);
 #else
+  /* Kludge: even though the init_cb functions are declared to take 2 args,
+     actually call them with 3, for the benefit of xlockmore_init() and
+     xlockmore_setup().  */
   void *(*init_cb) (Display *, Window, void *) =
     (void *(*) (Display *, Window, void *)) ft->init_cb;
   void (*fps_cb) (Display *, Window, fps_state *, void *) = ft->fps_cb;
@@ -563,7 +562,7 @@ static void run_screenhack_table (
 #endif // DEBUG_PAIR
 #ifdef USE_SDL
 	SDL_GL_SwapWindow(window);
-	SDL_Delay(16); // ~60 FPS cap
+	if (delay > 0) SDL_Delay(delay / 1000);
 #else
 	// TODO - no need for glXSwapBuffers(dpy, window); here?
 #endif // USE_SDL

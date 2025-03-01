@@ -251,6 +251,7 @@ FPS_OBJS	= texfont.o $(HACK_BIN)/fps.o fps-gl.o \
 
 HACK_GLSL_OBJS  = glsl-utils.o
 HACK_OBJS	= $(HACK_BIN)/screenhack.o $(HACK_BIN)/xlockmore.o \
+	      $(HACK_BIN)/recanim.o \
 		  xlock-gl-utils.o erase-gl.o \
 		  $(UTILS_BIN)/resources.o \
 		  $(UTILS_BIN)/colors.o \
@@ -609,7 +610,7 @@ SDL_CFLAGS_BASE=$(SDL3_INCLUDE) $(INCLUDES) $(DEFS) $(CPPFLGAS) $(CFLAGS)
 
 # How we build object files in this directory.
 .c.o:
-	$(CC) -c $(HACK_CFLAGS_BASE) $<
+	$(CC) -c $(HACK_CFLAGS_BASE) -DHAVE_RECORD_ANIM $<
 
 %.sdl.o: %.c
 	$(CC) -c $(SDL_CFLAGS_BASE) -DUSE_SDL -o $@ $<
@@ -1147,7 +1148,7 @@ chompytower:	chompytower.o	$(CHOBJS) $(HACK_TRACK_OBJS)
 teeth_dxf::
 	./dxf2gl.pl --layers --smooth --normalize teeth.dxf teeth_model.c
 
-hextrail: hextrail.o normals.o $(HACK_TRACK_OBJS)
+hextrail: hextrail.o normals.o $(ANIM_OBJS)
 	$(CC_HACK) -o $@ $^ $(HACK_LIBS) ${X_LIBS}
 
 hextrail-sdl: hextrail.sdl.o normals.sdl.o rotator.sdl.o trackball.sdl.o gltrackball.sdl.o $(HACK_BIN)/screenhack.sdl.o $(HACK_BIN)/xlockmore.sdl.o $(HACK_BIN)/fps.sdl.o $(UTILS_BIN)/yarandom.sdl.o $(UTILS_BIN)/colors.sdl.o $(UTILS_BIN)/hsv.sdl.o
