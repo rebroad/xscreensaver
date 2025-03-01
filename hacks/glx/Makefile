@@ -1,7 +1,6 @@
 # hacks/glx/Makefile.in --- xscreensaver, Copyright © 1999-2024 Jamie Zawinski.
 # the `../../configure' script generates `hacks/glx/Makefile' from this file.
 
-
 .SUFFIXES:
 .SUFFIXES: .c .o
 
@@ -39,15 +38,12 @@ CC		= gcc -std=gnu99 -pedantic -Wall -Wnested-externs -Wstrict-prototypes -Wmiss
 CFLAGS		= -g -O2
 LDFLAGS		=  -L${exec_prefix}/lib
 DEFS		= -DSTANDALONE -DUSE_GL -DHAVE_CONFIG_H
-LIBS		=
 PERL		= /usr/bin/perl
 
 THREAD_LIBS	= -lpthread
 THREAD_CFLAGS	= -pthread
 
 DEPEND		= makedepend
-DEPEND_FLAGS	=
-DEPEND_DEFINES	=
 
 SHELL		= /bin/sh
 INSTALL		= /usr/bin/install -c
@@ -60,8 +56,6 @@ INSTALL_DIRS	= ${INSTALL} -d
 PROG_SETCAP	=
 SETCAP_FLAGS	= cap_net_raw=p
 
-X_CFLAGS	=
-X_LIBS		=
 X_PRE_LIBS	=  -lSM -lICE
 X_EXTRA_LIBS	=
 XFT_LIBS	= -lXft
@@ -75,9 +69,6 @@ HACK_LIBS	= $(HACK_PRE) -lavutil -lavcodec -lavformat -lswscale -lswresample $(H
 PNG_LIBS	= $(HACK_PRE) -lgdk_pixbuf-2.0 -lgio-2.0 -lgobject-2.0 -lglib-2.0 -lavutil -lavcodec -lavformat -lswscale -lswresample $(HACK_POST2)
 GLE_LIBS	= $(HACK_PRE) -lgdk_pixbuf-2.0 -lgio-2.0 -lgobject-2.0 -lglib-2.0 -lavutil -lavcodec -lavformat -lswscale -lswresample $(HACK_POST2)
 TEXT_LIBS	= -lutil
-#### Is LIBCAP_CFLAGS necessary?
-LIBCAP_CFLAGS	=
-LIBCAP_LIBS	=
 
 HACK_SRC	= $(srcdir)/..
 HACK_BIN	= ..
@@ -335,8 +326,8 @@ MAKE2CC = $(MAKE2) CC="$(CC)" CFLAGS="$(CFLAGS)" LDFLAGS="$(LDFLAGS)"
 default: all
 all: validate_xml $(EXES) $(RETIRED_EXES)
 
-install:   install-program    install-scripts install-xml   install-man
-uninstall: uninstall-program  uninstall-xml uninstall-man
+install:   install-program   install-scripts install-xml install-man
+uninstall: uninstall-program uninstall-xml uninstall-man
 
 install-strip:
 	$(MAKE2) INSTALL_PROGRAM='$(INSTALL_PROGRAM) -s' install

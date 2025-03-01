@@ -276,7 +276,8 @@ static void xlockmore_free_screens (ModeInfo *mi) {
 
 
 #ifdef USE_SDL
-// TODO - can this be merged with xlockmore_read_resources?
+// TODO - at some point perhaps merge with xlockmore_read_resources for a unified resource system
+// - but what would this look like? And what benefits would it provide?
 static void set_option_vars(ModeInfo *mi, ModeSpecOpt *opts) {
     for (int i = 0; i < opts->numvarsdesc; i++) {
         argtype *var = &opts->vars[i];
