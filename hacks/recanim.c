@@ -130,8 +130,7 @@ screenhack_record_anim_time (time_t *o)
 
 
 record_anim_state *
-screenhack_record_anim_init (Screen *screen, Window window, int target_frames)
-{
+screenhack_record_anim_init (Screen *screen, Window window, int target_frames) {
   Display *dpy = DisplayOfScreen (screen);
   record_anim_state *st;
 
@@ -155,6 +154,12 @@ screenhack_record_anim_init (Screen *screen, Window window, int target_frames)
     st->fade_frames = 0;
 
   XGetWindowAttributes (dpy, st->window, &st->xgwa);
+
+  int width = st->xgwa.width & ~1;
+  int height = st->xgwa.height & ~1;
+
+  fprintf(stderr, "Window size: %dx%d, Adjusted size: %dx%d\n",
+		  st->xgwa.width, st->xgwa.height, width, height);
 
 # ifdef USE_GL
   st->img = XCreateImage (dpy, st->xgwa.visual, 24,
@@ -201,8 +206,7 @@ screenhack_record_anim_init (Screen *screen, Window window, int target_frames)
 
     st->outfile = strdup (fn);
     st->ffst = ffmpeg_out_init (st->outfile, soundtrack,
-                                st->xgwa.width, st->xgwa.height,
-                                3, False);
+                                width, height, 3, False);
   }
 
   return st;
