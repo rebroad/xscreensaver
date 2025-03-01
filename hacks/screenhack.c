@@ -1091,7 +1091,7 @@ int main (int argc, char **argv) {
 	void **closures = (void**) calloc(window_count, sizeof(void *));
     fps_state **fpsts = (fps_state **) calloc(window_count, sizeof(fps_state *));
     for (int i = 0; i < window_count; i++) {
-      closures[i] = ft->init_cb(dpy, windows[i], ft->setup_arg);
+      closures[i] = ((void *(*) (Display *, Window, void *)) ft->init_cb)(dpy, windows[i], ft->setup_arg);
       fpsts[i] = fps_init(dpy, windows[i]);
     }
     while (1) {
@@ -1099,7 +1099,11 @@ int main (int argc, char **argv) {
         unsigned long delay = ft->draw_cb(dpy, windows[i], closures[i]);
         if (fpsts[i]) ft->fps_cb(dpy, windows[i], fpsts[i], closures[i]);
         if (i == 0 && anim_state) screenhack_record_anim(anim_state);
-        if (!screenhack_table_handle_events(dpy, ft, windows[i], closures[i]))
+        if (!screenhack_table_handle_events(dpy, ft, windows[i], closures[i]
+#ifdef DEBUG_PAIR
+					, 0, NULL
+#endif
+					))
           goto done;
         usleep(delay);
       }
