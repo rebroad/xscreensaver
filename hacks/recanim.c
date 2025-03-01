@@ -177,7 +177,7 @@ screenhack_record_anim_init (Screen *screen, Window window, int target_frames)
 
 # ifndef HAVE_JWXYZ
   XFetchName (dpy, st->window, &st->title);
-  {
+  if (st->title) {
     char *s = strchr(st->title, ':');
     if (s) *s = 0;
   }
