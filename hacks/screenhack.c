@@ -922,8 +922,8 @@ int main (int argc, char **argv) {
       fprintf(stderr, "%s: All displays mode, window count = %d\n", progname, window_count);
     }
 
-    windows = (Window *)realloc(window_count, sizeof(Window));
-    toplevels = (Widget *)realloc(window_count, sizeof(Widget));
+    windows = (Window *)realloc(windows, window_count * sizeof(Window));
+    toplevels = (Widget *)realloc(toplevels, window_count * sizeof(Widget));
 
     int def_width = DisplayWidth(dpy, DefaultScreen(dpy));
     int def_height = DisplayHeight(dpy, DefaultScreen(dpy));
@@ -969,20 +969,20 @@ int main (int argc, char **argv) {
                        ButtonPressMask | ButtonReleaseMask));
   } else if (root_p) {
     fprintf(stderr, "%s: Running on root window\n", progname);
-    window = VirtualRootWindowOfScreen(XtScreen(toplevel));
+    windows[0] = VirtualRootWindowOfScreen(XtScreen(toplevel));
     XtDestroyWidget(toplevel);
-    XGetWindowAttributes(dpy, window, &xgwa);
+    XGetWindowAttributes(dpy, windows[0], &xgwa);
     /* With RANDR, the root window can resize! */
-    XSelectInput(dpy, window, xgwa.your_event_mask | StructureNotifyMask);
-    visual_warning(xgwa.screen, window, xgwa.visual, xgwa.colormap, False);
+    XSelectInput(dpy, windows[0], xgwa.your_event_mask | StructureNotifyMask);
+    visual_warning(xgwa.screen, windows[0], xgwa.visual, xgwa.colormap, False);
   } else {
     fprintf(stderr, "%s: Running in default windowed mode\n", progname);
     if (get_boolean_resource(dpy, "pair", "Boolean")) window_count = 2;
-    windows = (Window *)realloc(windows_count, sizeof(Window));
-    toplevels = (Widget *)realloc(windows_count, sizeof(Widget));
-    Widget toplevels[0] = make_shell(XtScreen(toplevel), toplevel,
+    windows = (Window *)realloc(windows, window_count * sizeof(Window));
+    toplevels = (Widget *)realloc(toplevels, window_count * sizeof(Widget));
+    toplevels[0] = make_shell(XtScreen(toplevel), toplevel,
             toplevel->core.width, toplevel->core.height);
-    printf("%s: new=%p toplevel=%p\n", __func__, toplevels[0], toplevel);
+    printf("%s: new=%p toplevel=%p\n", __func__, (void *)toplevels[0], (void *)toplevel);
 	if (toplevels[0] != toplevel)
       XtDestroyWidget(toplevel);
     init_window(dpy, toplevels[0], version);
@@ -999,7 +999,7 @@ int main (int argc, char **argv) {
   if (!dont_clear) {
     unsigned int bg = get_pixel_resource (dpy, xgwa.colormap,
                                             "background", "Background");
-	for (i = 0; i < window_count; i++) {
+	for (int i = 0; i < window_count; i++) {
       XSetWindowBackground (dpy, windows[i], bg);
       XClearWindow (dpy, windows[i]);
 	}
