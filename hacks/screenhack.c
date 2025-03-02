@@ -123,7 +123,7 @@ static XrmOptionDescRec default_options [] = {
   { "-window-id", ".windowID",	XrmoptionSepArg, 0 },
   { "-fps",	    ".doFPS",		XrmoptionNoArg, "True" },
   { "-no-fps",  ".doFPS",		XrmoptionNoArg, "False" },
-  { "-fullscreen", ".fullscreen", XrmoptionNoArg, "False" },
+  { "-fullscreen", ".fullscreen", XrmoptionSepArg, 0 },
 # ifdef DEBUG_PAIR
   { "-pair",	".pair",		XrmoptionNoArg, "True" },
 # endif
@@ -143,7 +143,6 @@ static char *default_defaults[] = {
   "*mono:		false",
   "*installColormap:	false",
   "*doFPS:		false",
-  "*fullscreen:     false",
   "*multiSample:	false",
   "*visualID:		default",
   "*windowID:		",
@@ -195,6 +194,10 @@ static void merge_options (void) {
         strcat (newr, oldr);
         *s = newr;
       } else *s = strdup (*s);
+  }
+  fprintf(stderr, "%s: Merged %d options:\n", progname, merged_options_size);
+  for (int i = 0; i < merged_options_size; i++) {
+	fprintf(stderr, "%s:   %s -> %s\n", progname, merged_options[i].option, merged_options[i].specifier);
   }
 }
 
@@ -584,63 +587,46 @@ static void run_screenhack_table (
 static Widget make_shell (Screen *screen, Widget toplevel, int width, int height) {
   printf("%s: %dx%d\n", __func__, width, height);
   Display *dpy = DisplayOfScreen (screen);
-  Visual *visual = pick_visual (screen);
-  Boolean def_visual_p = (toplevel &&
-                          visual == DefaultVisualOfScreen (screen));
+  Visual *visual = pick_visual(screen);
+  Boolean def_visual_p = (toplevel && visual == DefaultVisualOfScreen(screen));
 
   if (width  <= 0) width  = 600;
   if (height <= 0) height = 480;
 
+  Widget new;
   if (def_visual_p) {
-    Window window;
-    XtVaSetValues (toplevel,
-                     XtNmappedWhenManaged, False,
-                     XtNwidth, width,
-                     XtNheight, height,
-                     XtNinput, True,  /* for WM_HINTS */
-                     NULL);
+    XtVaSetValues(toplevel, XtNmappedWhenManaged, False, XtNwidth, width,
+			      XtNheight, height, XtNinput, True,  /* for WM_HINTS */
+                  NULL);
 	printf("%s: After XtVaSetValues: %sx%s\n", __func__, XtNwidth, XtNheight);
     XtRealizeWidget (toplevel);
-    window = XtWindow (toplevel);
+    new = toplevel;
 
-    if (get_boolean_resource (dpy, "installColormap", "InstallColormap")) {
-      Colormap cmap =
-            XCreateColormap (dpy, window, DefaultVisualOfScreen (screen),
-                             AllocNone);
-      XSetWindowColormap (dpy, window, cmap);
+    if (get_boolean_resource(dpy, "installColormap", "InstallColormap")) {
+      Colormap cmap = XCreateColormap(dpy, RootWindowOfScreen(screen), visual, AllocNone);
+      XSetWindowColormap(dpy, XtWindow(new), cmap);
     }
   } else {
-    unsigned int bg, bd;
-    Widget new;
-    Colormap cmap = XCreateColormap (dpy, VirtualRootWindowOfScreen(screen),
+    Colormap cmap = XCreateColormap(dpy, VirtualRootWindowOfScreen(screen),
                                        visual, AllocNone);
-    bg = get_pixel_resource (dpy, cmap, "background", "Background");
-    bd = get_pixel_resource (dpy, cmap, "borderColor", "Foreground");
+    unsigned int bg = get_pixel_resource(dpy, cmap, "background", "Background");
+    unsigned int bd = get_pixel_resource(dpy, cmap, "borderColor", "Foreground");
 
-    new = XtVaAppCreateShell (progname, progclass,
-                                topLevelShellWidgetClass, dpy,
-                                XtNmappedWhenManaged, False,
-                                XtNvisual, visual,
-                                XtNdepth, visual_depth (screen, visual),
-                                XtNwidth, width,
-                                XtNheight, height,
-                                XtNcolormap, cmap,
-                                XtNbackground, (Pixel) bg,
-                                XtNborderColor, (Pixel) bd,
-                                XtNinput, True,  /* for WM_HINTS */
-                                NULL);
-
+    new = XtVaAppCreateShell(progname, progclass, topLevelShellWidgetClass, dpy,
+                             XtNmappedWhenManaged, False, XtNvisual, visual,
+                             XtNdepth, visual_depth(screen, visual),
+                             XtNwidth, width, XtNheight, height, XtNcolormap, cmap,
+                             XtNbackground, bg, XtNborderColor, bd,
+                             XtNinput, True /* for WM_HINTS */, NULL);
 	printf("%s: After XtVaAppCreateShell: %dx%d %sx%s\n", __func__, width, height, XtNwidth, XtNheight);
     if (!toplevel) { /* kludge for the second window in -pair mode... */
-      XtVaSetValues (new, XtNx, 0, XtNy, 550, NULL);
+      XtVaSetValues (new, XtNx, 0, XtNy, 0, NULL);
 	  printf("%s: After 2nd XtVaSetValues: %sx%s\n", __func__, XtNx, XtNy);
 	}
-
-    XtRealizeWidget (new);
-    toplevel = new;
+    XtRealizeWidget(new);
   }
 
-  return toplevel;
+  return new;
 }
 
 static void init_window (Display *dpy, Widget toplevel, const char *title) {
@@ -690,9 +676,9 @@ int main (int argc, char **argv) {
     SDL_Quit();
     return 1;
   }
-#endif
+#endif // USE_SDL
 
-  if (ft->setup_cb) ft->setup_cb (ft, ft->setup_arg); // TODO - Only for X11?
+  if (ft->setup_cb) ft->setup_cb (ft, ft->setup_arg);
   merge_options();
 
   /* Xt and xscreensaver predate the "--arg" convention, so convert
@@ -703,24 +689,19 @@ int main (int argc, char **argv) {
 
 #ifdef USE_SDL
   sdl_init_resources(argc, argv, merged_options, merged_defaults);
-#else
+#else // USE_SDL
   Display *dpy;
   Widget toplevel;
   XtAppContext app;
   toplevel = XtAppInitialize (&app, progclass, merged_options,
-                  merged_options_size, &argc, argv,
-                  merged_defaults, 0, 0);
+                  merged_options_size, &argc, argv, merged_defaults, 0, 0);
   dpy = XtDisplay (toplevel);
-#endif
+#endif // else USE_SDL
   char version[255];
   {
     char *v = (char *) strdup(strchr(screensaver_id, ' '));
     char *s1, *s2, *s3, *s4;
-#ifdef USE_SDL
-    const char *ot = NULL;
-#else
     const char *ot = get_string_resource (dpy, "title", "Title");
-#endif
     s1 = (char *) strchr(v,  ' '); s1++;
     s2 = (char *) strchr(s1, ' ');
     s3 = (char *) strchr(v,  '('); s3++;
@@ -736,31 +717,27 @@ int main (int argc, char **argv) {
   }
 
   if (argc > 1) {
-    int i;
-    int x = 18;
-    int end = 78;
+    int x = 18, end = 78;
     Bool help_p = (!strcmp(argv[1], "-help") || !strcmp(argv[1], "--help"));
-    fprintf (stderr, "%s\n", version);
-    fprintf (stderr, "\n\thttps://www.jwz.org/xscreensaver/\n\n");
+    fprintf (stderr, "%s\n\n\thttps://www.jwz.org/xscreensaver/\n\n", version);
 
     if (!help_p) fprintf(stderr, "Unrecognised option: %s\n", argv[1]);
-    fprintf (stderr, "Options include: ");
-    for (i = 0; i < merged_options_size; i++) {
+    fprintf(stderr, "Options include: ");
+    for (int i = 0; i < merged_options_size; i++) {
       char *sw = merged_options [i].option;
       Bool argp = (merged_options [i].argKind == XrmoptionSepArg);
       int size = strlen (sw) + (argp ? 6 : 0) + 2;
       if (x + size >= end) {
-        fprintf (stderr, "\n\t\t ");
+        fprintf(stderr, "\n\t\t ");
         x = 18;
       }
       x += size;
-      fprintf (stderr, "-%s", sw);  /* two dashes */
-      if (argp) fprintf (stderr, " <arg>");
-      if (i != merged_options_size - 1) fprintf (stderr, ", ");
+      fprintf(stderr, "-%s", sw);  /* two dashes */
+      if (argp) fprintf(stderr, " <arg>");
+      if (i != merged_options_size - 1) fprintf(stderr, ", ");
     }
     fprintf (stderr, ".\n");
-
-    exit (help_p ? 0 : 1);
+    exit(help_p ? 0 : 1);
   }
 
 #ifdef USE_SDL
@@ -885,10 +862,12 @@ int main (int argc, char **argv) {
   mono_p = get_boolean_resource (dpy, "mono", "Boolean");
   if (CellsOfScreen (DefaultScreenOfDisplay (dpy)) <= 2) mono_p = True;
 
+  fprintf(stderr, "%s: Parsing options...\n", progname);
   Bool root_p = get_boolean_resource(dpy, "root", "Boolean");
   Bool fullscreen_p = False;
   int fullscreen_display = -1;
-  char *fs_val = get_string_resource(dpy, "fullscreen", "Boolean");
+  char *fs_val = get_string_resource(dpy, "fullscreen", "Fullscreen");
+  fprintf(stderr, "%s: root_p = %d, fs_val = %s\n", progname, root_p, fs_val);
   if (fs_val) {
     if (!strcasecmp(fs_val, "true") || !strcasecmp(fs_val, "on") ||
         !strcasecmp(fs_val, "yes")) {
@@ -901,6 +880,7 @@ int main (int argc, char **argv) {
     }
     free(fs_val);
   }
+  printf("%s: fullscreen_p = %d, fullscreen_display = %d\n", progname, fullscreen_p, fullscreen_display);
 
 # ifdef EXIT_AFTER
   {
@@ -920,24 +900,30 @@ int main (int argc, char **argv) {
   Widget *toplevels = NULL;
   int window_count = 1;
   if (fullscreen_p && !root_p) {
+	fprintf(stderr, "%s: Entering fullscreen branch\n", progname);
     int num_screens = 0;
     XineramaScreenInfo *xsi = NULL;
     if (XineramaIsActive(dpy)) {
       xsi = XineramaQueryScreens(dpy, &num_screens);
+	  fprintf(stderr, "%s: Xinerama active, found %d screens\n", progname, num_screens);
     } else {
-      num_screens = ScreenCount(dpy);  /* Fallback to screen count */
+      num_screens = ScreenCount(dpy);
+	  fprintf(stderr, "%s: Xinerama inactive, using %d screens from ScreenCount\n", progname, num_screens);
     }
 
 	if (fullscreen_display >= 0) {
       /* Single display mode */
       if (fullscreen_display >= num_screens) {
-        fprintf(stderr, "%s: Display %d not found; only %d displays available\n",
+        fprintf(stderr, "%s: Display %d not found; only %d displays available, defaulting to 0\n",
                 progname, fullscreen_display, num_screens);
-        fullscreen_display = 0;  /* Default to primary */
+        fullscreen_display = 0;  /* TODO - default to primary */
       }
+	  fprintf(stderr, "%s: Single display mode, window_count = %d, display %d\n",
+			  progname, window_count, fullscreen_display);
     } else {
       /* All displays mode */
       window_count = num_screens;
+	  fprintf(stderr, "%s: All displays mode, window count = %d\n", progname, window_count);
     }
 
     windows = (Window *)calloc(window_count, sizeof(Window));
@@ -945,25 +931,29 @@ int main (int argc, char **argv) {
 
 	for (int i = 0; i < window_count; i++) {
       int screen_idx = (fullscreen_display >= 0 ? fullscreen_display : i);
-      Screen *screen = (xsi ? ScreenOfDisplay(dpy, xsi[screen_idx].screen_number)
-                            : ScreenOfDisplay(dpy, screen_idx));
-      int width = (xsi ? xsi[screen_idx].width : DisplayWidth(dpy, screen_idx));
-      int height = (xsi ? xsi[screen_idx].height : DisplayHeight(dpy, screen_idx));
+      int scr_num = xsi ? xsi[screen_idx].screen_number : screen_idx;
+      Screen *screen = ScreenOfDisplay(dpy, scr_num);
+      int width = (xsi ? xsi[screen_idx].width : DisplayWidth(dpy, scr_num));
+      int height = (xsi ? xsi[screen_idx].height : DisplayHeight(dpy, scr_num));
       int x = (xsi ? xsi[screen_idx].x_org : 0);
       int y = (xsi ? xsi[screen_idx].y_org : 0);
+
+      fprintf(stderr, "%s: Creating window %d: screen_idx=%d, %dx%d at (%d,%d)\n",
+			  progname, i, screen_idx, width, height, x, y);
 
       toplevels[i] = make_shell(screen, NULL, width, height);
       init_window(dpy, toplevels[i], version);
       windows[i] = XtWindow(toplevels[i]);
 
-      /* Position and size the window to match the display */
       XMoveResizeWindow(dpy, windows[i], x, y, width, height);
-      XSetWindowBorderWidth(dpy, windows[i], 0);  /* No decorations */
+      XSetWindowBorderWidth(dpy, windows[i], 0);
+	  XMapWindow(dpy, windows[i]);  /* Ensure it's mapped */
+	  fprintf(stderr, "%s: Window %d created and positioned\n", progname, i);
     }
 	window = windows[0]; // TODO - need a way to select the "Primary"
-
     if (xsi) XFree(xsi);
   } else if (on_window) {
+	fprintf(stderr, "%s: Using existing window ID\n", progname);
     window = (Window)on_window;
     XtDestroyWidget (toplevel);
     XGetWindowAttributes (dpy, window, &xgwa);
@@ -980,6 +970,7 @@ int main (int argc, char **argv) {
         XSelectInput (dpy, window, (xgwa.your_event_mask |
                        ButtonPressMask | ButtonReleaseMask));
   } else if (root_p) {
+	fprintf(stderr, "%s: Running on root window\n", progname);
     window = VirtualRootWindowOfScreen(XtScreen(toplevel));
     XtDestroyWidget(toplevel);
     XGetWindowAttributes(dpy, window, &xgwa);
@@ -987,6 +978,7 @@ int main (int argc, char **argv) {
     XSelectInput(dpy, window, xgwa.your_event_mask | StructureNotifyMask);
     visual_warning(xgwa.screen, window, xgwa.visual, xgwa.colormap, False);
   } else {
+	fprintf(stderr, "%s: Running in default windowed mode\n", progname);
     Widget new = make_shell(XtScreen (toplevel), toplevel,
 			toplevel->core.width, toplevel->core.height);
     if (new != toplevel) {
