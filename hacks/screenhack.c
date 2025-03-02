@@ -544,7 +544,7 @@ static void run_screenhack_table (
 }
 
 static Widget make_shell(Screen *screen, Widget toplevel, int width, int height) {
-  printf("%s: %dx%d toplevel=%p\n", __func__, (void*)toplevel, width, height);
+  printf("%s: %dx%d toplevel=%p\n", __func__, width, height, (void*)toplevel);
   Display *dpy = DisplayOfScreen (screen);
   Visual *visual = pick_visual(screen);
   Boolean def_visual_p = (toplevel && visual == DefaultVisualOfScreen(screen));
