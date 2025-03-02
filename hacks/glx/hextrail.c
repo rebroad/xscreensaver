@@ -181,8 +181,12 @@ uint16_t xy_to_index(int x, int y) {
     // Compute index
     int y_idx = y + GRID_HALF_HEIGHT; // Shift Y to array index (0 to 440)
     int x_min = -MAX_N > (-MAX_N - y - ((y + 1) / 2)) ? -MAX_N : (-MAX_N - y - ((y + 1) / 2));
-    int16_t index = S[y_idx] + (x - x_min) + 1;
-    return index;
+	int32_t offset = (int32_t)x - x_min + 1; // Use int32_t to avoid overflow
+    int32_t index = S[y_idx] + offset;
+    if (index < 1 || index > 65270) { // Ensure within valid range
+        return 0;
+    }
+    return (int16_t)index;
 }
 
 static hexagon *do_hexagon(config *bp, int x, int y) {
