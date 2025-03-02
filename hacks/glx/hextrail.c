@@ -139,18 +139,16 @@ static argtype vars[] = {
 ENTRYPOINT ModeSpecOpt hextrail_opts = {countof(opts), opts, countof(vars), vars, NULL};
 
 static hexagon *do_hexagon(config *bp, int x, int y) {
-  // Returns or creates a hexton at co-ords
-  int gx = x + bp->grid/2;
-  int gy = y + bp->grid/2;
-  if (gx < 0 || gx >= bp->grid || gy < 0 || gy >= bp->grid) {
+  if (x * x + y * y >= bp->grid/2 * bp->grid/2) {
     static time_t debug = 0;
     if (debug != bp->now) {
-      printf("%s: Out of bounds. grid=%d,%d coords=%d,%d\n", __func__, gx, gy, x, y);
+      printf("%s: Out of bounds. coords=%d,%d\n", __func__, x, y);
       debug = bp->now;
     }
     return NULL;
   }
 
+  int gx = x + bp->grid/2; int gy = y + bp->grid/2;
   int idx = bp->hex_grid[gy * bp->grid + gx];
   if (idx) { // Zero means empty
     // We found an existing hexagon, so return it.
