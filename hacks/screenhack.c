@@ -415,7 +415,7 @@ static Boolean screenhack_table_handle_events (Display *dpy,
 }
 
 
-static Boolean usleep_and_process_events (Display *dpy,
+static Boolean usleep_and_process_events(Display *dpy,
                            const struct xscreensaver_function_table *ft,
                            Window *windows, fps_state **fpsts, void **closures,
                            // TODO - iterate for the above line
@@ -432,22 +432,16 @@ static Boolean usleep_and_process_events (Display *dpy,
     XSync (dpy, False);
 
 #ifdef HAVE_RECORD_ANIM
-    if (anim_state) screenhack_record_anim (anim_state);
+    if (anim_state) screenhack_record_anim(anim_state);
 #endif
 
     if (quantum > 0) {
-      usleep (quantum);
-      if (fpst) fps_slept (fpst, quantum);
-#ifdef DEBUG_PAIR
-      if (fpst2) fps_slept (fpst2, quantum);
-#endif
+      usleep(quantum);
+	  for (int i = 0; i < num_windows; i++)
+        if (fpsts[i]) fps_slept(fpsts[i], quantum);
     }
 
-    if (! screenhack_table_handle_events (dpy, ft, window, closure
-#ifdef DEBUG_PAIR
-                                          , window2, closure2
-#endif
-                                          ))
+    if (!screenhack_table_handle_events(dpy, ft, windows, closures))
       return False;
   } while (delay > 0);
 
@@ -475,36 +469,32 @@ static void run_screenhack_table (
 #ifdef USE_SDL
   void *(*init_cb)(void *, void *) = ft->init_cb;
   void (*fps_cb)(void *, fps_state *, void *) = ft->fps_cb;
-  void *closure = init_cb (window, context);
 #else
   /* Kludge: even though the init_cb functions are declared to take 2 args,
      actually call them with 3, for the benefit of xlockmore_init() and
      xlockmore_setup().  */
-  void *(*init_cb) (Display *, Window, void *) =
-    (void *(*) (Display *, Window, void *)) ft->init_cb;
-  void (*fps_cb) (Display *, Window, fps_state *, void *) = ft->fps_cb;
-  void *closure = init_cb (dpy, window, ft->setup_arg);
+  void *(*init_cb)(Display *, Window, void *) =
+    (void *(*)(Display *, Window, void *))ft->init_cb;
+  void (*fps_cb)(Display *, Window, fps_state *, void *) = ft->fps_cb;
 #endif
 
-  fps_state *fpst = fps_init (dpy, window);
-  unsigned long delay = 0;
+  void **closures = (void **)calloc(window_count, sizeof(void *));
+  fps_state **fpsts = (fps_state **)calloc(window_count, sizeof(fps_state *));
+  unsigned long *delays = (unsigned long*)calloc(window_count, sizeof(unsigned long));
 
-#ifdef DEBUG_PAIR
+  for (int i = 0; i < window_count; i++) {
 #ifdef USE_SDL
-  void *closure2 = window2 ? init_cb (window2, contexr2) : 0;
+    closures[i] = init_cb(windows[i], contexts[i]);
 #else // USE_SDL
-  void *closure2 = window2 ? init_cb (dpy, window2, ft->setup_arg) : 0;
+    closures[i] = init_cb(dpy, windows[i], ft->setup_arg);
 #endif // else USE_SDL
-  fps_state *fpst2 = window2 ? fps_init (dpy, window2) : 0;
-  unsigned long delay2 = 0;
-#endif // DEBUG_PAIR
+	if (!closures[i]) abort();
+	fpsts[i] = fps_init(dpy, windows[i]);
+  }
 
-  if (! closure)  /* if it returns nothing, it can't possibly be re-entrant. */
-    abort();
+  if (!fps_cb) fps_cb = screenhack_do_fps;
 
-  if (! fps_cb) fps_cb = screenhack_do_fps;
-
-  while (1) {
+  while(1) {
 #ifdef USE_SDL
     SDL_Event event;
     while (SDL_PollEvent(&event)) {
@@ -517,7 +507,7 @@ static void run_screenhack_table (
         ft->reshape_cb(window, closure, event.window,data1, event.window,data2);
     }
 #else // USE_SDL
-    if (! usleep_and_process_events (dpy, ft, window, fpst, closure, delay
+    if (!usleep_and_process_events(dpy, ft, windows, fpsts, closures, delay
 #ifdef DEBUG_PAIR
                                        , window2, fpst2, closure2, delay2
 #endif // DEBUG_PAID
