@@ -40,7 +40,6 @@
 
 #ifdef USE_GL /* whole file */
 
-
 #define DEF_SPIN        "True"
 #define DEF_WANDER      "True"
 #define DEF_GLOW        "False"
@@ -50,6 +49,10 @@
 #define DEF_THICKNESS   "0.15"
 
 #define BELLRAND(n) ((frand((n)) + frand((n)) + frand((n))) / 3)
+
+#define GRID_HEIGHT 441
+#define GRID_HALF_HEIGHT 220
+#define MAX_N 147
 
 typedef enum { EMPTY, IN, WAIT, OUT, DONE } state_t;
 
@@ -97,7 +100,7 @@ typedef struct {
   int chunk_count;
   int total_hexagons;
   int hexagon_capacity;
-  int size, grid;
+  int size;
   enum { FIRST, DRAW, FADE } state;
   GLfloat fade_ratio;
 
@@ -138,8 +141,82 @@ static argtype vars[] = {
 
 ENTRYPOINT ModeSpecOpt hextrail_opts = {countof(opts), opts, countof(vars), vars, NULL};
 
+// Lookup table for cumulative hexagons up to each row (Y from -220 to 220, index 0 to 440)
+static int32_t S[GRID_HEIGHT + 1]; // +1 for S(221)
+
+void init_hex_grid_lookup(void);
+void init_hex_grid_lookup() {
+    int32_t cumulative = 0;
+    for (int y = -GRID_HALF_HEIGHT; y <= GRID_HALF_HEIGHT; y++) {
+        int y_adj = y + ((y + 1) / 2); // Y + ⌊(Y+1)/2⌋
+        int abs_y_adj = abs(y_adj);
+        if (abs_y_adj > MAX_N) {
+            S[y + GRID_HALF_HEIGHT] = cumulative;
+            continue;
+        }
+        int x_min = -MAX_N > (-MAX_N - y - ((y + 1) / 2)) ? -MAX_N : (-MAX_N - y - ((y + 1) / 2));
+        int x_max = MAX_N < (MAX_N - y - ((y + 1) / 2)) ? MAX_N : (MAX_N - y - ((y + 1) / 2));
+        int num_hex = x_max - x_min + 1;
+        S[y + GRID_HALF_HEIGHT] = cumulative;
+        cumulative += num_hex;
+    }
+    S[GRID_HEIGHT] = cumulative; // Total hexagons (65,270)
+}
+
+// Convert (X, Y) to index (returns 0 if outside grid)
+int16_t xy_to_index(int, int);
+int16_t xy_to_index(int x, int y) {
+    // Check bounds and validity
+    if (x < -MAX_N || x > MAX_N || y < -GRID_HALF_HEIGHT || y > GRID_HALF_HEIGHT) {
+        return 0;
+    }
+    int y_adj = y + ((y + 1) / 2);
+    int abs_y_adj = abs(y_adj);
+    int abs_x = abs(x);
+    int abs_xy_adj = abs(x + y + ((y + 1) / 2));
+    if (abs_x > MAX_N || abs_y_adj > MAX_N || abs_xy_adj > MAX_N) {
+        return 0; // Outside hexagonal boundary
+    }
+
+    // Compute index
+    int y_idx = y + GRID_HALF_HEIGHT; // Shift Y to array index (0 to 440)
+    int x_min = -MAX_N > (-MAX_N - y - ((y + 1) / 2)) ? -MAX_N : (-MAX_N - y - ((y + 1) / 2));
+    int16_t index = S[y_idx] + (x - x_min) + 1;
+    return index;
+}
+
+void index_to_xy(int16_t, int*, int*);
+void index_to_xy(int16_t index, int* x, int* y) {
+    if (index <= 0 || index > S[GRID_HEIGHT]) {
+        *x = 0;
+        *y = 0;
+        return; // Invalid index
+    }
+
+    // Binary search to find Y
+    int low = 0;
+    int high = GRID_HEIGHT - 1;
+    while (low <= high) {
+        int mid = (low + high) / 2;
+        if (S[mid] < index && S[mid + 1] >= index) {
+            *y = mid - GRID_HALF_HEIGHT; // Convert back to Y coordinate
+            int x_min = -MAX_N > (-MAX_N - *y - ((*y + 1) / 2)) ? -MAX_N : (-MAX_N - *y - ((*y + 1) / 2));
+            *x = x_min + (index - S[mid] - 1);
+            return;
+        } else if (S[mid] >= index) {
+            high = mid - 1;
+        } else {
+            low = mid + 1;
+        }
+    }
+    // Should not reach here if index is valid
+    *x = 0;
+    *y = 0;
+}
+
 static hexagon *do_hexagon(config *bp, int x, int y) {
-  if (x * x + y * y >= bp->grid/2 * bp->grid/2) {
+  int id = xy_to_index(x, y);
+  if (!id) {
     static time_t debug = 0;
     if (debug != bp->now) {
       printf("%s: Out of bounds. coords=%d,%d\n", __func__, x, y);
@@ -148,8 +225,7 @@ static hexagon *do_hexagon(config *bp, int x, int y) {
     return NULL;
   }
 
-  int gx = x + bp->grid/2; int gy = y + bp->grid/2;
-  int idx = bp->hex_grid[gy * bp->grid + gx];
+  int idx = bp->hex_grid[id];
   if (idx) { // Zero means empty
     // We found an existing hexagon, so return it.
     int i = (idx-1) / HEXAGON_CHUNK_SIZE;
@@ -182,7 +258,7 @@ static hexagon *do_hexagon(config *bp, int x, int y) {
   current->chunk[bp->total_hexagons % HEXAGON_CHUNK_SIZE] = h0;
   current->used++;
   bp->total_hexagons++;
-  bp->hex_grid[gy * bp->grid + gx] = bp->total_hexagons;
+  bp->hex_grid[idx] = bp->total_hexagons;
   h0->x = x; h0->y = y;
 
   return h0;
@@ -335,7 +411,7 @@ static void reset_hextrail(ModeInfo *mi) {
   }
 
   bp->total_hexagons = 0;
-  memset(bp->hex_grid, 0, bp->grid * bp->grid * sizeof(uint16_t));
+  memset(bp->hex_grid, 0, 65270+1 * sizeof(uint16_t));
   bp->state = FIRST;
   bp->fade_ratio = 1;
 
@@ -530,10 +606,9 @@ static void tick_hexagons (ModeInfo *mi) {
       int16_t empty_cells[1000][2]; int empty_count = 0;
       for (int y = min_vy; y <= max_vy && empty_count < 1000; y++)
         for (int x = min_vx; x <= max_vx && empty_count < 1000; x++) {
-          int gx = x + bp->grid/2;
-          int gy = y + bp->grid/2;
-          if (gx >= 0 && gx < bp->grid && gy >= 0 && gy < bp->grid) {
-            int idx = bp->hex_grid[gy * bp->grid + gx];
+          int id = xy_to_index(x, y);
+          if (id) {
+            int idx = bp->hex_grid[id];
             if (!idx && !hex_invis(bp,x,y,0,0)) {
               empty_cells[empty_count][0] = x;
               empty_cells[empty_count++][1] = y;
@@ -1065,8 +1140,8 @@ ENTRYPOINT void init_hextrail (ModeInfo *mi) {
   bp->chunk_count = 0;
 
   bp->size = MI_COUNT(mi) * 2;
-  bp->grid = 255; // Given hex_grid is 16bit
-  bp->hex_grid = (uint16_t *)calloc(bp->grid * bp->grid, sizeof(uint16_t));
+  bp->hex_grid = (uint16_t *)calloc(65270+1, sizeof(uint16_t));
+  init_hex_grid_lookup();
   reset_hextrail (mi);
 }
 
