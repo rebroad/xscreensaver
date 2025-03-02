@@ -517,7 +517,7 @@ static void run_screenhack_table (
 }
 
 static Widget make_shell(Screen *screen, Widget toplevel, int width, int height) {
-  printf("%s: %dx%d\n", __func__, width, height);
+  printf("%s: %dx%d toplevel=%p\n", __func__, (void*)toplevel, width, height);
   Display *dpy = DisplayOfScreen (screen);
   Visual *visual = pick_visual(screen);
   Boolean def_visual_p = (toplevel && visual == DefaultVisualOfScreen(screen));
@@ -530,7 +530,7 @@ static Widget make_shell(Screen *screen, Widget toplevel, int width, int height)
     XtVaSetValues(toplevel, XtNmappedWhenManaged, False, XtNwidth, width,
                   XtNheight, height, XtNinput, True,  /* for WM_HINTS */
                   NULL);
-    printf("%s: After XtVaSetValues: %sx%s\n", __func__, XtNwidth, XtNheight);
+    printf("%s: After XtVaSetValues: %dx%d %sx%s\n", __func__, width, height, XtNwidth, XtNheight);
     XtRealizeWidget (toplevel);
     new = toplevel;
 
