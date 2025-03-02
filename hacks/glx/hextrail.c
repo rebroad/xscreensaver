@@ -1,5 +1,5 @@
-/* hextrail, Copyright (c) 2022 Jamie Zawinski <jwz@jwz.org> */
-
+/* hextrail, Copyright (c) 2022 Jamie Zawinski <jwz@jwz.org>
+ *
 /* low-priority TODOs:-
  = Collect all vertices into a dynamic array, then upload to a 1 or more VBOs - also fix glow effects.
  = Don't draw borders when the thickness of the line would be <1 pixel
@@ -41,13 +41,13 @@
 #ifdef USE_GL /* whole file */
 
 
-#define DEF_SPIN "True"
-#define DEF_WANDER "True"
-#define DEF_GLOW "False"
-#define DEF_NEON "False"
-#define DEF_EXPAND "False"
-#define DEF_SPEED "1.0"
-#define DEF_THICKNESS "0.15"
+#define DEF_SPIN        "True"
+#define DEF_WANDER      "True"
+#define DEF_GLOW        "False"
+#define DEF_NEON        "False"
+#define DEF_EXPAND      "False"
+#define DEF_SPEED       "1.0"
+#define DEF_THICKNESS   "0.15"
 
 #define BELLRAND(n) ((frand((n)) + frand((n)) + frand((n))) / 3)
 
@@ -98,7 +98,6 @@ typedef struct {
   int total_hexagons;
   int hexagon_capacity;
   int size, grid_w, grid_h;
-  int x_offset, y_offset;
   enum { FIRST, DRAW, FADE } state;
   GLfloat fade_ratio;
 
@@ -155,24 +154,24 @@ static hexagon *do_hexagon(config *bp, int x, int y) {
   int idx = bp->hex_grid[gy * bp->grid_w + gx];
   if (idx) { // Zero means empty
     // We found an existing hexagon, so return it.
-	int i = (idx-1) / HEXAGON_CHUNK_SIZE;
-	int k = (idx-1) % HEXAGON_CHUNK_SIZE;
+    int i = (idx-1) / HEXAGON_CHUNK_SIZE;
+    int k = (idx-1) % HEXAGON_CHUNK_SIZE;
     return bp->chunks[i]->chunk[k];
   }
 
   if (bp->total_hexagons >= bp->chunk_count * HEXAGON_CHUNK_SIZE) {
-	hex_chunk **new_chunks = realloc(bp->chunks, (bp->chunk_count+1) * sizeof(hex_chunk *));
+    hex_chunk **new_chunks = realloc(bp->chunks, (bp->chunk_count+1) * sizeof(hex_chunk *));
     if (!new_chunks) {
       fprintf(stderr, "Failed to allocate new chunk array\n");
       return NULL;
     }
-	bp->chunks = new_chunks;
+    bp->chunks = new_chunks;
     bp->chunks[bp->chunk_count] = calloc(1, sizeof(hex_chunk));
-	if (!bp->chunks[bp->chunk_count]) {
-	  fprintf(stderr, "Failed to allocate chunk\n");
-	  return NULL;
-	}
-	bp->chunks[bp->chunk_count]->used = 0;
+    if (!bp->chunks[bp->chunk_count]) {
+      fprintf(stderr, "Failed to allocate chunk\n");
+      return NULL;
+    }
+    bp->chunks[bp->chunk_count]->used = 0;
     bp->chunk_count++;
   }
 
@@ -208,12 +207,11 @@ static hexagon *neighbor(config *bp, hexagon *h0, int j) {
 static int add_arms (config *bp, hexagon *h0) {
   int i;
   int added = 0;
-  int target = 1 + (random() % 5); /* Aim for 1-5 arms */
+  int target = (random() % 4); /* Aim for 1-5 arms */
 
-  int idx[6];				/* Traverse in random order */
-  for (i = 0; i < 6; i++) idx[i] = i;
+  int idx[6] = {0, 1, 2, 3, 4, 5};
   for (i = 0; i < 6; i++) {
-    int j = random() % 6;
+    int j = random() % (6 - i);
     int swap = idx[j];
     idx[j] = idx[i];
     idx[i] = swap;
@@ -323,7 +321,7 @@ static void reset_hextrail(ModeInfo *mi) {
   config *bp = &bps[MI_SCREEN(mi)];
 
   if (bp->chunks) {
-	for (int i = 0; i < bp->chunk_count; i++) {
+    for (int i = 0; i < bp->chunk_count; i++) {
       if (bp->chunks[i]) {
         for (int k = 0; k < bp->chunks[i]->used; k++)
           if (bp->chunks[i]->chunk[k]) {
@@ -331,10 +329,10 @@ static void reset_hextrail(ModeInfo *mi) {
             bp->chunks[i]->chunk[k] = NULL;
           }
         bp->chunks[i]->used = 0;
-	  }
+      }
       free(bp->chunks[i]);
-	  bp->chunks = NULL;
-	  bp->chunk_count = 0;
+      bp->chunks = NULL;
+      bp->chunk_count = 0;
     }
   }
 
@@ -429,7 +427,7 @@ static void tick_hexagons (ModeInfo *mi) {
     if (pausing || (do_expand && h0->invis > 1)) {
       h0->state = DONE;
       continue;
-	}
+    }
     iters++;
 
     /* Enlarge any still-growing arms if active.  */
@@ -530,7 +528,7 @@ static void tick_hexagons (ModeInfo *mi) {
       min_x = 0; max_x = 0; min_y = 0; max_y = 0;
       ticks = 0; iters = 0;
       printf("New hextrail. capacity=%d\n", bp->hexagon_capacity);
-	  h0 = do_hexagon(bp, 0, 0);
+      h0 = do_hexagon(bp, 0, 0);
     } else {
       int16_t empty_cells[1000][2]; int empty_count = 0;
       for (int y = min_vy; y <= max_vy && empty_count < 1000; y++)
@@ -543,20 +541,20 @@ static void tick_hexagons (ModeInfo *mi) {
               empty_cells[empty_count][0] = x;
               empty_cells[empty_count++][1] = y;
             }
-		  }
+          }
         }
       if (empty_count > 0) {
         int pick = random() % empty_count;
-		int x = empty_cells[pick][0], y = empty_cells[pick][1];
+        int x = empty_cells[pick][0], y = empty_cells[pick][1];
         new_hex = True; printf("Empty_count = %d picked=%d,%d\n", empty_count, x, y);
-		do_hexagon(bp, x, y);
+        do_hexagon(bp, x, y);
       }
     }
     if (!h0) {
       static time_t debug = 0;
       if (debug != bp->now) {
         printf("%s: !h0 new=%d doinga=%d,%d doingb=%d,%d ticks=%d fails=%d\n", __func__,
-				new_hex, doinga, ignorea, doingb, ignoreb, ticks, fails);
+                new_hex, doinga, ignorea, doingb, ignoreb, ticks, fails);
         debug = bp->now;
       }
     } else if (h0->state == EMPTY && add_arms(bp, h0)) {
@@ -1030,7 +1028,7 @@ ENTRYPOINT Bool hextrail_handle_event (ModeInfo *mi,
     else if (screenhack_event_helper (MI_DISPLAY(mi), MI_WINDOW(mi), event))
 #endif
       return True;
-	else return False;
+    else return False;
 
     bp->size = MI_COUNT(mi) * 2;
     return True;
@@ -1049,7 +1047,7 @@ ENTRYPOINT void init_hextrail (ModeInfo *mi) {
   bp->gl_context = mi->gl_context;
   if (!bp->gl_context || !bp->window) {
     fprintf(stderr, "%s: Invalid SDL GL context or window\n", progname);
-	exit(1);
+    exit(1);
   }
 #else
   bp->glx_context = init_GL(mi);
@@ -1082,7 +1080,7 @@ ENTRYPOINT void draw_hextrail (ModeInfo *mi) {
 #ifdef USE_SDL
   if (SDL_GL_MakeCurrent(bp->window, bp->gl_context) < 0) {
     fprintf(stderr, "%s: SDL_GL_MakeCurrent failed: %s\n", progname, SDL_GetError());
-	return;
+    return;
   }
 #else
   if (!bp->glx_context) return;
@@ -1150,12 +1148,12 @@ ENTRYPOINT void free_hextrail (ModeInfo *mi) {
   if (bp->colors) free (bp->colors);
 
   if (bp->chunks) {
-	for (int i = 0; i < bp->chunk_count; i++) if (bp->chunks[i]) {
+    for (int i = 0; i < bp->chunk_count; i++) if (bp->chunks[i]) {
       for (int k = 0; k < bp->chunks[i]->used; k++)
         if (bp->chunks[i]->chunk[k]) free(bp->chunks[i]->chunk[k]);
       free(bp->chunks[i]);
-	}
-	free(bp->chunks);
+    }
+    free(bp->chunks);
   }
 }
 
