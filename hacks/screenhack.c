@@ -882,18 +882,14 @@ int main (int argc, char **argv) {
   }
   printf("%s: fullscreen_p = %d, fullscreen_display = %d\n", progname, fullscreen_p, fullscreen_display);
 
-# ifdef EXIT_AFTER
-  {
-    int secs = get_integer_resource (dpy, "exitAfter", "Integer");
-    exit_after = (secs > 0 ? time((time_t *) 0) + secs : 0);
-  }
-# endif
+#ifdef EXIT_AFTER
+  int secs = get_integer_resource (dpy, "exitAfter", "Integer");
+  exit_after = (secs > 0 ? time((time_t *) 0) + secs : 0);
+#endif
 
-  {
-    char *s = get_string_resource (dpy, "windowID", "WindowID");
-    if (s && *s) on_window = get_integer_resource (dpy, "windowID", "WindowID");
-    if (s) free (s);
-  }
+  char *s = get_string_resource (dpy, "windowID", "WindowID");
+  if (s && *s) on_window = get_integer_resource (dpy, "windowID", "WindowID");
+  if (s) free (s);
 
   /* Determine display configuration */
   Window on_window = 0;
@@ -971,7 +967,7 @@ int main (int argc, char **argv) {
        if no other app has already selected them (only one app can select
        ButtonPress at a time: BadAccess results.) */
     if (! (xgwa.all_event_masks & (ButtonPressMask | ButtonReleaseMask)))
-        XSelectInput(dpy, window, (xgwa.your_event_mask |
+      XSelectInput(dpy, window, (xgwa.your_event_mask |
                        ButtonPressMask | ButtonReleaseMask));
   } else if (root_p) {
     fprintf(stderr, "%s: Running on root window\n", progname);
@@ -1009,14 +1005,10 @@ int main (int argc, char **argv) {
   if (!dont_clear) {
     unsigned int bg = get_pixel_resource (dpy, xgwa.colormap,
                                             "background", "Background");
-    XSetWindowBackground (dpy, windows[0], bg);
-    XClearWindow (dpy, window);
-# ifdef DEBUG_PAIR
-    if (window2) {
-      XSetWindowBackground (dpy, window2, bg);
-      XClearWindow (dpy, window2);
-    }
-# endif
+	for (i = 0; i < window_count; i++) {
+      XSetWindowBackground (dpy, windows[i], bg);
+      XClearWindow (dpy, windows[i]);
+	}
   }
 
   if (!root_p && !on_window)
@@ -1092,9 +1084,8 @@ int main (int argc, char **argv) {
 #ifdef HAVE_RECORD_ANIM
   if (anim_state) screenhack_record_anim_free(anim_state);
 #endif
-  for (int i = 0; i < window_count; i++) {
+  for (int i = 0; i < window_count; i++)
     if (toplevels && toplevels[i]) XtDestroyWidget(toplevels[i]);
-  }
   free(windows);
   free(toplevels);
   XtDestroyApplicationContext (app);
