@@ -417,9 +417,9 @@ static Boolean screenhack_table_handle_events (Display *dpy,
 
 static Boolean usleep_and_process_events(Display *dpy,
                            const struct xscreensaver_function_table *ft,
-                           Window *windows, fps_state **fpsts, void **closures,
+                           Window *windows, fps_state **fpsts, void **closures, unsigned long *delays,
                            // TODO - iterate for the above line
-                           int num_windows, unsigned long delay
+						   int num_windows
 #ifdef HAVE_RECORD_ANIM
                          , record_anim_state *anim_state
 #endif
@@ -498,19 +498,14 @@ static void run_screenhack_table (
 #ifdef USE_SDL
     SDL_Event event;
     while (SDL_PollEvent(&event)) {
-      if (!ft->event_cb(window, closure, &event)
-#ifdef DEBUG_PAIR
-        || (window2 && !ft->event_cb(window2, closure2, &event))
-#endif
-        ) break;
-      if (event.type == SDL_EVENT_WINDOW_RESIZED)
-        ft->reshape_cb(window, closure, event.window,data1, event.window,data2);
+      for (int i = 0; i < window_count; i++) {
+        if (!ft->event_cb(windows[i], closures[i], &event) break;
+        if (event.type == SDL_EVENT_WINDOW_RESIZED)
+          ft->reshape_cb(windows[i], closures[i], event.window,data1, event.window,data2);
+      }
     }
 #else // USE_SDL
-    if (!usleep_and_process_events(dpy, ft, windows, fpsts, closures, delay
-#ifdef DEBUG_PAIR
-                                       , window2, fpst2, closure2, delay2
-#endif // DEBUG_PAID
+    if (!usleep_and_process_events(dpy, ft, windows, fpsts, closures, delays
 #ifdef HAVE_RECORD_ANIM
                                        , anim_state
 #endif // HAVE_RECORD_ANIM
@@ -518,17 +513,16 @@ static void run_screenhack_table (
       break;
 #endif // else USE_SDL
 
-    delay = ft->draw_cb (dpy, window, closure);
-    if (fpst) fps_cb (dpy, window, fpst, closure);
-#ifdef DEBUG_PAIR
-    if (window2) {
-      delay2 = ft->draw_cb (dpy, window2, closure2);
-      if (fpst2) fps_cb (dpy, window2, fpst2, closure2);
+    for (int i = 0; i < window_count; i++) {
+      delays[i] = ft->draw_cb(dpy, windows[i], closures[i]);
+      if (fpsts[i]) fps_cb(dpy, windows[i], fpsts[i], closures[i]);
     }
-#endif // DEBUG_PAIR
+
 #ifdef USE_SDL
-    SDL_GL_SwapWindow(window);
-    if (delay > 0) SDL_Delay(delay / 1000);
+	for (int i = 0; i < window_count; i++) {
+      SDL_GL_SwapWindow(windows[i]);
+      if (delays[i] > 0) SDL_Delay(delays[i] / 1000);
+	}
 #else
     // TODO - no need for glXSwapBuffers(dpy, window); here?
 #endif // USE_SDL
@@ -539,15 +533,10 @@ static void run_screenhack_table (
   if (anim_state) screenhack_record_anim_free (anim_state);
 #endif // HAVE_RECORD_ANIM
 
-  if (fpst) ft->fps_free (fpst);
-#ifdef DEBUG_PAIR
-  if (fpst2) ft->fps_free (fpst2);
-#endif // DEBUG_PAIR
-
-  ft->free_cb (dpy, window, closure);
-#ifdef DEBUG_PAIR
-  if (window2) ft->free_cb (dpy, window2, closure2);
-#endif // DEBUG_PAIR
+  for (int i = 0; i < window_count; i++) {
+    if (fpsts[i] ft->fps_free(fpsts[i]);
+    ft->free_cb(dpy, windows[i], closures[i]);
+  }
 }
 
 static Widget make_shell (Screen *screen, Widget toplevel, int width, int height) {
