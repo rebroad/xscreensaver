@@ -458,9 +458,9 @@ screenhack_do_fps (Display *dpy, Window w, fps_state *fpst, void *closure) {
 #define DEBUG_INTERVAL 1000000  // 1 second
 
 // Global variables for debugging
-unsigned long *total_delays = NULL;
+unsigned long *total_delays;  // Will be allocated in run_screenhack_table
 unsigned long frame_count = 0, sleep_times = 0;
-int number_of_windows = 0;
+int number_of_windows;  // Will be set in run_screenhack_table
 struct timespec last_debug_time = {0, 0};
 
 void debug_output(void);
@@ -516,6 +516,9 @@ static void run_screenhack_table (
 
   void **closures = (void **)calloc(window_count, sizeof(void *));
   fps_state **fpsts = (fps_state **)calloc(window_count, sizeof(fps_state *));
+  /* Entries below for debugging */
+  total_delays = (unsigned long *)calloc(window_count, sizeof(unsigned long));
+  number_of_windows = window_count;  // Set global for debug_output
   unsigned long *delays = (unsigned long *)calloc(window_count, sizeof(unsigned long));
   unsigned long delay = 0;
 
@@ -537,6 +540,7 @@ static void run_screenhack_table (
         clock_gettime(CLOCK_MONOTONIC, &start_time);
     else
         start_time = end_time;
+
 #ifdef USE_SDL
     SDL_Event event;
     while (SDL_PollEvent(&event)) {
@@ -591,6 +595,7 @@ static void run_screenhack_table (
     if (fpsts[i]) ft->fps_free(fpsts[i]);
     ft->free_cb(dpy, windows[i], closures[i]);
   }
+  free(closures); free(fpsts); free(total_delays); free(delays);
 }
 
 static Widget make_shell (Screen *screen, Widget toplevel, int width, int height) {
