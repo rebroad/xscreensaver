@@ -390,7 +390,7 @@ static Boolean screenhack_table_handle_events (Display *dpy,
     XEvent event;
     XNextEvent(dpy, &event);
 
-	for (int i = 0; i < num_windows; i++) {
+    for (int i = 0; i < num_windows; i++) {
       if (event.xany.type == ConfigureNotify) {
         if (event.xany.window == windows[i])
           ft->reshape_cb(dpy, windows[i], closures[i],
@@ -399,8 +399,8 @@ static Boolean screenhack_table_handle_events (Display *dpy,
                 (!(event.xany.window == windows[i]
                    ? ft->event_cb(dpy, windows[i], closures[i], &event) : 0))) {
         if (!screenhack_handle_event_1 (dpy, &event)) return False;
-	  }
-	} // for num_windows
+      }
+    } // for num_windows
 
     /* Last chance to process Xt timers before blocking. */
     m = XtAppPending(app);
@@ -417,9 +417,8 @@ static Boolean screenhack_table_handle_events (Display *dpy,
 
 static Boolean usleep_and_process_events(Display *dpy,
                            const struct xscreensaver_function_table *ft,
-                           Window *windows, fps_state **fpsts, void **closures, unsigned long *delays,
-                           // TODO - iterate for the above line
-						   int num_windows
+                           Window *windows, fps_state **fpsts, void **closures, unsigned long delay,
+                           int num_windows
 #ifdef HAVE_RECORD_ANIM
                          , record_anim_state *anim_state
 #endif
@@ -437,7 +436,7 @@ static Boolean usleep_and_process_events(Display *dpy,
 
     if (quantum > 0) {
       usleep(quantum);
-	  for (int i = 0; i < num_windows; i++)
+      for (int i = 0; i < num_windows; i++)
         if (fpsts[i]) fps_slept(fpsts[i], quantum);
     }
 
@@ -452,6 +451,42 @@ static void
 screenhack_do_fps (Display *dpy, Window w, fps_state *fpst, void *closure) {
   fps_compute (fpst, 0, -1);
   fps_draw (fpst);
+}
+
+// Constants
+#define FRAME_INTERVAL 1666666  // 60 FPS (1000000 / 60)
+#define DEBUG_INTERVAL 1000000  // 1 second
+
+// Global variables for debugging
+unsigned long *total_delays = NULL;
+unsigned long frame_count = 0, sleep_times = 0;
+int number_of_windows = 0;
+struct timespec last_debug_time = {0, 0};
+
+void debug_output() {
+    struct timespec current_time;
+    clock_gettime(CLOCK_MONOTONIC, &current_time);
+
+    if (last_debug_time.tv_sec == 0 && last_debug_time.tv_nsec == 0) {
+        last_debug_time = current_time;
+    }
+
+    long elapsed_time = (current_time.tv_sec - last_debug_time.tv_sec) * 1000000 +
+                        (current_time.tv_nsec - last_debug_time.tv_nsec) / 1000;
+
+    if (elapsed_time >= DEBUG_INTERVAL) {
+        for (int i = 0; i < number_of_windows; i++) {
+            printf("Avg delay[%d]: %.2f ms, ", (double)total_delays[i] / frame_count);
+            total_delays[i] = 0;
+        }
+        printf("Avg sleep: %.2f ms\n", (double)sleep_times / frame_count);
+        frame_count = 0; sleep_times = 0;
+
+        if (current_time > last_debug_time + DEBUG_INTERVAL*2)
+            last_debug_time = current_time;
+        else
+            last_debug_time += DEBUG_INTERVAL;
+    }
 }
 
 static void run_screenhack_table (
@@ -480,7 +515,8 @@ static void run_screenhack_table (
 
   void **closures = (void **)calloc(window_count, sizeof(void *));
   fps_state **fpsts = (fps_state **)calloc(window_count, sizeof(fps_state *));
-  unsigned long *delays = (unsigned long*)calloc(window_count, sizeof(unsigned long));
+  unsigned long *delays = (unsigned long *)calloc(window_count, sizeof(unsigned long));
+  unsigned long delay = 0;
 
   for (int i = 0; i < window_count; i++) {
 #ifdef USE_SDL
@@ -488,13 +524,18 @@ static void run_screenhack_table (
 #else // USE_SDL
     closures[i] = init_cb(dpy, windows[i], ft->setup_arg);
 #endif // else USE_SDL
-	if (!closures[i]) abort();
-	fpsts[i] = fps_init(dpy, windows[i]);
+    if (!closures[i]) abort();
+    fpsts[i] = fps_init(dpy, windows[i]);
   }
 
   if (!fps_cb) fps_cb = screenhack_do_fps;
 
   while(1) {
+    static struct timespec start_time, end_time;
+    if (!end_time)
+        clock_gettime(CLOCK_MONOTONIC, &start_time);
+    else
+        start_time = end_time;
 #ifdef USE_SDL
     SDL_Event event;
     while (SDL_PollEvent(&event)) {
@@ -504,8 +545,13 @@ static void run_screenhack_table (
           ft->reshape_cb(windows[i], closures[i], event.window,data1, event.window,data2);
       }
     }
+
+    for (int i = 0; i < window_count; i++) {
+      SDL_GL_SwapWindow(windows[i]);
+      if (delays[i] > 0) SDL_Delay(delays[i] / 1000);
+    }
 #else // USE_SDL
-    if (!usleep_and_process_events(dpy, ft, windows, fpsts, closures, delays
+    if (!usleep_and_process_events(dpy, ft, windows, fpsts, closures, delay
 #ifdef HAVE_RECORD_ANIM
                                        , anim_state
 #endif // HAVE_RECORD_ANIM
@@ -513,19 +559,26 @@ static void run_screenhack_table (
       break;
 #endif // else USE_SDL
 
-    for (int i = 0; i < window_count; i++) {
-      delays[i] = ft->draw_cb(dpy, windows[i], closures[i]);
-      if (fpsts[i]) fps_cb(dpy, windows[i], fpsts[i], closures[i]);
-    }
-
 #ifdef USE_SDL
-	for (int i = 0; i < window_count; i++) {
-      SDL_GL_SwapWindow(windows[i]);
-      if (delays[i] > 0) SDL_Delay(delays[i] / 1000);
-	}
 #else
     // TODO - no need for glXSwapBuffers(dpy, window); here?
 #endif // USE_SDL
+    clock_gettime(CLOCK_MONOTONIC, &end_time);
+
+    long elapsed_time = (end_time.tv_sec - start_time.tv_sec) * 1000000 +
+                        (end_time.tv_nsec - start_time.tv_nsec) / 1000;
+
+    long sleep_time = FRAME_INTERVAL - elapsed_time;
+    sleep_times += sleep_time; frame_count++;
+    debug_output();
+
+    for (int i = 0; i < window_count; i++) {
+      delays[i] = ft->draw_cb(dpy, windows[i], closures[i]);
+      if (!i) delay = delays[0];
+      total_delays[i] += delays[i];
+      if (fpsts[i]) fps_cb(dpy, windows[i], fpsts[i], closures[i]);
+    }
+
   } // while running
 
 #ifdef HAVE_RECORD_ANIM
