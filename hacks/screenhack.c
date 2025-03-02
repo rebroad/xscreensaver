@@ -811,6 +811,7 @@ int main (int argc, char **argv) {
 
   fprintf(stderr, "%s: Parsing options...\n", progname);
   Bool root_p = get_boolean_resource(dpy, "root", "Boolean");
+  Bool pair_p = get_boolean_resource(dpy, "pair", "Boolean");
   Bool fullscreen_p = False;
   int fullscreen_display = -1;
   char *fs_val = get_string_resource(dpy, "fullscreen", "Fullscreen");
@@ -845,27 +846,17 @@ int main (int argc, char **argv) {
   Widget *toplevels = (Widget *)calloc(1, sizeof(Widget));
   toplevels[0] = toplevel;
   int window_count = 1; // Default to 1
-  if (fullscreen_p && !root_p) {
-    fprintf(stderr, "%s: Entering fullscreen branch\n", progname);
-    int num_screens = 0;
-    XineramaScreenInfo *xsi = NULL;
-    if (XineramaIsActive(dpy)) {
-      xsi = XineramaQueryScreens(dpy, &num_screens);
-      fprintf(stderr, "%s: Xinerama active, found %d screens\n", progname, num_screens);
-    } else {
-      num_screens = ScreenCount(dpy);
-      fprintf(stderr, "%s: Xinerama inactive, using %d screens from ScreenCount\n", progname, num_screens);
-    }
 
-    if (fullscreen_display >= 0) {
+  if (0) { // Disable old fullsreen code
+    /*if (fullscreen_display >= 0) {
       if (fullscreen_display >= num_screens) {
         fprintf(stderr, "%s: Display %d not found; only %d displays available, defaulting to 0\n",
                 progname, fullscreen_display, num_screens);
-        fullscreen_display = 0;  /* TODO - how to select the "primary" according to the WM */
+        fullscreen_display = 0;  // TODO - how to select the "primary" according to the WM
       }
       fprintf(stderr, "%s: Single display mode, using display %d\n", progname, fullscreen_display);
     } else {
-      /* All displays mode */
+      // All displays mode
       window_count = num_screens;
       fprintf(stderr, "%s: All displays mode, using %d screens\n", progname, num_screens);
     }
@@ -882,7 +873,7 @@ int main (int argc, char **argv) {
 
       int width = xsi ? xsi[screen_idx].width : def_width;
       int height = xsi ? xsi[screen_idx].height : def_height;
-      int x = xsi ? xsi[screen_idx].x_org : (i * 50);  /* Offset for non-Xinerama */
+      int x = xsi ? xsi[screen_idx].x_org : (i * 50);  // Offset for non-Xinerama
       int y = xsi ? xsi[screen_idx].y_org : (i * 50);
 
       fprintf(stderr, "%s: Creating window %d: screen_idx=%d, %dx%d at (%d,%d)\n",
@@ -898,10 +889,10 @@ int main (int argc, char **argv) {
       windows[i] = XtWindow(toplevels[i]);
       XMoveResizeWindow(dpy, windows[i], x, y, width, height); // Position and size
       XSetWindowBorderWidth(dpy, windows[i], 0); // Remove borders
-      XMapWindow(dpy, windows[i]);  /* Ensure it's mapped */
+      XMapWindow(dpy, windows[i]);  // Ensure it's mapped
       fprintf(stderr, "%s: Window %d created and positioned\n", progname, i);
     }
-    if (xsi) XFree(xsi);
+    if (xsi) XFree(xsi); */
   } else if (on_window) {
     fprintf(stderr, "%s: Using existing window ID\n", progname);
     windows[0] = (Window)on_window;
@@ -928,8 +919,22 @@ int main (int argc, char **argv) {
     XSelectInput(dpy, windows[0], xgwa.your_event_mask | StructureNotifyMask);
     visual_warning(xgwa.screen, windows[0], xgwa.visual, xgwa.colormap, False);
   } else {
-    fprintf(stderr, "%s: Running in default windowed mode\n", progname);
-    if (get_boolean_resource(dpy, "pair", "Boolean")) window_count = 2;
+    if (pair_p) window_count = 2;
+	if (fullscreen_display >= 0) {
+	  // We're going to need to query our connected displays
+      fprintf(stderr, "%s: Querying display info\n", progname);
+      XineramaScreenInfo *xsi = NULL;
+	  int num_screens;
+      if (XineramaIsActive(dpy)) {
+        xsi = XineramaQueryScreens(dpy, &num_screens);
+        fprintf(stderr, "%s: Xinerama active, found %d screens\n", progname, num_screens);
+      } else {
+        num_screens = ScreenCount(dpy);
+        fprintf(stderr, "%s: Xinerama inactive, using %d screens from ScreenCount\n", progname, num_screens);
+      }
+	  if (xsi) XFree(xsi);
+	}
+    fprintf(stderr, "%s: Running in default windowed mode. window_count=%d\n", progname, window_count);
     windows = (Window *)realloc(windows, window_count * sizeof(Window));
     toplevels = (Widget *)realloc(toplevels, window_count * sizeof(Widget));
     toplevels[0] = make_shell(XtScreen(toplevel), toplevel,
