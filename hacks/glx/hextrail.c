@@ -144,7 +144,7 @@ ENTRYPOINT ModeSpecOpt hextrail_opts = {countof(opts), opts, countof(vars), vars
 // Lookup table for cumulative hexagons up to each row (Y from -220 to 220, index 0 to 440)
 static int32_t S[GRID_HEIGHT + 1]; // +1 for S(221)
 
-void init_hex_grid_lookup(void);
+static void init_hex_grid_lookup(void);
 void init_hex_grid_lookup() {
     int32_t cumulative = 0;
     for (int y = -GRID_HALF_HEIGHT; y <= GRID_HALF_HEIGHT; y++) {
@@ -164,8 +164,8 @@ void init_hex_grid_lookup() {
 }
 
 // Convert (X, Y) to index (returns 0 if outside grid)
-int16_t xy_to_index(int, int);
-int16_t xy_to_index(int x, int y) {
+static uint16_t xy_to_index(int, int);
+uint16_t xy_to_index(int x, int y) {
     // Check bounds and validity
     if (x < -MAX_N || x > MAX_N || y < -GRID_HALF_HEIGHT || y > GRID_HALF_HEIGHT) {
         return 0;
@@ -185,41 +185,12 @@ int16_t xy_to_index(int x, int y) {
     return index;
 }
 
-void index_to_xy(int16_t, int*, int*);
-void index_to_xy(int16_t index, int* x, int* y) {
-    if (index <= 0 || index > S[GRID_HEIGHT]) {
-        *x = 0;
-        *y = 0;
-        return; // Invalid index
-    }
-
-    // Binary search to find Y
-    int low = 0;
-    int high = GRID_HEIGHT - 1;
-    while (low <= high) {
-        int mid = (low + high) / 2;
-        if (S[mid] < index && S[mid + 1] >= index) {
-            *y = mid - GRID_HALF_HEIGHT; // Convert back to Y coordinate
-            int x_min = -MAX_N > (-MAX_N - *y - ((*y + 1) / 2)) ? -MAX_N : (-MAX_N - *y - ((*y + 1) / 2));
-            *x = x_min + (index - S[mid] - 1);
-            return;
-        } else if (S[mid] >= index) {
-            high = mid - 1;
-        } else {
-            low = mid + 1;
-        }
-    }
-    // Should not reach here if index is valid
-    *x = 0;
-    *y = 0;
-}
-
 static hexagon *do_hexagon(config *bp, int x, int y) {
   int id = xy_to_index(x, y);
   if (!id) {
     static time_t debug = 0;
     if (debug != bp->now) {
-      printf("%s: Out of bounds. coords=%d,%d\n", __func__, x, y);
+      printf("%s: Out of bounds. id=%d coords=%d,%d\n", __func__, id, x, y);
       debug = bp->now;
     }
     return NULL;
@@ -230,8 +201,14 @@ static hexagon *do_hexagon(config *bp, int x, int y) {
     // We found an existing hexagon, so return it.
     int i = (idx-1) / HEXAGON_CHUNK_SIZE;
     int k = (idx-1) % HEXAGON_CHUNK_SIZE;
-    return bp->chunks[i]->chunk[k];
+	hexagon *h = bp->chunks[i]->chunk[k];
+	/*if (h)
+      printf("ID for (%d,%d)=%d hex_grid[%d]=%d (%d,%d)\n", x, y, id, id, idx, h->x, h->y);
+	else
+      printf("ID for (%d,%d)=%d hex_grid[%d]=%d (NULL)\n", x, y, id, id, idx); */
+	return h;
   }
+  //printf("ID for (%d,%d)=%d hex_grid[%d]=%d\n", x, y, id, id, idx);
 
   if (bp->total_hexagons >= bp->chunk_count * HEXAGON_CHUNK_SIZE) {
     hex_chunk **new_chunks = realloc(bp->chunks, (bp->chunk_count+1) * sizeof(hex_chunk *));
@@ -258,7 +235,7 @@ static hexagon *do_hexagon(config *bp, int x, int y) {
   current->chunk[bp->total_hexagons % HEXAGON_CHUNK_SIZE] = h0;
   current->used++;
   bp->total_hexagons++;
-  bp->hex_grid[idx] = bp->total_hexagons;
+  bp->hex_grid[id] = bp->total_hexagons;
   h0->x = x; h0->y = y;
 
   return h0;
