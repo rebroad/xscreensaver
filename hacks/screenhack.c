@@ -454,7 +454,7 @@ screenhack_do_fps (Display *dpy, Window w, fps_state *fpst, void *closure) {
 }
 
 // Constants
-#define FRAME_INTERVAL 1666666  // 60 FPS (1000000 / 60)
+#define FRAME_INTERVAL   16666  // 60 FPS (1000000 / 60)
 #define DEBUG_INTERVAL 1000000  // 1 second
 
 // Global variables for debugging
