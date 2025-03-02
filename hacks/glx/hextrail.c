@@ -1,6 +1,6 @@
 /* hextrail, Copyright (c) 2022 Jamie Zawinski <jwz@jwz.org>
  *
-/* low-priority TODOs:-
+ * low-priority TODOs:-
  = Collect all vertices into a dynamic array, then upload to a 1 or more VBOs - also fix glow effects.
  = Don't draw borders when the thickness of the line would be <1 pixel
  = hextrail - the end-points - draw these more slowly, like a decelleration (due to pressure).
@@ -97,7 +97,7 @@ typedef struct {
   int chunk_count;
   int total_hexagons;
   int hexagon_capacity;
-  int size, grid_w, grid_h;
+  int size, grid;
   enum { FIRST, DRAW, FADE } state;
   GLfloat fade_ratio;
 
@@ -140,9 +140,9 @@ ENTRYPOINT ModeSpecOpt hextrail_opts = {countof(opts), opts, countof(vars), vars
 
 static hexagon *do_hexagon(config *bp, int x, int y) {
   // Returns or creates a hexton at co-ords
-  int gx = x + bp->grid_w/2 + bp->x_offset;
-  int gy = y + bp->grid_h/2 + bp->y_offset;
-  if (gx < 0 || gx >= bp->grid_w || gy < 0 || gy >= bp->grid_h) {
+  int gx = x + bp->grid/2;
+  int gy = y + bp->grid/2;
+  if (gx < 0 || gx >= bp->grid || gy < 0 || gy >= bp->grid) {
     static time_t debug = 0;
     if (debug != bp->now) {
       printf("%s: Out of bounds. grid=%d,%d coords=%d,%d\n", __func__, gx, gy, x, y);
@@ -151,7 +151,7 @@ static hexagon *do_hexagon(config *bp, int x, int y) {
     return NULL;
   }
 
-  int idx = bp->hex_grid[gy * bp->grid_w + gx];
+  int idx = bp->hex_grid[gy * bp->grid + gx];
   if (idx) { // Zero means empty
     // We found an existing hexagon, so return it.
     int i = (idx-1) / HEXAGON_CHUNK_SIZE;
@@ -184,7 +184,7 @@ static hexagon *do_hexagon(config *bp, int x, int y) {
   current->chunk[bp->total_hexagons % HEXAGON_CHUNK_SIZE] = h0;
   current->used++;
   bp->total_hexagons++;
-  bp->hex_grid[gy * bp->grid_w + gx] = bp->total_hexagons;
+  bp->hex_grid[gy * bp->grid + gx] = bp->total_hexagons;
   h0->x = x; h0->y = y;
 
   return h0;
@@ -337,10 +337,9 @@ static void reset_hextrail(ModeInfo *mi) {
   }
 
   bp->total_hexagons = 0;
-  memset(bp->hex_grid, 0, bp->grid_w * bp->grid_h * sizeof(uint16_t));
+  memset(bp->hex_grid, 0, bp->grid * bp->grid * sizeof(uint16_t));
   bp->state = FIRST;
   bp->fade_ratio = 1;
-  bp->x_offset = 0; bp->y_offset = 0;
 
   bp->ncolors = 8;
   if (!bp->colors)
@@ -533,10 +532,10 @@ static void tick_hexagons (ModeInfo *mi) {
       int16_t empty_cells[1000][2]; int empty_count = 0;
       for (int y = min_vy; y <= max_vy && empty_count < 1000; y++)
         for (int x = min_vx; x <= max_vx && empty_count < 1000; x++) {
-          int gx = x + bp->grid_w/2 + bp->x_offset;
-          int gy = y + bp->grid_h/2 + bp->y_offset;
-          if (gx >= 0 && gx < bp->grid_w && gy >= 0 && gy < bp->grid_h) {
-            int idx = bp->hex_grid[gy * bp->grid_w + gx];
+          int gx = x + bp->grid/2;
+          int gy = y + bp->grid/2;
+          if (gx >= 0 && gx < bp->grid && gy >= 0 && gy < bp->grid) {
+            int idx = bp->hex_grid[gy * bp->grid + gx];
             if (!idx && !hex_invis(bp,x,y,0,0)) {
               empty_cells[empty_count][0] = x;
               empty_cells[empty_count++][1] = y;
@@ -1068,8 +1067,8 @@ ENTRYPOINT void init_hextrail (ModeInfo *mi) {
   bp->chunk_count = 0;
 
   bp->size = MI_COUNT(mi) * 2;
-  bp->grid_w = 255; bp->grid_h = 255; // Given hex_grid is 16bit
-  bp->hex_grid = (uint16_t *)calloc(bp->grid_w * bp->grid_h, sizeof(uint16_t));
+  bp->grid = 255; // Given hex_grid is 16bit
+  bp->hex_grid = (uint16_t *)calloc(bp->grid * bp->grid, sizeof(uint16_t));
   reset_hextrail (mi);
 }
 
