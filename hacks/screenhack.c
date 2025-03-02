@@ -155,14 +155,15 @@ static void merge_options (void) {
   struct xscreensaver_function_table *ft = xscreensaver_function_table;
   const XrmOptionDescRec *options = ft->options;
   const char * const *defaults = ft->defaults;
-  const char *progclass  = ft->progclass;
+  const char *progclass = ft->progclass;
 
   int def_opts_size = 0, opts_size = 0, def_defaults_size = 0, defaults_size = 0;
   for (; default_options[def_opts_size].option; def_opts_size++);
   for (; options[opts_size].option; opts_size++);
   merged_options_size = def_opts_size + opts_size;
   merged_options = (XrmOptionDescRec *)
-    malloc ((merged_options_size + 1) * sizeof(*default_options));
+    malloc((merged_options_size + 1) * sizeof(*default_options));
+  if (!merged_options) abort();
   memcpy (merged_options, default_options,
       (def_opts_size * sizeof(*default_options)));
   memcpy (merged_options + def_opts_size, options,
@@ -171,26 +172,26 @@ static void merge_options (void) {
   for (; default_defaults[def_defaults_size]; def_defaults_size++);
   for (; defaults[defaults_size]; defaults_size++);
   merged_defaults = (char **)
-      malloc ((def_defaults_size + defaults_size + 1) * sizeof (*defaults));
+      malloc ((def_defaults_size + defaults_size + 1) * sizeof(*defaults));
+  if (!merged_defaults) abort();
   memcpy(merged_defaults, default_defaults, def_defaults_size * sizeof(*defaults));
   memcpy(merged_defaults + def_defaults_size, defaults,
       (defaults_size + 1) * sizeof(*defaults));
 
   /* This totally sucks.  Xt should behave like this by default.
      If the string in `defaults' looks like ".foo", change that
-     to "Progclass.foo".
-   */
-  {
-    char **s;
-    for (s = merged_defaults; *s; s++)
-      if (**s == '.') {
-        const char *oldr = *s;
-        char *newr = (char *) malloc(strlen(oldr) + strlen(progclass) + 3);
-        strcpy (newr, progclass);
-        strcat (newr, oldr);
-        *s = newr;
-      } else *s = strdup (*s);
-  }
+     to "Progclass.foo".  */
+  for (char **s = merged_defaults; *s; s++)
+    if (**s == '.') {
+      const char *oldr = *s;
+      char *newr = (char *) malloc(strlen(oldr) + strlen(progclass) + 3);
+      strcpy (newr, progclass);
+      strcat (newr, oldr);
+      *s = newr;
+    } else {
+      *s = strdup (*s);
+      if (!*s) abort();
+    }
   fprintf(stderr, "%s: Merged %d options:\n", progname, merged_options_size);
   for (int i = 0; i < merged_options_size; i++) {
     fprintf(stderr, "%s:   %s -> %s\n", progname, merged_options[i].option, merged_options[i].specifier);
@@ -449,45 +450,8 @@ static Boolean usleep_and_process_events(Display *dpy,
 
 static void
 screenhack_do_fps (Display *dpy, Window w, fps_state *fpst, void *closure) {
-  fps_compute (fpst, 0, -1);
-  fps_draw (fpst);
-}
-
-// Constants
-#define FRAME_INTERVAL   16666  // 60 FPS (1000000 / 60)
-#define DEBUG_INTERVAL 1000000  // 1 second
-
-// Global variables for debugging
-unsigned long *total_delays;  // Will be allocated in run_screenhack_table
-unsigned long frame_count = 0, sleep_times = 0;
-int number_of_windows;  // Will be set in run_screenhack_table
-struct timespec last_debug_time = {0, 0};
-
-void debug_output(void);
-void debug_output(void) {
-    struct timespec current_time;
-    clock_gettime(CLOCK_MONOTONIC, &current_time);
-
-    if (last_debug_time.tv_sec == 0 && last_debug_time.tv_nsec == 0) {
-        last_debug_time = current_time;
-    }
-
-    long elapsed_time = (current_time.tv_sec - last_debug_time.tv_sec) * 1000000 +
-                        (current_time.tv_nsec - last_debug_time.tv_nsec) / 1000;
-
-    if (elapsed_time >= DEBUG_INTERVAL) {
-        for (int i = 0; i < number_of_windows; i++) {
-            printf("Avg delay[%d]: %.2f ms, ", i, (double)total_delays[i] / frame_count);
-            total_delays[i] = 0;
-        }
-        printf("Avg sleep: %.2f ms\n", (double)sleep_times / frame_count);
-        frame_count = 0; sleep_times = 0;
-
-        if (current_time.tv_sec > last_debug_time.tv_sec + DEBUG_INTERVAL/1000000)
-            last_debug_time = current_time;
-        else
-            last_debug_time.tv_sec += DEBUG_INTERVAL/1000000;
-    }
+  fps_compute(fpst, 0, -1);
+  fps_draw(fpst);
 }
 
 static void run_screenhack_table (
@@ -516,10 +480,6 @@ static void run_screenhack_table (
 
   void **closures = (void **)calloc(window_count, sizeof(void *));
   fps_state **fpsts = (fps_state **)calloc(window_count, sizeof(fps_state *));
-  /* Entries below for debugging */
-  total_delays = (unsigned long *)calloc(window_count, sizeof(unsigned long));
-  number_of_windows = window_count;  // Set global for debug_output
-  unsigned long *delays = (unsigned long *)calloc(window_count, sizeof(unsigned long));
   unsigned long delay = 0;
 
   for (int i = 0; i < window_count; i++) {
@@ -535,12 +495,6 @@ static void run_screenhack_table (
   if (!fps_cb) fps_cb = screenhack_do_fps;
 
   while(1) {
-    static struct timespec start_time, end_time;
-    if (!end_time.tv_sec)
-        clock_gettime(CLOCK_MONOTONIC, &start_time);
-    else
-        start_time = end_time;
-
 #ifdef USE_SDL
     SDL_Event event;
     while (SDL_PollEvent(&event)) {
@@ -568,19 +522,10 @@ static void run_screenhack_table (
 #else
     // TODO - no need for glXSwapBuffers(dpy, window); here?
 #endif // USE_SDL
-    clock_gettime(CLOCK_MONOTONIC, &end_time);
-
-    long elapsed_time = (end_time.tv_sec - start_time.tv_sec) * 1000000 +
-                        (end_time.tv_nsec - start_time.tv_nsec) / 1000;
-
-    long sleep_time = FRAME_INTERVAL - elapsed_time;
-    sleep_times += sleep_time; frame_count++;
-    debug_output();
 
     for (int i = 0; i < window_count; i++) {
-      delays[i] = ft->draw_cb(dpy, windows[i], closures[i]);
-      if (!i) delay = delays[0];
-      total_delays[i] += delays[i];
+      int erm = ft->draw_cb(dpy, windows[i], closures[i]);
+      if (!i) delay = erm;
       if (fpsts[i]) fps_cb(dpy, windows[i], fpsts[i], closures[i]);
     }
 
@@ -595,7 +540,7 @@ static void run_screenhack_table (
     if (fpsts[i]) ft->fps_free(fpsts[i]);
     ft->free_cb(dpy, windows[i], closures[i]);
   }
-  free(closures); free(fpsts); free(total_delays); free(delays);
+  free(closures); free(fpsts);
 }
 
 static Widget make_shell (Screen *screen, Widget toplevel, int width, int height) {
@@ -988,12 +933,12 @@ int main (int argc, char **argv) {
     toplevels[0] = make_shell(XtScreen(toplevel), toplevel,
             toplevel->core.width, toplevel->core.height);
     printf("%s: new=%p toplevel=%p\n", __func__, (void *)toplevels[0], (void *)toplevel);
-	if (toplevels[0] != toplevel)
+    if (toplevels[0] != toplevel)
       XtDestroyWidget(toplevel);
     init_window(dpy, toplevels[0], version);
     windows[0] = XtWindow(toplevels[0]);
     XGetWindowAttributes(dpy, windows[0], &xgwa);
-	for (int i = 1; i < window_count; i++) {
+    for (int i = 1; i < window_count; i++) {
       toplevels[i] = make_shell(xgwa.screen, 0, toplevels[0]->core.width,
                                 toplevels[0]->core.height);
       init_window(dpy, toplevels[i], version);
@@ -1004,10 +949,10 @@ int main (int argc, char **argv) {
   if (!dont_clear) {
     unsigned int bg = get_pixel_resource (dpy, xgwa.colormap,
                                             "background", "Background");
-	for (int i = 0; i < window_count; i++) {
+    for (int i = 0; i < window_count; i++) {
       XSetWindowBackground (dpy, windows[i], bg);
       XClearWindow (dpy, windows[i]);
-	}
+    }
   }
 
   if (!root_p && !on_window)
