@@ -440,7 +440,7 @@ static Boolean usleep_and_process_events(Display *dpy,
         if (fpsts[i]) fps_slept(fpsts[i], quantum);
     }
 
-    if (!screenhack_table_handle_events(dpy, ft, windows, closures))
+    if (!screenhack_table_handle_events(dpy, ft, windows, closures, num_windows))
       return False;
   } while (delay > 0);
 
@@ -463,7 +463,8 @@ unsigned long frame_count = 0, sleep_times = 0;
 int number_of_windows = 0;
 struct timespec last_debug_time = {0, 0};
 
-void debug_output() {
+void debug_output(void);
+void debug_output(void) {
     struct timespec current_time;
     clock_gettime(CLOCK_MONOTONIC, &current_time);
 
@@ -476,16 +477,16 @@ void debug_output() {
 
     if (elapsed_time >= DEBUG_INTERVAL) {
         for (int i = 0; i < number_of_windows; i++) {
-            printf("Avg delay[%d]: %.2f ms, ", (double)total_delays[i] / frame_count);
+            printf("Avg delay[%d]: %.2f ms, ", i, (double)total_delays[i] / frame_count);
             total_delays[i] = 0;
         }
         printf("Avg sleep: %.2f ms\n", (double)sleep_times / frame_count);
         frame_count = 0; sleep_times = 0;
 
-        if (current_time > last_debug_time + DEBUG_INTERVAL*2)
+        if (current_time.tv_sec > last_debug_time.tv_sec + DEBUG_INTERVAL/1000000)
             last_debug_time = current_time;
         else
-            last_debug_time += DEBUG_INTERVAL;
+            last_debug_time.tv_sec += DEBUG_INTERVAL/1000000;
     }
 }
 
@@ -532,7 +533,7 @@ static void run_screenhack_table (
 
   while(1) {
     static struct timespec start_time, end_time;
-    if (!end_time)
+    if (!end_time.tv_sec)
         clock_gettime(CLOCK_MONOTONIC, &start_time);
     else
         start_time = end_time;
@@ -551,7 +552,7 @@ static void run_screenhack_table (
       if (delays[i] > 0) SDL_Delay(delays[i] / 1000);
     }
 #else // USE_SDL
-    if (!usleep_and_process_events(dpy, ft, windows, fpsts, closures, delay
+    if (!usleep_and_process_events(dpy, ft, windows, fpsts, closures, delay, window_count
 #ifdef HAVE_RECORD_ANIM
                                        , anim_state
 #endif // HAVE_RECORD_ANIM
@@ -587,7 +588,7 @@ static void run_screenhack_table (
 #endif // HAVE_RECORD_ANIM
 
   for (int i = 0; i < window_count; i++) {
-    if (fpsts[i] ft->fps_free(fpsts[i]);
+    if (fpsts[i]) ft->fps_free(fpsts[i]);
     ft->free_cb(dpy, windows[i], closures[i]);
   }
 }
@@ -697,12 +698,7 @@ int main (int argc, char **argv) {
 
 #ifdef USE_SDL
   sdl_init_resources(argc, argv, merged_options, merged_defaults);
-#else // USE_SDL
-  XtAppContext app;
-  Widget toplevel = XtAppInitialize(&app, progclass, merged_options,
-                  merged_options_size, &argc, argv, merged_defaults, 0, 0);
-  Display *dpy = XtDisplay(toplevel);
-#endif // else USE_SDL
+#endif
   char version[255];
   {
     char *v = (char *) strdup(strchr(screensaver_id, ' '));
@@ -818,7 +814,12 @@ int main (int argc, char **argv) {
     free(options_store[i].value);
   }
   free(options_store);
-#else /* ! USE_SDL */
+#else // USE_SDL
+  XtAppContext app;
+  Widget *toplevels = (Widget *)calloc(1, sizeof(Widget));
+  toplevels[0] = XtAppInitialize(&app, progclass, merged_options,
+                 merged_options_size, &argc, argv, merged_defaults, 0, 0);
+  Display *dpy = XtDisplay(toplevel);
   XWindowAttributes xgwa;
 # ifdef HAVE_RECORD_ANIM
   record_anim_state *anim_state = 0;
@@ -837,9 +838,7 @@ int main (int argc, char **argv) {
   SgiUseSchemes ("none");
 #endif /* __sgi */
 
-  XtGetApplicationNameAndClass (dpy,
-                                (char **) &progname,
-                                (char **) &progclass);
+  XtGetApplicationNameAndClass (dpy, (char **) &progname, (char **) &progclass);
 
   /* half-assed way of avoiding buffer-overrun attacks. */
   if (strlen (progname) >= 100) ((char *) progname)[100] = 0;
@@ -853,10 +852,8 @@ int main (int argc, char **argv) {
 
   for (char **s = merged_defaults; *s; s++) free(*s);
 
-  free (merged_options);
-  free (merged_defaults);
-  merged_options = 0;
-  merged_defaults = 0;
+  free (merged_options); free (merged_defaults);
+  merged_options = 0, merged_defaults = 0;
 
   dont_clear = get_boolean_resource (dpy, "dontClearRoot", "Boolean");
   mono_p = get_boolean_resource (dpy, "mono", "Boolean");
@@ -888,13 +885,12 @@ int main (int argc, char **argv) {
 #endif
 
   char *s = get_string_resource (dpy, "windowID", "WindowID");
+  Window on_window = 0;
   if (s && *s) on_window = get_integer_resource (dpy, "windowID", "WindowID");
   if (s) free (s);
 
   /* Determine display configuration */
-  Window on_window = 0;
-  Window *windows = NULL;
-  Widget *toplevels = &toplevel; // TODO - remains valid even if toplevel changes?
+  Window *windows = (Window *)calloc(1, sizeof(Window));
   int window_count = 1; // Default to 1
   if (fullscreen_p && !root_p) {
     fprintf(stderr, "%s: Entering fullscreen branch\n", progname);
@@ -923,8 +919,8 @@ int main (int argc, char **argv) {
       fprintf(stderr, "%s: All displays mode, window count = %d\n", progname, window_count);
     }
 
-    windows = (Window *)calloc(window_count, sizeof(Window));
-    toplevels = (Widget *)calloc(window_count, sizeof(Widget));
+    windows = (Window *)realloc(window_count, sizeof(Window));
+    toplevels = (Widget *)realloc(window_count, sizeof(Widget));
 
     int def_width = DisplayWidth(dpy, DefaultScreen(dpy));
     int def_height = DisplayHeight(dpy, DefaultScreen(dpy));
@@ -933,8 +929,8 @@ int main (int argc, char **argv) {
       int screen_idx = (fullscreen_display >= 0 ? fullscreen_display : i);
       int scr_num = xsi ? xsi[screen_idx].screen_number : screen_idx;
       Screen *screen = ScreenOfDisplay(dpy, scr_num);
-      int width = (xsi ? xsi[screen_idx].width : def_width;
-      int height = (xsi ? xsi[screen_idx].height : def_height;
+      int width = xsi ? xsi[screen_idx].width : def_width;
+      int height = xsi ? xsi[screen_idx].height : def_height;
       int x = xsi ? xsi[screen_idx].x_org : (i * 50);  /* Offset for non-Xinerama */
       int y = xsi ? xsi[screen_idx].y_org : (i * 50);
 
@@ -950,24 +946,23 @@ int main (int argc, char **argv) {
       XMapWindow(dpy, windows[i]);  /* Ensure it's mapped */
       fprintf(stderr, "%s: Window %d created and positioned\n", progname, i);
     }
-    window = windows[0]; // TODO - need a way to select the "Primary"
     if (xsi) XFree(xsi);
   } else if (on_window) {
     fprintf(stderr, "%s: Using existing window ID\n", progname);
-    window = (Window)on_window;
+    windows[0] = (Window)on_window;
     XtDestroyWidget(toplevel);
-    XGetWindowAttributes(dpy, window, &xgwa);
-    visual_warning(xgwa.screen, window, xgwa.visual, xgwa.colormap, True);
+    XGetWindowAttributes(dpy, windows[0], &xgwa);
+    visual_warning(xgwa.screen, windows[0], xgwa.visual, xgwa.colormap, True);
 
     /* Select KeyPress and resize events on the external window.  */
     xgwa.your_event_mask |= KeyPressMask | StructureNotifyMask;
-    XSelectInput(dpy, window, xgwa.your_event_mask);
+    XSelectInput(dpy, windows[0], xgwa.your_event_mask);
 
     /* Select ButtonPress and ButtonRelease events on the external window,
        if no other app has already selected them (only one app can select
        ButtonPress at a time: BadAccess results.) */
     if (! (xgwa.all_event_masks & (ButtonPressMask | ButtonReleaseMask)))
-      XSelectInput(dpy, window, (xgwa.your_event_mask |
+      XSelectInput(dpy, windows[0], (xgwa.your_event_mask |
                        ButtonPressMask | ButtonReleaseMask));
   } else if (root_p) {
     fprintf(stderr, "%s: Running on root window\n", progname);
@@ -979,6 +974,9 @@ int main (int argc, char **argv) {
     visual_warning(xgwa.screen, window, xgwa.visual, xgwa.colormap, False);
   } else {
     fprintf(stderr, "%s: Running in default windowed mode\n", progname);
+    if (get_boolean_resource(dpy, "pair", "Boolean")) window_count = 2;
+    windows = (Window *)calloc(windows_count, sizeof(Window));
+    toplevels = (Widget *)calloc(windows_count, sizeof(Widget));
     Widget new = make_shell(XtScreen(toplevel), toplevel,
             toplevel->core.width, toplevel->core.height);
     if (new != toplevel) {
@@ -987,18 +985,14 @@ int main (int argc, char **argv) {
       toplevel = new;
     }
     init_window(dpy, toplevel, version);
-    window = XtWindow(toplevel);
-    XGetWindowAttributes (dpy, window, &xgwa);
-    if (get_boolean_resource(dpy, "pair", "Boolean")) {
-      window_count = 2;
-      windows = (Window *)calloc(2, sizeof(Window));
-      toplevels = (Widget *)calloc(2, sizeof(Widget));
-      toplevels[0] = toplevel;
-      toplevels[1] = make_shell(xgwa.screen, 0, toplevel->core.width,
+    windows[0] = XtWindow(toplevel);
+    toplevels[0] = toplevel;
+    XGetWindowAttributes(dpy, windows[0], &xgwa);
+	for (int i = 1; i < window_count; i++) {
+      toplevels[i] = make_shell(xgwa.screen, 0, toplevel->core.width,
                                 toplevel->core.height);
-      init_window(dpy, toplevels[1], version);
-      windows[0] = window;
-      windows[1] = XtWindow(toplevels[1]);
+      init_window(dpy, toplevels[i], version);
+      windows[i] = XtWindow(toplevels[i]);
     }
   }
 
@@ -1012,7 +1006,7 @@ int main (int argc, char **argv) {
   }
 
   if (!root_p && !on_window)
-    /* wait for it to be mapped */
+    /* wait for it to be mapped */ // TODO - only need to check the first window?
     XIfEvent (dpy, &event, MapNotify_event_p, (XPointer)windows[0]);
 
   XSync (dpy, False);
@@ -1089,7 +1083,7 @@ int main (int argc, char **argv) {
   free(windows);
   free(toplevels);
   XtDestroyApplicationContext (app);
-#endif /* USE_SDL */
+#endif // else USE_SDL
 
   return 0;
 }
