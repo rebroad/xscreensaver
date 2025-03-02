@@ -698,7 +698,13 @@ int main (int argc, char **argv) {
 
 #ifdef USE_SDL
   sdl_init_resources(argc, argv, merged_options, merged_defaults);
-#endif
+#else // USE_SDL
+  XtAppContext app;
+  Widget toplevel = XtAppInitialize(&app, progclass, merged_options,
+                 merged_options_size, &argc, argv, merged_defaults, 0, 0);
+  Display *dpy = XtDisplay(toplevel);
+#endif // else USE_SDL
+
   char version[255];
   {
     char *v = (char *) strdup(strchr(screensaver_id, ' '));
@@ -815,12 +821,6 @@ int main (int argc, char **argv) {
   }
   free(options_store);
 #else // USE_SDL
-  XtAppContext app;
-  Widget *toplevels = (Widget *)calloc(1, sizeof(Widget));
-  toplevels[0] = XtAppInitialize(&app, progclass, merged_options,
-                 merged_options_size, &argc, argv, merged_defaults, 0, 0);
-  Display *dpy = XtDisplay(toplevel);
-  XWindowAttributes xgwa;
 # ifdef HAVE_RECORD_ANIM
   record_anim_state *anim_state = 0;
 # endif
@@ -890,7 +890,10 @@ int main (int argc, char **argv) {
   if (s) free (s);
 
   /* Determine display configuration */
+  XWindowAttributes xgwa;
   Window *windows = (Window *)calloc(1, sizeof(Window));
+  Widget *toplevels = (Widget *)calloc(1, sizeof(Widget));
+  toplevels[0] = toplevel;
   int window_count = 1; // Default to 1
   if (fullscreen_p && !root_p) {
     fprintf(stderr, "%s: Entering fullscreen branch\n", progname);
@@ -975,22 +978,19 @@ int main (int argc, char **argv) {
   } else {
     fprintf(stderr, "%s: Running in default windowed mode\n", progname);
     if (get_boolean_resource(dpy, "pair", "Boolean")) window_count = 2;
-    windows = (Window *)calloc(windows_count, sizeof(Window));
-    toplevels = (Widget *)calloc(windows_count, sizeof(Widget));
-    Widget new = make_shell(XtScreen(toplevel), toplevel,
+    windows = (Window *)realloc(windows_count, sizeof(Window));
+    toplevels = (Widget *)realloc(windows_count, sizeof(Widget));
+    Widget toplevels[0] = make_shell(XtScreen(toplevel), toplevel,
             toplevel->core.width, toplevel->core.height);
-    if (new != toplevel) {
-      printf("%s: new=%p toplevel=%p\n", __func__, new, toplevel);
+    printf("%s: new=%p toplevel=%p\n", __func__, toplevels[0], toplevel);
+	if (toplevels[0] != toplevel)
       XtDestroyWidget(toplevel);
-      toplevel = new;
-    }
-    init_window(dpy, toplevel, version);
-    windows[0] = XtWindow(toplevel);
-    toplevels[0] = toplevel;
+    init_window(dpy, toplevels[0], version);
+    windows[0] = XtWindow(toplevels[0]);
     XGetWindowAttributes(dpy, windows[0], &xgwa);
 	for (int i = 1; i < window_count; i++) {
-      toplevels[i] = make_shell(xgwa.screen, 0, toplevel->core.width,
-                                toplevel->core.height);
+      toplevels[i] = make_shell(xgwa.screen, 0, toplevels[0]->core.width,
+                                toplevels[0]->core.height);
       init_window(dpy, toplevels[i], version);
       windows[i] = XtWindow(toplevels[i]);
     }
@@ -1080,8 +1080,8 @@ int main (int argc, char **argv) {
 #endif
   for (int i = 0; i < window_count; i++)
     if (toplevels && toplevels[i]) XtDestroyWidget(toplevels[i]);
-  free(windows);
-  free(toplevels);
+  if (windows) free(windows);
+  if (toplevels) free(toplevels);
   XtDestroyApplicationContext (app);
 #endif // else USE_SDL
 
