@@ -543,7 +543,7 @@ static void run_screenhack_table (
   free(closures); free(fpsts);
 }
 
-static Widget make_shell (Screen *screen, Widget toplevel, int width, int height) {
+static Widget make_shell(Screen *screen, Widget toplevel, int width, int height) {
   printf("%s: %dx%d\n", __func__, width, height);
   Display *dpy = DisplayOfScreen (screen);
   Visual *visual = pick_visual(screen);
@@ -858,20 +858,17 @@ int main (int argc, char **argv) {
     }
 
     if (fullscreen_display >= 0) {
-      /* Single display mode */
       if (fullscreen_display >= num_screens) {
         fprintf(stderr, "%s: Display %d not found; only %d displays available, defaulting to 0\n",
                 progname, fullscreen_display, num_screens);
-        fullscreen_display = 0;  /* TODO - default to primary */
+        fullscreen_display = 0;  /* TODO - how to select the "primary" according to the WM */
       }
-      fprintf(stderr, "%s: Single display mode, window_count = %d, display %d\n",
-              progname, window_count, fullscreen_display);
+      fprintf(stderr, "%s: Single display mode, using display %d\n", progname, fullscreen_display);
     } else {
       /* All displays mode */
       window_count = num_screens;
-      fprintf(stderr, "%s: All displays mode, window count = %d\n", progname, window_count);
+      fprintf(stderr, "%s: All displays mode, using %d screens\n", progname, num_screens);
     }
-
     windows = (Window *)realloc(windows, window_count * sizeof(Window));
     toplevels = (Widget *)realloc(toplevels, window_count * sizeof(Widget));
 
@@ -882,6 +879,7 @@ int main (int argc, char **argv) {
       int screen_idx = (fullscreen_display >= 0 ? fullscreen_display : i);
       int scr_num = xsi ? xsi[screen_idx].screen_number : screen_idx;
       Screen *screen = ScreenOfDisplay(dpy, scr_num);
+
       int width = xsi ? xsi[screen_idx].width : def_width;
       int height = xsi ? xsi[screen_idx].height : def_height;
       int x = xsi ? xsi[screen_idx].x_org : (i * 50);  /* Offset for non-Xinerama */
@@ -890,12 +888,16 @@ int main (int argc, char **argv) {
       fprintf(stderr, "%s: Creating window %d: screen_idx=%d, %dx%d at (%d,%d)\n",
               progname, i, screen_idx, width, height, x, y);
 
-      toplevels[i] = make_shell(screen, NULL, width, height);
+	  // Create the shell widget (reuse existing toplevel for first window)
+	  if (!i) {
+        toplevels[i] = make_shell(screen, toplevel, width, height);
+		if (toplevels[i] != toplevel) XtDestroyWidget(toplevel);
+	  } else
+        toplevels[i] = make_shell(screen, 0, width, height);
       init_window(dpy, toplevels[i], version);
       windows[i] = XtWindow(toplevels[i]);
-
-      XMoveResizeWindow(dpy, windows[i], x, y, width, height);
-      XSetWindowBorderWidth(dpy, windows[i], 0);
+      XMoveResizeWindow(dpy, windows[i], x, y, width, height); // Position and size
+      XSetWindowBorderWidth(dpy, windows[i], 0); // Remove borders
       XMapWindow(dpy, windows[i]);  /* Ensure it's mapped */
       fprintf(stderr, "%s: Window %d created and positioned\n", progname, i);
     }
