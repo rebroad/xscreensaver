@@ -378,10 +378,9 @@ static void fix_fds (void) {
 
 static Boolean screenhack_table_handle_events (Display *dpy,
                                 const struct xscreensaver_function_table *ft,
-                                Window *windows, void **closures, int num_windows
-                                ) {
-  XtAppContext app = XtDisplayToApplicationContext (dpy);
-  XtInputMask m = XtAppPending (app);
+                                Window *windows, void **closures, int num_windows) {
+  XtAppContext app = XtDisplayToApplicationContext(dpy);
+  XtInputMask m = XtAppPending(app);
 
   /* Process non-X11 Xt events (timers, files, signals) without blocking. */
   if (m & ~XtIMXEvent) XtAppProcessEvent (app, ~XtIMXEvent);
@@ -391,29 +390,22 @@ static Boolean screenhack_table_handle_events (Display *dpy,
     XEvent event;
     XNextEvent(dpy, &event);
 
-    if (event.xany.type == ConfigureNotify) {
-      if (event.xany.window == window)
-        ft->reshape_cb (dpy, window, closure,
+	for (int i = 0; i < num_windows; i++) {
+      if (event.xany.type == ConfigureNotify) {
+        if (event.xany.window == windows[i])
+          ft->reshape_cb(dpy, windows[i], closures[i],
                             event.xconfigure.width, event.xconfigure.height);
-#ifdef DEBUG_PAIR
-      if (window2 && event.xany.window == window2)
-        ft->reshape_cb (dpy, window2, closure2,
-                            event.xconfigure.width, event.xconfigure.height);
-#endif
-    } else if (event.xany.type == ClientMessage ||
-               (! (event.xany.window == window
-                   ? ft->event_cb (dpy, window, closure, &event)
-#ifdef DEBUG_PAIR
-                   : (window2 && event.xany.window == window2)
-                   ? ft->event_cb (dpy, window2, closure2, &event)
-#endif
-                   : 0)))
-      if (! screenhack_handle_event_1 (dpy, &event)) return False;
+      } else if (event.xany.type == ClientMessage ||
+                (!(event.xany.window == windows[i]
+                   ? ft->event_cb(dpy, windows[i], closures[i], &event) : 0))) {
+        if (!screenhack_handle_event_1 (dpy, &event)) return False;
+	  }
+	} // for num_windows
 
     /* Last chance to process Xt timers before blocking. */
-    m = XtAppPending (app);
-    if (m & ~XtIMXEvent) XtAppProcessEvent (app, ~XtIMXEvent);
-  }
+    m = XtAppPending(app);
+    if (m & ~XtIMXEvent) XtAppProcessEvent(app, ~XtIMXEvent);
+  } // while pending
 
 # ifdef EXIT_AFTER
   if (exit_after != 0 && time ((time_t *) 0) >= exit_after) return False;
