@@ -99,6 +99,7 @@ typedef struct {
   int size;
   enum { FIRST, DRAW, FADE } state;
   GLfloat fade_ratio;
+  GLfloat fade_speed;
 
   int ncolors;
 } config;
@@ -635,17 +636,20 @@ static void tick_hexagons (ModeInfo *mi) {
   if (!started && (doinga - ignorea) < 1 && (doingb - ignoreb) < 1 && bp->state != FADE) {
     printf("Fade started. ticks=%d iters=%d doinga=%d doingb=%d ignorea=%d ignoreb=%d\n",
             ticks, iters, doinga, doingb, ignorea, ignoreb);
-    bp->state = FADE;
+    bp->state = FADE; bp->fade_speed = 0.01 * speed;
 
     for (i=0;i<bp->chunk_count;i++) for (k=0;k<bp->chunks[i]->used;k++) {
       hexagon *h = bp->chunks[i]->chunk[k];
       if (h->state == IN || h->state == WAIT) h->state = OUT;
     }
   } else if (bp->state == FADE && !pause_fade) {
-    bp->fade_ratio -= 0.01 * speed;
+    bp->fade_ratio -= bp->fade_speed;
     if (bp->fade_ratio <= 0) {
       printf("Fade ended.\n");
       reset_hextrail (mi);
+	} else if (bp->fade_ratio >= 1) {
+      bp->fade_ratio = 1; bp->fade_speed = 0;
+	  bp->state = DRAW; pause_fade = True;
 	}
   }
 }
@@ -1029,9 +1033,8 @@ ENTRYPOINT Bool hextrail_handle_event (ModeInfo *mi,
 
   if (gltrackball_event_handler (event, bp->trackball,
               MI_WIDTH(mi), MI_HEIGHT(mi), &bp->button_down_p)) {
-    if (bp->state == FADE) {
-      bp->state = DRAW;
-      bp->fade_ratio = 1;
+    if (bp->fade_speed > 0) {
+      bp->fade_speed = -bp->fade_speed;
     }
     return True;
   }
@@ -1097,8 +1100,11 @@ ENTRYPOINT Bool hextrail_handle_event (ModeInfo *mi,
       hexes_on = !hexes_on;
       printf("%s: hexes_on = %d\n", __func__, hexes_on);
     } else if (c == 'p') {
-      if (bp->state == FADE) {
-		pause_fade = !pause_fade;
+      if (pause_fade) {
+        pause_fade = False;
+        printf("%s: pause_fade = %d hexagons=%d\n", __func__, pause_fade, bp->total_hexagons);
+	  } else if (bp->fade_speed > 0) {
+		bp->fade_speed = -bp->fade_speed;
         printf("%s: pause_fade = %d hexagons=%d\n", __func__, pause_fade, bp->total_hexagons);
 	  } else {
         pausing = !pausing;
