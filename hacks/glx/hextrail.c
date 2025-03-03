@@ -178,7 +178,7 @@ uint16_t xy_to_index(int x, int y) {
     return (uint16_t)index;
 }*/
 
-static hexagon *do_hexagon(config *bp, int x, int y) {
+static hexagon *do_hexagon(config *bp, int px, int py, int x, int y) {
   int id = xy_to_index(x, y);
   if (!id) {
     static time_t debug = 0;
@@ -240,6 +240,7 @@ static hexagon *do_hexagon(config *bp, int x, int y) {
   bp->total_hexagons++;
   bp->hex_grid[id] = bp->total_hexagons;
   h0->x = x; h0->y = y;
+  printf("New hex at %d,%d (parent %d,%d)\n", x, y, px, py);
 
   return h0;
 }
@@ -255,7 +256,7 @@ static hexagon *neighbor(config *bp, hexagon *h0, int j) {
       {0, -1}, {1, 0}, {1, 1}, {0, 1}, {-1, 0}, {-1, -1}
   };
   int x = h0->x + offset[j][0], y = h0->y + offset[j][1];
-  hexagon *h = do_hexagon(bp, x, y);
+  hexagon *h = do_hexagon(bp, h0->x, h0->y, x, y);
   if (!h) {
 	printf("%s: Failed to get neighbor at (%d, %d) from (%d, %d) dir=%d\n",
 			__func__, x, y, h0->x, h0->y, j);
@@ -394,8 +395,8 @@ static void reset_hextrail(ModeInfo *mi) {
     }
   }
 
+  memset(bp->hex_grid, 0, bp->total_hexagons+1 * sizeof(uint16_t));
   bp->total_hexagons = 0;
-  memset(bp->hex_grid, 0, 65270+1 * sizeof(uint16_t));
   bp->state = FIRST;
   bp->fade_ratio = 1;
 
@@ -584,10 +585,11 @@ static void tick_hexagons (ModeInfo *mi) {
       min_vx = 0; max_vx = 0; min_vy = 0; max_vy = 0;
       min_x = 0; max_x = 0; min_y = 0; max_y = 0;
       ticks = 0; iters = 0;
-      printf("New hextrail. capacity=%d\n", bp->hexagon_capacity);
-      h0 = do_hexagon(bp, 0, 0);
+      printf("\n\n\n\n\nNew hextrail. capacity=%d\n", bp->hexagon_capacity);
+      h0 = do_hexagon(bp, 0, 0, 0, 0);
     } else {
       int16_t empty_cells[1000][2]; int empty_count = 0;
+	  // TODO - possibly need to change this depending on how grid arranged
       for (int y = min_vy; y <= max_vy && empty_count < 1000; y++)
         for (int x = min_vx; x <= max_vx && empty_count < 1000; x++) {
           int id = xy_to_index(x, y);
@@ -603,7 +605,7 @@ static void tick_hexagons (ModeInfo *mi) {
         int pick = random() % empty_count;
         int x = empty_cells[pick][0], y = empty_cells[pick][1];
         new_hex = True; printf("Empty_count = %d picked=%d,%d\n", empty_count, x, y);
-        do_hexagon(bp, x, y);
+        do_hexagon(bp, 0, 0, x, y);
       }
     }
     if (!h0) {
@@ -1054,16 +1056,17 @@ ENTRYPOINT Bool hextrail_handle_event (ModeInfo *mi,
 #else
             keysym == XK_Up || keysym == XK_Next
 #endif
-            )
+            ) {
       MI_COUNT(mi)++;
-    else if (
+      bp->size = MI_COUNT(mi) * 2;
+    } else if (
 #ifdef USE_SDL
             keysym == SDLK_RIGHT
 #else
             keysym == XK_Right
 #endif
             )
-	  bp->size++;
+      MI_COUNT(mi)--;
     else if (
 #ifdef USE_SDL
             keysym == SDLK_LEFT
@@ -1071,7 +1074,7 @@ ENTRYPOINT Bool hextrail_handle_event (ModeInfo *mi,
             keysym == XK_Left
 #endif
             ) {
-	  bp->size--;
+      MI_COUNT(mi)--;
 	if (bp->size < 1) bp->size = 1;
 	} else if (c == '<' || c == ',' || c == '-' || c == '_' ||
                c == '\010' || c == '\177' ||
@@ -1081,8 +1084,9 @@ ENTRYPOINT Bool hextrail_handle_event (ModeInfo *mi,
             keysym == XK_Down || keysym == XK_Prior
 #endif
             ) {
-      MI_COUNT(mi)--;
+      MI_COUNT(mi)++;
       if (MI_COUNT(mi) < 1) MI_COUNT(mi) = 1;
+      bp->size = MI_COUNT(mi) * 2;
     } else if (c == 's') {
       draw_invis = (int8_t)(draw_invis - 1) % 4;
       printf("%s: draw_invis = %d\n", __func__, draw_invis);
@@ -1107,7 +1111,6 @@ ENTRYPOINT Bool hextrail_handle_event (ModeInfo *mi,
       return True;
     else return False;
 
-    bp->size = MI_COUNT(mi) * 2; N = MI_COUNT(mi);
     return True;
   }
 
@@ -1144,8 +1147,8 @@ ENTRYPOINT void init_hextrail (ModeInfo *mi) {
 
   bp->chunk_count = 0;
 
-  bp->size = MI_COUNT(mi) * 2;
-  bp->hex_grid = (uint16_t *)calloc(65270+1, sizeof(uint16_t));
+  bp->size = MI_COUNT(mi) * 2; N = MI_COUNT(mi);
+  bp->hex_grid = (uint16_t *)calloc(65269+1, sizeof(uint16_t));
   init_hex_grid_lookup();
   reset_hextrail (mi);
 }
