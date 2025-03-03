@@ -195,8 +195,8 @@ static hexagon *do_hexagon(config *bp, int px, int py, int x, int y) {
     int i = (idx-1) / HEXAGON_CHUNK_SIZE;
     int k = (idx-1) % HEXAGON_CHUNK_SIZE;
 	if (i >= bp->chunk_count) {
-	  printf("%s: Invalid chunk access id=%d idx=%d ++i=%d/%d k=%d\n",
-			 __func__, id, idx, i, bp->chunk_count, k);
+	  printf("%s: Invalid chunk access (%d,%d)->(%d,%d) id=%d idx=%d ++i=%d/%d k=%d\n",
+			 __func__, px, py, x, y, id, idx, i, bp->chunk_count, k);
 	  return NULL;
 	}
 	if (k >= bp->chunks[i]->used) {
