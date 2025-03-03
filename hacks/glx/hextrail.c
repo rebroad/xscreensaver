@@ -390,9 +390,9 @@ static void reset_hextrail(ModeInfo *mi) {
         bp->chunks[i]->used = 0;
       }
       free(bp->chunks[i]);
-      bp->chunks = NULL;
-      bp->chunk_count = 0;
     }
+    bp->chunks = NULL;
+    bp->chunk_count = 0;
   }
 
   memset(bp->hex_grid, 0, bp->total_hexagons+1 * sizeof(uint16_t));
@@ -649,7 +649,10 @@ static void tick_hexagons (ModeInfo *mi) {
     }
   } else if (bp->state == FADE) {
     bp->fade_ratio -= 0.01 * speed;
-    if (bp->fade_ratio <= 0) reset_hextrail (mi);
+    if (bp->fade_ratio <= 0) {
+      printf("Fade ended.\n");
+      reset_hextrail (mi);
+	}
   }
 }
 
