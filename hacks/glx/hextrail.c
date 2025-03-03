@@ -1058,6 +1058,7 @@ ENTRYPOINT Bool hextrail_handle_event (ModeInfo *mi,
 #endif
             ) {
       MI_COUNT(mi)--;
+      if (MI_COUNT(mi) < 1) MI_COUNT(mi) = 1;
       bp->size = MI_COUNT(mi) * 2;
     } else if (
 #ifdef USE_SDL
@@ -1065,9 +1066,10 @@ ENTRYPOINT Bool hextrail_handle_event (ModeInfo *mi,
 #else
             keysym == XK_Right
 #endif
-            )
+            ) {
       MI_COUNT(mi)--;
-    else if (
+      if (MI_COUNT(mi) < 1) MI_COUNT(mi) = 1;
+	} else if (
 #ifdef USE_SDL
             keysym == SDLK_LEFT
 #else
@@ -1075,7 +1077,6 @@ ENTRYPOINT Bool hextrail_handle_event (ModeInfo *mi,
 #endif
             ) {
       MI_COUNT(mi)++;
-	if (bp->size < 1) bp->size = 1;
 	} else if (c == '<' || c == ',' || c == '-' || c == '_' ||
                c == '\010' || c == '\177' ||
 #ifdef USE_SDL
@@ -1085,7 +1086,6 @@ ENTRYPOINT Bool hextrail_handle_event (ModeInfo *mi,
 #endif
             ) {
       MI_COUNT(mi)++;
-      if (MI_COUNT(mi) < 1) MI_COUNT(mi) = 1;
       bp->size = MI_COUNT(mi) * 2;
     } else if (c == 's') {
       draw_invis = (int8_t)(draw_invis - 1) % 4;
