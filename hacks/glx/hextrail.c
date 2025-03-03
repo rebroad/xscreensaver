@@ -152,27 +152,6 @@ uint16_t xy_to_index(int x, int y) {
     return (uint16_t)index;
 }
 
-/*
-static uint16_t xy_to_index(int, int);
-uint16_t xy_to_index(int x, int y) {
-    if (abs(x) > N || abs(y) > N || abs(x + y) > N) return 0;
-    int32_t index;
-    if (y < 0) {
-        int abs_y = -y;
-        int x_min = -N + abs_y;
-        int num_before = (y + N) * (N - 1 + y) / 2;  // Adjusted cumulative sum
-        index = num_before + (x = x_min) + 1;
-    } else {
-        int neg_rows = erm(N); // 10878 for N=147
-        int zero_row = 2 * N + 1; // 295
-        int pos_rows = y > 0 ? (y * (2 * N + 1) - erm(y - 1)): 0;
-        int x_min = -N;
-        index = neg_rows + zero_row + pos_rows + (x - x_min) + 1;
-    }
-
-    return (uint16_t)index;
-}*/
-
 static hexagon *do_hexagon(config *bp, int px, int py, int x, int y) {
   int id = xy_to_index(x, y);
   if (!id) {
