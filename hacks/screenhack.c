@@ -379,7 +379,11 @@ static void fix_fds (void) {
 
 static Boolean screenhack_table_handle_events (Display *dpy,
                                 const struct xscreensaver_function_table *ft,
-                                Window *windows, void **closures, int num_windows) {
+                                Window *windows, void **closures, int num_windows
+#ifdef HAVE_RECORD_ANIM
+				, Bool anim
+#endif
+								) {
   XtAppContext app = XtDisplayToApplicationContext(dpy);
   XtInputMask m = XtAppPending(app);
 
@@ -392,7 +396,12 @@ static Boolean screenhack_table_handle_events (Display *dpy,
     XNextEvent(dpy, &event);
 
     for (int i = 0; i < num_windows; i++) {
+#ifdef HAVE_RECORD_ANIM
+      // Avoid reshapes when recording (assuming window 0)
+      if (event.xany.type == ConfigureNotify && !(anim && !i)) {
+#else
       if (event.xany.type == ConfigureNotify) {
+#endif
         if (event.xany.window == windows[i])
           ft->reshape_cb(dpy, windows[i], closures[i],
                             event.xconfigure.width, event.xconfigure.height);
@@ -441,7 +450,11 @@ static Boolean usleep_and_process_events(Display *dpy,
         if (fpsts[i]) fps_slept(fpsts[i], quantum);
     }
 
-    if (!screenhack_table_handle_events(dpy, ft, windows, closures, num_windows))
+    if (!screenhack_table_handle_events(dpy, ft, windows, closures, num_windows
+#ifdef HAVE_RECORD_ANIM
+				, anim_state ? True : False
+#endif
+				))
       return False;
   } while (delay > 0);
 
