@@ -252,17 +252,11 @@ static hexagon *neighbor(config *bp, hexagon *h0, int j) {
   //   1,2   2,2   3,2   4,2   5,2            4  arms   1
   //      2,3   3,3   4,3   5,3   6,3
   //   2,4   3,4   4,4   5,4   6,4               3   2
-  const int offset[6][2] = {
+  static const int offset[6][2] = {
       {0, -1}, {1, 0}, {1, 1}, {0, 1}, {-1, 0}, {-1, -1}
   };
   int x = h0->x + offset[j][0], y = h0->y + offset[j][1];
-  hexagon *h = do_hexagon(bp, h0->x, h0->y, x, y);
-  if (!h) {
-	printf("%s: Failed to get neighbor at (%d, %d) from (%d, %d) dir=%d\n",
-			__func__, x, y, h0->x, h0->y, j);
-  }
-
-  return h;
+  return do_hexagon(bp, h0->x, h0->y, x, y);
 }
 
 static int add_arms(config *bp, hexagon *h0) {
@@ -1150,7 +1144,7 @@ ENTRYPOINT void init_hextrail (ModeInfo *mi) {
 
   bp->chunk_count = 0;
 
-  bp->size = MI_COUNT(mi) * 2; N = MI_COUNT(mi);
+  bp->size = MI_COUNT(mi) * 2; N = bp->size;
   bp->hex_grid = (uint16_t *)calloc(65269+1, sizeof(uint16_t));
   init_hex_grid_lookup();
   reset_hextrail (mi);
