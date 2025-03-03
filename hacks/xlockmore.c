@@ -657,7 +657,8 @@ static void xlockmore_reshape (
 	SDL_GetWindowSize(window, &current_w, &current_h);
 	if (current_w == w && current_h == h) return;
 #else
-	printf("%s: New dimensions: %dx%d, old dimensions: %dx%d\n",
+	if (mi->xgwa.width != w || mi->xgwa.height != h)
+	  printf("%s: New dimensions: %dx%d, old dimensions: %dx%d\n",
 			__func__, w, h, mi->xgwa.width, mi->xgwa.height);
 #ifndef HAVE_MOBILE
     /* These are not spurious on mobile: they are rotations. */
