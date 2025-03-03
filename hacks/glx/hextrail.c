@@ -1,7 +1,7 @@
 /* hextrail, Copyright (c) 2022 Jamie Zawinski <jwz@jwz.org>
  *
  * low-priority TODOs:-
- = Collect all vertices into a dynamic array, then upload to a 1 or more VBOs - also fix glow effects.
+ = Collect all vertices into a dynamic array, then upload to 1 or more VBOs - also fix glow effects.
  = Don't draw borders when the thickness of the line would be <1 pixel
  = hextrail - the end-points - draw these more slowly, like a decelleration (due to pressure).
  = need an option to make it fill all active displays (wasn't -root supposed to do this?)
