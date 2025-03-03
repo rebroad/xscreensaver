@@ -149,7 +149,7 @@ void init_hex_grid_lookup() {
 
 static uint16_t xy_to_index(int, int);
 uint16_t xy_to_index(int x, int y) {
-    if (abs(x) > q || abs(y) > q) return 0;
+    if (abs(x) > q || abs(y) > q || abs(x-y) > q) return 0;
     int32_t index;
 	if (y < 1) index = x + qq + erm(y + N) - erm(q - 1) + 1;
 	else index = x + y + qq + erm(y + N) - erm(q - 1) + 1;
