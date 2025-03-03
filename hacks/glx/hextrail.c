@@ -50,7 +50,7 @@
 
 #define BELLRAND(n) ((frand((n)) + frand((n)) + frand((n))) / 3)
 
-typedef enum { EMPTY, IN, WAIT, OUT, DONE } state_t;
+typedef enum { EMPTY, IN, OUT, WAIT, DONE } state_t;
 
 typedef struct {
   state_t state;
@@ -459,11 +459,13 @@ const XYZ corners[] = {{  0, -1,   0 },       /*      0      */
                        { -H, -0.5, 0 }};
 
 static XYZ scaled_corners[6][4];
-GLfloat size1, size2, size3, size4, thick2;
+GLfloat size, wid, hgt, size1, size2, size3, size4, thick2;
 
 static void scale_corners(ModeInfo *mi) {
   config *bp = &bps[MI_SCREEN(mi)];
-  GLfloat size = (H * 2 / 3) / MI_COUNT(mi);
+  size = (H * 2 / 3) / MI_COUNT(mi);
+  wid = 2.0 / bp->size;
+  hgt = wid * H;
   GLfloat margin = thickness * 0.4;
   size1 = size * (1 - margin * 2);
   size2 = size * (1 - margin * 3);
@@ -485,7 +487,8 @@ static void scale_corners(ModeInfo *mi) {
 static void tick_hexagons (ModeInfo *mi) {
   config *bp = &bps[MI_SCREEN(mi)];
   int i, j, k, doinga = 0, doingb = 0, ignorea = 0, ignoreb = 0;
-  static unsigned int ticks = 0, iters = 0;
+  time_t tick_report = 0;
+  static unsigned int ticks = 0, iters = 0, tps = 0;
   static int min_x = 0, min_y = 0, max_x = 0, max_y = 0;
   static int min_vx = 0, min_vy = 0, max_vx = 0, max_vy = 0;
   int this_min_vx = 0, this_min_vy = 0, this_max_vx = 0, this_max_vy = 0;
@@ -493,9 +496,14 @@ static void tick_hexagons (ModeInfo *mi) {
   ticks++;
   for(i=0;i<bp->chunk_count;i++) for(k=0;k<bp->chunks[i]->used;k++) {
     hexagon *h0 = bp->chunks[i]->chunk[k];
-    if (ticks & 1) h0->invis = hex_invis(bp, h0->x, h0->y, 0, 0);
+    if ((ticks % 4)) h0->invis = hex_invis(bp, h0->x, h0->y, 0, 0);
 
     Bool debug = False;
+
+	if (bp->now != tick_report) {
+	  tps = ticks; ticks = 0;
+	  tick_report = bp->now;
+	}
 
     // Measure the drawn part we can see
     if (!h0->invis && h0->state != EMPTY) {
@@ -594,7 +602,7 @@ static void tick_hexagons (ModeInfo *mi) {
   min_vx = this_min_vx; max_vx = this_max_vx; min_vy = this_min_vy; max_vy = this_max_vy;
 
   if (bp->now > bp->debug) {
-    printf("doinga=%d ignorea=%d doingb=%d ignoreb=%d\n", doinga, ignorea, doingb, ignoreb);
+    printf("tps=%d doinga=%d ignorea=%d doingb=%d ignoreb=%d\n", tps, doinga, ignorea, doingb, ignoreb);
     bp->debug = bp->now;
   }
 
@@ -609,7 +617,7 @@ static void tick_hexagons (ModeInfo *mi) {
       bp->fade_ratio = 1;
       min_vx = 0; max_vx = 0; min_vy = 0; max_vy = 0;
       min_x = 0; max_x = 0; min_y = 0; max_y = 0;
-      ticks = 0; iters = 0;
+      iters = 0;
       printf("\n\n\n\n\nNew hextrail. capacity=%d\n", bp->hexagon_capacity);
       h0 = do_hexagon(bp, 0, 0, 0, 0);
     } else {
@@ -636,13 +644,13 @@ static void tick_hexagons (ModeInfo *mi) {
     if (!h0) {
       static time_t debug = 0;
       if (debug != bp->now) {
-        printf("%s: !h0 new=%d doinga=%d,%d doingb=%d,%d ticks=%d fails=%d\n", __func__,
-                new_hex, doinga, ignorea, doingb, ignoreb, ticks, fails);
+        printf("%s: !h0 new=%d doinga=%d,%d doingb=%d,%d fails=%d\n", __func__,
+                new_hex, doinga, ignorea, doingb, ignoreb, fails);
         debug = bp->now;
       }
     } else if (h0->state == EMPTY && add_arms(bp, h0)) {
-      printf("hex created. Arms. doing=%d ticks=%d iters=%d fails=%d pos=%d,%d\n",
-          h0->doing, ticks, iters, fails, h0->x, h0->y);
+      printf("hex created. Arms. doing=%d iters=%d fails=%d pos=%d,%d\n",
+          h0->doing, iters, fails, h0->x, h0->y);
       fails = 0;
       h0->ccolor = random() % bp->ncolors;
       h0->state = DONE;
@@ -652,8 +660,8 @@ static void tick_hexagons (ModeInfo *mi) {
       fails++;
       static time_t debug = 0;
       if (debug != bp->now) {
-        printf("hexagon created. doing=%d ticks=%d fails=%d h0=%d,%d empty=%d visible=%d\n",
-            h0->doing, ticks, fails, h0->x, h0->y, h0->state == EMPTY, !h0->invis);
+        printf("hexagon created. doing=%d fails=%d h0=%d,%d empty=%d visible=%d\n",
+            h0->doing, fails, h0->x, h0->y, h0->state == EMPTY, !h0->invis);
         debug = bp->now;
       }
     }
@@ -664,8 +672,8 @@ static void tick_hexagons (ModeInfo *mi) {
             started, doinga, ignorea, doingb, ignoreb);
 
   if (!started && (doinga - ignorea) < 1 && (doingb - ignoreb) < 1 && bp->state != FADE) {
-    printf("Fade started. ticks=%d iters=%d doinga=%d doingb=%d ignorea=%d ignoreb=%d\n",
-            ticks, iters, doinga, doingb, ignorea, ignoreb);
+    printf("Fade started. iters=%d doinga=%d doingb=%d ignorea=%d ignoreb=%d\n",
+            iters, doinga, doingb, ignorea, ignoreb);
     bp->state = FADE; bp->fade_speed = 0.01 * speed;
 
     for (i=0;i<bp->chunk_count;i++) for (k=0;k<bp->chunks[i]->used;k++) {
@@ -725,11 +733,6 @@ typedef struct { GLfloat x, y, z, r, g, b, a; } Vertex;
 static void draw_hexagons(ModeInfo *mi) {
   config *bp = &bps[MI_SCREEN(mi)];
   int wire = MI_IS_WIREFRAME(mi);
-  GLfloat length = H * 2 / 3;
-  GLfloat size = length / MI_COUNT(mi);
-  GLfloat thick2 = thickness * bp->fade_ratio;
-  GLfloat wid = 2.0 / bp->size;
-  GLfloat hgt = wid * H;
 
   // Dynamic array for vertices
   /*Vertex *vertices = NULL;
@@ -746,7 +749,7 @@ static void draw_hexagons(ModeInfo *mi) {
   for (i=0;i<bp->chunk_count;i++) for (k=0;k<bp->chunks[i]->used;k++) {
     hexagon *h = bp->chunks[i]->chunk[k];
     if (draw_invis < h->invis) continue;
-    XYZ pos = { h->x * wid - h->y * wid / 2, h->y * hgt, 0 };
+    XYZ pos = { h->x * wid - h->y * wid / 2, h->y * hgt, 0 }; // TODO - better stored within hexagon struct?
     GLfloat color[4]; HEXAGON_COLOR (color, h);
 
     int j, total_arms = 0;
@@ -986,7 +989,7 @@ static void draw_hexagons(ModeInfo *mi) {
 
       /* Hexagon (one triangle of) in center to hide line miter/bevels.  */
       if (total_arms) {
-		int8_t k = (total_arms == 1) ? 3 : 2;
+		int8_t k = (total_arms == 1) ? 3 : 2; // nub - TODO should not be within arms loop
 
         p[0] = pos;
 
@@ -1081,6 +1084,7 @@ ENTRYPOINT Bool hextrail_handle_event (ModeInfo *mi,
       MI_COUNT(mi)--;
       if (MI_COUNT(mi) < 1) MI_COUNT(mi) = 1;
       bp->size = MI_COUNT(mi) * 2;
+	  scale_corners(mi);
     } else if (
 #ifdef USE_SDL
             keysym == SDLK_RIGHT
@@ -1090,6 +1094,7 @@ ENTRYPOINT Bool hextrail_handle_event (ModeInfo *mi,
             ) {
       MI_COUNT(mi)--;
       if (MI_COUNT(mi) < 1) MI_COUNT(mi) = 1;
+	  scale_corners(mi);
 	} else if (
 #ifdef USE_SDL
             keysym == SDLK_LEFT
@@ -1098,6 +1103,7 @@ ENTRYPOINT Bool hextrail_handle_event (ModeInfo *mi,
 #endif
             ) {
       MI_COUNT(mi)++;
+	  scale_corners(mi);
 	} else if (c == '<' || c == ',' || c == '-' || c == '_' ||
                c == '\010' || c == '\177' ||
 #ifdef USE_SDL
@@ -1108,6 +1114,7 @@ ENTRYPOINT Bool hextrail_handle_event (ModeInfo *mi,
             ) {
       MI_COUNT(mi)++;
       bp->size = MI_COUNT(mi) * 2;
+	  scale_corners(mi);
     } else if (c == 's') {
       draw_invis = (int8_t)(draw_invis - 1) % 4;
       printf("%s: draw_invis = %d\n", __func__, draw_invis);
@@ -1169,7 +1176,7 @@ ENTRYPOINT void init_hextrail (ModeInfo *mi) {
                          do_wander ? 0.003 : 0, False);
   bp->trackball = gltrackball_init(True);
   gltrackball_reset(bp->trackball, -0.4 + frand(0.8),
-                     -0.4 + frand(0.8));
+                     -0.4 + frand(0.8)); // TODO - half-reset each hextrail_reset
 
   if (thickness < 0.05) thickness = 0.05;
   if (thickness > 0.5) thickness = 0.5;
