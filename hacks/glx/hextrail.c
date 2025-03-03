@@ -253,7 +253,7 @@ static hexagon *neighbor(config *bp, hexagon *h0, int j) {
   //   1,2   2,2   3,2   4,2   5,2            4  arms   1
   //      2,3   3,3   4,3   5,3   6,3
   //   2,4   3,4   4,4   5,4   6,4               3   2
-  static const int offset[6][2] = {
+  const int offset[6][2] = {
       {0, -1}, {1, 0}, {1, 1}, {0, 1}, {-1, 0}, {-1, -1}
   };
   int x = h0->x + offset[j][0], y = h0->y + offset[j][1];
@@ -261,19 +261,16 @@ static hexagon *neighbor(config *bp, hexagon *h0, int j) {
 }
 
 static int add_arms(config *bp, hexagon *h0) {
-  int i;
-  int added = 0;
-  int target = (random() % 4); /* Aim for 1-5 arms */
-
+  int added = 0, target = (random() % 4); /* Aim for 1-5 arms */
   int idx[6] = {0, 1, 2, 3, 4, 5};
-  for (i = 0; i < 6; i++) {
+  for (int i = 0; i < 6; i++) {
     int j = random() % (6 - i);
     int swap = idx[j];
     idx[j] = idx[i];
     idx[i] = swap;
   }
 
-  for (i = 0; i < 6; i++) {
+  for (int i = 0; i < 6; i++) {
     int j = idx[i];
     arm *a0 = &h0->arms[j];
     if (a0->state != EMPTY) continue;	/* Arm already exists */
@@ -409,6 +406,57 @@ static void reset_hextrail(ModeInfo *mi) {
 #endif
 }
 
+typedef void (*state_handler)(config *bp, hexagon *h0, arm *a0, int j);
+state_handler arm_handlers[] = {
+  [EMPTY] = NULL,
+  [OUT] = handle_arm_out;
+  [IN] = handle_arm_in;
+  [WAIT] = NULL;
+  [DONE] = NULL;
+};
+
+static void handle_arm_out(config *bp, hexagon *h0, arm *a0, int j) {
+  a0->ratio += a0->speed;
+  if (a0->ratio >= 1) {
+    /* Just finished growing from center to edge.
+       Pass the baton to this waiting neighbor. */
+    hexagon *h1 = neighbor(bp, h0, j);
+    arm *a1 = &h1->arms[(j + 3) % 6];
+    if (a1->state != WAIT) {
+      printf("H0 (%d,%d)'s arm=%d connecting to H1 (%d,%d)'s arm_state=%d arm_ratio=%.1f\n", h0->x, h0->y, j, h1->x, h1->y, a1->state, a1->ratio);
+      bp->pause_until = bp->now + 3;
+      a0->speed = -a0->speed;
+      a1->state = OUT;
+      if (a1->speed > 0) a1->speed = -a1->speed;
+    } else {
+      a1->state = IN;
+      a1->ratio = a0->ratio - 1;
+      a1->speed = a0->speed;
+      a0->state = DONE;
+      a0->ratio = 1;
+    }
+  } else if (a0->ratio <= 0) {
+    /* Just finished retreating back to center */
+    a0->state = DONE;
+    a0->ratio = 0;
+  }
+}
+
+static void handle_arm_in(config *bp, hexagon *h0, arm *a0, int j) {
+  if (a0->speed <= 0) abort();
+  a0->ratio += a0->speed;
+  if (a0->ratio >= 1) {
+    /* Just finished growing from edge to center.
+       Look for any available exits. */
+    a0->state = DONE;
+    //hexagon *h1 = h0->neighbors[(j + 3) % 6];
+    hexagon *h1 = neighbor(bp, h0, j);
+    h1->doing--;
+    a0->ratio = 1;
+    add_arms(bp, h0);
+  }
+}
+
 static void tick_hexagons (ModeInfo *mi) {
   config *bp = &bps[MI_SCREEN(mi)];
   int i, j, k, doinga = 0, doingb = 0, ignorea = 0, ignoreb = 0;
@@ -489,53 +537,7 @@ static void tick_hexagons (ModeInfo *mi) {
     /* Enlarge any still-growing arms if active.  */
     for (j = 0; j < 6; j++) {
       arm *a0 = &h0->arms[j];
-      switch (a0->state) {
-        case OUT:
-          a0->ratio += a0->speed;
-          if (a0->ratio >= 1) {
-            /* Just finished growing from center to edge.
-               Pass the baton to this waiting neighbor. */
-            hexagon *h1 = neighbor(bp, h0, j);
-            arm *a1 = &h1->arms[(j + 3) % 6];
-            if (a1->state != WAIT) {
-              printf("H0 (%d,%d)'s arm=%d connecting to H1 (%d,%d)'s arm_state=%d arm_ratio=%.1f\n", h0->x, h0->y, j, h1->x, h1->y, a1->state, a1->ratio);
-              bp->pause_until = bp->now + 3;
-              a0->speed = -a0->speed;
-              a1->state = OUT;
-              if (a1->speed > 0) a1->speed = -a1->speed;
-            } else {
-              a1->state = IN;
-              a1->ratio = a0->ratio - 1;
-              a1->speed = a0->speed;
-              a0->state = DONE;
-              a0->ratio = 1;
-            }
-          } else if (a0->ratio <= 0) {
-            /* Just finished retreating back to center */
-            a0->state = DONE;
-            a0->ratio = 0;
-          }
-          break;
-        case IN:
-          if (a0->speed <= 0) abort();
-          a0->ratio += a0->speed;
-          if (a0->ratio >= 1) {
-            /* Just finished growing from edge to center.
-               Look for any available exits. */
-            a0->state = DONE;
-            //hexagon *h1 = h0->neighbors[(j + 3) % 6];
-            hexagon *h1 = neighbor(bp, h0, j);
-            h1->doing--;
-            a0->ratio = 1;
-            add_arms(bp, h0);
-          }
-          break;
-        case EMPTY: case WAIT: case DONE:
-          break;
-        default:
-          printf("a0->state = %d\n", a0->state);
-          abort(); break;
-      }
+	  if (arm_handlers[a0->state]) arm_handlers[a0->state](bp, h0, a0, j);
     } // 6 arms
 
     switch (h0->state) {
@@ -690,6 +692,10 @@ static void draw_glow_point(XYZ p, GLfloat size, GLfloat scale,
   } while (0)
 #endif
 
+typedef struct { GLfloat x, y, z, r, g, b, a; } Vertex;
+Vertex *vertices = malloc(10000 * sizeof(Vertex));
+int vertex_count = 0;
+
 static void draw_hexagons (ModeInfo *mi) {
   config *bp = &bps[MI_SCREEN(mi)];
   int wire = MI_IS_WIREFRAME(mi);
@@ -716,14 +722,12 @@ static void draw_hexagons (ModeInfo *mi) {
   glBegin (wire ? GL_LINES : GL_TRIANGLES);
   glNormal3f (0, 0, 1);
 
-  int i, k;
+  int i, k, vertex_count = 0;
   for (i=0;i<bp->chunk_count;i++) for (k=0;k<bp->chunks[i]->used;k++) {
     hexagon *h = bp->chunks[i]->chunk[k];
     if (draw_invis < h->invis) continue;
-
     XYZ pos = { h->x * wid - h->y * wid / 2, h->y * hgt, 0 };
-    GLfloat color[4];
-    HEXAGON_COLOR (color, h);
+    GLfloat color[4]; HEXAGON_COLOR (color, h);
 
     int j, total_arms = 0;
     for (j = 0; j < 6; j++) {
@@ -769,7 +773,7 @@ static void draw_hexagons (ModeInfo *mi) {
 
         glVertex3f (p[0].x, p[0].y, p[0].z);
         glVertex3f (p[1].x, p[1].y, p[1].z);
-        if (! wire) glVertex3f (p[2].x, p[2].y, p[2].z);
+        if (!wire) glVertex3f (p[2].x, p[2].y, p[2].z);
         mi->polygon_count++;
 
         glVertex3f (p[2].x, p[2].y, p[2].z);
