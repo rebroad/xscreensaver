@@ -389,7 +389,7 @@ static void reset_hextrail(ModeInfo *mi) {
     bp->chunk_count = 0;
   }
 
-  memset(bp->hex_grid, 0, bp->total_hexagons+1 * sizeof(uint16_t));
+  memset(bp->hex_grid, 0, 65269+1 * sizeof(uint16_t));
   bp->total_hexagons = 0;
   bp->state = FIRST;
   bp->fade_ratio = 1;
