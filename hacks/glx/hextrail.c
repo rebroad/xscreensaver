@@ -390,7 +390,7 @@ static void reset_hextrail(ModeInfo *mi) {
     bp->chunk_count = 0;
   }
 
-  memset(bp->hex_grid, 0, 65269+1 * sizeof(uint16_t));
+  memset(bp->hex_grid, 0, (N*(N+1)*3+2) * sizeof(uint16_t));
   bp->total_hexagons = 0;
   bp->state = FIRST;
   bp->fade_ratio = 1;
@@ -1156,7 +1156,8 @@ ENTRYPOINT void init_hextrail (ModeInfo *mi) {
   bp->chunk_count = 0;
 
   bp->size = MI_COUNT(mi) * 2; N = bp->size;
-  bp->hex_grid = (uint16_t *)calloc(65269+1, sizeof(uint16_t));
+  if (N > MAX_N) N = MAX_N;
+  bp->hex_grid = (uint16_t *)calloc(N*(N+1)*3+2, sizeof(uint16_t));
   init_hex_grid_lookup();
   reset_hextrail (mi);
 }
