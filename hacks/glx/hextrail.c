@@ -1057,7 +1057,7 @@ ENTRYPOINT Bool hextrail_handle_event (ModeInfo *mi,
             keysym == XK_Up || keysym == XK_Next
 #endif
             ) {
-      MI_COUNT(mi)++;
+      MI_COUNT(mi)--;
       bp->size = MI_COUNT(mi) * 2;
     } else if (
 #ifdef USE_SDL
@@ -1074,7 +1074,7 @@ ENTRYPOINT Bool hextrail_handle_event (ModeInfo *mi,
             keysym == XK_Left
 #endif
             ) {
-      MI_COUNT(mi)--;
+      MI_COUNT(mi)++;
 	if (bp->size < 1) bp->size = 1;
 	} else if (c == '<' || c == ',' || c == '-' || c == '_' ||
                c == '\010' || c == '\177' ||
