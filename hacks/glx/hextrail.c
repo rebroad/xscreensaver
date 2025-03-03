@@ -59,9 +59,9 @@ typedef struct {
 } arm;
 
 typedef struct hexagon {
-  int x, y;
+  int8_t x, y; // N=147 to keep it to 8 bits
   arm arms[6];
-  int ccolor;
+  uint8_t ccolor;
   state_t state;
   GLfloat ratio;
   int8_t doing;
@@ -143,8 +143,8 @@ int q = 0, qq = 0, N = 0;
 
 static void init_hex_grid_lookup(void);
 void init_hex_grid_lookup() {
-	q = erm(N);
-	qq = erm(N) * 2;
+	q = (N - 1) / 2;
+	qq = q * 2;
 }
 
 static uint16_t xy_to_index(int, int);
