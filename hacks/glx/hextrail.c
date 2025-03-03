@@ -149,7 +149,7 @@ void init_hex_grid_lookup() {
 
 static uint16_t xy_to_index(int, int);
 uint16_t xy_to_index(int x, int y) {
-    if (abs(x) > N || abs(y) > N || abs(x + y) > N) return 0;
+    if (abs(x) > q || abs(y) > q) return 0;
     int32_t index;
 	if (y < 1) index = x + qq + erm(y + N) - erm(q - 1) + 1;
 	else index = x + y + qq + erm(y + N) - erm(q - 1) + 1;
@@ -208,10 +208,10 @@ static hexagon *do_hexagon(config *bp, int x, int y) {
 	if (h)
       ;//printf("ID for (%d,%d)=%d hex_grid[%d]=%d (%d,%d)\n", x, y, id, id, idx, h->x, h->y);
 	else
-      printf("ID for (%d,%d)=%d hex_grid[%d]=%d (NULL)\n", x, y, id, id, idx);
+      ;//printf("ID for (%d,%d)=%d hex_grid[%d]=%d (NULL)\n", x, y, id, id, idx);
 	return h;
   }
-  printf("ID for (%d,%d)=%d hex_grid[%d]=%d\n", x, y, id, id, idx);
+  //printf("ID for (%d,%d)=%d hex_grid[%d]=%d\n", x, y, id, id, idx);
 
   if (bp->total_hexagons >= bp->chunk_count * HEXAGON_CHUNK_SIZE) {
     hex_chunk **new_chunks = realloc(bp->chunks, (bp->chunk_count+1) * sizeof(hex_chunk *));
