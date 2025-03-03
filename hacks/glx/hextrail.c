@@ -108,7 +108,7 @@ static config *bps = NULL;
 static Bool do_spin, do_wander, do_glow, do_neon, do_expand;
 static GLfloat speed, thickness;
 static int8_t draw_invis = 1;
-static Bool pausing = False;
+static Bool pausing = False, hexes_on = False;
 
 static XrmOptionDescRec opts[] = {
   { "-spin",   ".spin",   XrmoptionNoArg, "True" },
@@ -137,9 +137,9 @@ static argtype vars[] = {
 
 ENTRYPOINT ModeSpecOpt hextrail_opts = {countof(opts), opts, countof(vars), vars, NULL};
 
-#define N 147
+#define MAX_N 147 // To fit within 16bit
 #define erm(n) ((n) * ((n) + 1) / 2)
-int q = 0, qq = 0;
+int q = 0, qq = 0, N = 0;
 
 static void init_hex_grid_lookup(void);
 void init_hex_grid_lookup() {
@@ -736,11 +736,12 @@ static void draw_hexagons (ModeInfo *mi) {
       XYZ p[6];
 
       if (h->state != EMPTY && h->state != DONE) {
-        GLfloat color1[3];
+        GLfloat color1[3], ratio;;
+		ratio = hexes_on ? 1 : h->ratio;
         memcpy (color1, color, sizeof(color1));
-        color1[0] *= h->ratio;
-        color1[1] *= h->ratio;
-        color1[2] *= h->ratio;
+        color1[0] *= ratio;
+        color1[1] *= ratio;
+        color1[2] *= ratio;
 
         glColor4fv (color1);
         glMaterialfv (GL_FRONT, GL_AMBIENT_AND_DIFFUSE, color1);
@@ -1049,18 +1050,35 @@ ENTRYPOINT Bool hextrail_handle_event (ModeInfo *mi,
     if (c == ' ' || c == '\t' || c == '\r' || c == '\n') ;
     else if (c == '>' || c == '.' || c == '+' || c == '=' ||
 #ifdef USE_SDL
-            keysym == SDLK_RIGHT || keysym == SDLK_UP || keysym == SDLK_PAGEDOWN
+            keysym == SDLK_UP || keysym == SDLK_PAGEDOWN
 #else
-            keysym == XK_Right || keysym == XK_Up || keysym == XK_Next
+            keysym == XK_Up || keysym == XK_Next
 #endif
             )
       MI_COUNT(mi)++;
-    else if (c == '<' || c == ',' || c == '-' || c == '_' ||
+    else if (
+#ifdef USE_SDL
+            keysym == SDLK_RIGHT
+#else
+            keysym == XK_Right
+#endif
+            )
+	  bp->size++;
+    else if (
+#ifdef USE_SDL
+            keysym == SDLK_LEFT
+#else
+            keysym == XK_Left
+#endif
+            ) {
+	  bp->size--;
+	if (bp->size < 1) bp->size = 1;
+	} else if (c == '<' || c == ',' || c == '-' || c == '_' ||
                c == '\010' || c == '\177' ||
 #ifdef USE_SDL
-            keysym == SDLK_LEFT || keysym == SDLK_DOWN || keysym == SDLK_PAGEUP
+            keysym == SDLK_DOWN || keysym == SDLK_PAGEUP
 #else
-            keysym == XK_Left || keysym == XK_Down || keysym == XK_Prior
+            keysym == XK_Down || keysym == XK_Prior
 #endif
             ) {
       MI_COUNT(mi)--;
@@ -1074,6 +1092,9 @@ ENTRYPOINT Bool hextrail_handle_event (ModeInfo *mi,
     } else if (c == 'e') {
       do_expand = !do_expand;
       printf("%s: do_expand = %d\n", __func__, do_expand);
+    } else if (c == 'h') {
+      hexes_on = !hexes_on;
+      printf("%s: do_expand = %d\n", __func__, do_expand);
     } else if (c == 'p') {
       pausing = !pausing;
       printf("%s: pausing = %d hexagons=%d\n", __func__, pausing, bp->total_hexagons);
@@ -1086,7 +1107,7 @@ ENTRYPOINT Bool hextrail_handle_event (ModeInfo *mi,
       return True;
     else return False;
 
-    bp->size = MI_COUNT(mi) * 2;
+    bp->size = MI_COUNT(mi) * 2; N = MI_COUNT(mi);
     return True;
   }
 
