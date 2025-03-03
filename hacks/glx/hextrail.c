@@ -315,10 +315,13 @@ h0->x, h0->y, j, h1->x, h1->y, h1->state);
   return added;
 }
 
+# undef H
+# define H 0.8660254037844386   /* sqrt(3)/2 */
+
 /* Check if a hexagon is within the visible frustum using bounding circle test */
 static Bool hex_invis(config *bp, int x, int y, int *sx, int *sy) {
   GLfloat wid = 2.0 / bp->size;
-  GLfloat hgt = wid * sqrt(3) / 2;
+  GLfloat hgt = wid * H;
   XYZ pos = { x * wid - y * wid / 2, y * hgt, 0 };
   GLdouble winX, winY, winZ;
 
@@ -690,11 +693,11 @@ static void draw_glow_point(XYZ p, GLfloat size, GLfloat scale,
 static void draw_hexagons (ModeInfo *mi) {
   config *bp = &bps[MI_SCREEN(mi)];
   int wire = MI_IS_WIREFRAME(mi);
-  GLfloat length = sqrt(3) / 3;
+  GLfloat length = H * 2 / 3;
   GLfloat size = length / MI_COUNT(mi);
   GLfloat thick2 = thickness * bp->fade_ratio;
   GLfloat wid = 2.0 / bp->size;
-  GLfloat hgt = wid * sqrt(3) / 2;
+  GLfloat hgt = wid * H;
 
   // Dynamic array for vertices
   /*Vertex *vertices = NULL;
@@ -702,8 +705,6 @@ static void draw_hexagons (ModeInfo *mi) {
   int vertex_capacity = 10000; // Initial guess
   vertices = malloc(vertex_capacity * sizeof(Vertex));*/
 
-# undef H
-# define H 0.8660254037844386   /* sqrt(3)/2 */
   const XYZ corners[] = {{  0, -1,   0 },       /*      0      */
                          {  H, -0.5, 0 },       /*  5       1  */
                          {  H,  0.5, 0 },       /*             */
