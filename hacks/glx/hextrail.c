@@ -108,7 +108,7 @@ static config *bps = NULL;
 static Bool do_spin, do_wander, do_glow, do_neon, do_expand;
 static GLfloat speed, thickness;
 static int8_t draw_invis = 1;
-static Bool pausing = False, hexes_on = False;
+static Bool pausing = False, pause_fade = False, hexes_on = False;
 
 static XrmOptionDescRec opts[] = {
   { "-spin",   ".spin",   XrmoptionNoArg, "True" },
@@ -632,7 +632,7 @@ static void tick_hexagons (ModeInfo *mi) {
     printf("New cell: started=%d doinga=%d ignorea=%d doingb=%d ignoreb=%d\n",
             started, doinga, ignorea, doingb, ignoreb);
 
-  if (!started && (doingb - ignoreb) < 1 && bp->state != FADE) {
+  if (!started && (doinga - ignorea) < 1 && (doingb - ignoreb) < 1 && bp->state != FADE) {
     printf("Fade started. ticks=%d iters=%d doinga=%d doingb=%d ignorea=%d ignoreb=%d\n",
             ticks, iters, doinga, doingb, ignorea, ignoreb);
     bp->state = FADE;
@@ -641,7 +641,7 @@ static void tick_hexagons (ModeInfo *mi) {
       hexagon *h = bp->chunks[i]->chunk[k];
       if (h->state == IN || h->state == WAIT) h->state = OUT;
     }
-  } else if (bp->state == FADE) {
+  } else if (bp->state == FADE && !pause_fade) {
     bp->fade_ratio -= 0.01 * speed;
     if (bp->fade_ratio <= 0) {
       printf("Fade ended.\n");
@@ -734,9 +734,9 @@ static void draw_hexagons (ModeInfo *mi) {
       int k = (j + 1) % 6;
       XYZ p[6];
 
-      if (h->state != EMPTY && h->state != DONE) {
+      if (hexes_on || (h->state != EMPTY && h->state != DONE)) {
         GLfloat color1[3], ratio;;
-		ratio = hexes_on ? 1 : h->ratio;
+		ratio = (hexes_on && h->state != IN) ? 1 : h->ratio;
         memcpy (color1, color, sizeof(color1));
         color1[0] *= ratio;
         color1[1] *= ratio;
@@ -1095,10 +1095,15 @@ ENTRYPOINT Bool hextrail_handle_event (ModeInfo *mi,
       printf("%s: do_expand = %d\n", __func__, do_expand);
     } else if (c == 'h') {
       hexes_on = !hexes_on;
-      printf("%s: do_expand = %d\n", __func__, do_expand);
+      printf("%s: hexes_on = %d\n", __func__, hexes_on);
     } else if (c == 'p') {
-      pausing = !pausing;
-      printf("%s: pausing = %d hexagons=%d\n", __func__, pausing, bp->total_hexagons);
+      if (bp->state == FADE) {
+		pause_fade = !pause_fade;
+        printf("%s: pause_fade = %d hexagons=%d\n", __func__, pause_fade, bp->total_hexagons);
+	  } else {
+        pausing = !pausing;
+        printf("%s: pausing = %d hexagons=%d\n", __func__, pausing, bp->total_hexagons);
+	  }
     }
 #ifdef USE_SDL
     else if (event->type == SDL_EVENT_QUIT)
