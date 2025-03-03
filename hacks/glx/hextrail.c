@@ -412,7 +412,7 @@ static void reset_hextrail(ModeInfo *mi) {
 static void tick_hexagons (ModeInfo *mi) {
   config *bp = &bps[MI_SCREEN(mi)];
   int i, j, k, doinga = 0, doingb = 0, ignorea = 0, ignoreb = 0;
-  static int ticks = 0, iters = 0;
+  static unsigned int ticks = 0, iters = 0;
   static int min_x = 0, min_y = 0, max_x = 0, max_y = 0;
   static int min_vx = 0, min_vy = 0, max_vx = 0, max_vy = 0;
   int this_min_vx = 0, this_min_vy = 0, this_max_vx = 0, this_max_vy = 0;
@@ -420,7 +420,7 @@ static void tick_hexagons (ModeInfo *mi) {
   ticks++;
   for(i=0;i<bp->chunk_count;i++) for(k=0;k<bp->chunks[i]->used;k++) {
     hexagon *h0 = bp->chunks[i]->chunk[k];
-    h0->invis = hex_invis(bp, h0->x, h0->y, 0, 0);
+    if (ticks & 1) h0->invis = hex_invis(bp, h0->x, h0->y, 0, 0);
 
     Bool debug = False;
 
