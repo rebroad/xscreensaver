@@ -50,10 +50,6 @@
 
 #define BELLRAND(n) ((frand((n)) + frand((n)) + frand((n))) / 3)
 
-#define GRID_HEIGHT 441
-#define GRID_HALF_HEIGHT 220
-#define MAX_N 147
-
 typedef enum { EMPTY, IN, WAIT, OUT, DONE } state_t;
 
 typedef struct {
@@ -141,52 +137,44 @@ static argtype vars[] = {
 
 ENTRYPOINT ModeSpecOpt hextrail_opts = {countof(opts), opts, countof(vars), vars, NULL};
 
-// Lookup table for cumulative hexagons up to each row (Y from -220 to 220, index 0 to 440)
-static int32_t S[GRID_HEIGHT + 1]; // +1 for S(221)
+#define N 147
+#define erm(n) ((n) * ((n) + 1) / 2)
+int q = 0, qq = 0;
 
 static void init_hex_grid_lookup(void);
 void init_hex_grid_lookup() {
-    int32_t cumulative = 0;
-    for (int y = -GRID_HALF_HEIGHT; y <= GRID_HALF_HEIGHT; y++) {
-        int y_adj = y + ((y + 1) / 2); // Y + ⌊(Y+1)/2⌋
-        int abs_y_adj = abs(y_adj);
-        if (abs_y_adj > MAX_N) {
-            S[y + GRID_HALF_HEIGHT] = cumulative;
-            continue;
-        }
-        int x_min = -MAX_N > (-MAX_N - y - ((y + 1) / 2)) ? -MAX_N : (-MAX_N - y - ((y + 1) / 2));
-        int x_max = MAX_N < (MAX_N - y - ((y + 1) / 2)) ? MAX_N : (MAX_N - y - ((y + 1) / 2));
-        int num_hex = x_max - x_min + 1;
-        S[y + GRID_HALF_HEIGHT] = cumulative;
-        cumulative += num_hex;
-    }
-    S[GRID_HEIGHT] = cumulative; // Total hexagons (65,270)
+	q = erm(N);
+	qq = erm(N) * 2;
 }
 
-// Convert (X, Y) to index (returns 0 if outside grid)
 static uint16_t xy_to_index(int, int);
 uint16_t xy_to_index(int x, int y) {
-    // Check bounds and validity
-    if (x < -MAX_N || x > MAX_N || y < -GRID_HALF_HEIGHT || y > GRID_HALF_HEIGHT) {
-        return 0;
-    }
-    int y_adj = y + ((y + 1) / 2);
-    int abs_y_adj = abs(y_adj);
-    int abs_x = abs(x);
-    int abs_xy_adj = abs(x + y + ((y + 1) / 2));
-    if (abs_x > MAX_N || abs_y_adj > MAX_N || abs_xy_adj > MAX_N) {
-        return 0; // Outside hexagonal boundary
-    }
+    if (abs(x) > N || abs(y) > N || abs(x + y) > N) return 0;
+    int32_t index;
+	if (y < 1) index = x + qq + erm(y + N) - erm(q - 1) + 1;
+	else index = x + y + qq + erm(y + N) - erm(q - 1) + 1;
 
-    // Compute index
-    int y_idx = y + GRID_HALF_HEIGHT; // Shift Y to array index (0 to 440)
-    int x_min = -MAX_N > (-MAX_N - y - ((y + 1) / 2)) ? -MAX_N : (-MAX_N - y - ((y + 1) / 2));
-	int32_t offset = (int32_t)x - x_min + 1; // Use int32_t to avoid overflow
-    int32_t index = S[y_idx] + offset;
-    if (index < 1 || index > 65270) { // Ensure within valid range
-        return 0;
-    }
-    return (int16_t)index;
+	return (uint16_t)index;
+}
+
+static uint16_t grok_xy_to_index(int, int);
+uint16_t grok_xy_to_index(int x, int y) {
+    if (abs(x) > N || abs(y) > N || abs(x + y) > N) return 0;
+	int32_t index;
+	if (y < 0) {
+		int abs_y = -y;
+		int x_min = -N + abs_y;
+		int num_before = (y + N) * (N - 1 + y) / 2;  // Adjusted cumulative sum
+		index = num_before + (x = x_min) + 1;
+	} else {
+		int neg_rows = erm(N); // 10878 for N=147
+		int zero_row = 2 * N + 1; // 295
+		int pos_rows = y > 0 ? (y * (2 * N + 1) - erm(y - 1)): 0;
+		int x_min = -N;
+		index = neg_rows + zero_row + pos_rows + (x - x_min) + 1;
+	}
+
+    return (uint16_t)index;
 }
 
 static hexagon *do_hexagon(config *bp, int x, int y) {
@@ -205,6 +193,16 @@ static hexagon *do_hexagon(config *bp, int x, int y) {
     // We found an existing hexagon, so return it.
     int i = (idx-1) / HEXAGON_CHUNK_SIZE;
     int k = (idx-1) % HEXAGON_CHUNK_SIZE;
+	if (i >= bp->chunk_count) {
+	  printf("%s: Invalid chunk access id=%d idx=%d ++i=%d/%d k=%d\n",
+			 __func__, id, idx, i, bp->chunk_count, k);
+	  return NULL;
+	}
+	if (k >= bp->chunks[i]->used) {
+	  printf("%s: Invalid chunk access id=%d idx=%d i=%d/%d ++k=%d/%d\n",
+			 __func__, id, idx, i, bp->chunk_count, k, bp->chunks[i]->used);
+	  return NULL;
+	}
 	hexagon *h = bp->chunks[i]->chunk[k];
 	/*if (h)
       printf("ID for (%d,%d)=%d hex_grid[%d]=%d (%d,%d)\n", x, y, id, id, idx, h->x, h->y);
@@ -246,17 +244,22 @@ static hexagon *do_hexagon(config *bp, int x, int y) {
 }
 
 static hexagon *neighbor(config *bp, hexagon *h0, int j) {
-  // First value is arm, 2nd value is XE, XO, Y
+  // First value is arm, 2nd value is X, 3rd is Y
   //   0,0   1,0   2,0   3,0   4,0               5   0
-  //      0,1   1,1   2,1   3,1   4,1
-  //   0,2   1,2   2,2   3,2   4,             4  arms   1
-  //      0,3   1,3   2,3   3,3   4,3
-  //   0,4   1,4   2,4   3,4   4,4               3   2
-  const int offset[6][3] = {
-      {0, 1, -1}, {1, 1, 0}, {0, 1, 1}, {-1, 0, 1}, {-1, -1, 0}, {-1, 0, -1}
+  //      1,1   2,1   3,1   4,1   5,1
+  //   1,2   2,2   3,2   4,2   5,2            4  arms   1
+  //      2,3   3,3   4,3   5,3   6,3
+  //   2,4   3,4   4,4   5,4   6,4               3   2
+  const int offset[6][2] = {
+      {0, -1}, {1, 0}, {1, 1}, {0, 1}, {-1, 0}, {-1, -1}
   };
-  int x = h0->x + offset[j][h0->y & 1], y = h0->y + offset[j][2];
-  return do_hexagon(bp, x, y);
+  int x = h0->x + offset[j][0], y = h0->y + offset[j][1];
+  hexagon *h = do_hexagon(bp, x, y);
+  if (!h) {
+	printf("%s: Failed to get neighbor at (%d, %d) from (%d, %d) dir=%d\n",
+			__func__, x, y, h0->x, h0->y, j);
+  }
+  return h;
 }
 
 static int add_arms (config *bp, hexagon *h0) {
