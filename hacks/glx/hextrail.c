@@ -157,8 +157,9 @@ uint16_t xy_to_index(int x, int y) {
 	return (uint16_t)index;
 }
 
-static uint16_t grok_xy_to_index(int, int);
-uint16_t grok_xy_to_index(int x, int y) {
+/*
+static uint16_t xy_to_index(int, int);
+uint16_t xy_to_index(int x, int y) {
     if (abs(x) > N || abs(y) > N || abs(x + y) > N) return 0;
 	int32_t index;
 	if (y < 0) {
@@ -175,7 +176,7 @@ uint16_t grok_xy_to_index(int x, int y) {
 	}
 
     return (uint16_t)index;
-}
+}*/
 
 static hexagon *do_hexagon(config *bp, int x, int y) {
   int id = xy_to_index(x, y);
@@ -204,13 +205,13 @@ static hexagon *do_hexagon(config *bp, int x, int y) {
 	  return NULL;
 	}
 	hexagon *h = bp->chunks[i]->chunk[k];
-	/*if (h)
-      printf("ID for (%d,%d)=%d hex_grid[%d]=%d (%d,%d)\n", x, y, id, id, idx, h->x, h->y);
+	if (h)
+      ;//printf("ID for (%d,%d)=%d hex_grid[%d]=%d (%d,%d)\n", x, y, id, id, idx, h->x, h->y);
 	else
-      printf("ID for (%d,%d)=%d hex_grid[%d]=%d (NULL)\n", x, y, id, id, idx); */
+      printf("ID for (%d,%d)=%d hex_grid[%d]=%d (NULL)\n", x, y, id, id, idx);
 	return h;
   }
-  //printf("ID for (%d,%d)=%d hex_grid[%d]=%d\n", x, y, id, id, idx);
+  printf("ID for (%d,%d)=%d hex_grid[%d]=%d\n", x, y, id, id, idx);
 
   if (bp->total_hexagons >= bp->chunk_count * HEXAGON_CHUNK_SIZE) {
     hex_chunk **new_chunks = realloc(bp->chunks, (bp->chunk_count+1) * sizeof(hex_chunk *));
@@ -259,10 +260,11 @@ static hexagon *neighbor(config *bp, hexagon *h0, int j) {
 	printf("%s: Failed to get neighbor at (%d, %d) from (%d, %d) dir=%d\n",
 			__func__, x, y, h0->x, h0->y, j);
   }
+
   return h;
 }
 
-static int add_arms (config *bp, hexagon *h0) {
+static int add_arms(config *bp, hexagon *h0) {
   int i;
   int added = 0;
   int target = (random() % 4); /* Aim for 1-5 arms */
@@ -321,9 +323,7 @@ h0->x, h0->y, j, h1->x, h1->y, h1->state);
 static Bool hex_invis(config *bp, int x, int y, int *sx, int *sy) {
   GLfloat wid = 2.0 / bp->size;
   GLfloat hgt = wid * sqrt(3) / 2;
-  XYZ pos;
-  pos.x = x * wid + (y & 1) * wid / 2;
-  pos.y = y * hgt; pos.z = 0;
+  XYZ pos = { x * wid - y * wid / 2, y * hgt, 0 };
   GLdouble winX, winY, winZ;
 
   /* Project point to screen coordinates */
@@ -717,7 +717,7 @@ static void draw_hexagons (ModeInfo *mi) {
     hexagon *h = bp->chunks[i]->chunk[k];
     if (draw_invis < h->invis) continue;
 
-    XYZ pos = { h->x * wid + (h->y & 1) * wid / 2, h->y * hgt, 0 };
+    XYZ pos = { h->x * wid - h->y * wid / 2, h->y * hgt, 0 };
     GLfloat color[4];
     HEXAGON_COLOR (color, h);
 
