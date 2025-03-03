@@ -146,29 +146,29 @@ static uint16_t xy_to_index(int, int);
 uint16_t xy_to_index(int x, int y) {
     if (abs(x) > q || abs(y) > q || abs(x-y) > q) return 0;
     int32_t index;
-	if (y < 1) index = x + qq + erm(y + N) - erm(q - 1) + 1;
-	else index = x + y + qq + erm(y + N) - erm(q - 1) + 1;
+    if (y < 1) index = x + qq + erm(y + N) - erm(q - 1) + 1;
+    else index = x + y + qq + erm(y + N) - erm(q - 1) + 1;
 
-	return (uint16_t)index;
+    return (uint16_t)index;
 }
 
 /*
 static uint16_t xy_to_index(int, int);
 uint16_t xy_to_index(int x, int y) {
     if (abs(x) > N || abs(y) > N || abs(x + y) > N) return 0;
-	int32_t index;
-	if (y < 0) {
-		int abs_y = -y;
-		int x_min = -N + abs_y;
-		int num_before = (y + N) * (N - 1 + y) / 2;  // Adjusted cumulative sum
-		index = num_before + (x = x_min) + 1;
-	} else {
-		int neg_rows = erm(N); // 10878 for N=147
-		int zero_row = 2 * N + 1; // 295
-		int pos_rows = y > 0 ? (y * (2 * N + 1) - erm(y - 1)): 0;
-		int x_min = -N;
-		index = neg_rows + zero_row + pos_rows + (x - x_min) + 1;
-	}
+    int32_t index;
+    if (y < 0) {
+        int abs_y = -y;
+        int x_min = -N + abs_y;
+        int num_before = (y + N) * (N - 1 + y) / 2;  // Adjusted cumulative sum
+        index = num_before + (x = x_min) + 1;
+    } else {
+        int neg_rows = erm(N); // 10878 for N=147
+        int zero_row = 2 * N + 1; // 295
+        int pos_rows = y > 0 ? (y * (2 * N + 1) - erm(y - 1)): 0;
+        int x_min = -N;
+        index = neg_rows + zero_row + pos_rows + (x - x_min) + 1;
+    }
 
     return (uint16_t)index;
 }*/
@@ -189,22 +189,22 @@ static hexagon *do_hexagon(config *bp, int px, int py, int x, int y) {
     // We found an existing hexagon, so return it.
     int i = (idx-1) / HEXAGON_CHUNK_SIZE;
     int k = (idx-1) % HEXAGON_CHUNK_SIZE;
-	if (i >= bp->chunk_count) {
-	  printf("%s: Invalid chunk access (%d,%d)->(%d,%d) id=%d idx=%d ++i=%d/%d k=%d\n",
-			 __func__, px, py, x, y, id, idx, i, bp->chunk_count, k);
-	  return NULL;
-	}
-	if (k >= bp->chunks[i]->used) {
-	  printf("%s: Invalid chunk access id=%d idx=%d i=%d/%d ++k=%d/%d\n",
-			 __func__, id, idx, i, bp->chunk_count, k, bp->chunks[i]->used);
-	  return NULL;
-	}
-	hexagon *h = bp->chunks[i]->chunk[k];
-	if (h)
+    if (i >= bp->chunk_count) {
+      printf("%s: Invalid chunk access (%d,%d)->(%d,%d) id=%d idx=%d ++i=%d/%d k=%d\n",
+             __func__, px, py, x, y, id, idx, i, bp->chunk_count, k);
+      return NULL;
+    }
+    if (k >= bp->chunks[i]->used) {
+      printf("%s: Invalid chunk access id=%d idx=%d i=%d/%d ++k=%d/%d\n",
+             __func__, id, idx, i, bp->chunk_count, k, bp->chunks[i]->used);
+      return NULL;
+    }
+    hexagon *h = bp->chunks[i]->chunk[k];
+    if (h)
       ;//printf("ID for (%d,%d)=%d hex_grid[%d]=%d (%d,%d)\n", x, y, id, id, idx, h->x, h->y);
-	else
+    else
       ;//printf("ID for (%d,%d)=%d hex_grid[%d]=%d (NULL)\n", x, y, id, id, idx);
-	return h;
+    return h;
   }
   //printf("ID for (%d,%d)=%d hex_grid[%d]=%d\n", x, y, id, id, idx);
 
@@ -467,14 +467,14 @@ static void scale_corners(ModeInfo *mi) {
   size3 = size * thick2 * 0.8;
   size4 = size3 *= 2; // When total_arms == 1
   for (int j = 0; j < 6; j++) {
-	scaled_corners[j][0].x = corners[j].x * size1;
-	scaled_corners[j][0].y = corners[j].y * size1;
-	scaled_corners[j][1].x = corners[j].x * size2;
-	scaled_corners[j][1].y = corners[j].y * size2;
-	scaled_corners[j][2].x = corners[j].x * size3;
-	scaled_corners[j][2].y = corners[j].y * size3;
-	scaled_corners[j][3].x = corners[j].x * size4;
-	scaled_corners[j][3].y = corners[j].y * size4;
+    scaled_corners[j][0].x = corners[j].x * size1;
+    scaled_corners[j][0].y = corners[j].y * size1;
+    scaled_corners[j][1].x = corners[j].x * size2;
+    scaled_corners[j][1].y = corners[j].y * size2;
+    scaled_corners[j][2].x = corners[j].x * size3;
+    scaled_corners[j][2].y = corners[j].y * size3;
+    scaled_corners[j][3].x = corners[j].x * size4;
+    scaled_corners[j][3].y = corners[j].y * size4;
   }
 }
 
@@ -494,10 +494,10 @@ static void tick_hexagons (ModeInfo *mi) {
 
     Bool debug = False;
 
-	if (bp->now != tick_report) {
-	  tps = ticks; ticks = 0;
-	  tick_report = bp->now;
-	}
+    if (bp->now != tick_report) {
+      tps = ticks; ticks = 0;
+      tick_report = bp->now;
+    }
 
     // Measure the drawn part we can see
     if (!h0->invis && h0->state != EMPTY) {
@@ -564,7 +564,7 @@ static void tick_hexagons (ModeInfo *mi) {
     /* Enlarge any still-growing arms if active.  */
     for (j = 0; j < 6; j++) {
       arm *a0 = &h0->arms[j];
-	  if (arm_handlers[a0->state]) arm_handlers[a0->state](bp, h0, a0, j);
+      if (arm_handlers[a0->state]) arm_handlers[a0->state](bp, h0, a0, j);
     } // 6 arms
 
     switch (h0->state) {
@@ -616,7 +616,7 @@ static void tick_hexagons (ModeInfo *mi) {
       h0 = do_hexagon(bp, 0, 0, 0, 0);
     } else {
       int16_t empty_cells[1000][2]; int empty_count = 0;
-	  // TODO - possibly need to change this depending on how grid arranged
+      // TODO - possibly need to change this depending on how grid arranged
       for (int y = min_vy; y <= max_vy && empty_count < 1000; y++)
         for (int x = min_vx; x <= max_vx && empty_count < 1000; x++) {
           int id = xy_to_index(x, y);
@@ -676,14 +676,14 @@ static void tick_hexagons (ModeInfo *mi) {
     }
   } else if (bp->state == FADE && !pause_fade) {
     bp->fade_ratio -= bp->fade_speed;
-	scale_corners(mi);
+    scale_corners(mi);
     if (bp->fade_ratio <= 0) {
       printf("Fade ended.\n");
       reset_hextrail (mi);
-	} else if (bp->fade_ratio >= 1) {
+    } else if (bp->fade_ratio >= 1) {
       bp->fade_ratio = 1; bp->fade_speed = 0;
-	  bp->state = DRAW; pause_fade = True;
-	}
+      bp->state = DRAW; pause_fade = True;
+    }
   }
 }
 
@@ -759,7 +759,7 @@ static void draw_hexagons(ModeInfo *mi) {
 
       if (hexes_on || (h->state != EMPTY && h->state != DONE)) {
         GLfloat color1[3], ratio;;
-		ratio = (hexes_on && h->state != IN) ? 1 : h->ratio;
+        ratio = (hexes_on && h->state != IN) ? 1 : h->ratio;
         memcpy (color1, color, sizeof(color1));
         color1[0] *= ratio;
         color1[1] *= ratio;
@@ -983,17 +983,17 @@ static void draw_hexagons(ModeInfo *mi) {
 
       /* Hexagon (one triangle of) in center to hide line miter/bevels.  */
       if (total_arms) {
-		int8_t k = (total_arms == 1) ? 3 : 2; // nub - TODO should not be within arms loop
+        int8_t i = (total_arms == 1) ? 3 : 2; // nub - TODO should not be within arms loop
 
         p[0] = pos;
 
-        p[1].x = pos.x + scaled_corners[j][k].x;
-        p[1].y = pos.y + scaled_corners[j][k].y;
+        p[1].x = pos.x + scaled_corners[j][i].x;
+        p[1].y = pos.y + scaled_corners[j][i].y;
         p[1].z = pos.z;
 
         /* Inner edge of hexagon border */
-        p[2].x = pos.x + scaled_corners[k][k].x;
-        p[2].y = pos.y + scaled_corners[k][k].y;
+        p[2].x = pos.x + scaled_corners[k][i].x;
+        p[2].y = pos.y + scaled_corners[k][i].y;
         p[2].z = pos.z;
 
         glColor4fv (color);
@@ -1003,7 +1003,7 @@ static void draw_hexagons(ModeInfo *mi) {
         glVertex3f (p[2].x, p[2].y, p[2].z);
         mi->polygon_count++;
       }
-    }
+    } // loop through arms
   }
 
   glEnd();
@@ -1078,7 +1078,7 @@ ENTRYPOINT Bool hextrail_handle_event (ModeInfo *mi,
       MI_COUNT(mi)--;
       if (MI_COUNT(mi) < 1) MI_COUNT(mi) = 1;
       bp->size = MI_COUNT(mi) * 2;
-	  scale_corners(mi);
+      scale_corners(mi);
     } else if (
 #ifdef USE_SDL
             keysym == SDLK_RIGHT
@@ -1088,8 +1088,8 @@ ENTRYPOINT Bool hextrail_handle_event (ModeInfo *mi,
             ) {
       MI_COUNT(mi)--;
       if (MI_COUNT(mi) < 1) MI_COUNT(mi) = 1;
-	  scale_corners(mi);
-	} else if (
+      scale_corners(mi);
+    } else if (
 #ifdef USE_SDL
             keysym == SDLK_LEFT
 #else
@@ -1097,8 +1097,8 @@ ENTRYPOINT Bool hextrail_handle_event (ModeInfo *mi,
 #endif
             ) {
       MI_COUNT(mi)++;
-	  scale_corners(mi);
-	} else if (c == '<' || c == ',' || c == '-' || c == '_' ||
+      scale_corners(mi);
+    } else if (c == '<' || c == ',' || c == '-' || c == '_' ||
                c == '\010' || c == '\177' ||
 #ifdef USE_SDL
             keysym == SDLK_DOWN || keysym == SDLK_PAGEUP
@@ -1108,7 +1108,7 @@ ENTRYPOINT Bool hextrail_handle_event (ModeInfo *mi,
             ) {
       MI_COUNT(mi)++;
       bp->size = MI_COUNT(mi) * 2;
-	  scale_corners(mi);
+      scale_corners(mi);
     } else if (c == 's') {
       draw_invis = (int8_t)(draw_invis - 1) % 4;
       printf("%s: draw_invis = %d\n", __func__, draw_invis);
@@ -1125,13 +1125,13 @@ ENTRYPOINT Bool hextrail_handle_event (ModeInfo *mi,
       if (pause_fade) {
         pause_fade = False;
         printf("%s: pause_fade = %d hexagons=%d\n", __func__, pause_fade, bp->total_hexagons);
-	  } else if (bp->fade_speed > 0) {
-		bp->fade_speed = -bp->fade_speed;
+      } else if (bp->fade_speed > 0) {
+        bp->fade_speed = -bp->fade_speed;
         printf("%s: pause_fade = %d hexagons=%d\n", __func__, pause_fade, bp->total_hexagons);
-	  } else {
+      } else {
         pausing = !pausing;
         printf("%s: pausing = %d hexagons=%d\n", __func__, pausing, bp->total_hexagons);
-	  }
+      }
     }
 #ifdef USE_SDL
     else if (event->type == SDL_EVENT_QUIT)
