@@ -1069,7 +1069,7 @@ ENTRYPOINT Bool hextrail_handle_event(ModeInfo *mi,
 #endif
 
     if (c == '\t' || c == '\r' || c == '\n') ;
-    else if (c == '>' || c == '.' || c == '+' || c == '=' ||
+    else if (c == '>' || c == '.' ||
 #ifdef USE_SDL
             keysym == SDLK_UP || keysym == SDLK_PAGEDOWN
 #else
@@ -1099,7 +1099,7 @@ ENTRYPOINT Bool hextrail_handle_event(ModeInfo *mi,
             ) {
       MI_COUNT(mi)++;
       scale_corners(mi);
-    } else if (c == '<' || c == ',' || c == '-' || c == '_' ||
+    } else if (c == '<' || c == ',' || c == '_' ||
                c == '\010' || c == '\177' ||
 #ifdef USE_SDL
             keysym == SDLK_DOWN || keysym == SDLK_PAGEUP
@@ -1110,6 +1110,12 @@ ENTRYPOINT Bool hextrail_handle_event(ModeInfo *mi,
       MI_COUNT(mi)++;
       bp->size = MI_COUNT(mi) * 2;
       scale_corners(mi);
+    } else if (c == '-') {
+      speed /= 2;
+      printf("%s: speed = %f -> %f\n", __func__, speed*2, speed);
+    } else if (c == '=' || c == '+') {
+      speed *= 2;
+      printf("%s: speed = %f -> %f\n", __func__, speed/2, speed);
     } else if (c == 's') {
       draw_invis = (int8_t)(draw_invis - 1) % 4;
       printf("%s: draw_invis = %d\n", __func__, draw_invis);
