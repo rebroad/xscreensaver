@@ -658,6 +658,7 @@ static void tick_hexagons (ModeInfo *mi) {
     }
   } else if (bp->state == FADE && !pause_fade) {
     bp->fade_ratio -= bp->fade_speed;
+    scale_corners(mi);
     if (bp->fade_ratio <= 0) {
       printf("Fade ended.\n");
       reset_hextrail (mi);
@@ -708,11 +709,6 @@ typedef struct { GLfloat x, y, z, r, g, b, a; } Vertex;
 static void draw_hexagons(ModeInfo *mi) {
   config *bp = &bps[MI_SCREEN(mi)];
   int wire = MI_IS_WIREFRAME(mi);
-  GLfloat length = H * 2 / 3;
-  GLfloat size = length / MI_COUNT(mi);
-  GLfloat thick2 = thickness * bp->fade_ratio;
-  GLfloat wid = 2.0 / bp->size;
-  GLfloat hgt = wid * H;
 
   // Dynamic array for vertices
   /*Vertex *vertices = NULL;
@@ -1068,6 +1064,7 @@ ENTRYPOINT Bool hextrail_handle_event(ModeInfo *mi,
       MI_COUNT(mi)--;
       if (MI_COUNT(mi) < 1) MI_COUNT(mi) = 1;
       bp->size = MI_COUNT(mi) * 2;
+      scale_corners(mi);
     } else if (
 #ifdef USE_SDL
             keysym == SDLK_RIGHT
@@ -1077,6 +1074,7 @@ ENTRYPOINT Bool hextrail_handle_event(ModeInfo *mi,
             ) {
       MI_COUNT(mi)--;
       if (MI_COUNT(mi) < 1) MI_COUNT(mi) = 1;
+      scale_corners(mi);
     } else if (
 #ifdef USE_SDL
             keysym == SDLK_LEFT
@@ -1085,6 +1083,7 @@ ENTRYPOINT Bool hextrail_handle_event(ModeInfo *mi,
 #endif
             ) {
       MI_COUNT(mi)++;
+      scale_corners(mi);
     } else if (c == '<' || c == ',' || c == '-' || c == '_' ||
                c == '\010' || c == '\177' ||
 #ifdef USE_SDL
@@ -1095,6 +1094,7 @@ ENTRYPOINT Bool hextrail_handle_event(ModeInfo *mi,
             ) {
       MI_COUNT(mi)++;
       bp->size = MI_COUNT(mi) * 2;
+      scale_corners(mi);
     } else if (c == 's') {
       draw_invis = (int8_t)(draw_invis - 1) % 4;
       printf("%s: draw_invis = %d\n", __func__, draw_invis);
@@ -1169,6 +1169,7 @@ ENTRYPOINT void init_hextrail(ModeInfo *mi) {
   q = (N - 1) / 2;
   qq = q * 2;
   reset_hextrail(mi);
+  scale_corners(mi);
 }
 
 
