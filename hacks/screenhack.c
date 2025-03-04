@@ -381,7 +381,7 @@ static Boolean screenhack_table_handle_events (Display *dpy,
                                 const struct xscreensaver_function_table *ft,
                                 Window *windows, void **closures, int num_windows
 #ifdef HAVE_RECORD_ANIM
-				, Bool anim
+				, Bool anim, Bool *anim_pause
 #endif
 								) {
   XtAppContext app = XtDisplayToApplicationContext(dpy);
@@ -397,6 +397,7 @@ static Boolean screenhack_table_handle_events (Display *dpy,
 
     for (int i = 0; i < num_windows; i++) {
 #ifdef HAVE_RECORD_ANIM
+      // TODO - check for a specific keypress to toggle anim_pause
       // Avoid reshapes when recording (assuming window 0)
       if (event.xany.type == ConfigureNotify && !(anim && !i)) {
 #else
@@ -434,6 +435,7 @@ static Boolean usleep_and_process_events(Display *dpy,
 #endif
                            ) {
   do {
+    static Bool anim_pause = False;
     unsigned long quantum = 33333;  /* 30 fps */
     if (quantum > delay) quantum = delay;
     delay -= quantum;
@@ -441,7 +443,7 @@ static Boolean usleep_and_process_events(Display *dpy,
     XSync (dpy, False);
 
 #ifdef HAVE_RECORD_ANIM
-    if (anim_state) screenhack_record_anim(anim_state);
+    if (anim_state && !anim_pause) screenhack_record_anim(anim_state);
 #endif
 
     if (quantum > 0) {
@@ -452,7 +454,7 @@ static Boolean usleep_and_process_events(Display *dpy,
 
     if (!screenhack_table_handle_events(dpy, ft, windows, closures, num_windows
 #ifdef HAVE_RECORD_ANIM
-				, anim_state ? True : False
+				, anim_state ? True : False, &anim_pause
 #endif
 				))
       return False;
