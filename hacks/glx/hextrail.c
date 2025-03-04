@@ -263,7 +263,7 @@ static int add_arms(config *bp, hexagon *h0) {
     a0->state = OUT;
     a0->ratio = 0;
     a1->ratio = 0;
-    a0->speed = 0.05 * speed * (0.8 + frand(1.0));
+    a0->speed = 0.05 * (0.8 + frand(1.0));
     a1->speed = a0->speed;
 
     if (h1->state == EMPTY) {
@@ -410,26 +410,18 @@ static void reset_hextrail(ModeInfo *mi) {
 }
 
 static void handle_arm_out(config *bp, hexagon *h0, arm *a0, int j) {
-  a0->ratio += a0->speed;
+  a0->ratio += a0->speed * speed;
   if (a0->ratio >= 1) {
     /* Just finished growing from center to edge.
        Pass the baton to this waiting neighbor. */
     hexagon *h1 = neighbor(bp, h0, j);
     arm *a1 = &h1->arms[(j + 3) % 6];
-    if (a1->state != EMPTY) {
-      printf("H0 (%d,%d)'s arm=%d connecting to H1 (%d,%d)'s arm_state=%d arm_ratio=%.1f\n", h0->x, h0->y, j, h1->x, h1->y, a1->state, a1->ratio);
-      bp->pause_until = bp->now + 3;
-      a0->speed = -a0->speed;
-      a1->state = OUT;
-      if (a1->speed > 0) a1->speed = -a1->speed;
-    } else {
-      a1->state = IN;
-      a1->ratio = a0->ratio - 1;
-      a1->speed = a0->speed;
-	  h0->doing--; h1->doing++;
-      a0->state = DONE;
-      a0->ratio = 1;
-    }
+    a1->state = IN;
+    a1->ratio = a0->ratio - 1;
+    a1->speed = a0->speed;
+    h0->doing--; h1->doing++;
+    a0->state = DONE;
+    a0->ratio = 1;
   } else if (a0->ratio <= 0) {
     /* Just finished retreating back to center */
     a0->state = EMPTY;
@@ -439,7 +431,7 @@ static void handle_arm_out(config *bp, hexagon *h0, arm *a0, int j) {
 }
 
 static void handle_arm_in(config *bp, hexagon *h0, arm *a0, int j) {
-  a0->ratio += a0->speed;
+  a0->ratio += a0->speed * speed;
   if (a0->ratio >= 1) {
 	  h0->doing = 0;
     /* Just finished growing from edge to center.  Look for any available exits. */
@@ -448,14 +440,15 @@ static void handle_arm_in(config *bp, hexagon *h0, arm *a0, int j) {
       a0->ratio = 1;
 	} else { // nub grow
       a0->state = WAIT;
+	  a0->ratio--;
 	  h0->doing = 1;
 	}
   }
 }
 
 static void handle_nub_grow(config *bp, hexagon *h0, arm *a0, int j) {
-  a0->ratio += a0->speed;
-  if (a0->ratio >= 2) {
+  a0->ratio += a0->speed * speed;
+  if (a0->ratio >= 1) {
 	a0->state = DONE;
 	h0->doing = 0;
 	a0->ratio = 1;
@@ -575,7 +568,7 @@ static void tick_hexagons (ModeInfo *mi) {
           h0->state = DONE;
         }
       case WAIT:
-        if (! (random() % 50)) h0->state = OUT;
+        if (! (random() % (int)(50.0/speed))) h0->state = OUT;
         break;
       case EMPTY:
       case DONE:
@@ -661,14 +654,14 @@ static void tick_hexagons (ModeInfo *mi) {
   if (!started && (doinga - ignorea) < 1 && (doingb - ignoreb) < 1 && bp->state != FADE) {
     printf("Fade started. iters=%d doinga=%d doingb=%d ignorea=%d ignoreb=%d\n",
             iters, doinga, doingb, ignorea, ignoreb);
-    bp->state = FADE; bp->fade_speed = 0.01 * speed;
+    bp->state = FADE; bp->fade_speed = 0.01;
 
     for (i=0;i<bp->chunk_count;i++) for (k=0;k<bp->chunks[i]->used;k++) {
       hexagon *h = bp->chunks[i]->chunk[k];
       if (h->state == IN || h->state == WAIT) h->state = OUT;
     }
   } else if (bp->state == FADE && !pause_fade) {
-    bp->fade_ratio -= bp->fade_speed;
+    bp->fade_ratio -= bp->fade_speed * speed;
     scale_corners(mi);
     if (bp->fade_ratio <= 0) {
       printf("Fade ended.\n");
@@ -745,7 +738,10 @@ static void draw_hexagons(ModeInfo *mi) {
       arm *a = &h->arms[j];
 	  if (a->state == OUT || a->state == DONE || a->state == WAIT) {
         total_arms++;
-	    if (a->state == WAIT) nub_ratio = a->ratio;
+	    if (a->state == WAIT) {
+          nub_ratio = 1.0 + sin(a->ratio * M_PI/2.0);
+          printf("a->ratio=%f nub_ratio=%f\n", a->ratio, nub_ratio);
+		}
 	  }
 	}
 
@@ -1113,9 +1109,11 @@ ENTRYPOINT Bool hextrail_handle_event(ModeInfo *mi,
       scale_corners(mi);
     } else if (c == '-') {
       speed /= 2;
+	  if (speed < 0.0001) speed = 0.0001;
       printf("%s: speed = %f -> %f\n", __func__, speed*2, speed);
     } else if (c == '=' || c == '+') {
       speed *= 2;
+	  if (speed > 20) speed = 20;
       printf("%s: speed = %f -> %f\n", __func__, speed/2, speed);
     } else if (c == 's') {
       draw_invis = (int8_t)(draw_invis - 1) % 4;
