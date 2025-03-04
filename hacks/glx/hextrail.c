@@ -261,7 +261,6 @@ static int add_arms(config *bp, hexagon *h0) {
       continue;
     }
     a0->state = OUT;
-    a1->state = WAIT;
     a0->ratio = 0;
     a1->ratio = 0;
     a0->speed = 0.05 * speed * (0.8 + frand(1.0));
@@ -417,7 +416,7 @@ static void handle_arm_out(config *bp, hexagon *h0, arm *a0, int j) {
        Pass the baton to this waiting neighbor. */
     hexagon *h1 = neighbor(bp, h0, j);
     arm *a1 = &h1->arms[(j + 3) % 6];
-    if (a1->state != WAIT) {
+    if (a1->state != EMPTY) {
       printf("H0 (%d,%d)'s arm=%d connecting to H1 (%d,%d)'s arm_state=%d arm_ratio=%.1f\n", h0->x, h0->y, j, h1->x, h1->y, a1->state, a1->ratio);
       bp->pause_until = bp->now + 3;
       a0->speed = -a0->speed;
@@ -425,30 +424,38 @@ static void handle_arm_out(config *bp, hexagon *h0, arm *a0, int j) {
       if (a1->speed > 0) a1->speed = -a1->speed;
     } else {
       a1->state = IN;
-      a1->ratio = a0->ratio - 1;
+      a1->ratio--;
       a1->speed = a0->speed;
+	  h0->doing--;
       a0->state = DONE;
       a0->ratio = 1;
     }
   } else if (a0->ratio <= 0) {
     /* Just finished retreating back to center */
-    a0->state = DONE;
+    a0->state = EMPTY;
     a0->ratio = 0;
+	h0->doing--;
   }
 }
 
 static void handle_arm_in(config *bp, hexagon *h0, arm *a0, int j) {
-  if (a0->speed <= 0) abort();
   a0->ratio += a0->speed;
   if (a0->ratio >= 1) {
-    /* Just finished growing from edge to center.
-       Look for any available exits. */
-    a0->state = DONE;
-    //hexagon *h1 = h0->neighbors[(j + 3) % 6];
-    hexagon *h1 = neighbor(bp, h0, j);
-    h1->doing--;
-    a0->ratio = 1;
-    add_arms(bp, h0);
+    /* Just finished growing from edge to center.  Look for any available exits. */
+    if (add_arms(bp, h0)) {
+      a0->state = DONE;
+      a0->ratio = 1;
+	} else { // nub grow
+      a0->state = WAIT;
+	}
+  }
+}
+
+static void handle_nub_grow(config *bp, hexagon *h0, arm *a0, int j) {
+  a0->ratio += a0->speed;
+  if (a0->ratio >= 2) {
+	a0->state = DONE;
+	a0->ratio = 2;
   }
 }
 
@@ -457,7 +464,7 @@ state_handler arm_handlers[] = {
   [EMPTY] = NULL,
   [OUT] = handle_arm_out,
   [IN] = handle_arm_in,
-  [WAIT] = NULL,
+  [WAIT] = handle_nub_grow,
   [DONE] = NULL
 };
 
@@ -730,10 +737,14 @@ static void draw_hexagons(ModeInfo *mi) {
     GLfloat color[4]; HEXAGON_COLOR (color, h);
 
     int j, total_arms = 0;
+	GLfloat nub_ratio = 0;
     for (j = 0; j < 6; j++) {
       arm *a = &h->arms[j];
-      if (a->state == OUT || a->state == DONE) total_arms++;
-    }
+	  if (a->state == OUT || a->state == DONE || a->state == WAIT) {
+        total_arms++;
+	    if (a->state == WAIT) nub_ratio = a->ratio;
+	  }
+	}
 
     for (j = 0; j < 6; j++) {
       arm *a = &h->arms[j];
@@ -780,12 +791,12 @@ static void draw_hexagons(ModeInfo *mi) {
       }
 
       /* Line from center to edge, or edge to center.  */
-      if (a->state == IN || a->state == OUT || a->state == DONE) {
+      if (a->state == IN || a->state == OUT || a->state == DONE || a->state == WAIT) {
         GLfloat x   = (corners[j].x + corners[k].x) / 2;
         GLfloat y   = (corners[j].y + corners[k].y) / 2;
         GLfloat xoff = corners[k].x - corners[j].x;
         GLfloat yoff = corners[k].y - corners[j].y;
-        GLfloat line_length = h->arms[j].ratio;
+        GLfloat line_length = (a->state == WAIT) ? 1 : a->ratio;
         GLfloat start, end;
         GLfloat ncolor[4];
         GLfloat color1[4];
@@ -966,18 +977,23 @@ static void draw_hexagons(ModeInfo *mi) {
 
       /* Hexagon (one triangle of) in center to hide line miter/bevels.  */
       if (total_arms) {
-        int8_t s = (total_arms == 1) ? 3 : 2; // nub
-
         p[0] = pos;
-
-        p[1].x = pos.x + scaled_corners[j][s].x;
-        p[1].y = pos.y + scaled_corners[j][s].y;
         p[1].z = pos.z;
-
-        /* Inner edge of hexagon border */
-        p[2].x = pos.x + scaled_corners[k][s].x;
-        p[2].y = pos.y + scaled_corners[k][s].y;
         p[2].z = pos.z;
+
+		if (nub_ratio) {
+          p[1].x = pos.x + scaled_corners[j][2].x * nub_ratio;
+          p[1].y = pos.y + scaled_corners[j][2].y * nub_ratio;
+          p[2].x = pos.x + scaled_corners[k][2].x * nub_ratio;
+          p[2].y = pos.y + scaled_corners[k][2].y * nub_ratio;
+		} else {
+          int8_t s = (total_arms == 1) ? 3 : 2;
+          p[1].x = pos.x + scaled_corners[j][s].x;
+          p[1].y = pos.y + scaled_corners[j][s].y;
+          /* Inner edge of hexagon border */
+          p[2].x = pos.x + scaled_corners[k][s].x;
+          p[2].y = pos.y + scaled_corners[k][s].y;
+		}
 
         glColor4fv (color);
         glMaterialfv (GL_FRONT, GL_AMBIENT_AND_DIFFUSE, color);
