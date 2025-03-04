@@ -654,14 +654,14 @@ static void tick_hexagons (ModeInfo *mi) {
   if (!started && (doinga - ignorea) < 1 && (doingb - ignoreb) < 1 && bp->state != FADE) {
     printf("Fade started. iters=%d doinga=%d doingb=%d ignorea=%d ignoreb=%d\n",
             iters, doinga, doingb, ignorea, ignoreb);
-    bp->state = FADE; bp->fade_speed = 0.01;
+    bp->state = FADE; bp->fade_speed = 0.01; pause_fade = False;
 
     for (i=0;i<bp->chunk_count;i++) for (k=0;k<bp->chunks[i]->used;k++) {
       hexagon *h = bp->chunks[i]->chunk[k];
       if (h->state == IN || h->state == WAIT) h->state = OUT;
     }
   } else if (bp->state == FADE && !pause_fade) {
-    bp->fade_ratio -= bp->fade_speed * speed;
+    bp->fade_ratio -= bp->fade_speed;
     scale_corners(mi);
     if (bp->fade_ratio <= 0) {
       printf("Fade ended.\n");
