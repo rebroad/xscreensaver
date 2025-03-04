@@ -341,6 +341,39 @@ static Bool hex_invis(config *bp, int x, int y, int *sx, int *sy) {
   return 0; // Center is on-screen
 }
 
+const XYZ corners[] = {{  0, -1,   0 },       /*      0      */
+                       {  H, -0.5, 0 },       /*  5       1  */
+                       {  H,  0.5, 0 },       /*             */
+                       {  0,  1,   0 },       /*  4       2  */
+                       { -H,  0.5, 0 },       /*      3      */
+                       { -H, -0.5, 0 }};
+
+static XYZ scaled_corners[6][4];
+GLfloat size, wid, hgt, size1, size2, size3, size4, thick2;
+
+static void scale_corners(ModeInfo *mi) {
+  config *bp = &bps[MI_SCREEN(mi)];
+  size = (H * 2 / 3) / MI_COUNT(mi);
+  wid = 2.0 / bp->size;
+  hgt = wid * H;
+  GLfloat margin = thickness * 0.4;
+  size1 = size * (1 - margin * 2);
+  size2 = size * (1 - margin * 3);
+  thick2 = thickness * bp->fade_ratio;
+  size3 = size * thick2 * 0.8;
+  size4 = size3 * 2; // When total_arms == 1
+  for (int j = 0; j < 6; j++) {
+    scaled_corners[j][0].x = corners[j].x * size1;
+    scaled_corners[j][0].y = corners[j].y * size1;
+    scaled_corners[j][1].x = corners[j].x * size2;
+    scaled_corners[j][1].y = corners[j].y * size2;
+    scaled_corners[j][2].x = corners[j].x * size3;
+    scaled_corners[j][2].y = corners[j].y * size3;
+    scaled_corners[j][3].x = corners[j].x * size4;
+    scaled_corners[j][3].y = corners[j].y * size4;
+  }
+}
+
 static void reset_hextrail(ModeInfo *mi) {
   config *bp = &bps[MI_SCREEN(mi)];
 
@@ -427,39 +460,6 @@ state_handler arm_handlers[] = {
   [WAIT] = NULL,
   [DONE] = NULL
 };
-
-const XYZ corners[] = {{  0, -1,   0 },       /*      0      */
-                       {  H, -0.5, 0 },       /*  5       1  */
-                       {  H,  0.5, 0 },       /*             */
-                       {  0,  1,   0 },       /*  4       2  */
-                       { -H,  0.5, 0 },       /*      3      */
-                       { -H, -0.5, 0 }};
-
-static XYZ scaled_corners[6][4];
-GLfloat size, wid, hgt, size1, size2, size3, size4, thick2;
-
-static void scale_corners(ModeInfo *mi) {
-  config *bp = &bps[MI_SCREEN(mi)];
-  size = (H * 2 / 3) / MI_COUNT(mi);
-  wid = 2.0 / bp->size;
-  hgt = wid * H;
-  GLfloat margin = thickness * 0.4;
-  size1 = size * (1 - margin * 2);
-  size2 = size * (1 - margin * 3);
-  thick2 = thickness * bp->fade_ratio;
-  size3 = size * thick2 * 0.8;
-  size4 = size3 *= 2; // When total_arms == 1
-  for (int j = 0; j < 6; j++) {
-    scaled_corners[j][0].x = corners[j].x * size1;
-    scaled_corners[j][0].y = corners[j].y * size1;
-    scaled_corners[j][1].x = corners[j].x * size2;
-    scaled_corners[j][1].y = corners[j].y * size2;
-    scaled_corners[j][2].x = corners[j].x * size3;
-    scaled_corners[j][2].y = corners[j].y * size3;
-    scaled_corners[j][3].x = corners[j].x * size4;
-    scaled_corners[j][3].y = corners[j].y * size4;
-  }
-}
 
 static void tick_hexagons (ModeInfo *mi) {
   config *bp = &bps[MI_SCREEN(mi)];
@@ -966,18 +966,17 @@ static void draw_hexagons(ModeInfo *mi) {
 
       /* Hexagon (one triangle of) in center to hide line miter/bevels.  */
       if (total_arms) {
-        GLfloat size3 = size * thick2 * 0.8;
-        if (total_arms == 1) size3 *= 2;
+        int8_t s = (total_arms == 1) ? 3 : 2; // nub
 
         p[0] = pos;
 
-        p[1].x = pos.x + corners[j].x * size3;
-        p[1].y = pos.y + corners[j].y * size3;
+        p[1].x = pos.x + scaled_corners[j][s].x;
+        p[1].y = pos.y + scaled_corners[j][s].y;
         p[1].z = pos.z;
 
         /* Inner edge of hexagon border */
-        p[2].x = pos.x + corners[k].x * size3;
-        p[2].y = pos.y + corners[k].y * size3;
+        p[2].x = pos.x + scaled_corners[k][s].x;
+        p[2].y = pos.y + scaled_corners[k][s].y;
         p[2].z = pos.z;
 
         glColor4fv (color);
