@@ -424,7 +424,7 @@ static void handle_arm_out(config *bp, hexagon *h0, arm *a0, int j) {
       if (a1->speed > 0) a1->speed = -a1->speed;
     } else {
       a1->state = IN;
-      a1->ratio--;
+      a1->ratio = a0->ratio - 1;
       a1->speed = a0->speed;
 	  h0->doing--; h1->doing++;
       a0->state = DONE;
@@ -458,7 +458,7 @@ static void handle_nub_grow(config *bp, hexagon *h0, arm *a0, int j) {
   if (a0->ratio >= 2) {
 	a0->state = DONE;
 	h0->doing = 0;
-	a0->ratio = 2;
+	a0->ratio = 1;
   }
 }
 
