@@ -986,7 +986,7 @@ static void draw_hexagons(ModeInfo *mi) {
         glVertex3f (p[2].x, p[2].y, p[2].z);
         mi->polygon_count++;
       }
-    }
+    } // loop through arms
   }
 
   glEnd();
