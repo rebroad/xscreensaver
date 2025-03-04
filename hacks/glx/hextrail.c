@@ -50,7 +50,7 @@
 
 #define BELLRAND(n) ((frand((n)) + frand((n)) + frand((n))) / 3)
 
-typedef enum { EMPTY, IN, OUT, WAIT, DONE } state_t;
+typedef enum { EMPTY, IN, WAIT, OUT, DONE } state_t;
 
 typedef struct {
   state_t state;
@@ -140,7 +140,7 @@ ENTRYPOINT ModeSpecOpt hextrail_opts = {countof(opts), opts, countof(vars), vars
 
 #define MAX_N 147 // To fit within 16bit
 #define erm(n) ((n) * ((n) + 1) / 2)
-int q = 0, qq = 0, N = 0;
+int q, qq, N;
 
 static uint16_t xy_to_index(int, int);
 uint16_t xy_to_index(int x, int y) {
@@ -289,7 +289,7 @@ h0->x, h0->y, j, h1->x, h1->y, h1->state);
 # define H 0.8660254037844386   /* sqrt(3)/2 */
 
 /* Check if a hexagon is within the visible frustum using bounding circle test */
-static Bool hex_invis(config *bp, int x, int y) {
+static Bool hex_invis(config *bp, int x, int y, int *sx, int *sy) {
   GLfloat wid = 2.0 / bp->size;
   GLfloat hgt = wid * H;
   XYZ pos = { x * wid - y * wid / 2, y * hgt, 0 };
@@ -298,6 +298,9 @@ static Bool hex_invis(config *bp, int x, int y) {
   /* Project point to screen coordinates */
   gluProject((GLdouble)pos.x, (GLdouble)pos.y, (GLdouble)pos.z,
              bp->model, bp->proj, bp->viewport, &winX, &winY, &winZ);
+
+  if (sx) *sx = winX;
+  if (sy) *sy = winY;
 
   static time_t debug = 0;
   if (debug != bp->now) {
@@ -460,7 +463,7 @@ static void scale_corners(ModeInfo *mi) {
 static void tick_hexagons (ModeInfo *mi) {
   config *bp = &bps[MI_SCREEN(mi)];
   int i, j, k, doinga = 0, doingb = 0, ignorea = 0, ignoreb = 0;
-  time_t tick_report = 0;
+  static time_t tick_report = 0;
   static unsigned int ticks = 0, iters = 0, tps = 0;
   static int min_x = 0, min_y = 0, max_x = 0, max_y = 0;
   static int min_vx = 0, min_vy = 0, max_vx = 0, max_vy = 0;
@@ -469,7 +472,7 @@ static void tick_hexagons (ModeInfo *mi) {
   ticks++;
   for(i=0;i<bp->chunk_count;i++) for(k=0;k<bp->chunks[i]->used;k++) {
     hexagon *h0 = bp->chunks[i]->chunk[k];
-    if ((ticks % 4)) h0->invis = hex_invis(bp, h0->x, h0->y);
+    if (!(ticks % 4)) h0->invis = hex_invis(bp, h0->x, h0->y, 0, 0);
 
     Bool debug = False;
 
@@ -601,7 +604,7 @@ static void tick_hexagons (ModeInfo *mi) {
           int id = xy_to_index(x, y);
           if (id) {
             int idx = bp->hex_grid[id];
-            if (!idx && !hex_invis(bp,x,y)) {
+            if (!idx && !hex_invis(bp,x,y,0,0)) {
               empty_cells[empty_count][0] = x;
               empty_cells[empty_count++][1] = y;
             }
@@ -655,7 +658,6 @@ static void tick_hexagons (ModeInfo *mi) {
     }
   } else if (bp->state == FADE && !pause_fade) {
     bp->fade_ratio -= bp->fade_speed;
-    scale_corners(mi);
     if (bp->fade_ratio <= 0) {
       printf("Fade ended.\n");
       reset_hextrail (mi);
@@ -706,6 +708,11 @@ typedef struct { GLfloat x, y, z, r, g, b, a; } Vertex;
 static void draw_hexagons(ModeInfo *mi) {
   config *bp = &bps[MI_SCREEN(mi)];
   int wire = MI_IS_WIREFRAME(mi);
+  GLfloat length = H * 2 / 3;
+  GLfloat size = length / MI_COUNT(mi);
+  GLfloat thick2 = thickness * bp->fade_ratio;
+  GLfloat wid = 2.0 / bp->size;
+  GLfloat hgt = wid * H;
 
   // Dynamic array for vertices
   /*Vertex *vertices = NULL;
@@ -718,7 +725,7 @@ static void draw_hexagons(ModeInfo *mi) {
   glNormal3f (0, 0, 1);
 
   int i, k;
-  //int vertex_count = 0;
+  //vertex_count = 0;
   for (i=0;i<bp->chunk_count;i++) for (k=0;k<bp->chunks[i]->used;k++) {
     hexagon *h = bp->chunks[i]->chunk[k];
     if (draw_invis < h->invis) continue;
@@ -733,6 +740,9 @@ static void draw_hexagons(ModeInfo *mi) {
 
     for (j = 0; j < 6; j++) {
       arm *a = &h->arms[j];
+      GLfloat margin = thickness * 0.4;
+      GLfloat size1 = size * (1 - margin * 2);
+      GLfloat size2 = size * (1 - margin * 3);
       int k = (j + 1) % 6;
       XYZ p[6];
 
@@ -748,20 +758,20 @@ static void draw_hexagons(ModeInfo *mi) {
         glMaterialfv (GL_FRONT, GL_AMBIENT_AND_DIFFUSE, color1);
 
         /* Outer edge of hexagon border */
-        p[0].x = pos.x + scaled_corners[j][0].x;
-        p[0].y = pos.y + scaled_corners[j][0].y;
+        p[0].x = pos.x + corners[j].x * size1;
+        p[0].y = pos.y + corners[j].y * size1;
         p[0].z = pos.z;
 
-        p[1].x = pos.x + scaled_corners[k][0].x;
-        p[1].y = pos.y + scaled_corners[k][0].y;
+        p[1].x = pos.x + corners[k].x * size1;
+        p[1].y = pos.y + corners[k].y * size1;
         p[1].z = pos.z;
 
         /* Inner edge of hexagon border */
-        p[2].x = pos.x + scaled_corners[k][1].x;
-        p[2].y = pos.y + scaled_corners[k][1].y;
+        p[2].x = pos.x + corners[k].x * size2;
+        p[2].y = pos.y + corners[k].y * size2;
         p[2].z = pos.z;
-        p[3].x = pos.x + scaled_corners[j][1].x;
-        p[3].y = pos.y + scaled_corners[j][1].y;
+        p[3].x = pos.x + corners[j].x * size2;
+        p[3].y = pos.y + corners[j].y * size2;
         p[3].z = pos.z;
 
         glVertex3f (p[0].x, p[0].y, p[0].z);
@@ -962,17 +972,18 @@ static void draw_hexagons(ModeInfo *mi) {
 
       /* Hexagon (one triangle of) in center to hide line miter/bevels.  */
       if (total_arms) {
-        int8_t i = (total_arms == 1) ? 3 : 2; // nub - TODO should not be within arms loop
+        GLfloat size3 = size * thick2 * 0.8;
+        if (total_arms == 1) size3 *= 2;
 
         p[0] = pos;
 
-        p[1].x = pos.x + scaled_corners[j][i].x;
-        p[1].y = pos.y + scaled_corners[j][i].y;
+        p[1].x = pos.x + corners[j].x * size3;
+        p[1].y = pos.y + corners[j].y * size3;
         p[1].z = pos.z;
 
         /* Inner edge of hexagon border */
-        p[2].x = pos.x + scaled_corners[k][i].x;
-        p[2].y = pos.y + scaled_corners[k][i].y;
+        p[2].x = pos.x + corners[k].x * size3;
+        p[2].y = pos.y + corners[k].y * size3;
         p[2].z = pos.z;
 
         glColor4fv (color);
@@ -982,7 +993,7 @@ static void draw_hexagons(ModeInfo *mi) {
         glVertex3f (p[2].x, p[2].y, p[2].z);
         mi->polygon_count++;
       }
-    } // loop through arms
+    }
   }
 
   glEnd();
@@ -990,7 +1001,7 @@ static void draw_hexagons(ModeInfo *mi) {
 
 
 /* Window management, etc */
-ENTRYPOINT void reshape_hextrail (ModeInfo *mi, int width, int height) {
+ENTRYPOINT void reshape_hextrail(ModeInfo *mi, int width, int height) {
   config *bp = &bps[MI_SCREEN(mi)];
   GLfloat h = (GLfloat)height / (GLfloat)width;
   int y = 0;
@@ -1019,7 +1030,7 @@ ENTRYPOINT void reshape_hextrail (ModeInfo *mi, int width, int height) {
   glClear(GL_COLOR_BUFFER_BIT);
 }
 
-ENTRYPOINT Bool hextrail_handle_event (ModeInfo *mi,
+ENTRYPOINT Bool hextrail_handle_event(ModeInfo *mi,
 #ifdef USE_SDL
         SDL_Event *event
 #else
@@ -1057,7 +1068,6 @@ ENTRYPOINT Bool hextrail_handle_event (ModeInfo *mi,
       MI_COUNT(mi)--;
       if (MI_COUNT(mi) < 1) MI_COUNT(mi) = 1;
       bp->size = MI_COUNT(mi) * 2;
-      scale_corners(mi);
     } else if (
 #ifdef USE_SDL
             keysym == SDLK_RIGHT
@@ -1067,7 +1077,6 @@ ENTRYPOINT Bool hextrail_handle_event (ModeInfo *mi,
             ) {
       MI_COUNT(mi)--;
       if (MI_COUNT(mi) < 1) MI_COUNT(mi) = 1;
-      scale_corners(mi);
     } else if (
 #ifdef USE_SDL
             keysym == SDLK_LEFT
@@ -1076,7 +1085,6 @@ ENTRYPOINT Bool hextrail_handle_event (ModeInfo *mi,
 #endif
             ) {
       MI_COUNT(mi)++;
-      scale_corners(mi);
     } else if (c == '<' || c == ',' || c == '-' || c == '_' ||
                c == '\010' || c == '\177' ||
 #ifdef USE_SDL
@@ -1087,7 +1095,6 @@ ENTRYPOINT Bool hextrail_handle_event (ModeInfo *mi,
             ) {
       MI_COUNT(mi)++;
       bp->size = MI_COUNT(mi) * 2;
-      scale_corners(mi);
     } else if (c == 's') {
       draw_invis = (int8_t)(draw_invis - 1) % 4;
       printf("%s: draw_invis = %d\n", __func__, draw_invis);
@@ -1126,7 +1133,7 @@ ENTRYPOINT Bool hextrail_handle_event (ModeInfo *mi,
   return False;
 }
 
-ENTRYPOINT void init_hextrail (ModeInfo *mi) {
+ENTRYPOINT void init_hextrail(ModeInfo *mi) {
   MI_INIT (mi, bps);
   config *bp = &bps[MI_SCREEN(mi)];
 
@@ -1156,12 +1163,11 @@ ENTRYPOINT void init_hextrail (ModeInfo *mi) {
 
   bp->chunk_count = 0;
 
-  bp->size = MI_COUNT(mi) * 2; N = bp->size;
+  bp->size = MI_COUNT(mi) * 2; N = bp->size * 2 + 1; // N should be odd
   if (N > MAX_N) N = MAX_N;
   bp->hex_grid = (uint16_t *)calloc(N*(N+1)*3+2, sizeof(uint16_t));
   q = (N - 1) / 2;
   qq = q * 2;
-  scale_corners(mi);
   reset_hextrail(mi);
 }
 
