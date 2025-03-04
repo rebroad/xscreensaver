@@ -1082,18 +1082,19 @@ ENTRYPOINT Bool hextrail_handle_event(ModeInfo *mi,
             keysym == XK_Right
 #endif
             ) {
-      MI_COUNT(mi)--;
-      if (MI_COUNT(mi) < 1) MI_COUNT(mi) = 1;
-      scale_corners(mi);
+      speed *= 2;
+	  if (speed > 20) speed = 20;
+      printf("%s: speed = %f -> %f\n", __func__, speed/2, speed);
     } else if (
 #ifdef USE_SDL
             keysym == SDLK_LEFT
 #else
             keysym == XK_Left
 #endif
-            ) {
-      MI_COUNT(mi)++;
-      scale_corners(mi);
+      ) {
+      speed /= 2;
+	  if (speed < 0.0001) speed = 0.0001;
+      printf("%s: speed = %f -> %f\n", __func__, speed*2, speed);
     } else if (c == '<' || c == ',' || c == '_' ||
                c == '\010' || c == '\177' ||
 #ifdef USE_SDL
@@ -1106,13 +1107,12 @@ ENTRYPOINT Bool hextrail_handle_event(ModeInfo *mi,
       bp->size = MI_COUNT(mi) * 2;
       scale_corners(mi);
     } else if (c == '-') {
-      speed /= 2;
-	  if (speed < 0.0001) speed = 0.0001;
-      printf("%s: speed = %f -> %f\n", __func__, speed*2, speed);
+      MI_COUNT(mi)--;
+      if (MI_COUNT(mi) < 1) MI_COUNT(mi) = 1;
+      scale_corners(mi);
     } else if (c == '=' || c == '+') {
-      speed *= 2;
-	  if (speed > 20) speed = 20;
-      printf("%s: speed = %f -> %f\n", __func__, speed/2, speed);
+      MI_COUNT(mi)++;
+      scale_corners(mi);
     } else if (c == 's') {
       draw_invis = (int8_t)(draw_invis - 1) % 4;
       printf("%s: draw_invis = %d\n", __func__, draw_invis);
