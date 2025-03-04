@@ -364,6 +364,7 @@ static void reset_hextrail(ModeInfo *mi) {
   bp->total_hexagons = 0;
   bp->state = FIRST;
   bp->fade_ratio = 1;
+  scale_corners(mi);
 
   bp->ncolors = 8;
   if (!bp->colors)
@@ -1166,7 +1167,6 @@ ENTRYPOINT void init_hextrail(ModeInfo *mi) {
   q = (N - 1) / 2;
   qq = q * 2;
   reset_hextrail(mi);
-  scale_corners(mi);
 }
 
 
