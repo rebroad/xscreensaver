@@ -214,7 +214,7 @@ static hexagon *do_hexagon(config *bp, int px, int py, int x, int y) {
   bp->total_hexagons++;
   bp->hex_grid[id] = bp->total_hexagons;
   h0->x = x; h0->y = y;
-  printf("New hex at %d,%d (parent %d,%d)\n", x, y, px, py);
+  //printf("New hex at %d,%d (parent %d,%d)\n", x, y, px, py);
 
   return h0;
 }
@@ -738,10 +738,8 @@ static void draw_hexagons(ModeInfo *mi) {
       arm *a = &h->arms[j];
 	  if (a->state == OUT || a->state == DONE || a->state == WAIT) {
         total_arms++;
-	    if (a->state == WAIT) {
+	    if (a->state == WAIT)
           nub_ratio = 1.0 + sin(a->ratio * M_PI/2.0);
-          printf("a->ratio=%f nub_ratio=%f\n", a->ratio, nub_ratio);
-		}
 	  }
 	}
 
