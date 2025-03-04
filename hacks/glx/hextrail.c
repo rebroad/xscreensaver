@@ -441,13 +441,14 @@ static void handle_arm_out(config *bp, hexagon *h0, arm *a0, int j) {
 static void handle_arm_in(config *bp, hexagon *h0, arm *a0, int j) {
   a0->ratio += a0->speed;
   if (a0->ratio >= 1) {
+	  h0->doing = 0;
     /* Just finished growing from edge to center.  Look for any available exits. */
     if (add_arms(bp, h0)) {
       a0->state = DONE;
-	  h0->doing--;
       a0->ratio = 1;
 	} else { // nub grow
       a0->state = WAIT;
+	  h0->doing = 1;
 	}
   }
 }
@@ -456,7 +457,7 @@ static void handle_nub_grow(config *bp, hexagon *h0, arm *a0, int j) {
   a0->ratio += a0->speed;
   if (a0->ratio >= 2) {
 	a0->state = DONE;
-	h0->doing--;
+	h0->doing = 0;
 	a0->ratio = 2;
   }
 }
