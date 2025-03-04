@@ -736,9 +736,6 @@ static void draw_hexagons(ModeInfo *mi) {
 
     for (j = 0; j < 6; j++) {
       arm *a = &h->arms[j];
-      GLfloat margin = thickness * 0.4;
-      GLfloat size1 = size * (1 - margin * 2);
-      GLfloat size2 = size * (1 - margin * 3);
       int k = (j + 1) % 6;
       XYZ p[6];
 
@@ -754,20 +751,20 @@ static void draw_hexagons(ModeInfo *mi) {
         glMaterialfv (GL_FRONT, GL_AMBIENT_AND_DIFFUSE, color1);
 
         /* Outer edge of hexagon border */
-        p[0].x = pos.x + corners[j].x * size1;
-        p[0].y = pos.y + corners[j].y * size1;
+        p[0].x = pos.x + scaled_corners[j][0].x;
+        p[0].y = pos.y + scaled_corners[j][0].y;
         p[0].z = pos.z;
 
-        p[1].x = pos.x + corners[k].x * size1;
-        p[1].y = pos.y + corners[k].y * size1;
+        p[1].x = pos.x + scaled_corners[k][0].x;
+        p[1].y = pos.y + scaled_corners[k][0].y;
         p[1].z = pos.z;
 
         /* Inner edge of hexagon border */
-        p[2].x = pos.x + corners[k].x * size2;
-        p[2].y = pos.y + corners[k].y * size2;
+        p[2].x = pos.x + scaled_corners[k][1].x;
+        p[2].y = pos.y + scaled_corners[k][1].y;
         p[2].z = pos.z;
-        p[3].x = pos.x + corners[j].x * size2;
-        p[3].y = pos.y + corners[j].y * size2;
+        p[3].x = pos.x + scaled_corners[j][1].x;
+        p[3].y = pos.y + scaled_corners[j][1].y;
         p[3].z = pos.z;
 
         glVertex3f (p[0].x, p[0].y, p[0].z);
