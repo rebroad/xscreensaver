@@ -1050,7 +1050,7 @@ ENTRYPOINT Bool hextrail_handle_event(ModeInfo *mi,
     XLookupString (&event->xkey, &c, 1, &keysym, 0);
 #endif
 
-    if (c == ' ' || c == '\t' || c == '\r' || c == '\n') ;
+    if (c == '\t' || c == '\r' || c == '\n') ;
     else if (c == '>' || c == '.' || c == '+' || c == '=' ||
 #ifdef USE_SDL
             keysym == SDLK_UP || keysym == SDLK_PAGEDOWN
@@ -1104,7 +1104,7 @@ ENTRYPOINT Bool hextrail_handle_event(ModeInfo *mi,
     } else if (c == 'h') {
       hexes_on = !hexes_on;
       printf("%s: hexes_on = %d\n", __func__, hexes_on);
-    } else if (c == 'p') {
+    } else if (c == 'p' || c == ' ') {
       if (pause_fade) {
         pause_fade = False;
         printf("%s: pause_fade = %d hexagons=%d\n", __func__, pause_fade, bp->total_hexagons);
