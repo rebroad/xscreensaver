@@ -973,7 +973,7 @@ static void draw_hexagons(ModeInfo *mi) {
       } // arm is IN, OUT or DONE
 
       /* Hexagon (one triangle of) in center to hide line miter/bevels.  */
-      if (total_arms) {
+      if (total_arms && a->state != DONE && a->state != OUT) {
         p[0] = pos;
         p[1].z = pos.z;
         p[2].z = pos.z;
