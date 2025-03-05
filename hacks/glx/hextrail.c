@@ -1186,7 +1186,7 @@ ENTRYPOINT void init_hextrail(ModeInfo *mi) {
     N = MAX_N;
   }
   bp->hex_grid = (uint16_t *)calloc(N*(N+1)*3+2, sizeof(uint16_t));
-  q = (N - 1) / 2;
+  q = (N + 1) / 2;
   qq = q * 2;
   reset_hextrail(mi);
 }
