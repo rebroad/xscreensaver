@@ -288,7 +288,7 @@ h0->x, h0->y, j, h1->x, h1->y, h1->state);
 # define H 0.8660254037844386   /* sqrt(3)/2 */
 
 /* Check if a hexagon is within the visible frustum using bounding circle test */
-static Bool hex_invis(config *bp, int x, int y, int *sx, int *sy) {
+static Bool hex_invis(config *bp, int x, int y, GLfloat *rad) {
   GLfloat wid = 2.0 / bp->size;
   GLfloat hgt = wid * H;
   XYZ pos = { x * wid - y * wid / 2, y * hgt, 0 };
@@ -297,9 +297,6 @@ static Bool hex_invis(config *bp, int x, int y, int *sx, int *sy) {
   /* Project point to screen coordinates */
   gluProject((GLdouble)pos.x, (GLdouble)pos.y, (GLdouble)pos.z,
              bp->model, bp->proj, bp->viewport, &winX, &winY, &winZ);
-
-  if (sx) *sx = winX;
-  if (sy) *sy = winY;
 
   static time_t debug = 0;
   if (debug != bp->now) {
@@ -328,6 +325,7 @@ static Bool hex_invis(config *bp, int x, int y, int *sx, int *sy) {
 
   // And now we take both radiuses and work out the maximum it could in reality.
   GLdouble radius = (radiusx > radiusy) ? radiusx : radiusy;
+  if (rad) *rad = radius;
 
   if (winX + radius < bp->viewport[0] || winX - radius > bp->viewport[0] + bp->viewport[2] ||
       winY + radius < bp->viewport[1] || winY - radius > bp->viewport[1] + bp->viewport[3])
@@ -476,7 +474,8 @@ static void tick_hexagons (ModeInfo *mi) {
   ticks++;
   for(i=0;i<bp->chunk_count;i++) for(k=0;k<bp->chunks[i]->used;k++) {
     hexagon *h0 = bp->chunks[i]->chunk[k];
-    if (!(ticks % 4)) h0->invis = hex_invis(bp, h0->x, h0->y, 0, 0);
+    if (!(ticks % 4)) h0->invis = hex_invis(bp, h0->x, h0->y, 0);
+	// TODO - capture the radius from hex_invis and use for reducing frawing when FPS low
 
     Bool debug = False;
 
@@ -608,7 +607,7 @@ static void tick_hexagons (ModeInfo *mi) {
           int id = xy_to_index(x, y);
           if (id) {
             int idx = bp->hex_grid[id];
-            if (!idx && !hex_invis(bp,x,y,0,0)) {
+            if (!idx && !hex_invis(bp,x,y,0)) {
               empty_cells[empty_count][0] = x;
               empty_cells[empty_count++][1] = y;
             }
