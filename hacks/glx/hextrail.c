@@ -1181,7 +1181,10 @@ ENTRYPOINT void init_hextrail(ModeInfo *mi) {
   bp->chunk_count = 0;
 
   bp->size = MI_COUNT(mi) * 2; N = bp->size * 2 + 1; // N should be odd
-  if (N > MAX_N) N = MAX_N;
+  if (N > MAX_N) {
+    printf("%s: Limiting N (%d) to MAX_N (%d)\n", __func__, N, MAX_N);
+    N = MAX_N;
+  }
   bp->hex_grid = (uint16_t *)calloc(N*(N+1)*3+2, sizeof(uint16_t));
   q = (N - 1) / 2;
   qq = q * 2;
