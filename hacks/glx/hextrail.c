@@ -438,19 +438,22 @@ static void handle_arm_in(config *bp, hexagon *h0, arm *a0, int j) {
       a0->ratio = 1;
 	} else { // nub grow
       a0->state = WAIT;
-	  a0->ratio--;
+	  //printf("%s: nub:%d,%d ratio=%f\n", __func__, h0->x, h0->y, a0->ratio);
 	  h0->doing = 1;
 	}
   }
 }
 
 static void handle_nub_grow(config *bp, hexagon *h0, arm *a0, int j) {
-  a0->ratio += a0->speed * speed;
-  if (a0->ratio >= 1) {
+  //printf("%s: nub:%d,%d ratio=%f->", __func__, h0->x, h0->y, a0->ratio);
+  a0->ratio += a0->speed * (2 - a0->ratio);
+  if (a0->ratio >= 1.999) {
 	a0->state = DONE;
 	h0->doing = 0;
 	a0->ratio = 1;
-  }
+    printf("%f DONE\n", a0->ratio);
+  } else
+    printf("%f\n", a0->ratio);
 }
 
 typedef void (*state_handler)(config *bp, hexagon *h0, arm *a0, int j);
@@ -738,7 +741,7 @@ static void draw_hexagons(ModeInfo *mi) {
 	  if (a->state == OUT || a->state == DONE || a->state == WAIT) {
         total_arms++;
 	    if (a->state == WAIT)
-          nub_ratio = 1.0 + sin(a->ratio * M_PI/2.0);
+          nub_ratio = a->ratio;
 	  }
 	}
 
@@ -809,19 +812,19 @@ static void draw_hexagons(ModeInfo *mi) {
         ncolor[0] = (ncolor[0] + color[0]) / 2;
         ncolor[1] = (ncolor[1] + color[1]) / 2;
         ncolor[2] = (ncolor[2] + color[2]) / 2;
-        ncolor[3] = (ncolor[3] + color[3]) / 2;
+        //ncolor[3] = (ncolor[3] + color[3]) / 2;
 
         if (a->state == OUT) {
           start = 0;
           end = size * line_length;
           memcpy (color1, color,  sizeof(color1));
           memcpy (color2, ncolor, sizeof(color1));
-        } else {
+		} else {
           start = size;
           end = size * (1 - line_length);
           memcpy (color1, ncolor, sizeof(color1));
           memcpy (color2, color,  sizeof(color1));
-        }
+		}
 
         //if (! h->neighbors[j]) abort();  /* arm/neighbor mismatch */
 
