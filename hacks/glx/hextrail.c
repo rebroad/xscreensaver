@@ -438,22 +438,19 @@ static void handle_arm_in(config *bp, hexagon *h0, arm *a0, int j) {
       a0->ratio = 1;
 	} else { // nub grow
       a0->state = WAIT;
-	  //printf("%s: nub:%d,%d ratio=%f\n", __func__, h0->x, h0->y, a0->ratio);
+	  a0->ratio = ((a0->ratio - 1) * 5) + 1; a0->speed *= 5;
 	  h0->doing = 1;
 	}
   }
 }
 
 static void handle_nub_grow(config *bp, hexagon *h0, arm *a0, int j) {
-  //printf("%s: nub:%d,%d ratio=%f->", __func__, h0->x, h0->y, a0->ratio);
   a0->ratio += a0->speed * (2 - a0->ratio);
   if (a0->ratio >= 1.999) {
 	a0->state = DONE;
 	h0->doing = 0;
 	a0->ratio = 1;
-    printf("%f DONE\n", a0->ratio);
-  } else
-    printf("%f\n", a0->ratio);
+  }
 }
 
 typedef void (*state_handler)(config *bp, hexagon *h0, arm *a0, int j);
