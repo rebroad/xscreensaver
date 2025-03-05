@@ -145,7 +145,7 @@ void xlockmore_setup (struct xscreensaver_function_table *xsft, void *arg) {
 	      new->argKind = XrmoptionNoArg;
 	      new->value = "False";
 	    } else {
-	      new->argKind = XrmoptionNoArg;
+	      new->argKind = XrmoptionSepArg;
 	      new->value = 0;
 	    }
 	  }
