@@ -152,8 +152,7 @@ uint16_t xy_to_index(int x, int y) {
     return (uint16_t)index;
 }
 
-static hexagon *do_hexagon(config *bp, int px, int py, int x, int y) {
-  int id = xy_to_index(x, y);
+static hexagon *do_hexagon(config *bp, int px, int py, int id) {
   if (!id) {
     static time_t debug = 0;
     if (debug != bp->now) {
@@ -166,27 +165,20 @@ static hexagon *do_hexagon(config *bp, int px, int py, int x, int y) {
   int idx = bp->hex_grid[id];
   if (idx) { // Zero means empty
     // We found an existing hexagon, so return it.
-    int i = (idx-1) / HEXAGON_CHUNK_SIZE;
-    int k = (idx-1) % HEXAGON_CHUNK_SIZE;
+    int i = (idx-1) / HEXAGON_CHUNK_SIZE, k = (idx-1) % HEXAGON_CHUNK_SIZE;
     if (i >= bp->chunk_count) {
       printf("%s: Invalid chunk access (%d,%d)->(%d,%d) id=%d idx=%d ++i=%d/%d k=%d\n",
              __func__, px, py, x, y, id, idx, i, bp->chunk_count, k);
       return NULL;
-    }
-    if (k >= bp->chunks[i]->used) {
+    } else if (k >= bp->chunks[i]->used) {
       printf("%s: Invalid chunk access id=%d idx=%d i=%d/%d ++k=%d/%d\n",
              __func__, id, idx, i, bp->chunk_count, k, bp->chunks[i]->used);
       return NULL;
     }
-    hexagon *h = bp->chunks[i]->chunk[k];
-    if (h)
-      ;//printf("ID for (%d,%d)=%d hex_grid[%d]=%d (%d,%d)\n", x, y, id, id, idx, h->x, h->y);
-    else
-      ;//printf("ID for (%d,%d)=%d hex_grid[%d]=%d (NULL)\n", x, y, id, id, idx);
-    return h;
+    return bp->chunks[i]->chunk[k];
   }
-  //printf("ID for (%d,%d)=%d hex_grid[%d]=%d\n", x, y, id, id, idx);
 
+  // Create a new hexagon
   if (bp->total_hexagons >= bp->chunk_count * HEXAGON_CHUNK_SIZE) {
     hex_chunk **new_chunks = realloc(bp->chunks, (bp->chunk_count+1) * sizeof(hex_chunk *));
     if (!new_chunks) {
@@ -219,7 +211,7 @@ static hexagon *do_hexagon(config *bp, int px, int py, int x, int y) {
   return h0;
 }
 
-static hexagon *neighbor(config *bp, hexagon *h0, int j) {
+int neighbor(config *bp, int px, int py, int j) {
   // First value is arm, 2nd value is X, 3rd is Y
   //   0,0   1,0   2,0   3,0   4,0               5   0
   //      1,1   2,1   3,1   4,1   5,1
@@ -229,8 +221,8 @@ static hexagon *neighbor(config *bp, hexagon *h0, int j) {
   const int offset[6][2] = {
       {0, -1}, {1, 0}, {1, 1}, {0, 1}, {-1, 0}, {-1, -1}
   };
-  int x = h0->x + offset[j][0], y = h0->y + offset[j][1];
-  return do_hexagon(bp, h0->x, h0->y, x, y);
+  int nx = px + offset[j][0], ny = py + offset[j][1];
+  return xy_to_index(nx, ny);
 }
 
 static int add_arms(config *bp, hexagon *h0) {
@@ -424,32 +416,32 @@ static void handle_arm_out(config *bp, hexagon *h0, arm *a0, int j) {
     /* Just finished retreating back to center */
     a0->state = EMPTY;
     a0->ratio = 0;
-	h0->doing--;
+    h0->doing--;
   }
 }
 
 static void handle_arm_in(config *bp, hexagon *h0, arm *a0, int j) {
   a0->ratio += a0->speed * speed;
   if (a0->ratio >= 1) {
-	  h0->doing = 0;
+      h0->doing = 0;
     /* Just finished growing from edge to center.  Look for any available exits. */
     if (add_arms(bp, h0)) {
       a0->state = DONE;
       a0->ratio = 1;
-	} else { // nub grow
+    } else { // nub grow
       a0->state = WAIT;
-	  a0->ratio = ((a0->ratio - 1) * 5) + 1; a0->speed *= 5;
-	  h0->doing = 1;
-	}
+      a0->ratio = ((a0->ratio - 1) * 5) + 1; a0->speed *= 5;
+      h0->doing = 1;
+    }
   }
 }
 
 static void handle_nub_grow(config *bp, hexagon *h0, arm *a0, int j) {
   a0->ratio += a0->speed * (2 - a0->ratio);
   if (a0->ratio >= 1.999) {
-	a0->state = DONE;
-	h0->doing = 0;
-	a0->ratio = 1;
+    a0->state = DONE;
+    h0->doing = 0;
+    a0->ratio = 1;
   }
 }
 
@@ -475,7 +467,7 @@ static void tick_hexagons (ModeInfo *mi) {
   for(i=0;i<bp->chunk_count;i++) for(k=0;k<bp->chunks[i]->used;k++) {
     hexagon *h0 = bp->chunks[i]->chunk[k];
     if (!(ticks % 4)) h0->invis = hex_invis(bp, h0->x, h0->y, 0);
-	// TODO - capture the radius from hex_invis and use for reducing frawing when FPS low
+    // TODO - capture the radius from hex_invis and use for reducing frawing when FPS low
 
     Bool debug = False;
 
@@ -732,15 +724,15 @@ static void draw_hexagons(ModeInfo *mi) {
     GLfloat color[4]; HEXAGON_COLOR (color, h);
 
     int j, total_arms = 0;
-	GLfloat nub_ratio = 0;
+    GLfloat nub_ratio = 0;
     for (j = 0; j < 6; j++) {
       arm *a = &h->arms[j];
-	  if (a->state == OUT || a->state == DONE || a->state == WAIT) {
+      if (a->state == OUT || a->state == DONE || a->state == WAIT) {
         total_arms++;
-	    if (a->state == WAIT)
+        if (a->state == WAIT)
           nub_ratio = a->ratio;
-	  }
-	}
+      }
+    }
 
     for (j = 0; j < 6; j++) {
       arm *a = &h->arms[j];
@@ -800,7 +792,7 @@ static void draw_hexagons(ModeInfo *mi) {
 
         /* Color of the outer point of the line is average color of
            this and the neighbor. */
-        hexagon *hn = neighbor(bp, h, j);
+        int hn = neighbor(bp, h->x, h->y, j);
         if (!hn) {
             printf("%s: h=%d,%d h=%d BAD NEIGHBOR\n", __func__, h->x, h->y, j);
             continue;
@@ -816,12 +808,12 @@ static void draw_hexagons(ModeInfo *mi) {
           end = size * line_length;
           memcpy (color1, color,  sizeof(color1));
           memcpy (color2, ncolor, sizeof(color1));
-		} else {
+        } else {
           start = size;
           end = size * (1 - line_length);
           memcpy (color1, ncolor, sizeof(color1));
           memcpy (color2, color,  sizeof(color1));
-		}
+        }
 
         //if (! h->neighbors[j]) abort();  /* arm/neighbor mismatch */
 
@@ -977,19 +969,19 @@ static void draw_hexagons(ModeInfo *mi) {
         p[1].z = pos.z;
         p[2].z = pos.z;
 
-		if (nub_ratio) {
+        if (nub_ratio) {
           p[1].x = pos.x + scaled_corners[j][2].x * nub_ratio;
           p[1].y = pos.y + scaled_corners[j][2].y * nub_ratio;
           p[2].x = pos.x + scaled_corners[k][2].x * nub_ratio;
           p[2].y = pos.y + scaled_corners[k][2].y * nub_ratio;
-		} else {
+        } else {
           int8_t s = (total_arms == 1) ? 3 : 2;
           p[1].x = pos.x + scaled_corners[j][s].x;
           p[1].y = pos.y + scaled_corners[j][s].y;
           /* Inner edge of hexagon border */
           p[2].x = pos.x + scaled_corners[k][s].x;
           p[2].y = pos.y + scaled_corners[k][s].y;
-		}
+        }
 
         glColor4fv (color);
         glMaterialfv (GL_FRONT, GL_AMBIENT_AND_DIFFUSE, color);
@@ -1082,7 +1074,7 @@ ENTRYPOINT Bool hextrail_handle_event(ModeInfo *mi,
 #endif
             ) {
       speed *= 2;
-	  if (speed > 20) speed = 20;
+      if (speed > 20) speed = 20;
       printf("%s: speed = %f -> %f\n", __func__, speed/2, speed);
     } else if (
 #ifdef USE_SDL
@@ -1092,7 +1084,7 @@ ENTRYPOINT Bool hextrail_handle_event(ModeInfo *mi,
 #endif
       ) {
       speed /= 2;
-	  if (speed < 0.0001) speed = 0.0001;
+      if (speed < 0.0001) speed = 0.0001;
       printf("%s: speed = %f -> %f\n", __func__, speed*2, speed);
     } else if (c == '<' || c == ',' || c == '_' ||
                c == '\010' || c == '\177' ||
