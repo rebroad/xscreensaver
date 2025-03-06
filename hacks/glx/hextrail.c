@@ -48,8 +48,6 @@
 #define DEF_SPEED       "1.0"
 #define DEF_THICKNESS   "0.15"
 
-#define BELLRAND(n) ((frand((n)) + frand((n)) + frand((n))) / 3)
-
 typedef enum { EMPTY, IN, WAIT, OUT, DONE } state_t;
 
 typedef struct {
@@ -270,10 +268,7 @@ static int8_t add_arms(config *bp, hexagon *h0) {
       continue;
     }
     a0->state = OUT;
-    a0->ratio = 0;
-    a1->ratio = 0;
     a0->speed = 0.05 * (0.8 + frand(1.0));
-    a1->speed = a0->speed;
 
     if (h1->state == EMPTY) {
       h1->state = IN;
