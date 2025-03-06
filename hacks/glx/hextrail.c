@@ -445,9 +445,10 @@ static void handle_arm_in(config *bp, hexagon *h0, arm *a0, int j) {
       a0->ratio = ((a0->ratio - 1) * 5) + 1; a0->speed *= 5;
       h0->doing = 1;
     }
-  } else if (a0->ratio >= 0.9 && !exits(bp, h0)) {
+  } else if (a0->ratio >= 0.9 && a0->speed < 0.2 && (a0->speed > 0.1 || !exits(bp, h0))) {
+	//printf("%s: %d,%d speed=%f->", __func__, h0->x, h0->y, a0->speed);
     a0->speed *= 1.5;
-    if (a0->speed > 0.1) a0->speed = 0.1;
+	//printf("%f\n", a0->speed);
   }
 }
 
