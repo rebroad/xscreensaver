@@ -142,8 +142,7 @@ ENTRYPOINT ModeSpecOpt hextrail_opts = {countof(opts), opts, countof(vars), vars
 #define erm(n) ((n) * ((n) + 1) / 2)
 int q, qq, N;
 
-static uint16_t xy_to_index(int, int);
-uint16_t xy_to_index(int x, int y) {
+static uint16_t xy_to_index(int x, int y) {
     if (abs(x) > q || abs(y) > q || abs(x-y) > q) return 0;
     int32_t index;
     if (y < 1) index = x + qq + erm(y + N) - erm(q - 1) + 1;
@@ -152,7 +151,15 @@ uint16_t xy_to_index(int x, int y) {
     return (uint16_t)index;
 }
 
-static hexagon *do_hexagon(config *bp, int px, int py, int id) {
+static hexagon *get_hex(config *bp, uint16_t id) {
+  uint16_t idx = bp->hex_grid[id];
+  if (!idx) return NULL;  // Empty cell
+  int i = (idx-1) / HEXAGON_CHUNK_SIZE, k = (idx-1) % HEXAGON_CHUNK_SIZE;
+  return bp->chunks[i]->chunk[k];
+}
+
+static hexagon *do_hexagon(config *bp, int8_t px, int8_t py, int8_t x, int8_t y) {
+  uint16_t id = xy_to_index(x, y);
   if (!id) {
     static time_t debug = 0;
     if (debug != bp->now) {
@@ -162,21 +169,8 @@ static hexagon *do_hexagon(config *bp, int px, int py, int id) {
     return NULL;
   }
 
-  int idx = bp->hex_grid[id];
-  if (idx) { // Zero means empty
-    // We found an existing hexagon, so return it.
-    int i = (idx-1) / HEXAGON_CHUNK_SIZE, k = (idx-1) % HEXAGON_CHUNK_SIZE;
-    if (i >= bp->chunk_count) {
-      printf("%s: Invalid chunk access (%d,%d)->(%d,%d) id=%d idx=%d ++i=%d/%d k=%d\n",
-             __func__, px, py, x, y, id, idx, i, bp->chunk_count, k);
-      return NULL;
-    } else if (k >= bp->chunks[i]->used) {
-      printf("%s: Invalid chunk access id=%d idx=%d i=%d/%d ++k=%d/%d\n",
-             __func__, id, idx, i, bp->chunk_count, k, bp->chunks[i]->used);
-      return NULL;
-    }
-    return bp->chunks[i]->chunk[k];
-  }
+  hexagon *h0 = get_hex(bp, id);
+  if (h0) return h0; // We found an existing hexagon, so return it.
 
   // Create a new hexagon
   if (bp->total_hexagons >= bp->chunk_count * HEXAGON_CHUNK_SIZE) {
@@ -195,7 +189,7 @@ static hexagon *do_hexagon(config *bp, int px, int py, int id) {
     bp->chunk_count++;
   }
 
-  hexagon *h0 = calloc(1, sizeof(hexagon));
+  h0 = calloc(1, sizeof(hexagon));
   if (!h0) {
     printf("%s: Malloc failed\n", __func__);
     return NULL;
@@ -211,7 +205,7 @@ static hexagon *do_hexagon(config *bp, int px, int py, int id) {
   return h0;
 }
 
-int neighbor(config *bp, int px, int py, int j) {
+static uint16_t neighbor(int8_t x, int8_t y, int8_t j, int8_t *nx, int8_t *ny) {
   // First value is arm, 2nd value is X, 3rd is Y
   //   0,0   1,0   2,0   3,0   4,0               5   0
   //      1,1   2,1   3,1   4,1   5,1
@@ -221,28 +215,51 @@ int neighbor(config *bp, int px, int py, int j) {
   const int offset[6][2] = {
       {0, -1}, {1, 0}, {1, 1}, {0, 1}, {-1, 0}, {-1, -1}
   };
-  int nx = px + offset[j][0], ny = py + offset[j][1];
-  return xy_to_index(nx, ny);
+
+  if (nx && ny) {
+    *nx = x + offset[j][0]; *ny = y + offset[j][1];
+  }
+
+  return xy_to_index(x + offset[j][0], y + offset[j][1]);
 }
 
-static int add_arms(config *bp, hexagon *h0) {
-  int added = 0, target = (random() % 4); /* Aim for 1-5 arms */
-  int idx[6] = {0, 1, 2, 3, 4, 5};
+static int8_t exits(config *bp, hexagon *h0) {
+  int8_t exits = 0;
   for (int i = 0; i < 6; i++) {
-    int j = random() % (6 - i);
-    int swap = idx[j];
+    arm *a0 = &h0->arms[i];
+    if (a0->state != EMPTY) continue;     // Incoming arm
+    int id = neighbor(h0->x, h0->y, i, NULL, NULL);
+    if (!id) continue;					  // Goes off-grid
+    if (bp->hex_grid[id]) continue;		  // Cell occupied
+    exits++;
+  }
+
+  return exits;
+}
+
+static int8_t add_arms(config *bp, hexagon *h0) {
+  int8_t added = 0, target = (random() % 4); /* Aim for 1-5 arms */
+  int8_t idx[6] = {0, 1, 2, 3, 4, 5};
+  for (int8_t i = 0; i < 6; i++) {
+    int8_t j = random() % (6 - i);
+    int8_t swap = idx[j];
     idx[j] = idx[i];
     idx[i] = swap;
   }
 
-  for (int i = 0; i < 6; i++) {
-    int j = idx[i];
+  for (int8_t i = 0; i < 6; i++) {
+    int8_t j = idx[i];
     arm *a0 = &h0->arms[j];
-    if (a0->state != EMPTY) continue;	/* Arm already exists */
-    hexagon *h1 = neighbor(bp, h0, j);
-    if (!h1) continue;		            /* No neighboring cell */
+    if (a0->state != EMPTY) continue;	/* Incoming arm */
+    int8_t nx, ny;
+    uint16_t n_id = neighbor(h0->x, h0->y, j, &nx, &ny);
+    if (!n_id) continue;				/* Goes off-grid */
+    hexagon *h1 = do_hexagon(bp, h0->x, h0->y, nx, ny);
+    if (!h1) {							/* Hexagon creation failed */
+        fprintf(stderr, "%s: Failed to create hex arm=%d from %d,%d\n", __func__, j, h0->x, h0->y);
+        continue;
+    }
     if (h1->state != EMPTY) continue;	/* Occupado */
-    if (a0->state != EMPTY) continue;   /* Arm already exists */
 
     arm *a1 = &h1->arms[(j + 3) % 6];	/* Opposite arm */
 
@@ -404,7 +421,7 @@ static void handle_arm_out(config *bp, hexagon *h0, arm *a0, int j) {
   if (a0->ratio >= 1) {
     /* Just finished growing from center to edge.
        Pass the baton to this waiting neighbor. */
-    hexagon *h1 = neighbor(bp, h0, j);
+    hexagon *h1 = get_hex(bp, neighbor(h0->x, h0->y, j, NULL, NULL));
     arm *a1 = &h1->arms[(j + 3) % 6];
     a1->state = IN;
     a1->ratio = a0->ratio - 1;
@@ -423,7 +440,7 @@ static void handle_arm_out(config *bp, hexagon *h0, arm *a0, int j) {
 static void handle_arm_in(config *bp, hexagon *h0, arm *a0, int j) {
   a0->ratio += a0->speed * speed;
   if (a0->ratio >= 1) {
-      h0->doing = 0;
+    h0->doing = 0;
     /* Just finished growing from edge to center.  Look for any available exits. */
     if (add_arms(bp, h0)) {
       a0->state = DONE;
@@ -433,6 +450,9 @@ static void handle_arm_in(config *bp, hexagon *h0, arm *a0, int j) {
       a0->ratio = ((a0->ratio - 1) * 5) + 1; a0->speed *= 5;
       h0->doing = 1;
     }
+  } else if (a0->ratio >= 0.9 && !exits(bp, h0)) {
+    a0->speed *= 1.5;
+    if (a0->speed > 0.1) a0->speed = 0.1;
   }
 }
 
@@ -596,7 +616,7 @@ static void tick_hexagons (ModeInfo *mi) {
       // TODO - possibly need to change this depending on how grid arranged
       for (int y = min_vy; y <= max_vy && empty_count < 1000; y++)
         for (int x = min_vx; x <= max_vx && empty_count < 1000; x++) {
-          int id = xy_to_index(x, y);
+          uint16_t id = xy_to_index(x, y);
           if (id) {
             int idx = bp->hex_grid[id];
             if (!idx && !hex_invis(bp,x,y,0)) {
@@ -792,12 +812,12 @@ static void draw_hexagons(ModeInfo *mi) {
 
         /* Color of the outer point of the line is average color of
            this and the neighbor. */
-        int hn = neighbor(bp, h->x, h->y, j);
+        hexagon *hn = get_hex(bp, neighbor(h->x, h->y, j, NULL, NULL));
         if (!hn) {
-            printf("%s: h=%d,%d h=%d BAD NEIGHBOR\n", __func__, h->x, h->y, j);
+            printf("%s: h=%d,%d j=%d BAD NEIGHBOR\n", __func__, h->x, h->y, j);
             continue;
         }
-        HEXAGON_COLOR (ncolor, neighbor(bp, h, j));
+        HEXAGON_COLOR (ncolor, hn);
         ncolor[0] = (ncolor[0] + color[0]) / 2;
         ncolor[1] = (ncolor[1] + color[1]) / 2;
         ncolor[2] = (ncolor[2] + color[2]) / 2;
