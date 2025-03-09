@@ -25,17 +25,18 @@
 #ifdef _Win32
 #include <windows.h>
 #endif
-#else
 #endif
+
+/* Define GL_GLEXT_PROTOTYPES before any GL includes to expose function prototypes */
+#ifndef GL_GLEXT_PROTOTYPES
+#define GL_GLEXT_PROTOTYPES
+#endif
+
 #include <GL/gl.h>
 #include <GL/glu.h>
 #include "xlockmore.h"
 
-#if defined(GL_VERSION_2_0) && !defined(GL_GLEXT_PROTOTYPES)
-#define GL_GLEXT_PROTOTYPES 1
-#endif
-
-#ifdef GL_VERSION_2_0
+/* Include glext.h unconditionally to define GL_VERSION_2_0 */
 #ifdef HAVE_GL_GLEXT_H
 #include <GL/glext.h>
 #elif defined(HAVE_OPENGL_GLEXT_H)
@@ -43,7 +44,9 @@
 #else
 #include <GL/glext.h>
 #endif
-#endif
+
+/* Now check for GL_VERSION_2_0 which should be defined in glext.h */
+/* GL_VERSION_2_0 should be defined in glext.h */
 #include "colors.h"
 #include "normals.h"
 #include "rotator.h"
