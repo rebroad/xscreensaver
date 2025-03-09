@@ -163,32 +163,8 @@ static GLuint link_program(GLuint vertex_shader, GLuint fragment_shader) {
     return program;
 }
 
-/* Initialize shader program */
-/* Forward declaration of config struct */
-typedef struct config config;
+/* Initialize shader program - defined after config struct */
 
-static int init_shaders(config *bp) {
-    bp->vertex_shader = compile_shader(vertex_shader_source, GL_VERTEX_SHADER);
-    if (!bp->vertex_shader)
-        return 0;
-
-    bp->fragment_shader = compile_shader(fragment_shader_source, GL_FRAGMENT_SHADER);
-    if (!bp->fragment_shader) {
-        glDeleteShader(bp->vertex_shader);
-        bp->vertex_shader = 0;
-        return 0;
-    }
-
-    bp->shader_program = link_program(bp->vertex_shader, bp->fragment_shader);
-    if (!bp->shader_program) {
-        glDeleteShader(bp->vertex_shader);
-        glDeleteShader(bp->fragment_shader);
-        bp->vertex_shader = bp->fragment_shader = 0;
-        return 0;
-    }
-
-    return 1;
-}
 
 #endif /* GL_VERSION_2_0 */
 
@@ -228,7 +204,7 @@ typedef struct {
   int used;
 } hex_chunk;
 
-typedef struct {
+typedef struct config {
 #ifdef USE_SDL
   SDL_Window *window;
   SDL_GLContext gl_context;
@@ -266,6 +242,30 @@ typedef struct {
 } config;
 
 static config *bps = NULL;
+
+/* Initialize shader program */
+static int init_shaders(config *bp) {
+    bp->vertex_shader = compile_shader(vertex_shader_source, GL_VERTEX_SHADER);
+    if (!bp->vertex_shader)
+        return 0;
+
+    bp->fragment_shader = compile_shader(fragment_shader_source, GL_FRAGMENT_SHADER);
+    if (!bp->fragment_shader) {
+        glDeleteShader(bp->vertex_shader);
+        bp->vertex_shader = 0;
+        return 0;
+    }
+
+    bp->shader_program = link_program(bp->vertex_shader, bp->fragment_shader);
+    if (!bp->shader_program) {
+        glDeleteShader(bp->vertex_shader);
+        glDeleteShader(bp->fragment_shader);
+        bp->vertex_shader = bp->fragment_shader = 0;
+        return 0;
+    }
+
+    return 1;
+}
 
 static Bool do_spin, do_wander, do_glow, do_neon, do_expand;
 static GLfloat speed, thickness;
@@ -883,15 +883,24 @@ static void add_vertex(config *bp, GLfloat x, GLfloat y, GLfloat z,
                        GLfloat r, GLfloat g, GLfloat b, GLfloat a) {
 #ifdef GL_VERSION_2_0
     if (bp->use_shaders) {
-        /* Clean up */
-        glDisableVertexAttribArray(0);
-        glDisableVertexAttribArray(1);
-#ifdef GL_VERSION_3_0
-        if (bp->vertex_array)
-          glBindVertexArray(0);
-#endif
+        /* Check if vertices array exists */
+        if (!bp->vertices) {
+            bp->use_shaders = 0;
+            /* Fall back to immediate mode */
+            glColor4f(r, g, b, a);
+            glVertex3f(x, y, z);
+            return;
+        }
+
+        /* Resize if needed */
+        if (bp->vertex_count >= bp->vertex_capacity) {
+            bp->vertex_capacity *= 2;
+            bp->vertices = (Vertex *)realloc(bp->vertices, bp->vertex_capacity * sizeof(Vertex));
             if (!bp->vertices) {
                 bp->use_shaders = 0;
+                /* Fall back to immediate mode */
+                glColor4f(r, g, b, a);
+                glVertex3f(x, y, z);
                 return;
             }
         }
@@ -914,6 +923,69 @@ static void add_vertex(config *bp, GLfloat x, GLfloat y, GLfloat z,
     }
 #endif
 }
+
+#ifdef GL_VERSION_2_0
+/* Render accumulated vertices using shaders */
+static void render_vertices(ModeInfo *mi, config *bp, int wire) {
+    if (!bp->use_shaders || bp->vertex_count == 0) {
+        return;
+    }
+
+    /* Use shader program */
+    glUseProgram(bp->shader_program);
+
+    /* Set uniform variables */
+    GLint resolution_loc = glGetUniformLocation(bp->shader_program, "resolution");
+    GLint use_glow_loc = glGetUniformLocation(bp->shader_program, "use_glow");
+
+    if (resolution_loc != -1) {
+        glUniform2f(resolution_loc, MI_WIDTH(mi), MI_HEIGHT(mi));
+    }
+
+    if (use_glow_loc != -1) {
+        glUniform1i(use_glow_loc, (do_glow || do_neon) ? 1 : 0);
+    }
+
+    /* Update vertex buffer with accumulated vertices */
+    glBindBuffer(GL_ARRAY_BUFFER, bp->vertex_buffer);
+    glBufferData(GL_ARRAY_BUFFER, bp->vertex_count * sizeof(Vertex),
+                 bp->vertices, GL_STREAM_DRAW);
+
+    /* Set up vertex attributes */
+#ifdef GL_VERSION_3_0
+    if (bp->vertex_array) {
+        glBindVertexArray(bp->vertex_array);
+    }
+#endif
+
+    /* Position attribute (x, y, z) */
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE,
+                         sizeof(Vertex), (void*)0);
+
+    /* Color attribute (r, g, b, a) */
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE,
+                         sizeof(Vertex), (void*)(3 * sizeof(GLfloat)));
+
+    /* Draw the vertices */
+    glDrawArrays(wire ? GL_LINES : GL_TRIANGLES, 0, bp->vertex_count);
+
+    /* Clean up */
+    glDisableVertexAttribArray(0);
+    glDisableVertexAttribArray(1);
+#ifdef GL_VERSION_3_0
+    if (bp->vertex_array) {
+        glBindVertexArray(0);
+    }
+#endif
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glUseProgram(0);
+
+    /* Reset vertex count for next frame */
+    bp->vertex_count = 0;
+}
+#endif
 
 static void draw_hexagons(ModeInfo *mi) {
   config *bp = &bps[MI_SCREEN(mi)];
@@ -1210,7 +1282,16 @@ static void draw_hexagons(ModeInfo *mi) {
     } // loop through arms
   }
 
-  glEnd();
+#ifdef GL_VERSION_2_0
+  if (!bp->use_shaders) {
+#endif
+    glEnd();
+#ifdef GL_VERSION_2_0
+  } else {
+    /* Render accumulated vertices with shaders */
+    render_vertices(mi, bp, wire);
+  }
+#endif
 }
 
 
@@ -1412,7 +1493,7 @@ ENTRYPOINT void init_hextrail(ModeInfo *mi) {
       bp->use_shaders = 0;
     } else {
       /* Set up vertex attributes */
-#ifdef GL_VER      glGenBuffers(1, &bp->vertex_buffer);
+      glGenBuffers(1, &bp->vertex_buffer);
 #ifdef GL_VERSION_3_0
       glGenVertexArrays(1, &bp->vertex_array);
 #else
@@ -1487,12 +1568,7 @@ ENTRYPOINT void draw_hextrail (ModeInfo *mi) {
 
   glPopMatrix ();
 
-#ifdef GL_VERSION_2_0
-  if (bp->use_shaders) {
-    /* Reset vertex count for next frame */
-    bp->vertex_count = 0;
-  }
-#endif
+  /* We don't need to reset vertex count here since render_vertices already does it */
 
   if (mi->fps_p) do_fps(mi);
   glFinish();
