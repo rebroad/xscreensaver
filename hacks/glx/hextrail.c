@@ -30,6 +30,20 @@
 #include <GL/gl.h>
 #include <GL/glu.h>
 #include "xlockmore.h"
+
+#if defined(GL_VERSION_2_0) && !defined(GL_GLEXT_PROTOTYPES)
+#define GL_GLEXT_PROTOTYPES 1
+#endif
+
+#ifdef GL_VERSION_2_0
+#ifdef HAVE_GL_GLEXT_H
+#include <GL/glext.h>
+#elif defined(HAVE_OPENGL_GLEXT_H)
+#include <OpenGL/glext.h>
+#else
+#include <GL/glext.h>
+#endif
+#endif
 #include "colors.h"
 #include "normals.h"
 #include "rotator.h"
@@ -40,6 +54,144 @@
 
 #ifdef USE_GL /* whole file */
 
+#ifdef GL_VERSION_2_0
+
+/* Vertex shader source */
+static const char *vertex_shader_source =
+"#version 120\n"
+"attribute vec3 position;\n"
+"attribute vec4 color;\n"
+"varying vec4 v_color;\n"
+"void main() {\n"
+"    gl_Position = gl_ModelViewProjectionMatrix * vec4(position, 1.0);\n"
+"    v_color = color;\n"
+"}\n";
+
+/* Fragment shader source with glow effect */
+static const char *fragment_shader_source =
+"#version 120\n"
+"varying vec4 v_color;\n"
+"uniform int use_glow;\n"
+"uniform vec2 resolution;\n"
+"void main() {\n"
+"    vec4 final_color = v_color;\n"
+"    \n"
+"    if (use_glow == 1) {\n"
+"        vec2 uv = gl_FragCoord.xy / resolution;\n"
+"        float glow = 0.0;\n"
+"        float radius = 0.02;\n"
+"        for (int x = -4; x <= 4; x++) {\n"
+"            for (int y = -4; y <= 4; y++) {\n"
+"                vec2 offset = vec2(float(x), float(y)) * radius;\n"
+"                float dist = length(offset);\n"
+"                float weight = exp(-dist * dist * 4.0);\n"
+"                glow += weight;\n"
+"            }\n"
+"        }\n"
+"        glow /= 32.0;\n"
+"        vec3 glow_color = v_color.rgb * 1.5;\n"
+"        final_color = vec4(v_color.rgb + glow_color * glow, v_color.a);\n"
+"    }\n"
+"    \n"
+"    gl_FragColor = final_color;\n"
+"}\n";
+
+/* Check if OpenGL version supports shaders */
+static int check_gl_version(void) {
+    const char *version = (const char *)glGetString(GL_VERSION);
+    int major, minor;
+
+    if (!version || sscanf(version, "%d.%d", &major, &minor) != 2)
+        return 0;
+
+    if (major < 2)  /* Need at least OpenGL 2.0 for shader support */
+        return 0;
+
+    return 1;
+}
+
+/* Compile a shader from source */
+static GLuint compile_shader(const char *source, GLenum shader_type) {
+    GLuint shader;
+    GLint status;
+
+    shader = glCreateShader(shader_type);
+    if (!shader) {
+        fprintf(stderr, "Error creating shader\n");
+        return 0;
+    }
+
+    glShaderSource(shader, 1, &source, NULL);
+    glCompileShader(shader);
+
+    glGetShaderiv(shader, GL_COMPILE_STATUS, &status);
+    if (!status) {
+        GLchar info_log[512];
+        glGetShaderInfoLog(shader, sizeof(info_log), NULL, info_log);
+        fprintf(stderr, "Shader compilation error: %s\n", info_log);
+        glDeleteShader(shader);
+        return 0;
+    }
+
+    return shader;
+}
+
+/* Link vertex and fragment shaders into a program */
+static GLuint link_program(GLuint vertex_shader, GLuint fragment_shader) {
+    GLuint program;
+    GLint status;
+
+    program = glCreateProgram();
+    if (!program) {
+        fprintf(stderr, "Error creating shader program\n");
+        return 0;
+    }
+
+    glAttachShader(program, vertex_shader);
+    glAttachShader(program, fragment_shader);
+    glLinkProgram(program);
+
+    glGetProgramiv(program, GL_LINK_STATUS, &status);
+    if (!status) {
+        GLchar info_log[512];
+        glGetProgramInfoLog(program, sizeof(info_log), NULL, info_log);
+        fprintf(stderr, "Shader program linking error: %s\n", info_log);
+        glDeleteProgram(program);
+        return 0;
+    }
+
+    return program;
+}
+
+/* Initialize shader program */
+/* Forward declaration of config struct */
+typedef struct config config;
+
+static int init_shaders(config *bp) {
+    bp->vertex_shader = compile_shader(vertex_shader_source, GL_VERTEX_SHADER);
+    if (!bp->vertex_shader)
+        return 0;
+
+    bp->fragment_shader = compile_shader(fragment_shader_source, GL_FRAGMENT_SHADER);
+    if (!bp->fragment_shader) {
+        glDeleteShader(bp->vertex_shader);
+        bp->vertex_shader = 0;
+        return 0;
+    }
+
+    bp->shader_program = link_program(bp->vertex_shader, bp->fragment_shader);
+    if (!bp->shader_program) {
+        glDeleteShader(bp->vertex_shader);
+        glDeleteShader(bp->fragment_shader);
+        bp->vertex_shader = bp->fragment_shader = 0;
+        return 0;
+    }
+
+    return 1;
+}
+
+#endif /* GL_VERSION_2_0 */
+
 #define DEF_SPIN        "True"
 #define DEF_WANDER      "True"
 #define DEF_GLOW        "False"
@@ -49,6 +201,9 @@
 #define DEF_THICKNESS   "0.15"
 
 typedef enum { EMPTY, IN, WAIT, OUT, DONE } state_t;
+
+/* Vertex structure for vertex-based rendering */
+typedef struct { GLfloat x, y, z, r, g, b, a; } Vertex;
 
 typedef struct {
   state_t state;
@@ -100,6 +255,14 @@ typedef struct {
   GLfloat fade_speed;
 
   int ncolors;
+
+#ifdef GL_VERSION_2_0
+  GLuint shader_program, vertex_shader, fragment_shader;
+  GLuint vertex_buffer, vertex_array;
+  int use_shaders;
+  Vertex *vertices;
+  int vertex_capacity, vertex_count;
+#endif
 } config;
 
 static config *bps = NULL;
@@ -446,9 +609,9 @@ static void handle_arm_in(config *bp, hexagon *h0, arm *a0, int j) {
       h0->doing = 1;
     }
   } else if (a0->ratio >= 0.9 && a0->speed < 0.2 && (a0->speed > 0.1 || !exits(bp, h0))) {
-	//printf("%s: %d,%d speed=%f->", __func__, h0->x, h0->y, a0->speed);
+    //printf("%s: %d,%d speed=%f->", __func__, h0->x, h0->y, a0->speed);
     a0->speed *= 1.5;
-	//printf("%f\n", a0->speed);
+    //printf("%f\n", a0->speed);
   }
 }
 
@@ -713,23 +876,61 @@ static void draw_glow_point(XYZ p, GLfloat size, GLfloat scale,
   } while (0)
 #endif
 
-typedef struct { GLfloat x, y, z, r, g, b, a; } Vertex;
-//Vertex *vertices = malloc(10000 * sizeof(Vertex));
-//int vertex_count = 0;
+/* Vertex structure already defined above */
+
+/* Add a vertex to the vertex array, resize if needed */
+static void add_vertex(config *bp, GLfloat x, GLfloat y, GLfloat z,
+                       GLfloat r, GLfloat g, GLfloat b, GLfloat a) {
+#ifdef GL_VERSION_2_0
+    if (bp->use_shaders) {
+        /* Clean up */
+        glDisableVertexAttribArray(0);
+        glDisableVertexAttribArray(1);
+#ifdef GL_VERSION_3_0
+        if (bp->vertex_array)
+          glBindVertexArray(0);
+#endif
+            if (!bp->vertices) {
+                bp->use_shaders = 0;
+                return;
+            }
+        }
+
+        /* Add the vertex */
+        bp->vertices[bp->vertex_count].x = x;
+        bp->vertices[bp->vertex_count].y = y;
+        bp->vertices[bp->vertex_count].z = z;
+        bp->vertices[bp->vertex_count].r = r;
+        bp->vertices[bp->vertex_count].g = g;
+        bp->vertices[bp->vertex_count].b = b;
+        bp->vertices[bp->vertex_count].a = a;
+        bp->vertex_count++;
+    } else {
+#endif
+        /* Immediate mode fallback */
+        glColor4f(r, g, b, a);
+        glVertex3f(x, y, z);
+#ifdef GL_VERSION_2_0
+    }
+#endif
+}
 
 static void draw_hexagons(ModeInfo *mi) {
   config *bp = &bps[MI_SCREEN(mi)];
   int wire = MI_IS_WIREFRAME(mi);
 
-  // Dynamic array for vertices
-  /*Vertex *vertices = NULL;
-  int vertex_count = 0;
-  int vertex_capacity = 10000; // Initial guess
-  vertices = malloc(vertex_capacity * sizeof(Vertex));*/
+#ifdef GL_VERSION_2_0
+  /* Reset vertex count */
+  bp->vertex_count = 0;
 
-  glFrontFace (GL_CCW);
-  glBegin (wire ? GL_LINES : GL_TRIANGLES);
-  glNormal3f (0, 0, 1);
+  if (!bp->use_shaders) {
+#endif
+    glFrontFace(GL_CCW);
+    glBegin(wire ? GL_LINES : GL_TRIANGLES);
+    glNormal3f(0, 0, 1);
+#ifdef GL_VERSION_2_0
+  }
+#endif
 
   int i, k;
   //vertex_count = 0;
@@ -1162,6 +1363,21 @@ ENTRYPOINT void init_hextrail(ModeInfo *mi) {
   MI_INIT (mi, bps);
   config *bp = &bps[MI_SCREEN(mi)];
 
+#ifdef GL_VERSION_2_0
+  /* Check if we can use shaders on this system */
+  bp->use_shaders = check_gl_version();
+
+  /* Initialize vertex buffer */
+  bp->vertex_capacity = 10000;  /* Initial vertex capacity */
+  bp->vertex_count = 0;
+  bp->vertices = (Vertex *)malloc(bp->vertex_capacity * sizeof(Vertex));
+
+  if (!bp->vertices) {
+    fprintf(stderr, "Failed to allocate vertices array\n");
+    bp->use_shaders = 0;
+  }
+#endif
+
 #ifdef USE_SDL
   // SDL_GLContext is already created in main; store window for reference
   bp->window = mi->window;
@@ -1187,6 +1403,29 @@ ENTRYPOINT void init_hextrail(ModeInfo *mi) {
   if (thickness > 0.5) thickness = 0.5;
 
   bp->chunk_count = 0;
+
+#ifdef GL_VERSION_2_0
+  /* Initialize shaders if supported */
+  if (bp->use_shaders) {
+    if (!init_shaders(bp)) {
+      fprintf(stderr, "Failed to initialize shaders, falling back to immediate mode\n");
+      bp->use_shaders = 0;
+    } else {
+      /* Set up vertex attributes */
+#ifdef GL_VER      glGenBuffers(1, &bp->vertex_buffer);
+#ifdef GL_VERSION_3_0
+      glGenVertexArrays(1, &bp->vertex_array);
+#else
+      /* Fallback for systems without VAO support */
+      bp->vertex_array = 0;
+#endif
+
+      /* Bind attributes */
+      glBindAttribLocation(bp->shader_program, 0, "position");
+      glBindAttribLocation(bp->shader_program, 1, "color");
+    }
+  }
+#endif
 
   bp->size = MI_COUNT(mi) * 2; N = bp->size * 2 + 1; // N should be odd
   if (N > MAX_N) {
@@ -1248,6 +1487,13 @@ ENTRYPOINT void draw_hextrail (ModeInfo *mi) {
 
   glPopMatrix ();
 
+#ifdef GL_VERSION_2_0
+  if (bp->use_shaders) {
+    /* Reset vertex count for next frame */
+    bp->vertex_count = 0;
+  }
+#endif
+
   if (mi->fps_p) do_fps(mi);
   glFinish();
 
@@ -1281,6 +1527,24 @@ ENTRYPOINT void free_hextrail (ModeInfo *mi) {
     }
     free(bp->chunks);
   }
+
+#ifdef GL_VERSION_2_0
+  /* Clean up shader resources */
+  if (bp->use_shaders) {
+    glDeleteBuffers(1, &bp->vertex_buffer);
+#ifdef GL_VERSION_3_0
+    if (bp->vertex_array)
+      glDeleteVertexArrays(1, &bp->vertex_array);
+#endif
+
+    if (bp->shader_program) glDeleteProgram(bp->shader_program);
+    if (bp->vertex_shader) glDeleteShader(bp->vertex_shader);
+    if (bp->fragment_shader) glDeleteShader(bp->fragment_shader);
+  }
+
+  /* Free vertex array */
+  if (bp->vertices) free(bp->vertices);
+#endif
 }
 
 XSCREENSAVER_MODULE ("HexTrail", hextrail)
