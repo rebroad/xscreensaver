@@ -1,7 +1,6 @@
 /* hextrail, Copyright (c) 2022 Jamie Zawinski <jwz@jwz.org>
  *
  * high-priority TODOs:-
- = according to the --fps output, verts keeps incrasing, even when a new hextrail is started - is this right?
  * low-priority TODOs:-
  = Collect all vertices into a dynamic array, then upload to 1 or more VBOs - also fix glow effects.
  = Don't draw borders when the thickness of the line would be <1 pixel
@@ -10,10 +9,10 @@
  */
 
 #define DEFAULTS "*delay: 30000\n" \
-                 "*showFPS: False\n" \
-                 "*wireframe: False\n" \
-                 "*count: 20\n" \
-                 "*suppressRotationAnimation: True\n"
+				 "*showFPS: False\n" \
+				 "*wireframe: False\n" \
+				 "*count: 20\n" \
+				 "*suppressRotationAnimation: True\n"
 
 # define release_hextrail 0
 
@@ -100,71 +99,71 @@ static const char *fragment_shader_source =
 
 /* Check if OpenGL version supports shaders */
 static int check_gl_version(void) {
-    const char *version = (const char *)glGetString(GL_VERSION);
-    int major, minor;
+	const char *version = (const char *)glGetString(GL_VERSION);
+	int major, minor;
 
 	if (version) printf("%s: GL version: %s\n", __func__, version);
 
-    if (!version || sscanf(version, "%d.%d", &major, &minor) != 2)
-        return 0;
+	if (!version || sscanf(version, "%d.%d", &major, &minor) != 2)
+		return 0;
 
-    if (major < 2)  /* Need at least OpenGL 2.0 for shader support */
-        return 0;
+	if (major < 2)  /* Need at least OpenGL 2.0 for shader support */
+		return 0;
 
-    return 1;
+	return 1;
 }
 
 /* Compile a shader from source */
 static GLuint compile_shader(const char *source, GLenum shader_type) {
-    GLuint shader;
-    GLint status;
+	GLuint shader;
+	GLint status;
 
-    shader = glCreateShader(shader_type);
-    if (!shader) {
-        fprintf(stderr, "Error creating shader\n");
-        return 0;
-    }
+	shader = glCreateShader(shader_type);
+	if (!shader) {
+		fprintf(stderr, "Error creating shader\n");
+		return 0;
+	}
 
-    glShaderSource(shader, 1, &source, NULL);
-    glCompileShader(shader);
+	glShaderSource(shader, 1, &source, NULL);
+	glCompileShader(shader);
 
-    glGetShaderiv(shader, GL_COMPILE_STATUS, &status);
-    if (!status) {
-        GLchar info_log[512];
-        glGetShaderInfoLog(shader, sizeof(info_log), NULL, info_log);
-        fprintf(stderr, "Shader compilation error: %s\n", info_log);
-        glDeleteShader(shader);
-        return 0;
-    }
+	glGetShaderiv(shader, GL_COMPILE_STATUS, &status);
+	if (!status) {
+		GLchar info_log[512];
+		glGetShaderInfoLog(shader, sizeof(info_log), NULL, info_log);
+		fprintf(stderr, "Shader compilation error: %s\n", info_log);
+		glDeleteShader(shader);
+		return 0;
+	}
 
-    return shader;
+	return shader;
 }
 
 /* Link vertex and fragment shaders into a program */
 static GLuint link_program(GLuint vertex_shader, GLuint fragment_shader) {
-    GLuint program;
-    GLint status;
+	GLuint program;
+	GLint status;
 
-    program = glCreateProgram();
-    if (!program) {
-        fprintf(stderr, "Error creating shader program\n");
-        return 0;
-    }
+	program = glCreateProgram();
+	if (!program) {
+		fprintf(stderr, "Error creating shader program\n");
+		return 0;
+	}
 
-    glAttachShader(program, vertex_shader);
-    glAttachShader(program, fragment_shader);
-    glLinkProgram(program);
+	glAttachShader(program, vertex_shader);
+	glAttachShader(program, fragment_shader);
+	glLinkProgram(program);
 
-    glGetProgramiv(program, GL_LINK_STATUS, &status);
-    if (!status) {
-        GLchar info_log[512];
-        glGetProgramInfoLog(program, sizeof(info_log), NULL, info_log);
-        fprintf(stderr, "Shader program linking error: %s\n", info_log);
-        glDeleteProgram(program);
-        return 0;
-    }
+	glGetProgramiv(program, GL_LINK_STATUS, &status);
+	if (!status) {
+		GLchar info_log[512];
+		glGetProgramInfoLog(program, sizeof(info_log), NULL, info_log);
+		fprintf(stderr, "Shader program linking error: %s\n", info_log);
+		glDeleteProgram(program);
+		return 0;
+	}
 
-    return program;
+	return program;
 }
 #endif /* GL_VERSION_2_0 */
 
@@ -235,7 +234,6 @@ typedef struct {
 #ifdef GL_VERSION_2_0
   GLuint shader_program, vertex_shader, fragment_shader;
   GLuint vertex_buffer, vertex_array;
-  unsigned long shader_vertices_count; /* Total vertices rendered with shaders */
 #endif // GL_VERSION_2_0
 } config;
 
@@ -250,90 +248,90 @@ static GLfloat current_color[4] = {1.0, 1.0, 1.0, 1.0};
 
 /* Wrapper function for setting color in both shader and non-shader modes */
 static void set_color(GLfloat r, GLfloat g, GLfloat b, GLfloat a) {
-    /* Store current color for shader path */
-    current_color[0] = r;
-    current_color[1] = g;
-    current_color[2] = b;
-    current_color[3] = a;
+	/* Store current color for shader path */
+	current_color[0] = r;
+	current_color[1] = g;
+	current_color[2] = b;
+	current_color[3] = a;
 }
 #endif // GL_VERSION_2_0
 
 /* Wrapper function for setting color from an array */
 static void set_color_v(GLfloat *color) {
 #ifdef GL_VERSION_2_0
-    set_color(color[0], color[1], color[2], color[3]);
+	set_color(color[0], color[1], color[2], color[3]);
 #else // GL_VERSION_2_0
-    glColor4fv(color);
-    glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, color);
+	glColor4fv(color);
+	glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, color);
 #endif // else GL_VERSION_2_0
 }
 
 #ifdef GL_VERSION_2_0
 static void add_vertex(GLfloat x, GLfloat y, GLfloat z,
-                       GLfloat r, GLfloat g, GLfloat b, GLfloat a) {
-    /* Check if vertices array exists */
-    if (!vertices) {
-        /* Fall back to immediate mode */
-        glColor4f(r, g, b, a);
-        glVertex3f(x, y, z);
-        return;
-    }
+					   GLfloat r, GLfloat g, GLfloat b, GLfloat a) {
+	/* Check if vertices array exists */
+	if (!vertices) {
+		/* Fall back to immediate mode */
+		glColor4f(r, g, b, a);
+		glVertex3f(x, y, z);
+		return;
+	}
 
-    /* Resize if needed */
-    if (vertex_count >= vertex_capacity) {
-        vertex_capacity *= 2;
-        vertices = (Vertex *)realloc(vertices, vertex_capacity * sizeof(Vertex));
-        if (!vertices) {
-            /* Fall back to immediate mode */
-            glColor4f(r, g, b, a);
-            glVertex3f(x, y, z);
-            return;
-        }
-    }
+	/* Resize if needed */
+	if (vertex_count >= vertex_capacity) {
+		vertex_capacity *= 2;
+		vertices = (Vertex *)realloc(vertices, vertex_capacity * sizeof(Vertex));
+		if (!vertices) {
+			/* Fall back to immediate mode */
+			glColor4f(r, g, b, a);
+			glVertex3f(x, y, z);
+			return;
+		}
+	}
 
-    /* Add the vertex */
-    vertices[vertex_count].x = x;
-    vertices[vertex_count].y = y;
-    vertices[vertex_count].z = z;
-    vertices[vertex_count].r = r;
-    vertices[vertex_count].g = g;
-    vertices[vertex_count].b = b;
-    vertices[vertex_count].a = a;
-    vertex_count++;
+	/* Add the vertex */
+	vertices[vertex_count].x = x;
+	vertices[vertex_count].y = y;
+	vertices[vertex_count].z = z;
+	vertices[vertex_count].r = r;
+	vertices[vertex_count].g = g;
+	vertices[vertex_count].b = b;
+	vertices[vertex_count].a = a;
+	vertex_count++;
 }
 #endif // GL_VERSION_2_0
 
 static void do_vertex(GLfloat x, GLfloat y, GLfloat z) {
 #ifdef GL_VERSION_2_0
-    add_vertex(x, y, z, current_color[0], current_color[1],
-              current_color[2], current_color[3]);
+	add_vertex(x, y, z, current_color[0], current_color[1],
+			  current_color[2], current_color[3]);
 #else // GL_VERSION_2_0
-    glVertex3f(x, y, z);
+	glVertex3f(x, y, z);
 #endif // else GL_VERSION_2_0
 }
 
 /* Initialize shader program */
 static int init_shaders(config *bp) {
-    bp->vertex_shader = compile_shader(vertex_shader_source, GL_VERTEX_SHADER);
-    if (!bp->vertex_shader)
-        return 0;
+	bp->vertex_shader = compile_shader(vertex_shader_source, GL_VERTEX_SHADER);
+	if (!bp->vertex_shader)
+		return 0;
 
-    bp->fragment_shader = compile_shader(fragment_shader_source, GL_FRAGMENT_SHADER);
-    if (!bp->fragment_shader) {
-        glDeleteShader(bp->vertex_shader);
-        bp->vertex_shader = 0;
-        return 0;
-    }
+	bp->fragment_shader = compile_shader(fragment_shader_source, GL_FRAGMENT_SHADER);
+	if (!bp->fragment_shader) {
+		glDeleteShader(bp->vertex_shader);
+		bp->vertex_shader = 0;
+		return 0;
+	}
 
-    bp->shader_program = link_program(bp->vertex_shader, bp->fragment_shader);
-    if (!bp->shader_program) {
-        glDeleteShader(bp->vertex_shader);
-        glDeleteShader(bp->fragment_shader);
-        bp->vertex_shader = bp->fragment_shader = 0;
-        return 0;
-    }
+	bp->shader_program = link_program(bp->vertex_shader, bp->fragment_shader);
+	if (!bp->shader_program) {
+		glDeleteShader(bp->vertex_shader);
+		glDeleteShader(bp->fragment_shader);
+		bp->vertex_shader = bp->fragment_shader = 0;
+		return 0;
+	}
 
-    return 1;
+	return 1;
 }
 
 static Bool do_spin, do_wander, do_glow, do_neon, do_expand;
@@ -373,12 +371,12 @@ ENTRYPOINT ModeSpecOpt hextrail_opts = {countof(opts), opts, countof(vars), vars
 int q, qq, N;
 
 static uint16_t xy_to_index(int x, int y) {
-    if (abs(x) > q || abs(y) > q || abs(x-y) > q) return 0;
-    int32_t index;
-    if (y < 1) index = x + qq + erm(y + N) - erm(q - 1) + 1;
-    else index = x + y + qq + erm(y + N) - erm(q - 1) + 1;
+	if (abs(x) > q || abs(y) > q || abs(x-y) > q) return 0;
+	int32_t index;
+	if (y < 1) index = x + qq + erm(y + N) - erm(q - 1) + 1;
+	else index = x + y + qq + erm(y + N) - erm(q - 1) + 1;
 
-    return (uint16_t)index;
+	return (uint16_t)index;
 }
 
 static hexagon *get_hex(config *bp, uint16_t id) {
@@ -391,12 +389,12 @@ static hexagon *get_hex(config *bp, uint16_t id) {
 static hexagon *do_hexagon(config *bp, int8_t px, int8_t py, int8_t x, int8_t y) {
   uint16_t id = xy_to_index(x, y);
   if (!id) {
-    static time_t debug = 0;
-    if (debug != bp->now) {
-      printf("%s: Out of bounds. id=%d coords=%d,%d\n", __func__, id, x, y);
-      debug = bp->now;
-    }
-    return NULL;
+	static time_t debug = 0;
+	if (debug != bp->now) {
+	  printf("%s: Out of bounds. id=%d coords=%d,%d\n", __func__, id, x, y);
+	  debug = bp->now;
+	}
+	return NULL;
   }
 
   hexagon *h0 = get_hex(bp, id);
@@ -404,25 +402,25 @@ static hexagon *do_hexagon(config *bp, int8_t px, int8_t py, int8_t x, int8_t y)
 
   // Create a new hexagon
   if (bp->total_hexagons >= bp->chunk_count * HEXAGON_CHUNK_SIZE) {
-    hex_chunk **new_chunks = realloc(bp->chunks, (bp->chunk_count+1) * sizeof(hex_chunk *));
-    if (!new_chunks) {
-      fprintf(stderr, "Failed to allocate new chunk array\n");
-      return NULL;
-    }
-    bp->chunks = new_chunks;
-    bp->chunks[bp->chunk_count] = calloc(1, sizeof(hex_chunk));
-    if (!bp->chunks[bp->chunk_count]) {
-      fprintf(stderr, "Failed to allocate chunk\n");
-      return NULL;
-    }
-    bp->chunks[bp->chunk_count]->used = 0;
-    bp->chunk_count++;
+	hex_chunk **new_chunks = realloc(bp->chunks, (bp->chunk_count+1) * sizeof(hex_chunk *));
+	if (!new_chunks) {
+	  fprintf(stderr, "Failed to allocate new chunk array\n");
+	  return NULL;
+	}
+	bp->chunks = new_chunks;
+	bp->chunks[bp->chunk_count] = calloc(1, sizeof(hex_chunk));
+	if (!bp->chunks[bp->chunk_count]) {
+	  fprintf(stderr, "Failed to allocate chunk\n");
+	  return NULL;
+	}
+	bp->chunks[bp->chunk_count]->used = 0;
+	bp->chunk_count++;
   }
 
   h0 = calloc(1, sizeof(hexagon));
   if (!h0) {
-    printf("%s: Malloc failed\n", __func__);
-    return NULL;
+	printf("%s: Malloc failed\n", __func__);
+	return NULL;
   }
   hex_chunk *current = bp->chunks[bp->chunk_count - 1];
   current->chunk[bp->total_hexagons % HEXAGON_CHUNK_SIZE] = h0;
@@ -443,11 +441,11 @@ static uint16_t neighbor(int8_t x, int8_t y, int8_t j, int8_t *nx, int8_t *ny) {
   //      2,3   3,3   4,3   5,3   6,3
   //   2,4   3,4   4,4   5,4   6,4               3   2
   const int offset[6][2] = {
-      {0, -1}, {1, 0}, {1, 1}, {0, 1}, {-1, 0}, {-1, -1}
+	  {0, -1}, {1, 0}, {1, 1}, {0, 1}, {-1, 0}, {-1, -1}
   };
 
   if (nx && ny) {
-    *nx = x + offset[j][0]; *ny = y + offset[j][1];
+	*nx = x + offset[j][0]; *ny = y + offset[j][1];
   }
 
   return xy_to_index(x + offset[j][0], y + offset[j][1]);
@@ -456,12 +454,12 @@ static uint16_t neighbor(int8_t x, int8_t y, int8_t j, int8_t *nx, int8_t *ny) {
 static int8_t exits(config *bp, hexagon *h0) {
   int8_t exits = 0;
   for (int i = 0; i < 6; i++) {
-    arm *a0 = &h0->arms[i];
-    if (a0->state != EMPTY) continue;     // Incoming arm
-    int id = neighbor(h0->x, h0->y, i, NULL, NULL);
-    if (!id) continue;					  // Goes off-grid
-    if (bp->hex_grid[id]) continue;		  // Cell occupied
-    exits++;
+	arm *a0 = &h0->arms[i];
+	if (a0->state != EMPTY) continue;     // Incoming arm
+	int id = neighbor(h0->x, h0->y, i, NULL, NULL);
+	if (!id) continue;					  // Goes off-grid
+	if (bp->hex_grid[id]) continue;		  // Cell occupied
+	exits++;
   }
 
   return exits;
@@ -471,49 +469,49 @@ static int8_t add_arms(config *bp, hexagon *h0) {
   int8_t added = 0, target = (random() % 4); /* Aim for 1-5 arms */
   int8_t idx[6] = {0, 1, 2, 3, 4, 5};
   for (int8_t i = 0; i < 6; i++) {
-    int8_t j = random() % (6 - i);
-    int8_t swap = idx[j];
-    idx[j] = idx[i];
-    idx[i] = swap;
+	int8_t j = random() % (6 - i);
+	int8_t swap = idx[j];
+	idx[j] = idx[i];
+	idx[i] = swap;
   }
 
   for (int8_t i = 0; i < 6; i++) {
-    int8_t j = idx[i];
-    arm *a0 = &h0->arms[j];
-    if (a0->state != EMPTY) continue;	/* Incoming arm */
-    int8_t nx, ny;
-    uint16_t n_id = neighbor(h0->x, h0->y, j, &nx, &ny);
-    if (!n_id) continue;				/* Goes off-grid */
-    hexagon *h1 = do_hexagon(bp, h0->x, h0->y, nx, ny);
-    if (!h1) {							/* Hexagon creation failed */
-        fprintf(stderr, "%s: Failed to create hex arm=%d from %d,%d\n", __func__, j, h0->x, h0->y);
-        continue;
-    }
-    if (h1->state != EMPTY) continue;	/* Occupado */
+	int8_t j = idx[i];
+	arm *a0 = &h0->arms[j];
+	if (a0->state != EMPTY) continue;	/* Incoming arm */
+	int8_t nx, ny;
+	uint16_t n_id = neighbor(h0->x, h0->y, j, &nx, &ny);
+	if (!n_id) continue;				/* Goes off-grid */
+	hexagon *h1 = do_hexagon(bp, h0->x, h0->y, nx, ny);
+	if (!h1) {							/* Hexagon creation failed */
+		fprintf(stderr, "%s: Failed to create hex arm=%d from %d,%d\n", __func__, j, h0->x, h0->y);
+		continue;
+	}
+	if (h1->state != EMPTY) continue;	/* Occupado */
 
-    arm *a1 = &h1->arms[(j + 3) % 6];	/* Opposite arm */
+	arm *a1 = &h1->arms[(j + 3) % 6];	/* Opposite arm */
 
-    if (a1->state != EMPTY) {
-      printf("H1 (%d,%d) empty=%d arm[%d].state=%d\n",
-             h1->x, h1->y, h1->state == EMPTY, (j+3)%6, a1->state);
-      bp->pause_until = bp->now + 3;
-      continue;
-    }
-    a0->state = OUT;
-    a0->speed = 0.05 * (0.8 + frand(1.0));
+	if (a1->state != EMPTY) {
+	  printf("H1 (%d,%d) empty=%d arm[%d].state=%d\n",
+			 h1->x, h1->y, h1->state == EMPTY, (j+3)%6, a1->state);
+	  bp->pause_until = bp->now + 3;
+	  continue;
+	}
+	a0->state = OUT;
+	a0->speed = 0.05 * (0.8 + frand(1.0));
 
-    if (h1->state == EMPTY) {
-      h1->state = IN;
+	if (h1->state == EMPTY) {
+	  h1->state = IN;
 
-      /* Mostly keep the same color */
-      if (! (random() % 5)) h1->ccolor = (h0->ccolor + 1) % bp->ncolors;
-      else h1->ccolor = h0->ccolor;
-    } else
-      printf("H0 (%d,%d) arm%d out to H1 (%d,%d)->state=%d\n",
+	  /* Mostly keep the same color */
+	  if (! (random() % 5)) h1->ccolor = (h0->ccolor + 1) % bp->ncolors;
+	  else h1->ccolor = h0->ccolor;
+	} else
+	  printf("H0 (%d,%d) arm%d out to H1 (%d,%d)->state=%d\n",
 h0->x, h0->y, j, h1->x, h1->y, h1->state);
 
-    added++;
-    if (added >= target) break;
+	added++;
+	if (added >= target) break;
   }
   h0->doing = added;
 
@@ -532,13 +530,13 @@ static Bool hex_invis(config *bp, int x, int y, GLfloat *rad) {
 
   /* Project point to screen coordinates */
   gluProject((GLdouble)pos.x, (GLdouble)pos.y, (GLdouble)pos.z,
-             bp->model, bp->proj, bp->viewport, &winX, &winY, &winZ);
+			 bp->model, bp->proj, bp->viewport, &winX, &winY, &winZ);
 
   static time_t debug = 0;
   if (debug != bp->now) {
-      printf("%s: winX=%d, winY=%d, winZ=%.1f vp=%d,%d\n", __func__,
-              (int)winX, (int)winY, winZ, bp->viewport[2], bp->viewport[3]);
-      debug = bp->now;
+	  printf("%s: winX=%d, winY=%d, winZ=%.1f vp=%d,%d\n", __func__,
+			  (int)winX, (int)winY, winZ, bp->viewport[2], bp->viewport[3]);
+	  debug = bp->now;
   }
 
   if (winZ <= 0 || winZ >= 1) return 2;  // Far off in Z
@@ -549,9 +547,9 @@ static Bool hex_invis(config *bp, int x, int y, GLfloat *rad) {
 
   GLdouble edge_xx, edge_xy, edge_yx, edge_yy, edge_z;
   gluProject((GLdouble)edge_posx.x, (GLdouble)edge_posx.y, (GLdouble)edge_posx.z,
-             bp->model, bp->proj, bp->viewport, &edge_xx, &edge_xy, &edge_z);
+			 bp->model, bp->proj, bp->viewport, &edge_xx, &edge_xy, &edge_z);
   gluProject((GLdouble)edge_posy.x, (GLdouble)edge_posy.y, (GLdouble)edge_posy.z,
-             bp->model, bp->proj, bp->viewport, &edge_yx, &edge_yy, &edge_z);
+			 bp->model, bp->proj, bp->viewport, &edge_yx, &edge_yy, &edge_z);
 
   /* Calculate radius in screen space (accounting for perspective projection) */
   GLdouble xx_diff = edge_xx - winX, xy_diff = edge_xy - winY;
@@ -564,22 +562,22 @@ static Bool hex_invis(config *bp, int x, int y, GLfloat *rad) {
   if (rad) *rad = radius;
 
   if (winX + radius < bp->viewport[0] || winX - radius > bp->viewport[0] + bp->viewport[2] ||
-      winY + radius < bp->viewport[1] || winY - radius > bp->viewport[1] + bp->viewport[3])
-      return 2; // Fully off-screen
+	  winY + radius < bp->viewport[1] || winY - radius > bp->viewport[1] + bp->viewport[3])
+	  return 2; // Fully off-screen
 
   if (winX < bp->viewport[0] || winX > bp->viewport[0] + bp->viewport[2] ||
-      winY < bp->viewport[1] || winY > bp->viewport[1] + bp->viewport[3])
-      return 1; // Center is off-screen
+	  winY < bp->viewport[1] || winY > bp->viewport[1] + bp->viewport[3])
+	  return 1; // Center is off-screen
 
   return 0; // Center is on-screen
 }
 
 const XYZ corners[] = {{  0, -1,   0 },       /*      0      */
-                       {  H, -0.5, 0 },       /*  5       1  */
-                       {  H,  0.5, 0 },       /*             */
-                       {  0,  1,   0 },       /*  4       2  */
-                       { -H,  0.5, 0 },       /*      3      */
-                       { -H, -0.5, 0 }};
+					   {  H, -0.5, 0 },       /*  5       1  */
+					   {  H,  0.5, 0 },       /*             */
+					   {  0,  1,   0 },       /*  4       2  */
+					   { -H,  0.5, 0 },       /*      3      */
+					   { -H, -0.5, 0 }};
 
 static XYZ scaled_corners[6][4];
 GLfloat size, wid, hgt, size1, size2, size3, size4, thick2;
@@ -596,14 +594,14 @@ static void scale_corners(ModeInfo *mi) {
   size3 = size * thick2 * 0.8;
   size4 = size3 * 2; // When total_arms == 1
   for (int j = 0; j < 6; j++) {
-    scaled_corners[j][0].x = corners[j].x * size1;
-    scaled_corners[j][0].y = corners[j].y * size1;
-    scaled_corners[j][1].x = corners[j].x * size2;
-    scaled_corners[j][1].y = corners[j].y * size2;
-    scaled_corners[j][2].x = corners[j].x * size3;
-    scaled_corners[j][2].y = corners[j].y * size3;
-    scaled_corners[j][3].x = corners[j].x * size4;
-    scaled_corners[j][3].y = corners[j].y * size4;
+	scaled_corners[j][0].x = corners[j].x * size1;
+	scaled_corners[j][0].y = corners[j].y * size1;
+	scaled_corners[j][1].x = corners[j].x * size2;
+	scaled_corners[j][1].y = corners[j].y * size2;
+	scaled_corners[j][2].x = corners[j].x * size3;
+	scaled_corners[j][2].y = corners[j].y * size3;
+	scaled_corners[j][3].x = corners[j].x * size4;
+	scaled_corners[j][3].y = corners[j].y * size4;
   }
 }
 
@@ -611,19 +609,19 @@ static void reset_hextrail(ModeInfo *mi) {
   config *bp = &bps[MI_SCREEN(mi)];
 
   if (bp->chunks) {
-    for (int i = 0; i < bp->chunk_count; i++) {
-      if (bp->chunks[i]) {
-        for (int k = 0; k < bp->chunks[i]->used; k++)
-          if (bp->chunks[i]->chunk[k]) {
-            free(bp->chunks[i]->chunk[k]);
-            bp->chunks[i]->chunk[k] = NULL;
-          }
-        bp->chunks[i]->used = 0;
-      }
-      free(bp->chunks[i]);
-    }
-    bp->chunks = NULL;
-    bp->chunk_count = 0;
+	for (int i = 0; i < bp->chunk_count; i++) {
+	  if (bp->chunks[i]) {
+		for (int k = 0; k < bp->chunks[i]->used; k++)
+		  if (bp->chunks[i]->chunk[k]) {
+			free(bp->chunks[i]->chunk[k]);
+			bp->chunks[i]->chunk[k] = NULL;
+		  }
+		bp->chunks[i]->used = 0;
+	  }
+	  free(bp->chunks[i]);
+	}
+	bp->chunks = NULL;
+	bp->chunk_count = 0;
   }
 
   memset(bp->hex_grid, 0, (N*(N+1)*3+2) * sizeof(uint16_t));
@@ -631,15 +629,14 @@ static void reset_hextrail(ModeInfo *mi) {
   bp->state = FIRST;
   bp->fade_ratio = 1;
   scale_corners(mi);
-  bp->shader_vertices_count = 0;
 
   bp->ncolors = 8;
   if (!bp->colors)
 #ifdef USE_SDL
-    bp->colors = (SDL_Color *) calloc(bp->ncolors, sizeof(SDL_Color));
+	bp->colors = (SDL_Color *) calloc(bp->ncolors, sizeof(SDL_Color));
   make_smooth_colormap(bp->colors, &bp->ncolors, False, 0, False);
 #else // USE_SDL
-    bp->colors = (XColor *) calloc(bp->ncolors, sizeof(XColor));
+	bp->colors = (XColor *) calloc(bp->ncolors, sizeof(XColor));
   make_smooth_colormap (0, 0, 0, bp->colors, &bp->ncolors, False, 0, False);
 #endif // else USE_SDL
 }
@@ -647,50 +644,50 @@ static void reset_hextrail(ModeInfo *mi) {
 static void handle_arm_out(config *bp, hexagon *h0, arm *a0, int j) {
   a0->ratio += a0->speed * speed;
   if (a0->ratio >= 1) {
-    /* Just finished growing from center to edge.
-       Pass the baton to this waiting neighbor. */
-    hexagon *h1 = get_hex(bp, neighbor(h0->x, h0->y, j, NULL, NULL));
-    arm *a1 = &h1->arms[(j + 3) % 6];
-    a1->state = IN;
-    a1->ratio = a0->ratio - 1;
-    a1->speed = a0->speed;
-    h0->doing--; h1->doing++;
-    a0->state = DONE;
-    a0->ratio = 1;
+	/* Just finished growing from center to edge.
+	   Pass the baton to this waiting neighbor. */
+	hexagon *h1 = get_hex(bp, neighbor(h0->x, h0->y, j, NULL, NULL));
+	arm *a1 = &h1->arms[(j + 3) % 6];
+	a1->state = IN;
+	a1->ratio = a0->ratio - 1;
+	a1->speed = a0->speed;
+	h0->doing--; h1->doing++;
+	a0->state = DONE;
+	a0->ratio = 1;
   } else if (a0->ratio <= 0) {
-    /* Just finished retreating back to center */
-    a0->state = EMPTY;
-    a0->ratio = 0;
-    h0->doing--;
+	/* Just finished retreating back to center */
+	a0->state = EMPTY;
+	a0->ratio = 0;
+	h0->doing--;
   }
 }
 
 static void handle_arm_in(config *bp, hexagon *h0, arm *a0, int j) {
   a0->ratio += a0->speed * speed;
   if (a0->ratio >= 1) {
-    h0->doing = 0;
-    /* Just finished growing from edge to center.  Look for any available exits. */
-    if (add_arms(bp, h0)) {
-      a0->state = DONE;
-      a0->ratio = 1;
-    } else { // nub grow
-      a0->state = WAIT;
-      a0->ratio = ((a0->ratio - 1) * 5) + 1; a0->speed *= 5;
-      h0->doing = 1;
-    }
+	h0->doing = 0;
+	/* Just finished growing from edge to center.  Look for any available exits. */
+	if (add_arms(bp, h0)) {
+	  a0->state = DONE;
+	  a0->ratio = 1;
+	} else { // nub grow
+	  a0->state = WAIT;
+	  a0->ratio = ((a0->ratio - 1) * 5) + 1; a0->speed *= 5;
+	  h0->doing = 1;
+	}
   } else if (a0->ratio >= 0.9 && a0->speed < 0.2 && (a0->speed > 0.1 || !exits(bp, h0))) {
-    //printf("%s: %d,%d speed=%f->", __func__, h0->x, h0->y, a0->speed);
-    a0->speed *= 1.5;
-    //printf("%f\n", a0->speed);
+	//printf("%s: %d,%d speed=%f->", __func__, h0->x, h0->y, a0->speed);
+	a0->speed *= 1.5;
+	//printf("%f\n", a0->speed);
   }
 }
 
 static void handle_nub_grow(config *bp, hexagon *h0, arm *a0, int j) {
   a0->ratio += a0->speed * (2 - a0->ratio);
   if (a0->ratio >= 1.999) {
-    a0->state = DONE;
-    h0->doing = 0;
-    a0->ratio = 1;
+	a0->state = DONE;
+	h0->doing = 0;
+	a0->ratio = 1;
   }
 }
 
@@ -714,270 +711,267 @@ static void tick_hexagons (ModeInfo *mi) {
 
   ticks++;
   for(i=0;i<bp->chunk_count;i++) for(k=0;k<bp->chunks[i]->used;k++) {
-    hexagon *h0 = bp->chunks[i]->chunk[k];
-    if (!(ticks % 4)) h0->invis = hex_invis(bp, h0->x, h0->y, 0);
-    // TODO - capture the radius from hex_invis and use for reducing frawing when FPS low
+	hexagon *h0 = bp->chunks[i]->chunk[k];
+	if (!(ticks % 4)) h0->invis = hex_invis(bp, h0->x, h0->y, 0);
+	// TODO - capture the radius from hex_invis and use for reducing frawing when FPS low
 
-    Bool debug = False;
+	Bool debug = False;
 
-    if (bp->now != tick_report) {
-      tps = ticks; ticks = 0;
-      tick_report = bp->now;
-    }
+	if (bp->now != tick_report) {
+	  tps = ticks; ticks = 0;
+	  tick_report = bp->now;
+	}
 
-    // Measure the drawn part we can see
-    if (!h0->invis && h0->state != EMPTY) {
-      if (h0->x > this_max_vx) {
-        this_max_vx = h0->x;
-        if (h0->x > max_vx) {
-          debug = True; max_vx = h0->x;
-        }
-      }
-      if (h0->x < this_min_vx) {
-        this_min_vx = h0->x;
-        if (h0->x < min_vx) {
-        debug = True; min_vx = h0->x;
-        }
-      }
-      if (h0->y > this_max_vy) {
-        this_max_vy = h0->y;
-        if (h0->y > max_vy) {
-          debug = True; max_vy = h0->y;
-        }
-      }
-      if (h0->y < this_min_vy) {
-        this_min_vy = h0->y;
-        if (h0->y < min_vy) {
-          debug = True; min_vy = h0->y;
-        }
-      }
-    } // Visible and non-empty
+	// Measure the drawn part we can see
+	if (!h0->invis && h0->state != EMPTY) {
+	  if (h0->x > this_max_vx) {
+		this_max_vx = h0->x;
+		if (h0->x > max_vx) {
+		  debug = True; max_vx = h0->x;
+		}
+	  }
+	  if (h0->x < this_min_vx) {
+		this_min_vx = h0->x;
+		if (h0->x < min_vx) {
+		debug = True; min_vx = h0->x;
+		}
+	  }
+	  if (h0->y > this_max_vy) {
+		this_max_vy = h0->y;
+		if (h0->y > max_vy) {
+		  debug = True; max_vy = h0->y;
+		}
+	  }
+	  if (h0->y < this_min_vy) {
+		this_min_vy = h0->y;
+		if (h0->y < min_vy) {
+		  debug = True; min_vy = h0->y;
+		}
+	  }
+	} // Visible and non-empty
 
-    if (h0->x > max_x) {
-      max_x = h0->x; debug = True;
-    } else if (h0->x < min_x) {
-      min_x = h0->x; debug = True;
-    }
-    if (h0->y > max_y) {
-      max_y = h0->y; debug = True;
-    } else if (h0->y < min_y) {
-      min_y = h0->y; debug = True;
-    }
+	if (h0->x > max_x) {
+	  max_x = h0->x; debug = True;
+	} else if (h0->x < min_x) {
+	  min_x = h0->x; debug = True;
+	}
+	if (h0->y > max_y) {
+	  max_y = h0->y; debug = True;
+	} else if (h0->y < min_y) {
+	  min_y = h0->y; debug = True;
+	}
 
-    if (debug) {
-      printf("pos=%d,%d i=%d vis=(%d-%d,%d-%d) (%d-%d,%d-%d) arms=%d border=%d invis=%d\n",
-              h0->x, h0->y, i, min_vx, max_vx, min_vy, max_vy,
-              min_x, max_x, min_y, max_y, h0->doing, h0->state, h0->invis);
-      bp->debug = bp->now;
-    }
+	if (debug) {
+	  printf("pos=%d,%d i=%d vis=(%d-%d,%d-%d) (%d-%d,%d-%d) arms=%d border=%d invis=%d\n",
+			  h0->x, h0->y, i, min_vx, max_vx, min_vy, max_vy,
+			  min_x, max_x, min_y, max_y, h0->doing, h0->state, h0->invis);
+	  bp->debug = bp->now;
+	}
 
-    if (h0->doing) {
-      doinga++;
-      if (h0->invis) ignorea++;
-    }
+	if (h0->doing) {
+	  doinga++;
+	  if (h0->invis) ignorea++;
+	}
 
-    if (h0->state != EMPTY && h0->state != DONE) {
-      doingb++;
-      if (h0->invis) ignoreb++;
-    }
+	if (h0->state != EMPTY && h0->state != DONE) {
+	  doingb++;
+	  if (h0->invis) ignoreb++;
+	}
 
-    if (pausing || (do_expand && h0->invis > 1)) {
-      h0->state = DONE;
-      continue;
-    }
-    iters++;
+	if (pausing || (do_expand && h0->invis > 1)) {
+	  h0->state = DONE;
+	  continue;
+	}
+	iters++;
 
-    /* Enlarge any still-growing arms if active.  */
-    for (j = 0; j < 6; j++) {
-      arm *a0 = &h0->arms[j];
-      if (arm_handlers[a0->state]) arm_handlers[a0->state](bp, h0, a0, j);
-    } // 6 arms
+	/* Enlarge any still-growing arms if active.  */
+	for (j = 0; j < 6; j++) {
+	  arm *a0 = &h0->arms[j];
+	  if (arm_handlers[a0->state]) arm_handlers[a0->state](bp, h0, a0, j);
+	} // 6 arms
 
-    switch (h0->state) {
-      case IN:
-        h0->ratio += 0.05 * speed;
-        if (h0->ratio >= 1) {
-          h0->ratio = 1;
-          h0->state = WAIT;
-        }
-        break;
-      case OUT:
-        h0->ratio -= 0.05 * speed;
-        if (h0->ratio <= 0) {
-          h0->ratio = 0;
-          h0->state = DONE;
-        }
-      case WAIT:
-        if (! (random() % (int)(50.0/speed))) h0->state = OUT;
-        break;
-      case EMPTY:
-      case DONE:
-        break;
-      default:
-        printf("h0->state = %d\n", h0->state);
-        abort(); break;
-    }
+	switch (h0->state) {
+	  case IN:
+		h0->ratio += 0.05 * speed;
+		if (h0->ratio >= 1) {
+		  h0->ratio = 1;
+		  h0->state = WAIT;
+		}
+		break;
+	  case OUT:
+		h0->ratio -= 0.05 * speed;
+		if (h0->ratio <= 0) {
+		  h0->ratio = 0;
+		  h0->state = DONE;
+		}
+	  case WAIT:
+		if (! (random() % (int)(50.0/speed))) h0->state = OUT;
+		break;
+	  case EMPTY:
+	  case DONE:
+		break;
+	  default:
+		printf("h0->state = %d\n", h0->state);
+		abort(); break;
+	}
   } // Loop through each hexagon
 
   min_vx = this_min_vx; max_vx = this_max_vx; min_vy = this_min_vy; max_vy = this_max_vy;
 
   if (bp->now > bp->debug) {
-    printf("tps=%d doinga=%d ignorea=%d doingb=%d ignoreb=%d\n", tps, doinga, ignorea, doingb, ignoreb);
-    bp->debug = bp->now;
+	printf("tps=%d doinga=%d ignorea=%d doingb=%d ignoreb=%d\n", tps, doinga, ignorea, doingb, ignoreb);
+	bp->debug = bp->now;
   }
 
   /* Start a new cell growing.  */
   Bool new_hex = False, started = False;
   static int fails = 0;
   if ((doinga - ignorea) <= 0) {
-    hexagon *h0 = NULL;
-    if (bp->state == FIRST) {
-      fails = 0;
-      bp->state = DRAW;
-      bp->fade_ratio = 1;
-      min_vx = 0; max_vx = 0; min_vy = 0; max_vy = 0;
-      min_x = 0; max_x = 0; min_y = 0; max_y = 0;
-      iters = 0;
-      printf("\n\n\n\n\nNew hextrail. capacity=%d\n", bp->hexagon_capacity);
-      h0 = do_hexagon(bp, 0, 0, 0, 0);
-    } else {
-      int16_t empty_cells[1000][2]; int empty_count = 0;
-      // TODO - possibly need to change this depending on how grid arranged
-      for (int y = min_vy; y <= max_vy && empty_count < 1000; y++)
-        for (int x = min_vx; x <= max_vx && empty_count < 1000; x++) {
-          uint16_t id = xy_to_index(x, y);
-          if (id) {
-            int idx = bp->hex_grid[id];
-            if (!idx && !hex_invis(bp,x,y,0)) {
-              empty_cells[empty_count][0] = x;
-              empty_cells[empty_count++][1] = y;
-            }
-          }
-        }
-      if (empty_count > 0) {
-        int pick = random() % empty_count;
-        int x = empty_cells[pick][0], y = empty_cells[pick][1];
-        new_hex = True; printf("Empty_count = %d picked=%d,%d\n", empty_count, x, y);
-        do_hexagon(bp, 0, 0, x, y);
-      }
-    }
-    if (!h0) {
-      static time_t debug = 0;
-      if (debug != bp->now) {
-        printf("%s: !h0 new=%d doinga=%d,%d doingb=%d,%d fails=%d\n", __func__,
-                new_hex, doinga, ignorea, doingb, ignoreb, fails);
-        debug = bp->now;
-      }
-    } else if (h0->state == EMPTY && add_arms(bp, h0)) {
-      printf("hex created. Arms. doing=%d iters=%d fails=%d pos=%d,%d\n",
-          h0->doing, iters, fails, h0->x, h0->y);
-      fails = 0;
-      h0->ccolor = random() % bp->ncolors;
-      h0->state = DONE;
-      started = True;
-      if (new_hex) bp->pause_until = bp->now + 5;
-    } else {
-      fails++;
-      static time_t debug = 0;
-      if (debug != bp->now) {
-        printf("hexagon created. doing=%d fails=%d h0=%d,%d empty=%d visible=%d\n",
-            h0->doing, fails, h0->x, h0->y, h0->state == EMPTY, !h0->invis);
-        debug = bp->now;
-      }
-    }
+	hexagon *h0 = NULL;
+	if (bp->state == FIRST) {
+	  fails = 0;
+	  bp->state = DRAW;
+	  bp->fade_ratio = 1;
+	  min_vx = 0; max_vx = 0; min_vy = 0; max_vy = 0;
+	  min_x = 0; max_x = 0; min_y = 0; max_y = 0;
+	  iters = 0;
+	  printf("\n\n\n\n\nNew hextrail. capacity=%d\n", bp->hexagon_capacity);
+	  h0 = do_hexagon(bp, 0, 0, 0, 0);
+	} else {
+	  int16_t empty_cells[1000][2]; int empty_count = 0;
+	  // TODO - possibly need to change this depending on how grid arranged
+	  for (int y = min_vy; y <= max_vy && empty_count < 1000; y++)
+		for (int x = min_vx; x <= max_vx && empty_count < 1000; x++) {
+		  uint16_t id = xy_to_index(x, y);
+		  if (id) {
+			int idx = bp->hex_grid[id];
+			if (!idx && !hex_invis(bp,x,y,0)) {
+			  empty_cells[empty_count][0] = x;
+			  empty_cells[empty_count++][1] = y;
+			}
+		  }
+		}
+	  if (empty_count > 0) {
+		int pick = random() % empty_count;
+		int x = empty_cells[pick][0], y = empty_cells[pick][1];
+		new_hex = True; printf("Empty_count = %d picked=%d,%d\n", empty_count, x, y);
+		do_hexagon(bp, 0, 0, x, y);
+	  }
+	}
+	if (!h0) {
+	  static time_t debug = 0;
+	  if (debug != bp->now) {
+		printf("%s: !h0 new=%d doinga=%d,%d doingb=%d,%d fails=%d\n", __func__,
+				new_hex, doinga, ignorea, doingb, ignoreb, fails);
+		debug = bp->now;
+	  }
+	} else if (h0->state == EMPTY && add_arms(bp, h0)) {
+	  printf("hex created. Arms. doing=%d iters=%d fails=%d pos=%d,%d\n",
+		  h0->doing, iters, fails, h0->x, h0->y);
+	  fails = 0;
+	  h0->ccolor = random() % bp->ncolors;
+	  h0->state = DONE;
+	  started = True;
+	  if (new_hex) bp->pause_until = bp->now + 5;
+	} else {
+	  fails++;
+	  static time_t debug = 0;
+	  if (debug != bp->now) {
+		printf("hexagon created. doing=%d fails=%d h0=%d,%d empty=%d visible=%d\n",
+			h0->doing, fails, h0->x, h0->y, h0->state == EMPTY, !h0->invis);
+		debug = bp->now;
+	  }
+	}
   }
 
   if (new_hex && (started || doinga != ignorea))
-    printf("New cell: started=%d doinga=%d ignorea=%d doingb=%d ignoreb=%d\n",
-            started, doinga, ignorea, doingb, ignoreb);
+	printf("New cell: started=%d doinga=%d ignorea=%d doingb=%d ignoreb=%d\n",
+			started, doinga, ignorea, doingb, ignoreb);
 
   if (!started && (doinga - ignorea) < 1 && (doingb - ignoreb) < 1 && bp->state != FADE) {
-    printf("Fade started. iters=%d doinga=%d doingb=%d ignorea=%d ignoreb=%d\n",
-            iters, doinga, doingb, ignorea, ignoreb);
-    bp->state = FADE; bp->fade_speed = 0.01; pause_fade = False;
+	printf("Fade started. iters=%d doinga=%d doingb=%d ignorea=%d ignoreb=%d\n",
+			iters, doinga, doingb, ignorea, ignoreb);
+	bp->state = FADE; bp->fade_speed = 0.01; pause_fade = False;
 
-    for (i=0;i<bp->chunk_count;i++) for (k=0;k<bp->chunks[i]->used;k++) {
-      hexagon *h = bp->chunks[i]->chunk[k];
-      if (h->state == IN || h->state == WAIT) h->state = OUT;
-    }
+	for (i=0;i<bp->chunk_count;i++) for (k=0;k<bp->chunks[i]->used;k++) {
+	  hexagon *h = bp->chunks[i]->chunk[k];
+	  if (h->state == IN || h->state == WAIT) h->state = OUT;
+	}
   } else if (bp->state == FADE && !pause_fade) {
-    bp->fade_ratio -= bp->fade_speed;
-    scale_corners(mi);
-    if (bp->fade_ratio <= 0) {
-      printf("Fade ended.\n");
-      reset_hextrail (mi);
-    } else if (bp->fade_ratio >= 1) {
-      bp->fade_ratio = 1; bp->fade_speed = 0;
-      bp->state = DRAW; pause_fade = True;
-    }
+	bp->fade_ratio -= bp->fade_speed;
+	scale_corners(mi);
+	if (bp->fade_ratio <= 0) {
+	  printf("Fade ended.\n");
+	  reset_hextrail (mi);
+	} else if (bp->fade_ratio >= 1) {
+	  bp->fade_ratio = 1; bp->fade_speed = 0;
+	  bp->state = DRAW; pause_fade = True;
+	}
   }
 }
 
 #ifdef USE_SDL
   # define HEXAGON_COLOR(V,H) do { \
-    int idx = (H)->ccolor; \
-    (V)[0] = bp->colors[idx].r / 255.0f * bp->fade_ratio; \
-    (V)[1] = bp->colors[idx].g / 255.0f * bp->fade_ratio; \
-    (V)[2] = bp->colors[idx].b / 255.0f * bp->fade_ratio; \
-    (V)[3] = bp->colors[idx].a / 255.0f; \
+	int idx = (H)->ccolor; \
+	(V)[0] = bp->colors[idx].r / 255.0f * bp->fade_ratio; \
+	(V)[1] = bp->colors[idx].g / 255.0f * bp->fade_ratio; \
+	(V)[2] = bp->colors[idx].b / 255.0f * bp->fade_ratio; \
+	(V)[3] = bp->colors[idx].a / 255.0f; \
   } while (0)
 #else // USE_SDL
   # define HEXAGON_COLOR(V,H) do { \
-    (V)[0] = bp->colors[(H)->ccolor].red   / 65535.0 * bp->fade_ratio; \
-    (V)[1] = bp->colors[(H)->ccolor].green / 65535.0 * bp->fade_ratio; \
-    (V)[2] = bp->colors[(H)->ccolor].blue  / 65535.0 * bp->fade_ratio; \
-    (V)[3] = 1; \
+	(V)[0] = bp->colors[(H)->ccolor].red   / 65535.0 * bp->fade_ratio; \
+	(V)[1] = bp->colors[(H)->ccolor].green / 65535.0 * bp->fade_ratio; \
+	(V)[2] = bp->colors[(H)->ccolor].blue  / 65535.0 * bp->fade_ratio; \
+	(V)[3] = 1; \
   } while (0)
 #endif // else USE_SDL
 
 #ifdef GL_VERSION_2_0
 /* Render accumulated vertices using shaders */
 static void render_vertices(ModeInfo *mi, config *bp, int wire) {
-    if (vertex_count == 0) return;
+	if (vertex_count == 0) return;
 
-    /* Use shader program */
-    glUseProgram(bp->shader_program);
+	/* Use shader program */
+	glUseProgram(bp->shader_program);
 
-    /* Set uniform variables */
-    GLint resolution_loc = glGetUniformLocation(bp->shader_program, "resolution");
-    GLint use_glow_loc = glGetUniformLocation(bp->shader_program, "use_glow");
+	/* Set uniform variables */
+	GLint resolution_loc = glGetUniformLocation(bp->shader_program, "resolution");
+	GLint use_glow_loc = glGetUniformLocation(bp->shader_program, "use_glow");
 
-    if (resolution_loc != -1) glUniform2f(resolution_loc, MI_WIDTH(mi), MI_HEIGHT(mi));
+	if (resolution_loc != -1) glUniform2f(resolution_loc, MI_WIDTH(mi), MI_HEIGHT(mi));
 
-    if (use_glow_loc != -1) glUniform1i(use_glow_loc, (do_glow || do_neon) ? 1 : 0);
+	if (use_glow_loc != -1) glUniform1i(use_glow_loc, (do_glow || do_neon) ? 1 : 0);
 
-    /* Update vertex buffer with accumulated vertices */
-    glBindBuffer(GL_ARRAY_BUFFER, bp->vertex_buffer);
-    glBufferData(GL_ARRAY_BUFFER, vertex_count * sizeof(Vertex),
-                 vertices, GL_STREAM_DRAW);
+	/* Update vertex buffer with accumulated vertices */
+	glBindBuffer(GL_ARRAY_BUFFER, bp->vertex_buffer);
+	glBufferData(GL_ARRAY_BUFFER, vertex_count * sizeof(Vertex),
+				 vertices, GL_STREAM_DRAW);
 
-    /* Set up vertex attributes */
+	/* Set up vertex attributes */
 #ifdef GL_VERSION_3_0
-    if (bp->vertex_array) glBindVertexArray(bp->vertex_array);
+	if (bp->vertex_array) glBindVertexArray(bp->vertex_array);
 #endif // GL_VERSION_3_0
 
-    /* Position attribute (x, y, z) */
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)0);
+	/* Position attribute (x, y, z) */
+	glEnableVertexAttribArray(0);
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)0);
 
-    /* Color attribute (r, g, b, a) */
-    glEnableVertexAttribArray(1);
-    glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)(3 * sizeof(GLfloat)));
+	/* Color attribute (r, g, b, a) */
+	glEnableVertexAttribArray(1);
+	glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)(3 * sizeof(GLfloat)));
 
-    /* Draw the vertices */
-    glDrawArrays(wire ? GL_LINES : GL_TRIANGLES, 0, vertex_count);
+	/* Draw the vertices */
+	glDrawArrays(wire ? GL_LINES : GL_TRIANGLES, 0, vertex_count);
 
-    /* Track shader statistics */
-    bp->shader_vertices_count += vertex_count;
-
-    /* Clean up */
-    glDisableVertexAttribArray(0);
-    glDisableVertexAttribArray(1);
+	/* Clean up */
+	glDisableVertexAttribArray(0);
+	glDisableVertexAttribArray(1);
 #ifdef GL_VERSION_3_0
-    if (bp->vertex_array) glBindVertexArray(0);
+	if (bp->vertex_array) glBindVertexArray(0);
 #endif // GL_VERSION_3_0
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-    glUseProgram(0);
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+	glUseProgram(0);
 }
 #endif // GL_VERSION_2_0
 
@@ -998,159 +992,159 @@ static void draw_hexagons(ModeInfo *mi) {
 
   int i, k;
   for (i=0;i<bp->chunk_count;i++) for (k=0;k<bp->chunks[i]->used;k++) {
-    hexagon *h = bp->chunks[i]->chunk[k];
-    if (draw_invis < h->invis) continue;
-    XYZ pos = { h->x * wid - h->y * wid / 2, h->y * hgt, 0 }; // TODO - better stored within hexagon struct?
-    GLfloat color[4]; HEXAGON_COLOR (color, h);
+	hexagon *h = bp->chunks[i]->chunk[k];
+	if (draw_invis < h->invis) continue;
+	XYZ pos = { h->x * wid - h->y * wid / 2, h->y * hgt, 0 }; // TODO - better stored within hexagon struct?
+	GLfloat color[4]; HEXAGON_COLOR (color, h);
 
-    int j, total_arms = 0;
-    GLfloat nub_ratio = 0;
-    for (j = 0; j < 6; j++) {
-      arm *a = &h->arms[j];
-      if (a->state == OUT || a->state == DONE || a->state == WAIT) {
-        total_arms++;
-        if (a->state == WAIT)
-          nub_ratio = a->ratio;
-      }
-    }
+	int j, total_arms = 0;
+	GLfloat nub_ratio = 0;
+	for (j = 0; j < 6; j++) {
+	  arm *a = &h->arms[j];
+	  if (a->state == OUT || a->state == DONE || a->state == WAIT) {
+		total_arms++;
+		if (a->state == WAIT)
+		  nub_ratio = a->ratio;
+	  }
+	}
 
-    for (j = 0; j < 6; j++) {
-      arm *a = &h->arms[j];
-      int k = (j + 1) % 6;
-      XYZ p[6];
+	for (j = 0; j < 6; j++) {
+	  arm *a = &h->arms[j];
+	  int k = (j + 1) % 6;
+	  XYZ p[6];
 
-      if (hexes_on || (h->state != EMPTY && h->state != DONE)) {
-        GLfloat color1[4], ratio;
-        ratio = (hexes_on && h->state != IN) ? 1 : h->ratio;
-        memcpy(color1, color, sizeof(color1));
-        color1[0] *= ratio; color1[1] *= ratio; color1[2] *= ratio;
+	  if (hexes_on || (h->state != EMPTY && h->state != DONE)) {
+		GLfloat color1[4], ratio;
+		ratio = (hexes_on && h->state != IN) ? 1 : h->ratio;
+		memcpy(color1, color, sizeof(color1));
+		color1[0] *= ratio; color1[1] *= ratio; color1[2] *= ratio;
 
-        set_color_v(color1);
-        glMaterialfv (GL_FRONT, GL_AMBIENT_AND_DIFFUSE, color1);
+		set_color_v(color1);
+		glMaterialfv (GL_FRONT, GL_AMBIENT_AND_DIFFUSE, color1);
 
-        /* Outer edge of hexagon border */
-        p[0].x = pos.x + scaled_corners[j][0].x;
-        p[0].y = pos.y + scaled_corners[j][0].y;
-        p[0].z = pos.z;
+		/* Outer edge of hexagon border */
+		p[0].x = pos.x + scaled_corners[j][0].x;
+		p[0].y = pos.y + scaled_corners[j][0].y;
+		p[0].z = pos.z;
 
-        p[1].x = pos.x + scaled_corners[k][0].x;
-        p[1].y = pos.y + scaled_corners[k][0].y;
-        p[1].z = pos.z;
+		p[1].x = pos.x + scaled_corners[k][0].x;
+		p[1].y = pos.y + scaled_corners[k][0].y;
+		p[1].z = pos.z;
 
-        /* Inner edge of hexagon border */
-        p[2].x = pos.x + scaled_corners[k][1].x;
-        p[2].y = pos.y + scaled_corners[k][1].y;
-        p[2].z = pos.z;
-        p[3].x = pos.x + scaled_corners[j][1].x;
-        p[3].y = pos.y + scaled_corners[j][1].y;
-        p[3].z = pos.z;
+		/* Inner edge of hexagon border */
+		p[2].x = pos.x + scaled_corners[k][1].x;
+		p[2].y = pos.y + scaled_corners[k][1].y;
+		p[2].z = pos.z;
+		p[3].x = pos.x + scaled_corners[j][1].x;
+		p[3].y = pos.y + scaled_corners[j][1].y;
+		p[3].z = pos.z;
 
-        do_vertex(p[0].x, p[0].y, p[0].z);
-        do_vertex(p[1].x, p[1].y, p[1].z);
-        if (!wire) do_vertex(p[2].x, p[2].y, p[2].z);
-        mi->polygon_count++;
+		do_vertex(p[0].x, p[0].y, p[0].z);
+		do_vertex(p[1].x, p[1].y, p[1].z);
+		if (!wire) do_vertex(p[2].x, p[2].y, p[2].z);
+		mi->polygon_count++;
 
-        do_vertex(p[2].x, p[2].y, p[2].z);
-        do_vertex(p[3].x, p[3].y, p[3].z);
-        if (!wire) do_vertex(p[0].x, p[0].y, p[0].z);
-        mi->polygon_count++;
-      }
+		do_vertex(p[2].x, p[2].y, p[2].z);
+		do_vertex(p[3].x, p[3].y, p[3].z);
+		if (!wire) do_vertex(p[0].x, p[0].y, p[0].z);
+		mi->polygon_count++;
+	  }
 
-      /* Line from center to edge, or edge to center.  */
-      if (a->state == IN || a->state == OUT || a->state == DONE || a->state == WAIT) {
-        GLfloat x   = (corners[j].x + corners[k].x) / 2;
-        GLfloat y   = (corners[j].y + corners[k].y) / 2;
-        GLfloat xoff = corners[k].x - corners[j].x;
-        GLfloat yoff = corners[k].y - corners[j].y;
-        GLfloat line_length = (a->state == WAIT) ? 1 : a->ratio;
-        GLfloat start, end;
-        GLfloat ncolor[4];
-        GLfloat color1[4];
-        GLfloat color2[4];
+	  /* Line from center to edge, or edge to center.  */
+	  if (a->state == IN || a->state == OUT || a->state == DONE || a->state == WAIT) {
+		GLfloat x   = (corners[j].x + corners[k].x) / 2;
+		GLfloat y   = (corners[j].y + corners[k].y) / 2;
+		GLfloat xoff = corners[k].x - corners[j].x;
+		GLfloat yoff = corners[k].y - corners[j].y;
+		GLfloat line_length = (a->state == WAIT) ? 1 : a->ratio;
+		GLfloat start, end;
+		GLfloat ncolor[4];
+		GLfloat color1[4];
+		GLfloat color2[4];
 
-        /* Color of the outer point of the line is average color of
-           this and the neighbor. */
-        hexagon *hn = get_hex(bp, neighbor(h->x, h->y, j, NULL, NULL));
-        if (!hn) {
-            printf("%s: h=%d,%d j=%d BAD NEIGHBOR\n", __func__, h->x, h->y, j);
-            continue;
-        }
-        HEXAGON_COLOR (ncolor, hn);
-        ncolor[0] = (ncolor[0] + color[0]) / 2;
-        ncolor[1] = (ncolor[1] + color[1]) / 2;
-        ncolor[2] = (ncolor[2] + color[2]) / 2;
-        //ncolor[3] = (ncolor[3] + color[3]) / 2;
+		/* Color of the outer point of the line is average color of
+		   this and the neighbor. */
+		hexagon *hn = get_hex(bp, neighbor(h->x, h->y, j, NULL, NULL));
+		if (!hn) {
+			printf("%s: h=%d,%d j=%d BAD NEIGHBOR\n", __func__, h->x, h->y, j);
+			continue;
+		}
+		HEXAGON_COLOR (ncolor, hn);
+		ncolor[0] = (ncolor[0] + color[0]) / 2;
+		ncolor[1] = (ncolor[1] + color[1]) / 2;
+		ncolor[2] = (ncolor[2] + color[2]) / 2;
+		//ncolor[3] = (ncolor[3] + color[3]) / 2;
 
-        if (a->state == OUT) {
-          start = 0;
-          end = size * line_length;
-          memcpy (color1, color,  sizeof(color1));
-          memcpy (color2, ncolor, sizeof(color1));
-        } else {
-          start = size;
-          end = size * (1 - line_length);
-          memcpy (color1, ncolor, sizeof(color1));
-          memcpy (color2, color,  sizeof(color1));
-        }
+		if (a->state == OUT) {
+		  start = 0;
+		  end = size * line_length;
+		  memcpy (color1, color,  sizeof(color1));
+		  memcpy (color2, ncolor, sizeof(color1));
+		} else {
+		  start = size;
+		  end = size * (1 - line_length);
+		  memcpy (color1, ncolor, sizeof(color1));
+		  memcpy (color2, color,  sizeof(color1));
+		}
 
-        //if (! h->neighbors[j]) abort();  /* arm/neighbor mismatch */
+		//if (! h->neighbors[j]) abort();  /* arm/neighbor mismatch */
 
-        /* Center */
-        p[0].x = pos.x + xoff * size2 * thick2 + x * start;
-        p[0].y = pos.y + yoff * size2 * thick2 + y * start;
-        p[0].z = pos.z;
-        p[1].x = pos.x - xoff * size2 * thick2 + x * start;
-        p[1].y = pos.y - yoff * size2 * thick2 + y * start;
-        p[1].z = pos.z;
+		/* Center */
+		p[0].x = pos.x + xoff * size2 * thick2 + x * start;
+		p[0].y = pos.y + yoff * size2 * thick2 + y * start;
+		p[0].z = pos.z;
+		p[1].x = pos.x - xoff * size2 * thick2 + x * start;
+		p[1].y = pos.y - yoff * size2 * thick2 + y * start;
+		p[1].z = pos.z;
 
-        /* Edge */
-        p[2].x = pos.x - xoff * size2 * thick2 + x * end;
-        p[2].y = pos.y - yoff * size2 * thick2 + y * end;
-        p[2].z = pos.z;
-        p[3].x = pos.x + xoff * size2 * thick2 + x * end;
-        p[3].y = pos.y + yoff * size2 * thick2 + y * end;
-        p[3].z = pos.z;
+		/* Edge */
+		p[2].x = pos.x - xoff * size2 * thick2 + x * end;
+		p[2].y = pos.y - yoff * size2 * thick2 + y * end;
+		p[2].z = pos.z;
+		p[3].x = pos.x + xoff * size2 * thick2 + x * end;
+		p[3].y = pos.y + yoff * size2 * thick2 + y * end;
+		p[3].z = pos.z;
 
-        set_color_v(color2);
-        do_vertex(p[3].x, p[3].y, p[3].z);
-        set_color_v(color1);
-        do_vertex(p[0].x, p[0].y, p[0].z);
-        if (!wire) do_vertex(p[1].x, p[1].y, p[1].z);
-        mi->polygon_count++;
+		set_color_v(color2);
+		do_vertex(p[3].x, p[3].y, p[3].z);
+		set_color_v(color1);
+		do_vertex(p[0].x, p[0].y, p[0].z);
+		if (!wire) do_vertex(p[1].x, p[1].y, p[1].z);
+		mi->polygon_count++;
 
-        do_vertex(p[1].x, p[1].y, p[1].z);
+		do_vertex(p[1].x, p[1].y, p[1].z);
 
-        set_color_v(color2);
-        do_vertex(p[2].x, p[2].y, p[2].z);
-        if (!wire) do_vertex(p[3].x, p[3].y, p[3].z);
-        mi->polygon_count++;
-      } // arm is IN, OUT or DONE
+		set_color_v(color2);
+		do_vertex(p[2].x, p[2].y, p[2].z);
+		if (!wire) do_vertex(p[3].x, p[3].y, p[3].z);
+		mi->polygon_count++;
+	  } // arm is IN, OUT or DONE
 
-      /* Hexagon (one triangle of) in center to hide line miter/bevels.  */
-      if (total_arms && a->state != DONE && a->state != OUT) {
-        p[0] = pos; p[1].z = pos.z; p[2].z = pos.z;
+	  /* Hexagon (one triangle of) in center to hide line miter/bevels.  */
+	  if (total_arms && a->state != DONE && a->state != OUT) {
+		p[0] = pos; p[1].z = pos.z; p[2].z = pos.z;
 
-        if (nub_ratio) {
-          p[1].x = pos.x + scaled_corners[j][2].x * nub_ratio;
-          p[1].y = pos.y + scaled_corners[j][2].y * nub_ratio;
-          p[2].x = pos.x + scaled_corners[k][2].x * nub_ratio;
-          p[2].y = pos.y + scaled_corners[k][2].y * nub_ratio;
-        } else {
-          int8_t s = (total_arms == 1) ? 3 : 2;
-          p[1].x = pos.x + scaled_corners[j][s].x;
-          p[1].y = pos.y + scaled_corners[j][s].y;
-          /* Inner edge of hexagon border */
-          p[2].x = pos.x + scaled_corners[k][s].x;
-          p[2].y = pos.y + scaled_corners[k][s].y;
-        }
+		if (nub_ratio) {
+		  p[1].x = pos.x + scaled_corners[j][2].x * nub_ratio;
+		  p[1].y = pos.y + scaled_corners[j][2].y * nub_ratio;
+		  p[2].x = pos.x + scaled_corners[k][2].x * nub_ratio;
+		  p[2].y = pos.y + scaled_corners[k][2].y * nub_ratio;
+		} else {
+		  int8_t s = (total_arms == 1) ? 3 : 2;
+		  p[1].x = pos.x + scaled_corners[j][s].x;
+		  p[1].y = pos.y + scaled_corners[j][s].y;
+		  /* Inner edge of hexagon border */
+		  p[2].x = pos.x + scaled_corners[k][s].x;
+		  p[2].y = pos.y + scaled_corners[k][s].y;
+		}
 
-        set_color_v(color);
-        if (!wire) do_vertex(p[0].x, p[0].y, p[0].z);
-        do_vertex(p[1].x, p[1].y, p[1].z);
-        do_vertex(p[2].x, p[2].y, p[2].z);
-        mi->polygon_count++;
-      }
-    } // loop through arms
+		set_color_v(color);
+		if (!wire) do_vertex(p[0].x, p[0].y, p[0].z);
+		do_vertex(p[1].x, p[1].y, p[1].z);
+		do_vertex(p[2].x, p[2].y, p[2].z);
+		mi->polygon_count++;
+	  }
+	} // loop through arms
   }
 
 #ifdef GL_VERSION_2_0
@@ -1169,9 +1163,9 @@ ENTRYPOINT void reshape_hextrail(ModeInfo *mi, int width, int height) {
   int y = 0;
 
   if (width > height * 3) {   /* tiny window: show middle */
-    height = width * 9 / 16;
-    y = -height / 2;
-    h = height / (GLfloat)width;
+	height = width * 9 / 16;
+	y = -height / 2;
+	h = height / (GLfloat)width;
   }
 
   glViewport(0, y, (GLint)width, (GLint)height);
@@ -1194,114 +1188,114 @@ ENTRYPOINT void reshape_hextrail(ModeInfo *mi, int width, int height) {
 
 ENTRYPOINT Bool hextrail_handle_event(ModeInfo *mi,
 #ifdef USE_SDL
-        SDL_Event *event
+		SDL_Event *event
 #else // USE_SDL
-        XEvent *event
+		XEvent *event
 #endif // else USE_SDL
-        ) {
+		) {
   config *bp = &bps[MI_SCREEN(mi)];
 
   if (gltrackball_event_handler (event, bp->trackball,
-              MI_WIDTH(mi), MI_HEIGHT(mi), &bp->button_down_p)) {
-    if (bp->fade_speed > 0) {
-      bp->fade_speed = -bp->fade_speed;
-    }
-    return True;
+			  MI_WIDTH(mi), MI_HEIGHT(mi), &bp->button_down_p)) {
+	if (bp->fade_speed > 0) {
+	  bp->fade_speed = -bp->fade_speed;
+	}
+	return True;
   }
 #ifdef USE_SDL
   else if (event->type == SDL_EVENT_KEY_DOWN) {
-    SDL_Keycode keysym = event->key.key;
-    char c = (char)event->key.key;
+	SDL_Keycode keysym = event->key.key;
+	char c = (char)event->key.key;
 #else // USE_SDL
   else if (event->xany.type == KeyPress) {
-    KeySym keysym;
-    char c = 0;
-    XLookupString (&event->xkey, &c, 1, &keysym, 0);
+	KeySym keysym;
+	char c = 0;
+	XLookupString (&event->xkey, &c, 1, &keysym, 0);
 #endif // else USE_SDL
 
-    if (c == '\t' || c == '\r' || c == '\n') ;
-    else if (c == '>' || c == '.' ||
+	if (c == '\t' || c == '\r' || c == '\n') ;
+	else if (c == '>' || c == '.' ||
 #ifdef USE_SDL
-            keysym == SDLK_UP || keysym == SDLK_PAGEDOWN
+			keysym == SDLK_UP || keysym == SDLK_PAGEDOWN
 #else // USE_SDL
-            keysym == XK_Up || keysym == XK_Next
+			keysym == XK_Up || keysym == XK_Next
 #endif // else USE_SDL
-            ) {
-      MI_COUNT(mi)--;
-      if (MI_COUNT(mi) < 1) MI_COUNT(mi) = 1;
-      bp->size = MI_COUNT(mi) * 2;
-      scale_corners(mi);
-    } else if (
+			) {
+	  MI_COUNT(mi)--;
+	  if (MI_COUNT(mi) < 1) MI_COUNT(mi) = 1;
+	  bp->size = MI_COUNT(mi) * 2;
+	  scale_corners(mi);
+	} else if (
 #ifdef USE_SDL
-            keysym == SDLK_RIGHT
+			keysym == SDLK_RIGHT
 #else
-            keysym == XK_Right
+			keysym == XK_Right
 #endif
-            ) {
-      speed *= 2;
-      if (speed > 20) speed = 20;
-      printf("%s: speed = %f -> %f\n", __func__, speed/2, speed);
-    } else if (
+			) {
+	  speed *= 2;
+	  if (speed > 20) speed = 20;
+	  printf("%s: speed = %f -> %f\n", __func__, speed/2, speed);
+	} else if (
 #ifdef USE_SDL
-            keysym == SDLK_LEFT
+			keysym == SDLK_LEFT
 #else
-            keysym == XK_Left
+			keysym == XK_Left
 #endif
-      ) {
-      speed /= 2;
-      if (speed < 0.0001) speed = 0.0001;
-      printf("%s: speed = %f -> %f\n", __func__, speed*2, speed);
-    } else if (c == '<' || c == ',' || c == '_' ||
-               c == '\010' || c == '\177' ||
+	  ) {
+	  speed /= 2;
+	  if (speed < 0.0001) speed = 0.0001;
+	  printf("%s: speed = %f -> %f\n", __func__, speed*2, speed);
+	} else if (c == '<' || c == ',' || c == '_' ||
+			   c == '\010' || c == '\177' ||
 #ifdef USE_SDL
-            keysym == SDLK_DOWN || keysym == SDLK_PAGEUP
+			keysym == SDLK_DOWN || keysym == SDLK_PAGEUP
 #else
-            keysym == XK_Down || keysym == XK_Prior
+			keysym == XK_Down || keysym == XK_Prior
 #endif
-            ) {
-      MI_COUNT(mi)++;
-      bp->size = MI_COUNT(mi) * 2;
-      scale_corners(mi);
-    } else if (c == '-') {
-      MI_COUNT(mi)--;
-      if (MI_COUNT(mi) < 1) MI_COUNT(mi) = 1;
-      scale_corners(mi);
-    } else if (c == '=' || c == '+') {
-      MI_COUNT(mi)++;
-      scale_corners(mi);
-    } else if (c == 's') {
-      draw_invis = (int8_t)(draw_invis - 1) % 4;
-      printf("%s: draw_invis = %d\n", __func__, draw_invis);
-    } else if (c == 'S') {
-      draw_invis = (int8_t)(draw_invis + 1) % 4;
-      printf("%s: draw_invis = %d\n", __func__, draw_invis);
-    } else if (c == 'e') {
-      do_expand = !do_expand;
-      printf("%s: do_expand = %d\n", __func__, do_expand);
-    } else if (c == 'h') {
-      hexes_on = !hexes_on;
-      printf("%s: hexes_on = %d\n", __func__, hexes_on);
-    } else if (c == 'p' || c == ' ') {
-      if (pause_fade) {
-        pause_fade = False;
-        printf("%s: pause_fade = %d hexagons=%d\n", __func__, pause_fade, bp->total_hexagons);
-      } else if (bp->fade_speed > 0) {
-        bp->fade_speed = -bp->fade_speed;
-        printf("%s: pause_fade = %d hexagons=%d\n", __func__, pause_fade, bp->total_hexagons);
-      } else {
-        pausing = !pausing;
-        printf("%s: pausing = %d hexagons=%d\n", __func__, pausing, bp->total_hexagons);
-      }
-    }
+			) {
+	  MI_COUNT(mi)++;
+	  bp->size = MI_COUNT(mi) * 2;
+	  scale_corners(mi);
+	} else if (c == '-') {
+	  MI_COUNT(mi)--;
+	  if (MI_COUNT(mi) < 1) MI_COUNT(mi) = 1;
+	  scale_corners(mi);
+	} else if (c == '=' || c == '+') {
+	  MI_COUNT(mi)++;
+	  scale_corners(mi);
+	} else if (c == 's') {
+	  draw_invis = (int8_t)(draw_invis - 1) % 4;
+	  printf("%s: draw_invis = %d\n", __func__, draw_invis);
+	} else if (c == 'S') {
+	  draw_invis = (int8_t)(draw_invis + 1) % 4;
+	  printf("%s: draw_invis = %d\n", __func__, draw_invis);
+	} else if (c == 'e') {
+	  do_expand = !do_expand;
+	  printf("%s: do_expand = %d\n", __func__, do_expand);
+	} else if (c == 'h') {
+	  hexes_on = !hexes_on;
+	  printf("%s: hexes_on = %d\n", __func__, hexes_on);
+	} else if (c == 'p' || c == ' ') {
+	  if (pause_fade) {
+		pause_fade = False;
+		printf("%s: pause_fade = %d hexagons=%d\n", __func__, pause_fade, bp->total_hexagons);
+	  } else if (bp->fade_speed > 0) {
+		bp->fade_speed = -bp->fade_speed;
+		printf("%s: pause_fade = %d hexagons=%d\n", __func__, pause_fade, bp->total_hexagons);
+	  } else {
+		pausing = !pausing;
+		printf("%s: pausing = %d hexagons=%d\n", __func__, pausing, bp->total_hexagons);
+	  }
+	}
 #ifdef USE_SDL
-    else if (event->type == SDL_EVENT_QUIT)
+	else if (event->type == SDL_EVENT_QUIT)
 #else
-    else if (screenhack_event_helper (MI_DISPLAY(mi), MI_WINDOW(mi), event))
+	else if (screenhack_event_helper (MI_DISPLAY(mi), MI_WINDOW(mi), event))
 #endif
-      return True;
-    else return False;
+	  return True;
+	else return False;
 
-    return True;
+	return True;
   }
 
   return False;
@@ -1325,8 +1319,8 @@ ENTRYPOINT void init_hextrail(ModeInfo *mi) {
   bp->window = mi->window;
   bp->gl_context = mi->gl_context;
   if (!bp->gl_context || !bp->window) {
-    fprintf(stderr, "%s: Invalid SDL GL context or window\n", progname);
-    exit(1);
+	fprintf(stderr, "%s: Invalid SDL GL context or window\n", progname);
+	exit(1);
   }
 #else // USE_SDL
   bp->glx_context = init_GL(mi);
@@ -1335,16 +1329,15 @@ ENTRYPOINT void init_hextrail(ModeInfo *mi) {
   /* Check if we can use shaders on this system */
   int use_shaders = check_gl_version();
   printf("%s: use_shaders = %d\n", __func__, use_shaders);
-  bp->shader_vertices_count = 0;  /* Initialize shader statistics counter */
 
   reshape_hextrail(mi, MI_WIDTH(mi), MI_HEIGHT(mi));
 
   bp->rot = make_rotator(do_spin ? 0.002 : 0, do_spin ? 0.002 : 0,
-                         do_spin ? 0.002 : 0, 1.0, // spin_accel
-                         do_wander ? 0.003 : 0, False);
+						 do_spin ? 0.002 : 0, 1.0, // spin_accel
+						 do_wander ? 0.003 : 0, False);
   bp->trackball = gltrackball_init(True);
   gltrackball_reset(bp->trackball, -0.4 + frand(0.8),
-                     -0.4 + frand(0.8)); // TODO - half-reset each hextrail_reset
+					 -0.4 + frand(0.8)); // TODO - half-reset each hextrail_reset
 
   if (thickness < 0.05) thickness = 0.05;
   if (thickness > 0.5) thickness = 0.5;
@@ -1354,28 +1347,28 @@ ENTRYPOINT void init_hextrail(ModeInfo *mi) {
 #ifdef GL_VERSION_2_0
   /* Initialize shaders if supported */
   if (!init_shaders(bp)) {
-    fprintf(stderr, "Failed to initialize shaders, falling back to immediate mode\n");
-    //bp->use_shaders = 0;
+	fprintf(stderr, "Failed to initialize shaders, falling back to immediate mode\n");
+	//bp->use_shaders = 0;
   } else {
-    /* Set up vertex attributes */
-    glGenBuffers(1, &bp->vertex_buffer);
+	/* Set up vertex attributes */
+	glGenBuffers(1, &bp->vertex_buffer);
 #ifdef GL_VERSION_3_0
-    glGenVertexArrays(1, &bp->vertex_array);
+	glGenVertexArrays(1, &bp->vertex_array);
 #else
-    /* Fallback for systems without VAO support */
-    bp->vertex_array = 0;
+	/* Fallback for systems without VAO support */
+	bp->vertex_array = 0;
 #endif
 
-    /* Bind attributes */
-    glBindAttribLocation(bp->shader_program, 0, "position");
-    glBindAttribLocation(bp->shader_program, 1, "color");
+	/* Bind attributes */
+	glBindAttribLocation(bp->shader_program, 0, "position");
+	glBindAttribLocation(bp->shader_program, 1, "color");
   }
 #endif
 
   bp->size = MI_COUNT(mi) * 2; N = bp->size * 2 + 1; // N should be odd
   if (N > MAX_N) {
-    printf("%s: Limiting N (%d) to MAX_N (%d)\n", __func__, N, MAX_N);
-    N = MAX_N;
+	printf("%s: Limiting N (%d) to MAX_N (%d)\n", __func__, N, MAX_N);
+	N = MAX_N;
   }
   bp->hex_grid = (uint16_t *)calloc(N*(N+1)*3+2, sizeof(uint16_t));
   q = (N + 1) / 2;
@@ -1390,8 +1383,8 @@ ENTRYPOINT void draw_hextrail (ModeInfo *mi) {
 
 #ifdef USE_SDL
   if (SDL_GL_MakeCurrent(bp->window, bp->gl_context) < 0) {
-    fprintf(stderr, "%s: SDL_GL_MakeCurrent failed: %s\n", progname, SDL_GetError());
-    return;
+	fprintf(stderr, "%s: SDL_GL_MakeCurrent failed: %s\n", progname, SDL_GetError());
+	return;
   }
 #else // USE_SDL
   if (!bp->glx_context) return;
@@ -1408,24 +1401,24 @@ ENTRYPOINT void draw_hextrail (ModeInfo *mi) {
 
   glPushMatrix();
   {
-    double x, y, z;
-    get_position (bp->rot, &x, &y, &z, !bp->button_down_p);
-    glTranslatef((x - 0.5) * 6, (y - 0.5) * 6, (z - 0.5) * 12);
-    gltrackball_rotate (bp->trackball);
-    get_rotation (bp->rot, &x, &y, &z, !bp->button_down_p);
-    glRotatef (z * 360, 0.0, 0.0, 1.0);
+	double x, y, z;
+	get_position (bp->rot, &x, &y, &z, !bp->button_down_p);
+	glTranslatef((x - 0.5) * 6, (y - 0.5) * 6, (z - 0.5) * 12);
+	gltrackball_rotate (bp->trackball);
+	get_rotation (bp->rot, &x, &y, &z, !bp->button_down_p);
+	glRotatef (z * 360, 0.0, 0.0, 1.0);
   }
 
   {
-    GLfloat s = 18;
-    glScalef (s, s, s);
+	GLfloat s = 18;
+	glScalef (s, s, s);
   }
 
   bp->now = time(NULL);
   if (bp->pause_until < bp->now && !pausing) {
-    glGetDoublev(GL_MODELVIEW_MATRIX, bp->model);
-    glGetDoublev(GL_PROJECTION_MATRIX, bp->proj);
-    tick_hexagons(mi);
+	glGetDoublev(GL_MODELVIEW_MATRIX, bp->model);
+	glGetDoublev(GL_PROJECTION_MATRIX, bp->proj);
+	tick_hexagons(mi);
   }
   draw_hexagons(mi);
 
@@ -1434,26 +1427,34 @@ ENTRYPOINT void draw_hextrail (ModeInfo *mi) {
   /* We don't need to reset vertex count here since render_vertices already does it */
 
   if (mi->fps_p) {
-    /* If we're using shaders, add shader statistics to the FPS display */
+	/* If we're using shaders, add shader statistics to the FPS display */
 #ifdef GL_VERSION_2_0
-    fps_state *fps = mi->fpst;
-    if (fps) {
-      char shader_stats[100];
-      snprintf(shader_stats, sizeof(shader_stats), "\nVerts: %u", vertex_count);
+	fps_state *fps = mi->fpst;
+	if (fps) {
+	  char shader_stats[100];
+	  static int vertexes = 0;
 
-      /* Replace any existing shader stats or add them if not present */
-      char *shader_pos = strstr(fps->string, "\nVerts:");
-      if (shader_pos) {
-        /* If shader stats already exist, replace them */
-        *shader_pos = '\0'; /* Terminate the string at the shader position */
-        strncat(fps->string, shader_stats, sizeof(fps->string) - strlen(fps->string) - 1);
-      } else if (strlen(fps->string) + strlen(shader_stats) < sizeof(fps->string)) {
-        /* If no shader stats yet, just append them */
-        strcat(fps->string, shader_stats);
-      }
-    }
+	  /* Check if we need to update FPS (once per second) */
+	  if (fps->frame_count == 0) {
+		/* Update the vertices per second counter and reset the counter for the next second */
+		vertexes = vertex_count;
+	  }
+
+	  snprintf(shader_stats, sizeof(shader_stats), "\nVerts: %u", vertexes);
+
+	  /* Replace any existing shader stats or add them if not present */
+	  char *shader_pos = strstr(fps->string, "\nVerts:");
+	  if (shader_pos) {
+		/* If shader stats already exist, replace them */
+		*shader_pos = '\0'; /* Terminate the string at the shader position */
+		strncat(fps->string, shader_stats, sizeof(fps->string) - strlen(fps->string) - 1);
+	  } else if (strlen(fps->string) + strlen(shader_stats) < sizeof(fps->string)) {
+		/* If no shader stats yet, just append them */
+		strcat(fps->string, shader_stats);
+	  }
+	}
 #endif // GL_VERSION_2_0
-    do_fps(mi);
+	do_fps(mi);
   }
   glFinish(); // TODO do if using shaders?
 
@@ -1480,12 +1481,12 @@ ENTRYPOINT void free_hextrail (ModeInfo *mi) {
   if (bp->colors) free (bp->colors);
 
   if (bp->chunks) {
-    for (int i = 0; i < bp->chunk_count; i++) if (bp->chunks[i]) {
-      for (int k = 0; k < bp->chunks[i]->used; k++)
-        if (bp->chunks[i]->chunk[k]) free(bp->chunks[i]->chunk[k]);
-      free(bp->chunks[i]);
-    }
-    free(bp->chunks);
+	for (int i = 0; i < bp->chunk_count; i++) if (bp->chunks[i]) {
+	  for (int k = 0; k < bp->chunks[i]->used; k++)
+		if (bp->chunks[i]->chunk[k]) free(bp->chunks[i]->chunk[k]);
+	  free(bp->chunks[i]);
+	}
+	free(bp->chunks);
   }
 
 #ifdef GL_VERSION_2_0
