@@ -64,3 +64,25 @@ Fixed compilation issues in hextrail.c related to config struct definition confl
    - Improved code organization for better maintainability
    - Added proper conditional compilation for backward compatibility
 
+
+### 2025-03-09: Added Shader Usage Statistics to FPS Display
+
+#### Summary
+Integrated shader usage statistics into the FPS display to provide visual feedback about shader activity and performance metrics.
+
+#### Details
+1. **Shader Usage Tracking**
+   - Added shader_vertices_count to track vertices rendered with shaders
+   - Implemented counter increment in render_vertices function
+   - Resets counter at each frame to track per-frame statistics
+
+2. **FPS Display Integration**
+   - Modified do_fps function to include shader status (active/inactive)
+   - Added vertex count to display when shaders are active
+   - Ensured buffer safety with proper string length checks
+
+3. **Code Improvements**
+   - Added proper header inclusion for fps_state structure access
+   - Implemented buffer overflow protection for FPS string manipulation
+   - Maintained compatibility with existing FPS display functionality
+
