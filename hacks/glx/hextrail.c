@@ -1359,6 +1359,11 @@ ENTRYPOINT void init_hextrail(ModeInfo *mi) {
 	  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 	  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
+      GLenum err = glGetError();
+	  if (err != GL_NO_ERROR) {
+		fprintf(stderr, "OpenGL error after texture setup: %d\n", err);
+	  }
+
 	  glBindFramebuffer(GL_FRAMEBUFFER, bp->fbo);
 	  glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, bp->texture, 0);
 
@@ -1371,6 +1376,13 @@ ENTRYPOINT void init_hextrail(ModeInfo *mi) {
 		glDeleteTextures(1, &bp->texture);
 		bp->fbo = 0; bp->texture = 0;
 		do_glow = False; do_neon = False;
+	  } else {
+		printf("FBO setup successful: texture size %dx%d\n", MI_WIDTH(mi), MI_HEIGHT(mi));
+	  }
+
+	  err = glGetError();
+	  if (err != GL_NO_ERROR) {
+		fprintf(stderr, "OpenGL error after FBO setup: %d\n", err);
 	  }
 
 	  glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -1479,6 +1491,7 @@ ENTRYPOINT void draw_hextrail (ModeInfo *mi) {
   if (do_glow || do_neon) {
     glBindFramebuffer(GL_FRAMEBUFFER, bp->fbo);
 	glViewport(0, 0, MI_WIDTH(mi), MI_HEIGHT(mi)); // Ensure viewport matches FBO texture size
+	glClearColor(0.0f, 0.0f, 0.0f, 1.0f); // Clear to black for visibility
   }
 #endif
 
@@ -1514,12 +1527,23 @@ ENTRYPOINT void draw_hextrail (ModeInfo *mi) {
 
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+	// Disable shaders for debugging
+	glUseProgram(0);
+
 	// Activate texture with the rendered scene
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, bp->texture);
 
 	// Draw scene again with glow effect
-	render_post_process(mi);
+	//render_post_process(mi);
+	
+	// Render a full-screen quad with the raw texture
+	glBegin(GL_QUADS);
+	glTexCoord2f(0.0f, 0.0f); glVertex2f(-1.0f, -1.0f);
+	glTexCoord2f(1.0f, 0.0f); glVertex2f( 1.0f, -1.0f);
+	glTexCoord2f(1.0f, 1.0f); glVertex2f( 1.0f,  1.0f);
+	glTexCoord2f(0.0f, 1.0f); glVertex2f(-1.0f,  1.0f);
+	glEnd();
 
 	// Cleanup
 	glBindTexture(GL_TEXTURE_2D, 0);
