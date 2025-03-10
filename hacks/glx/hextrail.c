@@ -933,10 +933,11 @@ static void render_vertices(ModeInfo *mi, config *bp, int wire) {
 	/* Set uniform variables */
 	GLint resolution_loc = glGetUniformLocation(bp->shader_program, "resolution");
 	GLint use_glow_loc = glGetUniformLocation(bp->shader_program, "use_glow");
+	GLint tex_loc = glGetUniformLocation(bp->shader_program, "tex");
 
 	if (resolution_loc != -1) glUniform2f(resolution_loc, MI_WIDTH(mi), MI_HEIGHT(mi));
-
 	if (use_glow_loc != -1) glUniform1i(use_glow_loc, (do_glow || do_neon) ? 1 : 0);
+	if (tex_loc != -1) glUniform1i(tex_loc, 0); // Use texture unit 0
 
 	/* Update vertex buffer with accumulated vertices */
 	glBindBuffer(GL_ARRAY_BUFFER, bp->vertex_buffer);
@@ -1400,8 +1401,15 @@ ENTRYPOINT void draw_hextrail (ModeInfo *mi) {
   glDisable(GL_DEPTH_TEST);
   glEnable(GL_NORMALIZE);
   glDisable(GL_CULL_FACE);
-  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+#ifdef GL_VERSION_2_0
+  if (do_glow || do_neon) {
+	// First pass: Render scene to texture
+	glBindFramebuffer(GL_FRAMEBUFFER, bp->fbo);
+  }
+#endif
+
+  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
   glPushMatrix();
   {
 	double x, y, z;
@@ -1423,9 +1431,29 @@ ENTRYPOINT void draw_hextrail (ModeInfo *mi) {
 	glGetDoublev(GL_PROJECTION_MATRIX, bp->proj);
 	tick_hexagons(mi);
   }
-  draw_hexagons(mi);
 
+  draw_hexagons(mi);
   glPopMatrix();
+
+#ifdef GL_VERSION_2_0
+  if (do_glow || do_neon) {
+	// Second pass: Render to screen with glow effect
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+	// Activate texture with the rendered scene
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, bp->texture);
+
+	// Draw scene again with glow effect
+	glPushMatrix();
+	draw_hexagons(mi);
+	glPopMatrix();
+
+	// Cleanup
+	glBindTexture(GL_TEXTURE_2D, 0);
+  }
+#endif
 
   if (mi->fps_p) {
 	/* If we're using shaders, add shader statistics to the FPS display */
