@@ -1312,11 +1312,6 @@ ENTRYPOINT void init_hextrail(ModeInfo *mi) {
   config *bp = &bps[MI_SCREEN(mi)];
 
 #ifdef GL_VERSION_2_0
-  /* Check if we can use shaders on this system */
-  int use_shaders = check_gl_version();
-  printf("%s: use_shaders = %d\n", __func__, use_shaders);
-  bp->shader_vertices_count = 0;  /* Initialize shader statistics counter */
-
   /* Initialize vertex buffer */
   vertex_capacity = 10000;  /* Initial vertex capacity */
   vertex_count = 0;
@@ -1336,6 +1331,11 @@ ENTRYPOINT void init_hextrail(ModeInfo *mi) {
 #else // USE_SDL
   bp->glx_context = init_GL(mi);
 #endif // else USE_SDL
+
+  /* Check if we can use shaders on this system */
+  int use_shaders = check_gl_version();
+  printf("%s: use_shaders = %d\n", __func__, use_shaders);
+  bp->shader_vertices_count = 0;  /* Initialize shader statistics counter */
 
   reshape_hextrail(mi, MI_WIDTH(mi), MI_HEIGHT(mi));
 
