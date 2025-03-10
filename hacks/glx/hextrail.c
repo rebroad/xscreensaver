@@ -1403,10 +1403,8 @@ ENTRYPOINT void draw_hextrail (ModeInfo *mi) {
   glDisable(GL_CULL_FACE);
 
 #ifdef GL_VERSION_2_0
-  if (do_glow || do_neon) {
-	// First pass: Render scene to texture
-	glBindFramebuffer(GL_FRAMEBUFFER, bp->fbo);
-  }
+  // First pass: Render scene to texture
+  if (do_glow || do_neon) glBindFramebuffer(GL_FRAMEBUFFER, bp->fbo);
 #endif
 
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);

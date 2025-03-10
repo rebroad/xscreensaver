@@ -192,10 +192,10 @@ static void merge_options (void) {
       *s = strdup (*s);
       if (!*s) abort();
     }
-  fprintf(stderr, "%s: Merged %d options:\n", progname, merged_options_size);
+  /*fprintf(stderr, "%s: Merged %d options:\n", progname, merged_options_size);
   for (int i = 0; i < merged_options_size; i++) {
     fprintf(stderr, "%s:   %s -> %s\n", progname, merged_options[i].option, merged_options[i].specifier);
-  }
+  }*/
 }
 
 /* Make the X errors print out the name of this program, so we have some
