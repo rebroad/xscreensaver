@@ -104,6 +104,8 @@ static int check_gl_version(void) {
     const char *version = (const char *)glGetString(GL_VERSION);
     int major, minor;
 
+	if (version) printf("%s: GL version: %s\n", __func__, version);
+
     if (!version || sscanf(version, "%d.%d", &major, &minor) != 2)
         return 0;
 
@@ -1312,18 +1314,16 @@ ENTRYPOINT void init_hextrail(ModeInfo *mi) {
 
 #ifdef GL_VERSION_2_0
   /* Check if we can use shaders on this system */
-  bp->use_shaders = check_gl_version();
+  int use_shaders = check_gl_version();
+  printf("%s: use_shaders = %d\n", __func__, use_shaders);
   bp->shader_vertices_count = 0;  /* Initialize shader statistics counter */
 
   /* Initialize vertex buffer */
-  bp->vertex_capacity = 10000;  /* Initial vertex capacity */
-  bp->vertex_count = 0;
-  bp->vertices = (Vertex *)malloc(bp->vertex_capacity * sizeof(Vertex));
+  vertex_capacity = 10000;  /* Initial vertex capacity */
+  vertex_count = 0;
+  vertices = (Vertex *)malloc(vertex_capacity * sizeof(Vertex));
 
-  if (!bp->vertices) {
-    fprintf(stderr, "Failed to allocate vertices array\n");
-    bp->use_shaders = 0;
-  }
+  if (!vertices) fprintf(stderr, "Failed to allocate vertices array\n");
 #endif
 
 #ifdef USE_SDL
@@ -1354,24 +1354,22 @@ ENTRYPOINT void init_hextrail(ModeInfo *mi) {
 
 #ifdef GL_VERSION_2_0
   /* Initialize shaders if supported */
-  if (bp->use_shaders) {
-    if (!init_shaders(bp)) {
-      fprintf(stderr, "Failed to initialize shaders, falling back to immediate mode\n");
-      bp->use_shaders = 0;
-    } else {
-      /* Set up vertex attributes */
-      glGenBuffers(1, &bp->vertex_buffer);
+  if (!init_shaders(bp)) {
+    fprintf(stderr, "Failed to initialize shaders, falling back to immediate mode\n");
+    //bp->use_shaders = 0;
+  } else {
+    /* Set up vertex attributes */
+    glGenBuffers(1, &bp->vertex_buffer);
 #ifdef GL_VERSION_3_0
-      glGenVertexArrays(1, &bp->vertex_array);
+    glGenVertexArrays(1, &bp->vertex_array);
 #else
-      /* Fallback for systems without VAO support */
-      bp->vertex_array = 0;
+    /* Fallback for systems without VAO support */
+    bp->vertex_array = 0;
 #endif
 
-      /* Bind attributes */
-      glBindAttribLocation(bp->shader_program, 0, "position");
-      glBindAttribLocation(bp->shader_program, 1, "color");
-    }
+    /* Bind attributes */
+    glBindAttribLocation(bp->shader_program, 0, "position");
+    glBindAttribLocation(bp->shader_program, 1, "color");
   }
 #endif
 
@@ -1439,8 +1437,9 @@ ENTRYPOINT void draw_hextrail (ModeInfo *mi) {
 
   if (mi->fps_p) {
     /* If we're using shaders, add shader statistics to the FPS display */
+#ifdef GL_VERSION_2_0
     fps_state *fps = mi->fpst;
-    if (fps && bp->use_shaders) {
+    if (fps) {
       char shader_stats[100];
       snprintf(shader_stats, sizeof(shader_stats), "\nShader: %s\nVerts: %lu",
                "active", bp->shader_vertices_count);
@@ -1449,12 +1448,8 @@ ENTRYPOINT void draw_hextrail (ModeInfo *mi) {
       if (strlen(fps->string) + strlen(shader_stats) < sizeof(fps->string)) {
         strcat(fps->string, shader_stats);
       }
-    } else if (fps) {
-      /* Make sure we don't overflow the buffer */
-      if (strlen(fps->string) + 17 < sizeof(fps->string)) {
-        strcat(fps->string, "\nShader: inactive");
-      }
     }
+#endif // GL_VERSION_2_0
     do_fps(mi);
   }
   glFinish(); // TODO do if using shaders?
@@ -1492,20 +1487,17 @@ ENTRYPOINT void free_hextrail (ModeInfo *mi) {
 
 #ifdef GL_VERSION_2_0
   /* Clean up shader resources */
-  if (bp->use_shaders) {
-    glDeleteBuffers(1, &bp->vertex_buffer);
+  glDeleteBuffers(1, &bp->vertex_buffer);
 #ifdef GL_VERSION_3_0
-    if (bp->vertex_array)
-      glDeleteVertexArrays(1, &bp->vertex_array);
+  if (bp->vertex_array) glDeleteVertexArrays(1, &bp->vertex_array);
 #endif
 
-    if (bp->shader_program) glDeleteProgram(bp->shader_program);
-    if (bp->vertex_shader) glDeleteShader(bp->vertex_shader);
-    if (bp->fragment_shader) glDeleteShader(bp->fragment_shader);
-  }
+  if (bp->shader_program) glDeleteProgram(bp->shader_program);
+  if (bp->vertex_shader) glDeleteShader(bp->vertex_shader);
+  if (bp->fragment_shader) glDeleteShader(bp->fragment_shader);
 
   /* Free vertex array */
-  if (bp->vertices) free(bp->vertices);
+  if (vertices) free(vertices);
 #endif
 }
 
