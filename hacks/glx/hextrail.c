@@ -978,15 +978,14 @@ static void render_vertices(ModeInfo *mi, config *bp, int wire) {
 #endif // GL_VERSION_3_0
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glUseProgram(0);
-
-    /* Reset vertex count for next frame */
-    vertex_count = 0;
 }
 #endif // GL_VERSION_2_0
 
 static void draw_hexagons(ModeInfo *mi) {
   config *bp = &bps[MI_SCREEN(mi)];
   int wire = MI_IS_WIREFRAME(mi);
+
+  mi->polygon_count = 0;
 
 #ifdef GL_VERSION_2_0
   /* Reset vertex count */
@@ -1381,6 +1380,7 @@ ENTRYPOINT void init_hextrail(ModeInfo *mi) {
   bp->hex_grid = (uint16_t *)calloc(N*(N+1)*3+2, sizeof(uint16_t));
   q = (N + 1) / 2;
   qq = q * 2;
+  printf("%s: N=%d q=%d qq=%d\n", __func__, N, q, qq);
   reset_hextrail(mi);
 }
 
@@ -1416,8 +1416,6 @@ ENTRYPOINT void draw_hextrail (ModeInfo *mi) {
     glRotatef (z * 360, 0.0, 0.0, 1.0);
   }
 
-  mi->polygon_count = 0;
-
   {
     GLfloat s = 18;
     glScalef (s, s, s);
@@ -1427,11 +1425,11 @@ ENTRYPOINT void draw_hextrail (ModeInfo *mi) {
   if (bp->pause_until < bp->now && !pausing) {
     glGetDoublev(GL_MODELVIEW_MATRIX, bp->model);
     glGetDoublev(GL_PROJECTION_MATRIX, bp->proj);
-    tick_hexagons (mi);
+    tick_hexagons(mi);
   }
-  draw_hexagons (mi);
+  draw_hexagons(mi);
 
-  glPopMatrix ();
+  glPopMatrix();
 
   /* We don't need to reset vertex count here since render_vertices already does it */
 
@@ -1444,7 +1442,7 @@ ENTRYPOINT void draw_hextrail (ModeInfo *mi) {
       snprintf(shader_stats, sizeof(shader_stats), "\nVerts: %u", vertex_count);
 
       /* Replace any existing shader stats or add them if not present */
-      char *shader_pos = strstr(fps->string, "\nShader:");
+      char *shader_pos = strstr(fps->string, "\nVerts:");
       if (shader_pos) {
         /* If shader stats already exist, replace them */
         *shader_pos = '\0'; /* Terminate the string at the shader position */
