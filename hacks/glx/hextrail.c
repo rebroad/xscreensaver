@@ -114,10 +114,7 @@ static int check_gl_version(void) {
 
 /* Compile a shader from source */
 static GLuint compile_shader(const char *source, GLenum shader_type) {
-	GLuint shader;
-	GLint status;
-
-	shader = glCreateShader(shader_type);
+	GLuint shader = glCreateShader(shader_type);
 	if (!shader) {
 		fprintf(stderr, "Error creating shader\n");
 		return 0;
@@ -126,6 +123,7 @@ static GLuint compile_shader(const char *source, GLenum shader_type) {
 	glShaderSource(shader, 1, &source, NULL);
 	glCompileShader(shader);
 
+	GLint status;
 	glGetShaderiv(shader, GL_COMPILE_STATUS, &status);
 	if (!status) {
 		GLchar info_log[512];
@@ -140,10 +138,7 @@ static GLuint compile_shader(const char *source, GLenum shader_type) {
 
 /* Link vertex and fragment shaders into a program */
 static GLuint link_program(GLuint vertex_shader, GLuint fragment_shader) {
-	GLuint program;
-	GLint status;
-
-	program = glCreateProgram();
+	GLuint program = glCreateProgram();
 	if (!program) {
 		fprintf(stderr, "Error creating shader program\n");
 		return 0;
@@ -153,6 +148,7 @@ static GLuint link_program(GLuint vertex_shader, GLuint fragment_shader) {
 	glAttachShader(program, fragment_shader);
 	glLinkProgram(program);
 
+	GLint status;
 	glGetProgramiv(program, GL_LINK_STATUS, &status);
 	if (!status) {
 		GLchar info_log[512];
@@ -229,7 +225,7 @@ typedef struct {
 
 #ifdef GL_VERSION_2_0
   GLuint shader_program, vertex_shader, fragment_shader;
-  GLuint vertex_buffer, vertex_array;
+  GLuint vertex_buffer, vertex_array, fbo, texture;
 #endif // GL_VERSION_2_0
 } config;
 
@@ -1180,7 +1176,7 @@ ENTRYPOINT void reshape_hextrail(ModeInfo *mi, int width, int height) {
   glLoadIdentity();
   gluLookAt( 0.0, 0.0, 30.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0);
 
-  GLfloat s = (MI_WIDTH(mi) < MI_HEIGHT(mi) ? (MI_WIDTH(mi) / (GLfloat) MI_HEIGHT(mi)) : 1);
+  GLfloat s = (MI_WIDTH(mi) < MI_HEIGHT(mi) ? (MI_WIDTH(mi) / (GLfloat)MI_HEIGHT(mi)) : 1);
   glScalef (s, s, s); // TODO - what does this do?
   glClear(GL_COLOR_BUFFER_BIT);
 }
@@ -1351,6 +1347,14 @@ ENTRYPOINT void init_hextrail(ModeInfo *mi) {
   } else {
 	/* Set up vertex attributes */
 	glGenBuffers(1, &bp->vertex_buffer);
+	glGenFramebuffers(1, &bp->fbo);
+	glGenTextures(1, &bp->texture);
+	glBindTexture(GL_TEXTURE_2D, bp->texture);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, MI_WIDTH(mi), MI_HEIGHT(mi), 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glBindFramebuffer(GL_FRAMEBUFFER, bp->fbo);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, bp->texture, 0);
 #ifdef GL_VERSION_3_0
 	glGenVertexArrays(1, &bp->vertex_array);
 #else
@@ -1422,8 +1426,6 @@ ENTRYPOINT void draw_hextrail (ModeInfo *mi) {
   draw_hexagons(mi);
 
   glPopMatrix();
-
-  /* We don't need to reset vertex count here since render_vertices already does it */
 
   if (mi->fps_p) {
 	/* If we're using shaders, add shader statistics to the FPS display */
