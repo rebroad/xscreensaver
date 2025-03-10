@@ -82,15 +82,15 @@ static const char *fragment_shader_source =
 "        vec4 base_color = texture2D(tex, uv);\n" // Sample from framebuffer
 "        if (base_color.a < 0.1) discard;\n" // Skip near-transparent areas
 "        float glow = 0.0;\n"
-"        float radius = 0.02;\n" // Glow radius in screen space
-"        for (int x = -4; x <= 4; x++) for (int y = -4; y <= 4; y++) {\n"
+"        float radius = 0.05;\n" // Glow radius in screen space
+"        for (int x = -5; x <= 5; x++) for (int y = -5; y <= 5; y++) {\n"
 "            vec2 offset = vec2(float(x), float(y)) * radius;\n"
 "            float dist = length(offset);\n"
-"            float weight = exp(-dist * dist * 4.0);\n" // Sharper falloff
+"            float weight = exp(-dist * dist * 2.0);\n" // Softer falloff
 "            glow += texture2D(tex, uv + offset).a * weight;\n"
 "        }\n"
-"        glow /= 32.0;\n" // Normalize (9x9 kernel)
-"        vec3 glow_color = base_color.rgb * 1.5;\n" // Brighten glow
+"        glow *= 0.02;\n" // Adjust normalization for larger kernel
+"        vec3 glow_color = vec3(1.0, 0.8, 0.6) * glow * 2.0;\n" // Warm glow color, amplified
 "    final_color = vec4(v_color.rgb + glow_color * glow, base_color.a);\n"
 "    }\n"
 "    gl_FragColor = final_color;\n"
@@ -225,7 +225,7 @@ typedef struct {
 
 #ifdef GL_VERSION_2_0
   GLuint shader_program, vertex_shader, fragment_shader;
-  GLuint vertex_buffer, vertex_array, fbo, texture, quad_vbo;
+  GLuint vertex_buffer, vertex_array, fbo, texture, quad_vbo, quad_texcoord_vbo;
 #endif // GL_VERSION_2_0
 } config;
 
@@ -1351,12 +1351,30 @@ ENTRYPOINT void init_hextrail(ModeInfo *mi) {
 	if (do_glow || do_neon) {
 	  glGenFramebuffers(1, &bp->fbo);
 	  glGenTextures(1, &bp->texture);
+
 	  glBindTexture(GL_TEXTURE_2D, bp->texture);
 	  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, MI_WIDTH(mi), MI_HEIGHT(mi), 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
 	  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
 	  glBindFramebuffer(GL_FRAMEBUFFER, bp->fbo);
 	  glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, bp->texture, 0);
+
+	  // Check FBO completeness
+	  GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+	  if (status != GL_FRAMEBUFFER_COMPLETE) {
+		fprintf(stderr, "FBO incomplete: %d\n", status);
+		// Cleanup and disable glow
+		glDeleteFramebuffers(1, &bp->fbo);
+		glDeleteTextures(1, &bp->texture);
+		bp->fbo = 0; bp->texture = 0;
+		do_glow = False; do_neon = False;
+	  }
+
+	  glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	  glBindTexture(GL_TEXTURE_2D, 0);
 	}
 #ifdef GL_VERSION_3_0
 	glGenVertexArrays(1, &bp->vertex_array);
@@ -1369,11 +1387,17 @@ ENTRYPOINT void init_hextrail(ModeInfo *mi) {
 	glBindAttribLocation(bp->shader_program, 0, "position");
 	glBindAttribLocation(bp->shader_program, 1, "color");
 
-	/* Set up the post-processing quad */
+	/* Set up the post-processing quad with positions and texture coordinates */
 	static const GLfloat quad_vertices[] = { -1.0f, -1.0f, 1.0f, -1.0f, -1.0f, 1.0f, 1.0f, 1.0f };
+	static const GLfloat quad_texcoords[] = { 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f };
 	glGenBuffers(1, &bp->quad_vbo);
 	glBindBuffer(GL_ARRAY_BUFFER, bp->quad_vbo);
 	glBufferData(GL_ARRAY_BUFFER, sizeof(quad_vertices), quad_vertices, GL_STATIC_DRAW);
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+	glGenBuffers(1, &bp->quad_texcoord_vbo);
+	glBindBuffer(GL_ARRAY_BUFFER, bp->quad_texcoord_vbo);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(quad_texcoords), quad_texcoords, GL_STATIC_DRAW);
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
   }
 #endif
@@ -1414,14 +1438,17 @@ static void render_post_process(ModeInfo *mi) {
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, 0);
 
-    /* Disable color attribute since we'll use texture */
-    glDisableVertexAttribArray(1);
+    /* Texture coordinate attribute (u, v) */
+    glEnableVertexAttribArray(1);
+	glBindBuffer(GL_ARRAY_BUFFER, bp->quad_texcoord_vbo);
+	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 0, 0);
 
     /* Draw the quad */
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
     /* Clean up */
     glDisableVertexAttribArray(0);
+    glDisableVertexAttribArray(1);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glUseProgram(0);
 }
@@ -1449,7 +1476,10 @@ ENTRYPOINT void draw_hextrail (ModeInfo *mi) {
 
 #ifdef GL_VERSION_2_0
   // First pass: Render scene to texture
-  if (do_glow || do_neon) glBindFramebuffer(GL_FRAMEBUFFER, bp->fbo);
+  if (do_glow || do_neon) {
+    glBindFramebuffer(GL_FRAMEBUFFER, bp->fbo);
+	glViewport(0, 0, MI_WIDTH(mi), MI_HEIGHT(mi)); // Ensure viewport matches FBO texture size
+  }
 #endif
 
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -1480,6 +1510,8 @@ ENTRYPOINT void draw_hextrail (ModeInfo *mi) {
   if (do_glow || do_neon) {
 	// Second pass: Render to screen with glow effect
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glViewport(bp->viewport[0], bp->viewport[1], bp->viewport[2], bp->viewport[3]); // Restore window viewport
+
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	// Activate texture with the rendered scene
@@ -1548,6 +1580,7 @@ ENTRYPOINT void free_hextrail (ModeInfo *mi) {
   /* Clean up shader resources */
   glDeleteBuffers(1, &bp->vertex_buffer);
   glDeleteBuffers(1, &bp->quad_vbo);
+  glDeleteBuffers(1, &bp->quad_texcoord_vbo);
 #ifdef GL_VERSION_3_0
   if (bp->vertex_array) glDeleteVertexArrays(1, &bp->vertex_array);
 #endif
