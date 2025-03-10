@@ -225,7 +225,7 @@ typedef struct {
 
 #ifdef GL_VERSION_2_0
   GLuint shader_program, vertex_shader, fragment_shader;
-  GLuint vertex_buffer, vertex_array, fbo, texture;
+  GLuint vertex_buffer, vertex_array, fbo, texture, quad_vbo;
 #endif // GL_VERSION_2_0
 } config;
 
@@ -1368,6 +1368,13 @@ ENTRYPOINT void init_hextrail(ModeInfo *mi) {
 	/* Bind attributes */
 	glBindAttribLocation(bp->shader_program, 0, "position");
 	glBindAttribLocation(bp->shader_program, 1, "color");
+
+	/* Set up the post-processing quad */
+	static const GLfloat quad_vertices[] = { -1.0f, -1.0f, 1.0f, -1.0f, -1.0f, 1.0f, 1.0f, 1.0f };
+	glGenBuffers(1, &bp->quad_vbo);
+	glBindBuffer(GL_ARRAY_BUFFER, bp->quad_vbo);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(quad_vertices), quad_vertices, GL_STATIC_DRAW);
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
   }
 #endif
 
@@ -1383,6 +1390,42 @@ ENTRYPOINT void init_hextrail(ModeInfo *mi) {
   reset_hextrail(mi);
 }
 
+#ifdef GL_VERSION_2_0
+/* Render a full-screen quad with post-processing effects */
+static void render_post_process(ModeInfo *mi) {
+    config *bp = &bps[MI_SCREEN(mi)];
+
+    /* Use shader program */
+    glUseProgram(bp->shader_program);
+
+    /* Set uniform variables */
+    GLint resolution_loc = glGetUniformLocation(bp->shader_program, "resolution");
+    GLint use_glow_loc = glGetUniformLocation(bp->shader_program, "use_glow");
+    GLint tex_loc = glGetUniformLocation(bp->shader_program, "tex");
+
+    if (resolution_loc != -1) glUniform2f(resolution_loc, MI_WIDTH(mi), MI_HEIGHT(mi));
+    if (use_glow_loc != -1) glUniform1i(use_glow_loc, 1);  // Always enable glow in post-processing
+    if (tex_loc != -1) glUniform1i(tex_loc, 0);  // Use texture unit 0
+
+    /* Draw the full-screen quad */
+    glBindBuffer(GL_ARRAY_BUFFER, bp->quad_vbo);
+
+    /* Position attribute (x, y) */
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, 0);
+
+    /* Disable color attribute since we'll use texture */
+    glDisableVertexAttribArray(1);
+
+    /* Draw the quad */
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+
+    /* Clean up */
+    glDisableVertexAttribArray(0);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glUseProgram(0);
+}
+#endif
 
 ENTRYPOINT void draw_hextrail (ModeInfo *mi) {
   config *bp = &bps[MI_SCREEN(mi)];
@@ -1418,9 +1461,7 @@ ENTRYPOINT void draw_hextrail (ModeInfo *mi) {
 	gltrackball_rotate (bp->trackball);
 	get_rotation (bp->rot, &x, &y, &z, !bp->button_down_p);
 	glRotatef (z * 360, 0.0, 0.0, 1.0);
-  }
 
-  {
 	GLfloat s = 18;
 	glScalef (s, s, s);
   }
@@ -1446,9 +1487,7 @@ ENTRYPOINT void draw_hextrail (ModeInfo *mi) {
 	glBindTexture(GL_TEXTURE_2D, bp->texture);
 
 	// Draw scene again with glow effect
-	glPushMatrix();
-	draw_hexagons(mi);
-	glPopMatrix();
+	render_post_process(mi);
 
 	// Cleanup
 	glBindTexture(GL_TEXTURE_2D, 0);
@@ -1508,6 +1547,7 @@ ENTRYPOINT void free_hextrail (ModeInfo *mi) {
 #ifdef GL_VERSION_2_0
   /* Clean up shader resources */
   glDeleteBuffers(1, &bp->vertex_buffer);
+  glDeleteBuffers(1, &bp->quad_vbo);
 #ifdef GL_VERSION_3_0
   if (bp->vertex_array) glDeleteVertexArrays(1, &bp->vertex_array);
 #endif
