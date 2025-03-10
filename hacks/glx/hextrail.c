@@ -76,24 +76,20 @@ static const char *fragment_shader_source =
 "uniform vec2 resolution;\n"
 "void main() {\n"
 "    vec4 final_color = v_color;\n"
-"    \n"
 "    if (use_glow == 1) {\n"
 "        vec2 uv = gl_FragCoord.xy / resolution;\n"
 "        float glow = 0.0;\n"
-"        float radius = 0.02;\n"
-"        for (int x = -4; x <= 4; x++) {\n"
-"            for (int y = -4; y <= 4; y++) {\n"
-"                vec2 offset = vec2(float(x), float(y)) * radius;\n"
-"                float dist = length(offset);\n"
-"                float weight = exp(-dist * dist * 4.0);\n"
-"                glow += weight;\n"
-"            }\n"
+"        float radius = 0.02;\n" // Glow radius in screen space
+"        for (int x = -4; x <= 4; x++) for (int y = -4; y <= 4; y++) {\n"
+"            vec2 offset = vec2(float(x), float(y)) * radius;\n"
+"            float dist = length(offset);\n"
+"            float weight = exp(-dist * dist * 4.0);\n"
+"            glow += weight;\n"
 "        }\n"
-"        glow /= 32.0;\n"
+"        glow /= 32.0;\n" // Normalize (9x9 kernel)
 "        vec3 glow_color = v_color.rgb * 1.5;\n"
 "        final_color = vec4(v_color.rgb + glow_color * glow, v_color.a);\n"
 "    }\n"
-"    \n"
 "    gl_FragColor = final_color;\n"
 "}\n";
 
@@ -1430,26 +1426,13 @@ ENTRYPOINT void draw_hextrail (ModeInfo *mi) {
 	/* If we're using shaders, add shader statistics to the FPS display */
 #ifdef GL_VERSION_2_0
 	fps_state *fps = mi->fpst;
-	if (fps) {
+	if (fps && fps->frame_count == 0) {
 	  char shader_stats[100];
-	  static int vertexes = 0;
 
-	  /* Check if we need to update FPS (once per second) */
-	  if (fps->frame_count == 0) {
-		/* Update the vertices per second counter and reset the counter for the next second */
-		vertexes = vertex_count;
-	  }
+	  snprintf(shader_stats, sizeof(shader_stats), "\nVerts: %u", vertex_count);
 
-	  snprintf(shader_stats, sizeof(shader_stats), "\nVerts: %u", vertexes);
-
-	  /* Replace any existing shader stats or add them if not present */
-	  char *shader_pos = strstr(fps->string, "\nVerts:");
-	  if (shader_pos) {
-		/* If shader stats already exist, replace them */
-		*shader_pos = '\0'; /* Terminate the string at the shader position */
-		strncat(fps->string, shader_stats, sizeof(fps->string) - strlen(fps->string) - 1);
-	  } else if (strlen(fps->string) + strlen(shader_stats) < sizeof(fps->string)) {
-		/* If no shader stats yet, just append them */
+	  /* Make sure we don't overflow the buffer */
+	  if (strlen(fps->string) + strlen(shader_stats) < sizeof(fps->string)) {
 		strcat(fps->string, shader_stats);
 	  }
 	}
