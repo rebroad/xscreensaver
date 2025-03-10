@@ -73,22 +73,25 @@ static const char *fragment_shader_source =
 "#version 120\n"
 "varying vec4 v_color;\n"
 "uniform int use_glow;\n"
+"uniform sampler2D tex;\n"
 "uniform vec2 resolution;\n"
 "void main() {\n"
 "    vec4 final_color = v_color;\n"
 "    if (use_glow == 1) {\n"
 "        vec2 uv = gl_FragCoord.xy / resolution;\n"
+"        vec4 base_color = texture2D(tex, uv);\n" // Sample from framebuffer
+"        if (base_color.a < 0.1) discard;\n" // Skip near-transparent areas
 "        float glow = 0.0;\n"
 "        float radius = 0.02;\n" // Glow radius in screen space
 "        for (int x = -4; x <= 4; x++) for (int y = -4; y <= 4; y++) {\n"
 "            vec2 offset = vec2(float(x), float(y)) * radius;\n"
 "            float dist = length(offset);\n"
-"            float weight = exp(-dist * dist * 4.0);\n"
-"            glow += weight;\n"
+"            float weight = exp(-dist * dist * 4.0);\n" // Sharper falloff
+"            glow += texture2D(tex, uv + offset).a * weight;\n"
 "        }\n"
 "        glow /= 32.0;\n" // Normalize (9x9 kernel)
-"        vec3 glow_color = v_color.rgb * 1.5;\n"
-"        final_color = vec4(v_color.rgb + glow_color * glow, v_color.a);\n"
+"        vec3 glow_color = base_color.rgb * 1.5;\n" // Brighten glow
+"    final_color = vec4(v_color.rgb + glow_color * glow, base_color.a);\n"
 "    }\n"
 "    gl_FragColor = final_color;\n"
 "}\n";
@@ -173,9 +176,6 @@ static GLuint link_program(GLuint vertex_shader, GLuint fragment_shader) {
 
 typedef enum { EMPTY, IN, WAIT, OUT, DONE } state_t;
 
-/* Vertex structure for vertex-based rendering */
-typedef struct { GLfloat x, y, z, r, g, b, a; } Vertex;
-
 typedef struct {
   state_t state;
   GLfloat ratio;
@@ -236,6 +236,9 @@ typedef struct {
 static config *bps = NULL;
 
 #ifdef GL_VERSION_2_0
+/* Vertex structure for vertex-based rendering */
+typedef struct { GLfloat x, y, z, r, g, b, a; } Vertex;
+
 Vertex *vertices;
 int vertex_capacity, vertex_count;
 
