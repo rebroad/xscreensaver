@@ -428,53 +428,36 @@ reshape_carousel (ModeInfo *mi, int width, int height)
 }
 
 
-ENTRYPOINT Bool
-carousel_handle_event (ModeInfo *mi, XEvent *event)
-{
+ENTRYPOINT Bool carousel_handle_event (ModeInfo *mi, XEvent *event) {
   carousel_state *ss = &sss[MI_SCREEN(mi)];
 
-  if (event->xany.type == ButtonPress &&
-      event->xbutton.button == Button1)
-    {
-      if (! ss->button_down_p)
-        ss->button_down_time = time((time_t *) 0);
+  if (event->xany.type == ButtonPress && event->xbutton.button == Button1) {
+    if (! ss->button_down_p) ss->button_down_time = time((time_t *) 0);
+  } else if (event->xany.type == ButtonRelease && event->xbutton.button == Button1) {
+    if (ss->button_down_p) {
+      /* Add the time the mouse was held to the expire times of all
+         frames, so that mouse-dragging doesn't count against
+         image expiration.  */
+      int secs = time((time_t *) 0) - ss->button_down_time;
+      for (int i = 0; i < ss->nframes; i++) ss->frames[i]->expires += secs;
     }
-  else if (event->xany.type == ButtonRelease &&
-           event->xbutton.button == Button1)
-    {
-      if (ss->button_down_p)
-        {
-          /* Add the time the mouse was held to the expire times of all
-             frames, so that mouse-dragging doesn't count against
-             image expiration.
-           */
-          int secs = time((time_t *) 0) - ss->button_down_time;
-          int i;
-          for (i = 0; i < ss->nframes; i++)
-            ss->frames[i]->expires += secs;
-        }
-    }
+  }
 
   if (gltrackball_event_handler (event, ss->trackball,
                                  MI_WIDTH (mi), MI_HEIGHT (mi),
-                                 &ss->button_down_p))
+                                 &ss->button_down_p)) return True;
+  else if (screenhack_event_helper (MI_DISPLAY(mi), MI_WINDOW(mi), event)) {
+    int i = random() % ss->nframes;
+    ss->frames[i]->expires  = 0;
     return True;
-  else if (screenhack_event_helper (MI_DISPLAY(mi), MI_WINDOW(mi), event))
-    {
-      int i = random() % ss->nframes;
-      ss->frames[i]->expires  = 0;
-      return True;
-    }
+  }
 
   return False;
 }
 
 
-/* Kludge to add "-v" to invocation of "xscreensaver-getimage" in -debug mode
- */
-static void
-hack_resources (Display *dpy)
-{
+/* Kludge to add "-v" to invocation of "xscreensaver-getimage" in -debug mode */
+static void hack_resources (Display *dpy) {
 # ifndef HAVE_JWXYZ
   char *res = "desktopGrabber";
   char *val = get_string_resource (dpy, res, "DesktopGrabber");
@@ -492,29 +475,24 @@ hack_resources (Display *dpy)
 }
 
 
-static void
-loading_msg (ModeInfo *mi, int n)
-{
+static void loading_msg (ModeInfo *mi, int n) {
   carousel_state *ss = &sss[MI_SCREEN(mi)];
   int wire = MI_IS_WIREFRAME(mi);
   char text[100];
 
   if (wire) return;
 
-  if (n == 0)
-    sprintf (text, "Loading images...");
-  else
-    sprintf (text, "Loading images...  (%d%%)",
+  if (n == 0) sprintf (text, "Loading images...");
+  else sprintf (text, "Loading images...  (%d%%)",
              (int) (n * 100 / MI_COUNT(mi)));
 
-  if (ss->loading_sw == 0)
-    {
+  if (ss->loading_sw == 0) {
       /* only do this once, so that the string doesn't move. */
       XCharStruct e;
       texture_string_metrics (ss->titlefont, text, &e, 0, 0);
       ss->loading_sw = e.width;
       ss->loading_sh = e.ascent + e.descent;
-    }
+  }
 
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -570,9 +548,7 @@ loading_msg (ModeInfo *mi, int n)
 }
 
 
-ENTRYPOINT void
-init_carousel (ModeInfo *mi)
-{
+ENTRYPOINT void init_carousel (ModeInfo *mi) {
   int screen = MI_SCREEN(mi);
   carousel_state *ss;
   int wire = MI_IS_WIREFRAME(mi);
@@ -583,26 +559,19 @@ init_carousel (ModeInfo *mi)
   if ((ss->glx_context = init_GL(mi)) != NULL) {
     reshape_carousel (mi, MI_WIDTH(mi), MI_HEIGHT(mi));
     clear_gl_error(); /* WTF? sometimes "invalid op" from glViewport! */
-  } else {
+  } else
     MI_CLEARWINDOW(mi);
-  }
 
-  if (!tilt_str || !*tilt_str)
-    ;
-  else if (!strcasecmp (tilt_str, "0"))
-    ;
-  else if (!strcasecmp (tilt_str, "X"))
-    tilt_x_p = 1;
-  else if (!strcasecmp (tilt_str, "Y"))
-    tilt_y_p = 1;
-  else if (!strcasecmp (tilt_str, "XY"))
-    tilt_x_p = tilt_y_p = 1;
-  else
-    {
-      fprintf (stderr, "%s: tilt must be 'X', 'Y', 'XY' or '', not '%s'\n",
-               progname, tilt_str);
-      exit (1);
-    }
+  if (!tilt_str || !*tilt_str) ;
+  else if (!strcasecmp (tilt_str, "0")) ;
+  else if (!strcasecmp (tilt_str, "X")) tilt_x_p = 1;
+  else if (!strcasecmp (tilt_str, "Y")) tilt_y_p = 1;
+  else if (!strcasecmp (tilt_str, "XY")) tilt_x_p = tilt_y_p = 1;
+  else {
+    fprintf (stderr, "%s: tilt must be 'X', 'Y', 'XY' or '', not '%s'\n",
+             progname, tilt_str);
+    exit (1);
+  }
 
   {
     double spin_speed   = speed * 0.2;    /* rotation of tube around axis */
@@ -618,18 +587,15 @@ init_carousel (ModeInfo *mi)
     ss->trackball = gltrackball_init (False);
   }
 
-  if (strstr ((char *) glGetString(GL_EXTENSIONS),
-              "GL_EXT_texture_filter_anisotropic"))
+  if (strstr ((char *) glGetString(GL_EXTENSIONS), "GL_EXT_texture_filter_anisotropic"))
     glGetFloatv (GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, &ss->anisotropic);
-  else
-    ss->anisotropic = 0.0;
+  else ss->anisotropic = 0.0;
 
   glDisable (GL_LIGHTING);
   glEnable (GL_DEPTH_TEST);
   glDisable (GL_CULL_FACE);
 
-  if (! wire)
-    {
+  if (!wire) {
       glShadeModel (GL_SMOOTH);
       glEnable (GL_LINE_SMOOTH);
       /* This gives us a transparent diagonal slice through each image! */
@@ -641,19 +607,16 @@ init_carousel (ModeInfo *mi)
 
       glEnable (GL_POLYGON_OFFSET_FILL);
       glPolygonOffset (1.0, 1.0);
-
-    }
+  }
 
   ss->texfont = load_texture_font (MI_DISPLAY(mi), "font");
   ss->titlefont = load_texture_font (MI_DISPLAY(mi), "titleFont");
 
-  if (debug_p)
-    hack_resources (MI_DISPLAY (mi));
+  if (debug_p) hack_resources (MI_DISPLAY (mi));
 
   ss->nframes = 0;
   ss->frames_size = 10;
-  ss->frames = (image_frame **)
-    calloc (1, ss->frames_size * sizeof(*ss->frames));
+  ss->frames = (image_frame **) calloc (1, ss->frames_size * sizeof(*ss->frames));
 
   ss->mode = IN;
   ss->mode_tick = fade_ticks / speed;
@@ -663,8 +626,7 @@ init_carousel (ModeInfo *mi)
 
 
 static void
-draw_frame (ModeInfo *mi, image_frame *frame, time_t now, Bool body_p)
-{
+draw_frame (ModeInfo *mi, image_frame *frame, time_t now, Bool body_p) {
   carousel_state *ss = &sss[MI_SCREEN(mi)];
   int wire = MI_IS_WIREFRAME(mi);
 
@@ -687,40 +649,33 @@ draw_frame (ModeInfo *mi, image_frame *frame, time_t now, Bool body_p)
   glTranslatef (0, 0, frame->r);
 
   /* Scale down the image so that all N frames fit on the wheel
-     without bumping in to each other.
-  */
+     without bumping in to each other.  */
   {
     GLfloat t, s;
-    switch (ss->nframes)
-      {
+    switch (ss->nframes) {
       case 1:  t = -1.0; s = 1.7; break;
       case 2:  t = -0.8; s = 1.6; break;
       case 3:  t = -0.4; s = 1.5; break;
       case 4:  t = -0.2; s = 1.3; break;
       default: t =  0.0; s = 6.0 / ss->nframes; break;
-      }
+    }
     glTranslatef (0, 0, t);
     glScalef (s, s, s);
   }
 
-  /* Center this image on the wheel plane.
-   */
+  /* Center this image on the wheel plane.  */
   glTranslatef (-0.5, -(aspect/2), 0);
 
-  /* Move as per the "zoom in and out" setting.
-   */
-  if (zoom_p)
-    {
+  /* Move as per the "zoom in and out" setting.  */
+  if (zoom_p) {
       double x, y, z;
       /* Only use the Z component of the rotator for in/out position. */
       get_position (frame->rot, &x, &y, &z, !ss->button_down_p);
       glTranslatef (0, 0, z/2);
-    }
+  }
 
-  /* Compute the "drop in and out" state.
-   */
-  switch (frame->mode)
-    {
+  /* Compute the "drop in and out" state.  */
+  switch (frame->mode) {
     case EARLY:
       abort();
       break;
@@ -748,12 +703,10 @@ draw_frame (ModeInfo *mi, image_frame *frame, time_t now, Bool body_p)
       break;
     default:
       abort();
-    }
+  }
 
-  /* Now translate for current in/out state.
-   */
-  if (frame->mode == OUT || frame->mode == IN)
-    {
+  /* Now translate for current in/out state.  */
+  if (frame->mode == OUT || frame->mode == IN) {
       GLfloat t = (frame->mode == OUT
                    ? frame->mode_tick / (fade_ticks / speed)
                    : (((fade_ticks / speed) - frame->mode_tick + 1) /
@@ -761,80 +714,70 @@ draw_frame (ModeInfo *mi, image_frame *frame, time_t now, Bool body_p)
       t = 5 * (1 - t);
       if (frame->from_top_p) t = -t;
       glTranslatef (0, t, 0);
-    }
+  }
 
-  if (body_p)					/* Draw the image quad. */
-    {
-      if (! wire)
-        {
-          glColor3f (1, 1, 1);
-          glNormal3f (0, 0, 1);
-          glEnable (GL_TEXTURE_2D);
-          glBegin (GL_QUADS);
-          glNormal3f (0, 0, 1);
-          glTexCoord2f (texx1, texy2); glVertex3f (0, 0, 0);
-          glTexCoord2f (texx2, texy2); glVertex3f (1, 0, 0);
-          glTexCoord2f (texx2, texy1); glVertex3f (1, aspect, 0);
-          glTexCoord2f (texx1, texy1); glVertex3f (0, aspect, 0);
-          glEnd();
-        }
-
-      /* Draw a box around it.
-       */
-      glLineWidth (2.0);
-      glColor3f (0.5, 0.5, 0.5);
-      glDisable (GL_TEXTURE_2D);
-      glBegin (GL_LINE_LOOP);
-      glVertex3f (0, 0, 0);
-      glVertex3f (1, 0, 0);
-      glVertex3f (1, aspect, 0);
-      glVertex3f (0, aspect, 0);
-      glEnd();
-
-    }
-  else if (frame->current.title && *frame->current.title)
-    {					/* Draw a title under the image. */
-      XCharStruct e;
-      int sw, sh;
-      GLfloat scale = 0.05;
-      char *title = frame->current.title ? frame->current.title : "(untitled)";
-      texture_string_metrics (ss->texfont, title, &e, 0, 0);
-      sw = e.width;
-      sh = e.ascent + e.descent;
-
-      glTranslatef (0, -scale, 0);
-
-      scale /= sh;
-      glScalef (scale, scale, scale);
-
-      glTranslatef (((1/scale) - sw) / 2, 0, 0);
+  if (body_p) {					/* Draw the image quad. */
+    if (! wire) {
       glColor3f (1, 1, 1);
-
-      if (!wire)
-        {
-          glEnable (GL_TEXTURE_2D);
-# ifndef HAVE_ANDROID   /* Doesn't work -- photo displays as static */
-          print_texture_string (ss->texfont, title);
-# endif
-        }
-      else
-        {
-          glBegin (GL_LINE_LOOP);
-          glVertex3f (0,  0,  0);
-          glVertex3f (sw, 0,  0);
-          glVertex3f (sw, sh, 0);
-          glVertex3f (0,  sh, 0);
-          glEnd();
-        }
+      glNormal3f (0, 0, 1);
+      glEnable (GL_TEXTURE_2D);
+      glBegin (GL_QUADS);
+      glNormal3f (0, 0, 1);
+      glTexCoord2f (texx1, texy2); glVertex3f (0, 0, 0);
+      glTexCoord2f (texx2, texy2); glVertex3f (1, 0, 0);
+      glTexCoord2f (texx2, texy1); glVertex3f (1, aspect, 0);
+      glTexCoord2f (texx1, texy1); glVertex3f (0, aspect, 0);
+      glEnd();
     }
+
+    /* Draw a box around it.  */
+    glLineWidth (2.0);
+    glColor3f (0.5, 0.5, 0.5);
+    glDisable (GL_TEXTURE_2D);
+    glBegin (GL_LINE_LOOP);
+    glVertex3f (0, 0, 0);
+    glVertex3f (1, 0, 0);
+    glVertex3f (1, aspect, 0);
+    glVertex3f (0, aspect, 0);
+    glEnd();
+  } else if (frame->current.title && *frame->current.title) {
+	  /* Draw a title under the image. */
+    XCharStruct e;
+    int sw, sh;
+    GLfloat scale = 0.05;
+    char *title = frame->current.title ? frame->current.title : "(untitled)";
+    texture_string_metrics (ss->texfont, title, &e, 0, 0);
+    sw = e.width;
+    sh = e.ascent + e.descent;
+
+    glTranslatef (0, -scale, 0);
+
+    scale /= sh;
+    glScalef (scale, scale, scale);
+
+    glTranslatef (((1/scale) - sw) / 2, 0, 0);
+    glColor3f (1, 1, 1);
+
+    if (!wire) {
+      glEnable (GL_TEXTURE_2D);
+# ifndef HAVE_ANDROID   /* Doesn't work -- photo displays as static */
+      print_texture_string (ss->texfont, title);
+# endif
+    } else {
+      glBegin (GL_LINE_LOOP);
+      glVertex3f (0,  0,  0);
+      glVertex3f (sw, 0,  0);
+      glVertex3f (sw, sh, 0);
+      glVertex3f (0,  sh, 0);
+      glEnd();
+    }
+  }
 
   glPopMatrix();
 }
 
 
-ENTRYPOINT void
-draw_carousel (ModeInfo *mi)
-{
+ENTRYPOINT void draw_carousel (ModeInfo *mi) {
   carousel_state *ss = &sss[MI_SCREEN(mi)];
   int i;
 
@@ -843,18 +786,15 @@ draw_carousel (ModeInfo *mi)
 
   glXMakeCurrent(MI_DISPLAY(mi), MI_WINDOW(mi), *ss->glx_context);
 
-  if (ss->awaiting_first_images_p)
-    if (!load_initial_images (mi))
-      return;
+  if (ss->awaiting_first_images_p && !load_initial_images (mi)) return;
 
   /* Only check the wall clock every 10 frames */
   {
-    if (ss->now == 0 || ss->draw_tick++ > 10)
-      {
+    if (ss->now == 0 || ss->draw_tick++ > 10) {
         ss->now = time((time_t *) 0);
         if (ss->last_time == 0) ss->last_time = ss->now;
         ss->draw_tick = 0;
-      }
+    }
   }
 
 
@@ -865,47 +805,39 @@ draw_carousel (ModeInfo *mi)
   glRotatef(current_device_rotation(), 0, 0, 1);
 
 
-  /* Run the startup "un-shrink" animation.
-   */
-  switch (ss->mode)
-    {
+  /* Run the startup "un-shrink" animation.  */
+  switch (ss->mode) {
     case IN:
-      if (--ss->mode_tick <= 0)
-        {
-          ss->mode = NORMAL;
-          ss->last_time = time((time_t *) 0);
-        }
+      if (--ss->mode_tick <= 0) {
+        ss->mode = NORMAL;
+        ss->last_time = time((time_t *) 0);
+      }
       break;
     case NORMAL:
       break;
     default:
       abort();
-    }
+  }
 
 
-  /* Scale as per the startup "un-shrink" animation.
-   */
-  if (ss->mode != NORMAL)
-    {
+  /* Scale as per the startup "un-shrink" animation.  */
+  if (ss->mode != NORMAL) {
       GLfloat s = (ss->mode == OUT
                    ? ss->mode_tick / (fade_ticks / speed)
                    : (((fade_ticks / speed) - ss->mode_tick + 1) /
                       (fade_ticks / speed)));
       glScalef (s, s, s);
-    }
+  }
 
-  /* Rotate and tilt as per the user, and the motion modeller.
-   */
+  /* Rotate and tilt as per the user, and the motion modeller.  */
   {
     double x, y, z;
     gltrackball_rotate (ss->trackball);
 
     /* Tilt the tube up or down by up to 30 degrees */
     get_position (ss->rot, &x, &y, &z, !ss->button_down_p);
-    if (tilt_x_p)
-      glRotatef (15 - (x * 30), 1, 0, 0);
-    if (tilt_y_p)
-      glRotatef (7  - (y * 14), 0, 0, 1);
+    if (tilt_x_p) glRotatef (15 - (x * 30), 1, 0, 0);
+    if (tilt_y_p) glRotatef (7  - (y * 14), 0, 0, 1);
 
     /* Only use the Y component of the rotator. */
     get_rotation (ss->rot, &x, &y, &z, !ss->button_down_p);
@@ -915,8 +847,7 @@ draw_carousel (ModeInfo *mi)
   /* First draw each image, then draw the titles.  GL insists that you
      draw back-to-front in order to make alpha blending work properly,
      so we need to draw all of the 100% opaque images before drawing
-     any of the not-100%-opaque titles.
-   */
+     any of the not-100%-opaque titles.  */
   for (i = 0; i < ss->nframes; i++)
     draw_frame (mi, ss->frames[i], ss->now, True);
   if (titles_p)
@@ -931,9 +862,7 @@ draw_carousel (ModeInfo *mi)
 }
 
 
-ENTRYPOINT void
-free_carousel (ModeInfo *mi)
-{
+ENTRYPOINT void free_carousel (ModeInfo *mi) {
   carousel_state *ss = &sss[MI_SCREEN(mi)];
   int i;
   if (!ss->glx_context) return;
