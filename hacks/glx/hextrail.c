@@ -631,6 +631,7 @@ static void reset_hextrail(ModeInfo *mi) {
   bp->state = FIRST;
   bp->fade_ratio = 1;
   scale_corners(mi);
+  bp->shader_vertices_count = 0;
 
   bp->ncolors = 8;
   if (!bp->colors)
@@ -1440,11 +1441,16 @@ ENTRYPOINT void draw_hextrail (ModeInfo *mi) {
     fps_state *fps = mi->fpst;
     if (fps) {
       char shader_stats[100];
-      snprintf(shader_stats, sizeof(shader_stats), "\nShader: %s\nVerts: %lu",
-               "active", bp->shader_vertices_count);
+      snprintf(shader_stats, sizeof(shader_stats), "\nVerts: %u", vertex_count);
 
-      /* Make sure we don't overflow the buffer */
-      if (strlen(fps->string) + strlen(shader_stats) < sizeof(fps->string)) {
+      /* Replace any existing shader stats or add them if not present */
+      char *shader_pos = strstr(fps->string, "\nShader:");
+      if (shader_pos) {
+        /* If shader stats already exist, replace them */
+        *shader_pos = '\0'; /* Terminate the string at the shader position */
+        strncat(fps->string, shader_stats, sizeof(fps->string) - strlen(fps->string) - 1);
+      } else if (strlen(fps->string) + strlen(shader_stats) < sizeof(fps->string)) {
+        /* If no shader stats yet, just append them */
         strcat(fps->string, shader_stats);
       }
     }
