@@ -1021,7 +1021,7 @@ static void draw_hexagons(ModeInfo *mi) {
       XYZ p[6];
 
       if (hexes_on || (h->state != EMPTY && h->state != DONE)) {
-        GLfloat color1[3], ratio;;
+        GLfloat color1[4], ratio;
         ratio = (hexes_on && h->state != IN) ? 1 : h->ratio;
         memcpy(color1, color, sizeof(color1));
         color1[0] *= ratio; color1[1] *= ratio; color1[2] *= ratio;
