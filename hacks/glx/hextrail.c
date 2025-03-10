@@ -262,7 +262,7 @@ static void set_color_v(GLfloat *color) {
 #ifdef GL_VERSION_2_0
     set_color(color[0], color[1], color[2], color[3]);
 #else // GL_VERSION_2_0
-	glColor4fv(color);
+    glColor4fv(color);
     glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, color);
 #endif // else GL_VERSION_2_0
 }
@@ -1114,7 +1114,7 @@ static void draw_hexagons(ModeInfo *mi) {
         do_vertex(p[3].x, p[3].y, p[3].z);
         set_color_v(color1);
         do_vertex(p[0].x, p[0].y, p[0].z);
-        if (! wire) do_vertex(p[1].x, p[1].y, p[1].z);
+        if (!wire) do_vertex(p[1].x, p[1].y, p[1].z);
         mi->polygon_count++;
 
         do_vertex(p[1].x, p[1].y, p[1].z);
@@ -1127,9 +1127,7 @@ static void draw_hexagons(ModeInfo *mi) {
 
       /* Hexagon (one triangle of) in center to hide line miter/bevels.  */
       if (total_arms && a->state != DONE && a->state != OUT) {
-        p[0] = pos;
-        p[1].z = pos.z;
-        p[2].z = pos.z;
+        p[0] = pos; p[1].z = pos.z; p[2].z = pos.z;
 
         if (nub_ratio) {
           p[1].x = pos.x + scaled_corners[j][2].x * nub_ratio;
@@ -1155,6 +1153,9 @@ static void draw_hexagons(ModeInfo *mi) {
   }
 
 #ifdef GL_VERSION_2_0
+  /* Render accumulated vertices with shaders */
+  render_vertices(mi, bp, wire);
+#else
   glEnd();
 #endif // GL_VERSION_2_0
 }
@@ -1232,9 +1233,9 @@ ENTRYPOINT Bool hextrail_handle_event(ModeInfo *mi,
     } else if (
 #ifdef USE_SDL
             keysym == SDLK_RIGHT
-#else // USE_SDL
+#else
             keysym == XK_Right
-#endif // else USE_SDL
+#endif
             ) {
       speed *= 2;
       if (speed > 20) speed = 20;
@@ -1242,9 +1243,9 @@ ENTRYPOINT Bool hextrail_handle_event(ModeInfo *mi,
     } else if (
 #ifdef USE_SDL
             keysym == SDLK_LEFT
-#else // USE_SDL
+#else
             keysym == XK_Left
-#endif // else USE_SDL
+#endif
       ) {
       speed /= 2;
       if (speed < 0.0001) speed = 0.0001;
@@ -1253,9 +1254,9 @@ ENTRYPOINT Bool hextrail_handle_event(ModeInfo *mi,
                c == '\010' || c == '\177' ||
 #ifdef USE_SDL
             keysym == SDLK_DOWN || keysym == SDLK_PAGEUP
-#else // USE_SDL
+#else
             keysym == XK_Down || keysym == XK_Prior
-#endif // else USE_SDL
+#endif
             ) {
       MI_COUNT(mi)++;
       bp->size = MI_COUNT(mi) * 2;
@@ -1293,9 +1294,9 @@ ENTRYPOINT Bool hextrail_handle_event(ModeInfo *mi,
     }
 #ifdef USE_SDL
     else if (event->type == SDL_EVENT_QUIT)
-#else // USE_SDL
+#else
     else if (screenhack_event_helper (MI_DISPLAY(mi), MI_WINDOW(mi), event))
-#endif // else USE_SDL
+#endif
       return True;
     else return False;
 
@@ -1308,6 +1309,22 @@ ENTRYPOINT Bool hextrail_handle_event(ModeInfo *mi,
 ENTRYPOINT void init_hextrail(ModeInfo *mi) {
   MI_INIT (mi, bps);
   config *bp = &bps[MI_SCREEN(mi)];
+
+#ifdef GL_VERSION_2_0
+  /* Check if we can use shaders on this system */
+  bp->use_shaders = check_gl_version();
+  bp->shader_vertices_count = 0;  /* Initialize shader statistics counter */
+
+  /* Initialize vertex buffer */
+  bp->vertex_capacity = 10000;  /* Initial vertex capacity */
+  bp->vertex_count = 0;
+  bp->vertices = (Vertex *)malloc(bp->vertex_capacity * sizeof(Vertex));
+
+  if (!bp->vertices) {
+    fprintf(stderr, "Failed to allocate vertices array\n");
+    bp->use_shaders = 0;
+  }
+#endif
 
 #ifdef USE_SDL
   // SDL_GLContext is already created in main; store window for reference
@@ -1334,6 +1351,29 @@ ENTRYPOINT void init_hextrail(ModeInfo *mi) {
   if (thickness > 0.5) thickness = 0.5;
 
   bp->chunk_count = 0;
+
+#ifdef GL_VERSION_2_0
+  /* Initialize shaders if supported */
+  if (bp->use_shaders) {
+    if (!init_shaders(bp)) {
+      fprintf(stderr, "Failed to initialize shaders, falling back to immediate mode\n");
+      bp->use_shaders = 0;
+    } else {
+      /* Set up vertex attributes */
+      glGenBuffers(1, &bp->vertex_buffer);
+#ifdef GL_VERSION_3_0
+      glGenVertexArrays(1, &bp->vertex_array);
+#else
+      /* Fallback for systems without VAO support */
+      bp->vertex_array = 0;
+#endif
+
+      /* Bind attributes */
+      glBindAttribLocation(bp->shader_program, 0, "position");
+      glBindAttribLocation(bp->shader_program, 1, "color");
+    }
+  }
+#endif
 
   bp->size = MI_COUNT(mi) * 2; N = bp->size * 2 + 1; // N should be odd
   if (N > MAX_N) {
@@ -1395,14 +1435,35 @@ ENTRYPOINT void draw_hextrail (ModeInfo *mi) {
 
   glPopMatrix ();
 
-  if (mi->fps_p) do_fps(mi);
-  glFinish();
+  /* We don't need to reset vertex count here since render_vertices already does it */
+
+  if (mi->fps_p) {
+    /* If we're using shaders, add shader statistics to the FPS display */
+    fps_state *fps = mi->fpst;
+    if (fps && bp->use_shaders) {
+      char shader_stats[100];
+      snprintf(shader_stats, sizeof(shader_stats), "\nShader: %s\nVerts: %lu",
+               "active", bp->shader_vertices_count);
+
+      /* Make sure we don't overflow the buffer */
+      if (strlen(fps->string) + strlen(shader_stats) < sizeof(fps->string)) {
+        strcat(fps->string, shader_stats);
+      }
+    } else if (fps) {
+      /* Make sure we don't overflow the buffer */
+      if (strlen(fps->string) + 17 < sizeof(fps->string)) {
+        strcat(fps->string, "\nShader: inactive");
+      }
+    }
+    do_fps(mi);
+  }
+  glFinish(); // TODO do if using shaders?
 
 #ifdef USE_SDL
   SDL_GL_SwapWindow(bp->window);
-#else // USE_SDL
+#else
   glXSwapBuffers(dpy, window);
-#endif // else USE_SDL
+#endif
 }
 
 
@@ -1411,10 +1472,10 @@ ENTRYPOINT void free_hextrail (ModeInfo *mi) {
 
 #ifdef USE_SDL
   if (!bp->gl_context || !bp->window) return;
-#else // USE_SDL
+#else
   if (!bp->glx_context) return;
   glXMakeCurrent(MI_DISPLAY(mi), MI_WINDOW(mi), *bp->glx_context);
-#endif // else USE_SDL
+#endif
 
   if (bp->trackball) gltrackball_free (bp->trackball);
   if (bp->rot) free_rotator (bp->rot);
@@ -1428,6 +1489,24 @@ ENTRYPOINT void free_hextrail (ModeInfo *mi) {
     }
     free(bp->chunks);
   }
+
+#ifdef GL_VERSION_2_0
+  /* Clean up shader resources */
+  if (bp->use_shaders) {
+    glDeleteBuffers(1, &bp->vertex_buffer);
+#ifdef GL_VERSION_3_0
+    if (bp->vertex_array)
+      glDeleteVertexArrays(1, &bp->vertex_array);
+#endif
+
+    if (bp->shader_program) glDeleteProgram(bp->shader_program);
+    if (bp->vertex_shader) glDeleteShader(bp->vertex_shader);
+    if (bp->fragment_shader) glDeleteShader(bp->fragment_shader);
+  }
+
+  /* Free vertex array */
+  if (bp->vertices) free(bp->vertices);
+#endif
 }
 
 XSCREENSAVER_MODULE ("HexTrail", hextrail)
