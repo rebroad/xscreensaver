@@ -59,7 +59,6 @@
 #ifdef USE_GL /* whole file */
 
 #ifdef GL_VERSION_2_0
-
 /* Vertex shader source */
 static const char *vertex_shader_source =
 "#version 120\n"
@@ -166,10 +165,6 @@ static GLuint link_program(GLuint vertex_shader, GLuint fragment_shader) {
 
     return program;
 }
-
-/* Initialize shader program - defined after config struct */
-
-
 #endif /* GL_VERSION_2_0 */
 
 #define DEF_SPIN        "True"
@@ -213,10 +208,10 @@ typedef struct {
   SDL_Window *window;
   SDL_GLContext gl_context;
   SDL_Color *colors;
-#else
+#else // USE_SDL
   GLXContext *glx_context;
   XColor *colors;
-#endif
+#endif // else USE_SDL
   GLdouble model[16], proj[16];
   GLint viewport[4];
   rotator *rot;
@@ -239,50 +234,81 @@ typedef struct {
 #ifdef GL_VERSION_2_0
   GLuint shader_program, vertex_shader, fragment_shader;
   GLuint vertex_buffer, vertex_array;
-  int use_shaders;
-  Vertex *vertices;
-  int vertex_capacity, vertex_count;
   unsigned long shader_vertices_count; /* Total vertices rendered with shaders */
-#endif
+#endif // GL_VERSION_2_0
 } config;
 
 static config *bps = NULL;
 
-/* Function prototype for add_vertex */
-static void add_vertex(config *bp, GLfloat x, GLfloat y, GLfloat z,
-                      GLfloat r, GLfloat g, GLfloat b, GLfloat a);
+#ifdef GL_VERSION_2_0
+Vertex *vertices;
+int vertex_capacity, vertex_count;
 
 /* Current color tracking for shader mode */
 static GLfloat current_color[4] = {1.0, 1.0, 1.0, 1.0};
 
 /* Wrapper function for setting color in both shader and non-shader modes */
-static void set_color(config *bp, GLfloat r, GLfloat g, GLfloat b, GLfloat a) {
+static void set_color(GLfloat r, GLfloat g, GLfloat b, GLfloat a) {
     /* Store current color for shader path */
     current_color[0] = r;
     current_color[1] = g;
     current_color[2] = b;
     current_color[3] = a;
-
-    /* For non-shader path, set the color directly */
-    if (!bp->use_shaders) {
-        glColor4f(r, g, b, a);
-    }
 }
+#endif // GL_VERSION_2_0
 
 /* Wrapper function for setting color from an array */
-static void set_color_v(config *bp, GLfloat *color) {
-    set_color(bp, color[0], color[1], color[2], color[3]);
+static void set_color_v(GLfloat *color) {
+#ifdef GL_VERSION_2_0
+    set_color(color[0], color[1], color[2], color[3]);
+#else // GL_VERSION_2_0
+	glColor4fv(color);
+    glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, color);
+#endif // else GL_VERSION_2_0
 }
 
-/* Wrapper function for vertices in both shader and non-shader modes */
-static void render_vertex(config *bp, GLfloat x, GLfloat y, GLfloat z) {
-    if (bp->use_shaders) {
-        add_vertex(bp, x, y, z,
-                  current_color[0], current_color[1],
-                  current_color[2], current_color[3]);
-    } else {
+#ifdef GL_VERSION_2_0
+static void add_vertex(GLfloat x, GLfloat y, GLfloat z,
+                       GLfloat r, GLfloat g, GLfloat b, GLfloat a) {
+    /* Check if vertices array exists */
+    if (!vertices) {
+        /* Fall back to immediate mode */
+        glColor4f(r, g, b, a);
         glVertex3f(x, y, z);
+        return;
     }
+
+    /* Resize if needed */
+    if (vertex_count >= vertex_capacity) {
+        vertex_capacity *= 2;
+        vertices = (Vertex *)realloc(vertices, vertex_capacity * sizeof(Vertex));
+        if (!vertices) {
+            /* Fall back to immediate mode */
+            glColor4f(r, g, b, a);
+            glVertex3f(x, y, z);
+            return;
+        }
+    }
+
+    /* Add the vertex */
+    vertices[vertex_count].x = x;
+    vertices[vertex_count].y = y;
+    vertices[vertex_count].z = z;
+    vertices[vertex_count].r = r;
+    vertices[vertex_count].g = g;
+    vertices[vertex_count].b = b;
+    vertices[vertex_count].a = a;
+    vertex_count++;
+}
+#endif // GL_VERSION_2_0
+
+static void do_vertex(GLfloat x, GLfloat y, GLfloat z) {
+#ifdef GL_VERSION_2_0
+    add_vertex(x, y, z, current_color[0], current_color[1],
+              current_color[2], current_color[3]);
+#else // GL_VERSION_2_0
+    glVertex3f(x, y, z);
+#endif // else GL_VERSION_2_0
 }
 
 /* Initialize shader program */
@@ -610,10 +636,10 @@ static void reset_hextrail(ModeInfo *mi) {
 #ifdef USE_SDL
     bp->colors = (SDL_Color *) calloc(bp->ncolors, sizeof(SDL_Color));
   make_smooth_colormap(bp->colors, &bp->ncolors, False, 0, False);
-#else
+#else // USE_SDL
     bp->colors = (XColor *) calloc(bp->ncolors, sizeof(XColor));
   make_smooth_colormap (0, 0, 0, bp->colors, &bp->ncolors, False, 0, False);
-#endif
+#endif // else USE_SDL
 }
 
 static void handle_arm_out(config *bp, hexagon *h0, arm *a0, int j) {
@@ -885,41 +911,6 @@ static void tick_hexagons (ModeInfo *mi) {
   }
 }
 
-static void draw_glow_point(ModeInfo *mi, XYZ p, GLfloat size, GLfloat scale,
-        GLfloat *color, GLfloat alpha, Bool neon) {
-  config *bp = &bps[MI_SCREEN(mi)];
-
-#ifdef GL_VERSION_2_0
-  /* When using shaders, add vertices individually with color info */
-  /* Set up a triangle fan with center vertex followed by surrounding vertices */
-
-  /* First vertex at center */
-  add_vertex(bp, p.x, p.y, p.z,
-            color[0], color[1], color[2], alpha);
-
-  /* Surrounding vertices in a fan */
-  for (int g = 0; g <= 16; g++) {
-    float angle = g * M_PI / 8;
-    float x = p.x + cos(angle) * size * scale;
-    float y = p.y + sin(angle) * size * scale;
-    add_vertex(bp, x, y, p.z, color[0], color[1], color[2], alpha);
-  }
-#else
-  glBegin(GL_TRIANGLE_FAN);
-  if (!neon) glColor4f(color[0], color[1], color[2], alpha);
-  glVertex3f(p.x, p.y, p.z);
-  for (int g = 0; g <= 16; g++) {
-  //for (int g = 0; g <= 8; g++) {
-    float angle = g * M_PI / 8;
-    //float angle = g * M_PI / 4;
-    float x = p.x + cos(angle) * size * scale;
-    float y = p.y + sin(angle) * size * scale;
-    glVertex3f(x, y, p.z);
-  }
-  glEnd();
-#endif
-}
-
 #ifdef USE_SDL
   # define HEXAGON_COLOR(V,H) do { \
     int idx = (H)->ccolor; \
@@ -928,63 +919,19 @@ static void draw_glow_point(ModeInfo *mi, XYZ p, GLfloat size, GLfloat scale,
     (V)[2] = bp->colors[idx].b / 255.0f * bp->fade_ratio; \
     (V)[3] = bp->colors[idx].a / 255.0f; \
   } while (0)
-#else
+#else // USE_SDL
   # define HEXAGON_COLOR(V,H) do { \
     (V)[0] = bp->colors[(H)->ccolor].red   / 65535.0 * bp->fade_ratio; \
     (V)[1] = bp->colors[(H)->ccolor].green / 65535.0 * bp->fade_ratio; \
     (V)[2] = bp->colors[(H)->ccolor].blue  / 65535.0 * bp->fade_ratio; \
     (V)[3] = 1; \
   } while (0)
-#endif
-
-/* Vertex structure already defined above */
-
-/* Add a vertex to the vertex array, resize if needed */
-static void add_vertex(config *bp, GLfloat x, GLfloat y, GLfloat z,
-                       GLfloat r, GLfloat g, GLfloat b, GLfloat a) {
-#ifdef GL_VERSION_2_0
-    /* Check if vertices array exists */
-    if (!bp->vertices) {
-        bp->use_shaders = 0;
-        /* Fall back to immediate mode */
-        glColor4f(r, g, b, a);
-        glVertex3f(x, y, z);
-        return;
-    }
-
-    /* Resize if needed */
-    if (bp->vertex_count >= bp->vertex_capacity) {
-        bp->vertex_capacity *= 2;
-        bp->vertices = (Vertex *)realloc(bp->vertices, bp->vertex_capacity * sizeof(Vertex));
-        if (!bp->vertices) {
-            bp->use_shaders = 0;
-            /* Fall back to immediate mode */
-            glColor4f(r, g, b, a);
-            glVertex3f(x, y, z);
-            return;
-        }
-    }
-
-    /* Add the vertex */
-    bp->vertices[bp->vertex_count].x = x;
-    bp->vertices[bp->vertex_count].y = y;
-    bp->vertices[bp->vertex_count].z = z;
-    bp->vertices[bp->vertex_count].r = r;
-    bp->vertices[bp->vertex_count].g = g;
-    bp->vertices[bp->vertex_count].b = b;
-    bp->vertices[bp->vertex_count].a = a;
-    bp->vertex_count++;
-#else
-    /* Immediate mode fallback */
-    glColor4f(r, g, b, a);
-    glVertex3f(x, y, z);
-#endif
-}
+#endif // else USE_SDL
 
 #ifdef GL_VERSION_2_0
 /* Render accumulated vertices using shaders */
 static void render_vertices(ModeInfo *mi, config *bp, int wire) {
-    if (bp->vertex_count == 0) return;
+    if (vertex_count == 0) return;
 
     /* Use shader program */
     glUseProgram(bp->shader_program);
@@ -999,13 +946,13 @@ static void render_vertices(ModeInfo *mi, config *bp, int wire) {
 
     /* Update vertex buffer with accumulated vertices */
     glBindBuffer(GL_ARRAY_BUFFER, bp->vertex_buffer);
-    glBufferData(GL_ARRAY_BUFFER, bp->vertex_count * sizeof(Vertex),
-                 bp->vertices, GL_STREAM_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, vertex_count * sizeof(Vertex),
+                 vertices, GL_STREAM_DRAW);
 
     /* Set up vertex attributes */
 #ifdef GL_VERSION_3_0
     if (bp->vertex_array) glBindVertexArray(bp->vertex_array);
-#endif
+#endif // GL_VERSION_3_0
 
     /* Position attribute (x, y, z) */
     glEnableVertexAttribArray(0);
@@ -1016,24 +963,24 @@ static void render_vertices(ModeInfo *mi, config *bp, int wire) {
     glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)(3 * sizeof(GLfloat)));
 
     /* Draw the vertices */
-    glDrawArrays(wire ? GL_LINES : GL_TRIANGLES, 0, bp->vertex_count);
+    glDrawArrays(wire ? GL_LINES : GL_TRIANGLES, 0, vertex_count);
 
     /* Track shader statistics */
-    bp->shader_vertices_count += bp->vertex_count;
+    bp->shader_vertices_count += vertex_count;
 
     /* Clean up */
     glDisableVertexAttribArray(0);
     glDisableVertexAttribArray(1);
 #ifdef GL_VERSION_3_0
     if (bp->vertex_array) glBindVertexArray(0);
-#endif
+#endif // GL_VERSION_3_0
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glUseProgram(0);
 
     /* Reset vertex count for next frame */
-    bp->vertex_count = 0;
+    vertex_count = 0;
 }
-#endif
+#endif // GL_VERSION_2_0
 
 static void draw_hexagons(ModeInfo *mi) {
   config *bp = &bps[MI_SCREEN(mi)];
@@ -1041,15 +988,14 @@ static void draw_hexagons(ModeInfo *mi) {
 
 #ifdef GL_VERSION_2_0
   /* Reset vertex count */
-  bp->vertex_count = 0;
-#else
+  vertex_count = 0;
+#else // GL_VERSION_2_0
   glFrontFace(GL_CCW);
   glBegin(wire ? GL_LINES : GL_TRIANGLES);
   glNormal3f(0, 0, 1);
-#endif
+#endif // else GL_VERSION_2_0
 
   int i, k;
-  //vertex_count = 0;
   for (i=0;i<bp->chunk_count;i++) for (k=0;k<bp->chunks[i]->used;k++) {
     hexagon *h = bp->chunks[i]->chunk[k];
     if (draw_invis < h->invis) continue;
@@ -1075,12 +1021,10 @@ static void draw_hexagons(ModeInfo *mi) {
       if (hexes_on || (h->state != EMPTY && h->state != DONE)) {
         GLfloat color1[3], ratio;;
         ratio = (hexes_on && h->state != IN) ? 1 : h->ratio;
-        memcpy (color1, color, sizeof(color1));
-        color1[0] *= ratio;
-        color1[1] *= ratio;
-        color1[2] *= ratio;
+        memcpy(color1, color, sizeof(color1));
+        color1[0] *= ratio; color1[1] *= ratio; color1[2] *= ratio;
 
-        glColor4fv (color1);
+        set_color_v(color1);
         glMaterialfv (GL_FRONT, GL_AMBIENT_AND_DIFFUSE, color1);
 
         /* Outer edge of hexagon border */
@@ -1100,29 +1044,15 @@ static void draw_hexagons(ModeInfo *mi) {
         p[3].y = pos.y + scaled_corners[j][1].y;
         p[3].z = pos.z;
 
-#ifdef GL_VERSION_2_0
-        /* Get current color from color1 array */
-        GLfloat r = color1[0], g = color1[1], b = color1[2], a = color[3];
+        do_vertex(p[0].x, p[0].y, p[0].z);
+        do_vertex(p[1].x, p[1].y, p[1].z);
+        if (!wire) do_vertex(p[2].x, p[2].y, p[2].z);
+        mi->polygon_count++;
 
-        /* First triangle */
-        add_vertex(bp, p[0].x, p[0].y, p[0].z, r, g, b, a);
-        add_vertex(bp, p[1].x, p[1].y, p[1].z, r, g, b, a);
-        if (!wire) add_vertex(bp, p[2].x, p[2].y, p[2].z, r, g, b, a);
-
-        /* Second triangle */
-        add_vertex(bp, p[2].x, p[2].y, p[2].z, r, g, b, a);
-        add_vertex(bp, p[3].x, p[3].y, p[3].z, r, g, b, a);
-        if (!wire) add_vertex(bp, p[0].x, p[0].y, p[0].z, r, g, b, a);
-#else
-        glVertex3f(p[0].x, p[0].y, p[0].z);
-        glVertex3f(p[1].x, p[1].y, p[1].z);
-        if (!wire) glVertex3f(p[2].x, p[2].y, p[2].z);
-
-        glVertex3f(p[2].x, p[2].y, p[2].z);
-        glVertex3f(p[3].x, p[3].y, p[3].z);
-        if (!wire) glVertex3f(p[0].x, p[0].y, p[0].z);
-#endif
-        mi->polygon_count += 2;
+        do_vertex(p[2].x, p[2].y, p[2].z);
+        do_vertex(p[3].x, p[3].y, p[3].z);
+        if (!wire) do_vertex(p[0].x, p[0].y, p[0].z);
+        mi->polygon_count++;
       }
 
       /* Line from center to edge, or edge to center.  */
@@ -1180,161 +1110,26 @@ static void draw_hexagons(ModeInfo *mi) {
         p[3].y = pos.y + yoff * size2 * thick2 + y * end;
         p[3].z = pos.z;
 
-        if (do_glow || do_neon) {
-          Bool debug_now = False;
-          /*static time_t debug_time = 0;
-          time_t current_time = time(NULL);
-          if (current_time != debug_time) {
-            debug_now = True;
-            debug_time = current_time;
-          }*/
-
-          if (debug_now) {
-            printf("\nGLOW DEBUG:\n");
-            printf("Current color: %.2f, %.2f, %.2f\n",
-                   color[0], color[1], color[2]);
-            printf("Current p[0]: %.2f, %.2f, %.2f\n", p[0].x, p[0].y, p[0].z);
-            printf("Current p[3]: %.2f, %.2f, %.2f\n", p[3].x, p[3].y, p[3].z);
-            printf("Size value: %.2f\n", size);
-          }
-
-          GLenum err = glGetError();
-          if (err != GL_NO_ERROR && debug_now)
-            printf("GL Error before glow: %d\n", err);
-
-          glEnd();
-
-          glEnable(GL_BLEND);
-          if (debug_now) {
-            err = glGetError();
-            if (err != GL_NO_ERROR)
-              printf("GL Error after enable blend: %d\n", err);
-
-            GLboolean blend_enabled;
-            glGetBooleanv(GL_BLEND, &blend_enabled);
-            printf("Blend enabled: %d\n", blend_enabled);
-          }
-
-          if (do_neon)
-            glBlendFunc(GL_SRC_ALPHA, GL_ONE);
-          else
-            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);  // More natural blending
-
-          const int glow_layers = 4;
-
-          for (int layer = 0; layer < glow_layers; layer++) {
-            GLfloat glow_scale, glow_alpha;
-
-            if (do_neon) {
-              glow_scale = 1.0 + (layer * 0.2);
-              //glow_scale = 1.0 + (layer * 0.5);
-              glow_alpha = 0.3 / ((layer + 1) * (layer + 1));
-              //glow_alpha = 0.8 / (layer + 1);
-            } else {
-              glow_scale = 0.1 + ((layer+1) * 0.1);
-              //glow_alpha = 0.15 / ((layer + 1) * (layer + 1));
-              glow_alpha = 0.15 * pow(0.5, layer);
-            }
-
-            /* Make the glow color brighter than the base color */
-            GLfloat *glow_color = color;
-            /*GLfloat glow_color[4] = {
-              fmin(color[0] * 2.0, 1.0),
-              fmin(color[1] * 2.0, 1.0),
-              fmin(color[2] * 2.0, 1.0),
-              color[3]
-            };*/
-
-            float dx = p[3].x - p[0].x;
-            float dy = p[3].y - p[0].y;
-            float length = sqrt(dx*dx + dy*dy);
-
-            if (debug_now && layer == 2) {
-              printf("\nLayer %d:\n", layer);
-              printf("Glow scale: %.2f\n", glow_scale);
-              printf("Glow alpha: %.2f\n", glow_alpha);
-              printf("Bright color: %.2f, %.2f, %.2f\n",
-                     glow_color[0], glow_color[1], glow_color[2]);
-              printf("Arm length: %.2f\n", length);
-            }
-
-            /* Center point glow */
-            draw_glow_point(mi, p[0], size, glow_scale, glow_color, glow_alpha, do_neon);
-
-            /* End point glow */
-            draw_glow_point(mi, p[3], size, glow_scale, glow_color, glow_alpha, do_neon);
-
-            /* Arm glow */
-            if (do_neon)
-              glBegin(GL_TRIANGLE_STRIP);
-            else
-              glBegin(GL_QUADS);
-            float nx = -dy/length * size * glow_scale;
-            float ny = dx/length * size * glow_scale;
-
-#ifdef GL_VERSION_2_0
-            /* Add vertices for the shader path */
-            add_vertex(bp, p[0].x + nx, p[0].y + ny, p[0].z,
-                      glow_color[0], glow_color[1], glow_color[2], glow_alpha);
-            add_vertex(bp, p[0].x - nx, p[0].y - ny, p[0].z,
-                      glow_color[0], glow_color[1], glow_color[2], glow_alpha);
-            add_vertex(bp, p[3].x + nx, p[3].y + ny, p[3].z,
-                      glow_color[0], glow_color[1], glow_color[2], glow_alpha);
-            add_vertex(bp, p[3].x - nx, p[3].y - ny, p[3].z,
-                      glow_color[0], glow_color[1], glow_color[2], glow_alpha);
-#else
-            if (!do_neon)
-              glColor4f(glow_color[0], glow_color[1], glow_color[2], glow_alpha); // Needed?
-            glVertex3f(p[0].x + nx, p[0].y + ny, p[0].z);
-            glVertex3f(p[0].x - nx, p[0].y - ny, p[0].z);
-            glVertex3f(p[3].x + nx, p[3].y + ny, p[3].z);
-            glVertex3f(p[3].x - nx, p[3].y - ny, p[3].z);
-            glEnd();
-#endif
-          }
-
-          if (debug_now) {
-            err = glGetError();
-            if (err != GL_NO_ERROR) {
-              printf("GL Error after glow drawing: %d\n", err);
-            }
-          }
-
-          glDisable(GL_BLEND);
-          glBegin(wire ? GL_LINES : GL_TRIANGLES);
-        } // Glow or neon
-
-        glColor4fv (color2);
-        glMaterialfv (GL_FRONT, GL_AMBIENT_AND_DIFFUSE, color2);
-#ifdef GL_VERSION_2_0
-        /* Add vertices with the appropriate colors */
-        add_vertex(bp, p[3].x, p[3].y, p[3].z,
-                  color2[0], color2[1], color2[2], color2[3]);
-        add_vertex(bp, p[0].x, p[0].y, p[0].z,
-                  color1[0], color1[1], color1[2], color1[3]);
-        if (!wire) add_vertex(bp, p[1].x, p[1].y, p[1].z,
-                    color1[0], color1[1], color1[2], color1[3]);
-
-        add_vertex(bp, p[1].x, p[1].y, p[1].z,
-                  color1[0], color1[1], color1[2], color1[3]);
-        add_vertex(bp, p[2].x, p[2].y, p[2].z,
-                  color2[0], color2[1], color2[2], color2[3]);
-        if (!wire)
-          add_vertex(bp, p[3].x, p[3].y, p[3].z,
-                    color2[0], color2[1], color2[2], color2[3]);
-#else
-        glColor4fv(color2);
-        glMaterialfv (GL_FRONT, GL_AMBIENT_AND_DIFFUSE, color2);
-        glVertex3f(p[2].x, p[2].y, p[2].z);
-        if (! wire) glVertex3f (p[3].x, p[3].y, p[3].z);
-#endif
+        set_color_v(color2);
+        do_vertex(p[3].x, p[3].y, p[3].z);
+        set_color_v(color1);
+        do_vertex(p[0].x, p[0].y, p[0].z);
+        if (! wire) do_vertex(p[1].x, p[1].y, p[1].z);
         mi->polygon_count++;
-        glColor4fv(color1);  // Needed?
+
+        do_vertex(p[1].x, p[1].y, p[1].z);
+
+        set_color_v(color2);
+        do_vertex(p[2].x, p[2].y, p[2].z);
+        if (!wire) do_vertex(p[3].x, p[3].y, p[3].z);
+        mi->polygon_count++;
       } // arm is IN, OUT or DONE
 
       /* Hexagon (one triangle of) in center to hide line miter/bevels.  */
       if (total_arms && a->state != DONE && a->state != OUT) {
-        p[0] = pos; p[1].z = pos.z; p[2].z = pos.z;
+        p[0] = pos;
+        p[1].z = pos.z;
+        p[2].z = pos.z;
 
         if (nub_ratio) {
           p[1].x = pos.x + scaled_corners[j][2].x * nub_ratio;
@@ -1350,29 +1145,18 @@ static void draw_hexagons(ModeInfo *mi) {
           p[2].y = pos.y + scaled_corners[k][s].y;
         }
 
-#ifdef GL_VERSION_2_0
-        /* Add triangle vertices with color info */
-        if (!wire) add_vertex(bp, p[0].x, p[0].y, p[0].z, color[0], color[1], color[2], color[3]);
-        add_vertex(bp, p[1].x, p[1].y, p[1].z, color[0], color[1], color[2], color[3]);
-        add_vertex(bp, p[2].x, p[2].y, p[2].z, color[0], color[1], color[2], color[3]);
-#else // GL_VERSION_2_0
-        glColor4fv(color);
-        glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, color);
-        if (!wire) glVertex3f(p[0].x, p[0].y, p[0].z);
-        glVertex3f(p[1].x, p[1].y, p[1].z);
-        glVertex3f(p[2].x, p[2].y, p[2].z);
-#endif // else G:_VERSION_2_0
+        set_color_v(color);
+        if (!wire) do_vertex(p[0].x, p[0].y, p[0].z);
+        do_vertex(p[1].x, p[1].y, p[1].z);
+        do_vertex(p[2].x, p[2].y, p[2].z);
         mi->polygon_count++;
       }
     } // loop through arms
   }
 
 #ifdef GL_VERSION_2_0
-  /* Render accumulated vertices with shaders */
-  render_vertices(mi, bp, wire);
-#else
   glEnd();
-#endif
+#endif // GL_VERSION_2_0
 }
 
 
@@ -1409,9 +1193,9 @@ ENTRYPOINT void reshape_hextrail(ModeInfo *mi, int width, int height) {
 ENTRYPOINT Bool hextrail_handle_event(ModeInfo *mi,
 #ifdef USE_SDL
         SDL_Event *event
-#else
+#else // USE_SDL
         XEvent *event
-#endif
+#endif // else USE_SDL
         ) {
   config *bp = &bps[MI_SCREEN(mi)];
 
@@ -1426,20 +1210,20 @@ ENTRYPOINT Bool hextrail_handle_event(ModeInfo *mi,
   else if (event->type == SDL_EVENT_KEY_DOWN) {
     SDL_Keycode keysym = event->key.key;
     char c = (char)event->key.key;
-#else
+#else // USE_SDL
   else if (event->xany.type == KeyPress) {
     KeySym keysym;
     char c = 0;
     XLookupString (&event->xkey, &c, 1, &keysym, 0);
-#endif
+#endif // else USE_SDL
 
     if (c == '\t' || c == '\r' || c == '\n') ;
     else if (c == '>' || c == '.' ||
 #ifdef USE_SDL
             keysym == SDLK_UP || keysym == SDLK_PAGEDOWN
-#else
+#else // USE_SDL
             keysym == XK_Up || keysym == XK_Next
-#endif
+#endif // else USE_SDL
             ) {
       MI_COUNT(mi)--;
       if (MI_COUNT(mi) < 1) MI_COUNT(mi) = 1;
@@ -1448,9 +1232,9 @@ ENTRYPOINT Bool hextrail_handle_event(ModeInfo *mi,
     } else if (
 #ifdef USE_SDL
             keysym == SDLK_RIGHT
-#else
+#else // USE_SDL
             keysym == XK_Right
-#endif
+#endif // else USE_SDL
             ) {
       speed *= 2;
       if (speed > 20) speed = 20;
@@ -1458,9 +1242,9 @@ ENTRYPOINT Bool hextrail_handle_event(ModeInfo *mi,
     } else if (
 #ifdef USE_SDL
             keysym == SDLK_LEFT
-#else
+#else // USE_SDL
             keysym == XK_Left
-#endif
+#endif // else USE_SDL
       ) {
       speed /= 2;
       if (speed < 0.0001) speed = 0.0001;
@@ -1469,9 +1253,9 @@ ENTRYPOINT Bool hextrail_handle_event(ModeInfo *mi,
                c == '\010' || c == '\177' ||
 #ifdef USE_SDL
             keysym == SDLK_DOWN || keysym == SDLK_PAGEUP
-#else
+#else // USE_SDL
             keysym == XK_Down || keysym == XK_Prior
-#endif
+#endif // else USE_SDL
             ) {
       MI_COUNT(mi)++;
       bp->size = MI_COUNT(mi) * 2;
@@ -1509,9 +1293,9 @@ ENTRYPOINT Bool hextrail_handle_event(ModeInfo *mi,
     }
 #ifdef USE_SDL
     else if (event->type == SDL_EVENT_QUIT)
-#else
+#else // USE_SDL
     else if (screenhack_event_helper (MI_DISPLAY(mi), MI_WINDOW(mi), event))
-#endif
+#endif // else USE_SDL
       return True;
     else return False;
 
@@ -1525,22 +1309,6 @@ ENTRYPOINT void init_hextrail(ModeInfo *mi) {
   MI_INIT (mi, bps);
   config *bp = &bps[MI_SCREEN(mi)];
 
-#ifdef GL_VERSION_2_0
-  /* Check if we can use shaders on this system */
-  bp->use_shaders = check_gl_version();
-  bp->shader_vertices_count = 0;  /* Initialize shader statistics counter */
-
-  /* Initialize vertex buffer */
-  bp->vertex_capacity = 10000;  /* Initial vertex capacity */
-  bp->vertex_count = 0;
-  bp->vertices = (Vertex *)malloc(bp->vertex_capacity * sizeof(Vertex));
-
-  if (!bp->vertices) {
-    fprintf(stderr, "Failed to allocate vertices array\n");
-    bp->use_shaders = 0;
-  }
-#endif
-
 #ifdef USE_SDL
   // SDL_GLContext is already created in main; store window for reference
   bp->window = mi->window;
@@ -1549,9 +1317,9 @@ ENTRYPOINT void init_hextrail(ModeInfo *mi) {
     fprintf(stderr, "%s: Invalid SDL GL context or window\n", progname);
     exit(1);
   }
-#else
+#else // USE_SDL
   bp->glx_context = init_GL(mi);
-#endif
+#endif // else USE_SDL
 
   reshape_hextrail(mi, MI_WIDTH(mi), MI_HEIGHT(mi));
 
@@ -1566,29 +1334,6 @@ ENTRYPOINT void init_hextrail(ModeInfo *mi) {
   if (thickness > 0.5) thickness = 0.5;
 
   bp->chunk_count = 0;
-
-#ifdef GL_VERSION_2_0
-  /* Initialize shaders if supported */
-  if (bp->use_shaders) {
-    if (!init_shaders(bp)) {
-      fprintf(stderr, "Failed to initialize shaders, falling back to immediate mode\n");
-      bp->use_shaders = 0;
-    } else {
-      /* Set up vertex attributes */
-      glGenBuffers(1, &bp->vertex_buffer);
-#ifdef GL_VERSION_3_0
-      glGenVertexArrays(1, &bp->vertex_array);
-#else
-      /* Fallback for systems without VAO support */
-      bp->vertex_array = 0;
-#endif
-
-      /* Bind attributes */
-      glBindAttribLocation(bp->shader_program, 0, "position");
-      glBindAttribLocation(bp->shader_program, 1, "color");
-    }
-  }
-#endif
 
   bp->size = MI_COUNT(mi) * 2; N = bp->size * 2 + 1; // N should be odd
   if (N > MAX_N) {
@@ -1610,12 +1355,12 @@ ENTRYPOINT void draw_hextrail (ModeInfo *mi) {
     fprintf(stderr, "%s: SDL_GL_MakeCurrent failed: %s\n", progname, SDL_GetError());
     return;
   }
-#else
+#else // USE_SDL
   if (!bp->glx_context) return;
   Display *dpy = MI_DISPLAY(mi);
   Window window = MI_WINDOW(mi);
   glXMakeCurrent(MI_DISPLAY(mi), MI_WINDOW(mi), *bp->glx_context);
-#endif
+#endif // else USE_SDL
 
   glShadeModel(GL_SMOOTH);
   glDisable(GL_DEPTH_TEST);
@@ -1650,35 +1395,14 @@ ENTRYPOINT void draw_hextrail (ModeInfo *mi) {
 
   glPopMatrix ();
 
-  /* We don't need to reset vertex count here since render_vertices already does it */
-
-  if (mi->fps_p) {
-    /* If we're using shaders, add shader statistics to the FPS display */
-    fps_state *fps = mi->fpst;
-    if (fps && bp->use_shaders) {
-      char shader_stats[100];
-      snprintf(shader_stats, sizeof(shader_stats), "\nShader: %s\nVerts: %lu",
-               "active", bp->shader_vertices_count);
-
-      /* Make sure we don't overflow the buffer */
-      if (strlen(fps->string) + strlen(shader_stats) < sizeof(fps->string)) {
-        strcat(fps->string, shader_stats);
-      }
-    } else if (fps) {
-      /* Make sure we don't overflow the buffer */
-      if (strlen(fps->string) + 17 < sizeof(fps->string)) {
-        strcat(fps->string, "\nShader: inactive");
-      }
-    }
-    do_fps(mi);
-  }
+  if (mi->fps_p) do_fps(mi);
   glFinish();
 
 #ifdef USE_SDL
   SDL_GL_SwapWindow(bp->window);
-#else
+#else // USE_SDL
   glXSwapBuffers(dpy, window);
-#endif
+#endif // else USE_SDL
 }
 
 
@@ -1687,10 +1411,10 @@ ENTRYPOINT void free_hextrail (ModeInfo *mi) {
 
 #ifdef USE_SDL
   if (!bp->gl_context || !bp->window) return;
-#else
+#else // USE_SDL
   if (!bp->glx_context) return;
   glXMakeCurrent(MI_DISPLAY(mi), MI_WINDOW(mi), *bp->glx_context);
-#endif
+#endif // else USE_SDL
 
   if (bp->trackball) gltrackball_free (bp->trackball);
   if (bp->rot) free_rotator (bp->rot);
@@ -1704,24 +1428,6 @@ ENTRYPOINT void free_hextrail (ModeInfo *mi) {
     }
     free(bp->chunks);
   }
-
-#ifdef GL_VERSION_2_0
-  /* Clean up shader resources */
-  if (bp->use_shaders) {
-    glDeleteBuffers(1, &bp->vertex_buffer);
-#ifdef GL_VERSION_3_0
-    if (bp->vertex_array)
-      glDeleteVertexArrays(1, &bp->vertex_array);
-#endif
-
-    if (bp->shader_program) glDeleteProgram(bp->shader_program);
-    if (bp->vertex_shader) glDeleteShader(bp->vertex_shader);
-    if (bp->fragment_shader) glDeleteShader(bp->fragment_shader);
-  }
-
-  /* Free vertex array */
-  if (bp->vertices) free(bp->vertices);
-#endif
 }
 
 XSCREENSAVER_MODULE ("HexTrail", hextrail)
