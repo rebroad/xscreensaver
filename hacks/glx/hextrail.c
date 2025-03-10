@@ -1,12 +1,11 @@
 /* hextrail, Copyright (c) 2022 Jamie Zawinski <jwz@jwz.org>
  *
+ * high-priority TODOs:-
+ = according to the --fps output, verts keeps incrasing, even when a new hextrail is started - is this right?
  * low-priority TODOs:-
  = Collect all vertices into a dynamic array, then upload to 1 or more VBOs - also fix glow effects.
  = Don't draw borders when the thickness of the line would be <1 pixel
- = hextrail - the end-points - draw these more slowly, like a decelleration (due to pressure).
  = need an option to make it fill all active displays (wasn't -root supposed to do this?)
- = Measure average tick time (per second) FPS=TPS?
- = Enable ability to click a hexagon and get info
  = Explore using the Z dimension - some undulation or ripple effect perhaps?
  */
 
