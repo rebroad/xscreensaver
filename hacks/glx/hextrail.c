@@ -71,7 +71,7 @@ static const char *vertex_shader_source =
 /* Fragment shader source with glow effect */
 static const char *fragment_shader_source =
 "#version 330 core\n"
-"varying vec4 FragColor;\n"
+"out vec4 FragColor;\n"
 "in vec2 TexCoords;\n"
 "uniform sampler2D image;\n"
 "uniform bool horizontal;\n"
