@@ -1342,19 +1342,20 @@ ENTRYPOINT void init_hextrail(ModeInfo *mi) {
 	/* Set up vertex attributes */
 	glGenBuffers(1, &bp->vertex_buffer);
 	if (do_glow || do_neon) {
-	  glGenFramebuffers(1, &bp->fbo);
-      glBindFramebuffer(GL_FRAMEBUFFER, bp->fbo);
-	  unsigned int colorBuffers[2];
-	  glGenTextures(2, colorBuffers);
+      unsigned int pingpongFBO[2];
+	  unsigned int pingpongBuffer[2];
+	  glGenFramebuffers(2, pingpongFBO);
+	  glGenTextures(2, pingpongBuffer);
 	  for (unsigned int i = 0; i < 2; i++) {
-	    glBindTexture(GL_TEXTURE_2D, colorBuffers[i]);
-	    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, MI_WIDTH(mi), MI_HEIGHT(mi), 0, GL_RGBA, GL_FLOAT, NULL);
-	    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-	    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-	    // attach texture to framebuffer
-	    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, colorBuffers[i], 0);
+        glBindFramebuffer(GL_FRAMEBUFFER, pingpongFBO[i]);
+		glBindTexture(GL_TEXTURE_2D, pingpongBuffer[i]);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, MI_WIDTH(mi), MI_HEIGHT(mi), 0, GL_RGBA, GL_FLOAT, NULL);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+		// attach texture to framebuffer
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, pingpongBuffer[i], 0);
 	  }
 	}
 #ifdef GL_VERSION_3_0
@@ -1398,40 +1399,40 @@ ENTRYPOINT void init_hextrail(ModeInfo *mi) {
 #ifdef GL_VERSION_2_0
 /* Render a full-screen quad with post-processing effects */
 static void render_post_process(ModeInfo *mi) {
-    config *bp = &bps[MI_SCREEN(mi)];
+	config *bp = &bps[MI_SCREEN(mi)];
 
-    /* Use shader program */
-    glUseProgram(bp->shader_program);
+	/* Use shader program */
+	glUseProgram(bp->shader_program);
 
-    /* Set uniform variables */
-    GLint resolution_loc = glGetUniformLocation(bp->shader_program, "resolution");
-    GLint use_glow_loc = glGetUniformLocation(bp->shader_program, "use_glow");
-    GLint tex_loc = glGetUniformLocation(bp->shader_program, "tex");
+	/* Set uniform variables */
+	GLint resolution_loc = glGetUniformLocation(bp->shader_program, "resolution");
+	GLint use_glow_loc = glGetUniformLocation(bp->shader_program, "use_glow");
+	GLint tex_loc = glGetUniformLocation(bp->shader_program, "tex");
 
-    if (resolution_loc != -1) glUniform2f(resolution_loc, MI_WIDTH(mi), MI_HEIGHT(mi));
-    if (use_glow_loc != -1) glUniform1i(use_glow_loc, 1);  // Always enable glow in post-processing
-    if (tex_loc != -1) glUniform1i(tex_loc, 0);  // Use texture unit 0
+	if (resolution_loc != -1) glUniform2f(resolution_loc, MI_WIDTH(mi), MI_HEIGHT(mi));
+	if (use_glow_loc != -1) glUniform1i(use_glow_loc, 1);  // Always enable glow in post-processing
+	if (tex_loc != -1) glUniform1i(tex_loc, 0);  // Use texture unit 0
 
-    /* Draw the full-screen quad */
-    glBindBuffer(GL_ARRAY_BUFFER, bp->quad_vbo);
+	/* Draw the full-screen quad */
+	glBindBuffer(GL_ARRAY_BUFFER, bp->quad_vbo);
 
-    /* Position attribute (x, y) */
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, 0);
+	/* Position attribute (x, y) */
+	glEnableVertexAttribArray(0);
+	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, 0);
 
-    /* Texture coordinate attribute (u, v) */
-    glEnableVertexAttribArray(1);
+	/* Texture coordinate attribute (u, v) */
+	glEnableVertexAttribArray(1);
 	glBindBuffer(GL_ARRAY_BUFFER, bp->quad_texcoord_vbo);
 	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 0, 0);
 
-    /* Draw the quad */
-    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+	/* Draw the quad */
+	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
-    /* Clean up */
-    glDisableVertexAttribArray(0);
-    glDisableVertexAttribArray(1);
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-    glUseProgram(0);
+	/* Clean up */
+	glDisableVertexAttribArray(0);
+	glDisableVertexAttribArray(1);
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+	glUseProgram(0);
 }
 #endif
 
@@ -1458,7 +1459,7 @@ ENTRYPOINT void draw_hextrail (ModeInfo *mi) {
 #ifdef GL_VERSION_2_0
   // First pass: Render scene to texture
   if (do_glow || do_neon) {
-    glBindFramebuffer(GL_FRAMEBUFFER, bp->fbo);
+	glBindFramebuffer(GL_FRAMEBUFFER, bp->fbo);
 	glViewport(0, 0, MI_WIDTH(mi), MI_HEIGHT(mi)); // Ensure viewport matches FBO texture size
 	printf("Rendering to FBO: viewport %dx%d\n", MI_WIDTH(mi), MI_HEIGHT(mi));
 	glClearColor(0.0f, 0.0f, 0.0f, 1.0f); // Clear to black for visibility
@@ -1503,37 +1504,22 @@ ENTRYPOINT void draw_hextrail (ModeInfo *mi) {
 
 #ifdef GL_VERSION_2_0
   if (do_glow || do_neon) {
-    printf("First pass tendered %ld polygons\n", mi->polygon_count);
+	printf("First pass tendered %ld polygons\n", mi->polygon_count);
 
-	GLenum err = glGetError();
-	if (err != GL_NO_ERROR) fprintf(stderr, "OpenGL error after first pass: %d\n", err);
+	Bool horizontal = True, first_iteration = True;
+	int amount = 10;
+	shaderBlur.use();
+	for (unsigned int i = 0; i < amount; i++) {
+	  glBindFramebuffer(GL_FRAMEBUFFER, pingpongFBO[horizontal]);
+	  shaderBlue.setInt("horizontal", horizontal);
+	  glBindTexture(GL_TEXTURE_2D, first_iteration ? colorBuffers[1] : pingpongBuffers[!horizontal]);
+	  RenderQuad();
+	  horizontal = !horizontal;
+	  if (first_iteration) first_iteration = False;
+	}
 
 	// Second pass: Render to screen with glow effect
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    glViewport(bp->viewport[0], bp->viewport[1], bp->viewport[2], bp->viewport[3]); // Restore window viewport
-
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-	// Disable shaders for debugging
-	glUseProgram(0);
-
-	// Activate texture with the rendered scene
-	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, bp->texture);
-
-	// Draw scene again with glow effect
-	//render_post_process(mi);
-	
-	// Render a full-screen quad with the raw texture
-	glBegin(GL_QUADS);
-	glTexCoord2f(0.0f, 0.0f); glVertex2f(-1.0f, -1.0f);
-	glTexCoord2f(1.0f, 0.0f); glVertex2f( 1.0f, -1.0f);
-	glTexCoord2f(1.0f, 1.0f); glVertex2f( 1.0f,  1.0f);
-	glTexCoord2f(0.0f, 1.0f); glVertex2f(-1.0f,  1.0f);
-	glEnd();
-
-	// Cleanup
-	glBindTexture(GL_TEXTURE_2D, 0);
   }
 #endif
 
