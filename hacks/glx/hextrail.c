@@ -70,30 +70,23 @@ static const char *vertex_shader_source =
 
 /* Fragment shader source with glow effect */
 static const char *fragment_shader_source =
-"#version 120\n"
-"varying vec4 v_color;\n"
-"uniform int use_glow;\n"
-"uniform sampler2D tex;\n"
-"uniform vec2 resolution;\n"
+"#version 330 core\n"
+"varying vec4 FragColor;\n"
+"in vec2 TexCoords;\n"
+"uniform sampler2D image;\n"
+"uniform bool horizontal;\n"
+"uniform float weight[5] = float[] (0.227027, 0.1945946, 0.1216216, 0.054054, 0.016216);\n"
 "void main() {\n"
-"    vec4 final_color = v_color;\n"
-"    if (use_glow == 1) {\n"
-"        vec2 uv = gl_FragCoord.xy / resolution;\n"
-"        vec4 base_color = texture2D(tex, uv);\n" // Sample from framebuffer
-"        if (base_color.a < 0.1) discard;\n" // Skip near-transparent areas
-"        float glow = 0.0;\n"
-"        float radius = 0.05;\n" // Glow radius in screen space
-"        for (int x = -5; x <= 5; x++) for (int y = -5; y <= 5; y++) {\n"
-"            vec2 offset = vec2(float(x), float(y)) * radius;\n"
-"            float dist = length(offset);\n"
-"            float weight = exp(-dist * dist * 2.0);\n" // Softer falloff
-"            glow += texture2D(tex, uv + offset).a * weight;\n"
-"        }\n"
-"        glow *= 0.02;\n" // Adjust normalization for larger kernel
-"        vec3 glow_color = vec3(1.0, 0.8, 0.6) * glow * 2.0;\n" // Warm glow color, amplified
-"    final_color = vec4(v_color.rgb + glow_color * glow, base_color.a);\n"
+"    vec2 tex_offset = 1.0 / textureSize(image, 0);\n" // gets size of single texel
+"    vec3 result = texture(image, TexCoords).rgb * weight[0];\n" // current fragment's contrbution
+"    if (horizontal) for (int i = 1; i < 5; ++i) {\n"
+"        result += texture(image, TexCoords + vec2(tex_offset.x * i, 0.0)).rgb * weight[i];\n"
+"        result += texture(image, TexCoords - vec2(tex_offset.x * i, 0.0)).rgb * weight[i];\n"
+"    } else for (int i = 1; i < 5; ++i) {\n"
+"        result += texture(image, TexCoords + vec2(0.0, tex_offset.y * i)).rgb * weight[i];\n"
+"        result += texture(image, TexCoords - vec2(0.0, tex_offset.y * i)).rgb * weight[i];\n"
 "    }\n"
-"    gl_FragColor = final_color;\n"
+"    FragColor = vec4(result, 1.0);\n"
 "}\n";
 
 /* Check if OpenGL version supports shaders */
@@ -1350,50 +1343,26 @@ ENTRYPOINT void init_hextrail(ModeInfo *mi) {
 	glGenBuffers(1, &bp->vertex_buffer);
 	if (do_glow || do_neon) {
 	  glGenFramebuffers(1, &bp->fbo);
-	  glGenTextures(1, &bp->texture);
-
-	  glBindTexture(GL_TEXTURE_2D, bp->texture);
-	  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, MI_WIDTH(mi), MI_HEIGHT(mi), 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
-	  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-	  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-
-      GLenum err = glGetError();
-	  if (err != GL_NO_ERROR) {
-		fprintf(stderr, "OpenGL error after texture setup: %d\n", err);
+      glBindFramebuffer(GL_FRAMEBUFFER, bp->fbo);
+	  unsigned int colorBuffers[2];
+	  glGenTextures(2, colorBuffers);
+	  for (unsigned int i = 0; i < 2; i++) {
+	    glBindTexture(GL_TEXTURE_2D, colorBuffers[i]);
+	    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, MI_WIDTH(mi), MI_HEIGHT(mi), 0, GL_RGBA, GL_FLOAT, NULL);
+	    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	    // attach texture to framebuffer
+	    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, colorBuffers[i], 0);
 	  }
-
-	  glBindFramebuffer(GL_FRAMEBUFFER, bp->fbo);
-	  glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, bp->texture, 0);
-
-	  // Check FBO completeness
-	  GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
-	  if (status != GL_FRAMEBUFFER_COMPLETE) {
-		fprintf(stderr, "FBO incomplete: %d\n", status);
-		// Cleanup and disable glow
-		glDeleteFramebuffers(1, &bp->fbo);
-		glDeleteTextures(1, &bp->texture);
-		bp->fbo = 0; bp->texture = 0;
-		do_glow = False; do_neon = False;
-	  } else {
-		printf("FBO setup successful: texture size %dx%d\n", MI_WIDTH(mi), MI_HEIGHT(mi));
-	  }
-
-	  err = glGetError();
-	  if (err != GL_NO_ERROR) {
-		fprintf(stderr, "OpenGL error after FBO setup: %d\n", err);
-	  }
-
-	  glBindFramebuffer(GL_FRAMEBUFFER, 0);
-	  glBindTexture(GL_TEXTURE_2D, 0);
 	}
 #ifdef GL_VERSION_3_0
 	glGenVertexArrays(1, &bp->vertex_array);
 #else
 	/* Fallback for systems without VAO support */
 	bp->vertex_array = 0;
-#endif
+#endif // else GL_VERSION_3_0
 
 	/* Bind attributes */
 	glBindAttribLocation(bp->shader_program, 0, "position");
@@ -1412,7 +1381,7 @@ ENTRYPOINT void init_hextrail(ModeInfo *mi) {
 	glBufferData(GL_ARRAY_BUFFER, sizeof(quad_texcoords), quad_texcoords, GL_STATIC_DRAW);
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
   }
-#endif
+#endif // GL_VERSION_2_0
 
   bp->size = MI_COUNT(mi) * 2; N = bp->size * 2 + 1; // N should be odd
   if (N > MAX_N) {
@@ -1491,11 +1460,24 @@ ENTRYPOINT void draw_hextrail (ModeInfo *mi) {
   if (do_glow || do_neon) {
     glBindFramebuffer(GL_FRAMEBUFFER, bp->fbo);
 	glViewport(0, 0, MI_WIDTH(mi), MI_HEIGHT(mi)); // Ensure viewport matches FBO texture size
+	printf("Rendering to FBO: viewport %dx%d\n", MI_WIDTH(mi), MI_HEIGHT(mi));
 	glClearColor(0.0f, 0.0f, 0.0f, 1.0f); // Clear to black for visibility
   }
 #endif
 
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+  if (do_glow || do_neon) {
+	// Temporarily disable shaders for debuggubg
+	glUseProgram(0);
+
+	// Ensure basic OpenGL state
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	glDisable(GL_DEPTH_TEST);
+	glShadeModel(GL_SMOOTH);
+  }
+
   glPushMatrix();
   {
 	double x, y, z;
@@ -1521,6 +1503,11 @@ ENTRYPOINT void draw_hextrail (ModeInfo *mi) {
 
 #ifdef GL_VERSION_2_0
   if (do_glow || do_neon) {
+    printf("First pass tendered %ld polygons\n", mi->polygon_count);
+
+	GLenum err = glGetError();
+	if (err != GL_NO_ERROR) fprintf(stderr, "OpenGL error after first pass: %d\n", err);
+
 	// Second pass: Render to screen with glow effect
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glViewport(bp->viewport[0], bp->viewport[1], bp->viewport[2], bp->viewport[3]); // Restore window viewport
