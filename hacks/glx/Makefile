@@ -29,7 +29,7 @@ WINDOWS_LIBS = -L/usr/x86_64-w64-mingw32/lib -lopengl32 -lglut -lglu32 -lwinmm
 
 # SDL3 paths for Linux build
 SDL3_LIBS = -L/usr/local/lib -lSDL3 -lGL
-SDL3_INCLUDE = -I/usr/local/include
+SDL3_INCLUDE = -I/usr/local/include -I../../utils/sdl
 
 # SDL3 paths for Windows cross-compile
 WIN_SDL3_LIBS = -L$(WIN_SDL3_PATH)/lib -lSDL3 -lSDL3_ttf -lopengl32 -lglu32 -lmingw32 -mwindows -lm
