@@ -18,11 +18,22 @@
 
 #ifdef USE_SDL
 #include <SDL3/SDL.h>
-#include <SDL3/SDL_opengl.h>
+#include <GL/gl.h>
+#include <GL/glext.h>
 #include "../../utils/sdl/sdlhacks.h"
-#ifdef _Win32
-#include <windows.h>
-#endif // _Win32
+#include "../../utils/sdl/sdlgl.h"
+#else // USE_SDL
+#include "xlockmore.h"
+#include "fpsI.h"
+#include "colors.h"
+#endif // else USE_SDL
+
+#include <math.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#ifdef USE_SDL
 /* SDL3 initialization status */
 static Bool sdl_initialized = False;
 #endif // USE_SDL
@@ -315,6 +326,7 @@ typedef struct {
   GLfloat bloom_weights[5];
   GLfloat bloom_intensity;
   int fbo_width, fbo_height;
+  GLuint fbo;  /* Main framebuffer object */
 #endif // GL_VERSION_2_0
 } config;
 
@@ -778,16 +790,16 @@ static void reset_hextrail(ModeInfo *mi) {
   if (!bp->colors)
 #ifdef USE_SDL
     bp->colors = (SDL_Color *) calloc(bp->ncolors, sizeof(SDL_Color));
-  make_smooth_colormap(bp->colors, &bp->ncolors, False, 0, False);
+    make_smooth_colormap(bp->colors, &bp->ncolors, False, 0, False);
 
-  /* Set alpha channel for all colors */
-  for (int i = 0; i < bp->ncolors; i++) {
-    bp->colors[i].a = 255;
-  }
-#else // USE_SDL
+    /* Set alpha channel for all colors */
+    for (int i = 0; i < bp->ncolors; i++) {
+      bp->colors[i].a = 255;
+    }
+#else
     bp->colors = (XColor *) calloc(bp->ncolors, sizeof(XColor));
-  make_smooth_colormap (0, 0, 0, bp->colors, &bp->ncolors, False, 0, False);
-#endif // else USE_SDL
+    make_smooth_colormap (0, 0, 0, bp->colors, &bp->ncolors, False, 0, False);
+#endif
 }
 
 static void handle_arm_out(config *bp, hexagon *h0, arm *a0, int j) {
@@ -1094,13 +1106,26 @@ static void render_vertices(ModeInfo *mi, config *bp, int wire) {
     GLint use_glow_loc = glGetUniformLocation(bp->shader_program, "use_glow");
     GLint tex_loc = glGetUniformLocation(bp->shader_program, "tex");
 
+    if (resolution_loc == -1) {
+        fprintf(stderr, "Warning: resolution uniform not found in shader\n");
+        return;
+    }
+    if (use_glow_loc == -1) {
+        fprintf(stderr, "Warning: use_glow uniform not found in shader\n");
+        return;
+    }
+    if (tex_loc == -1) {
+        fprintf(stderr, "Warning: tex uniform not found in shader\n");
+        return;
+    }
+
 #ifdef USE_SDL
-    if (resolution_loc != -1) glUniform2f(resolution_loc, bp->window_width, bp->window_height);
+    glUniform2f(resolution_loc, bp->window_width, bp->window_height);
 #else
-    if (resolution_loc != -1) glUniform2f(resolution_loc, MI_WIDTH(mi), MI_HEIGHT(mi));
+    glUniform2f(resolution_loc, MI_WIDTH(mi), MI_HEIGHT(mi));
 #endif
-    if (use_glow_loc != -1) glUniform1i(use_glow_loc, (do_glow || do_neon) ? 1 : 0);
-    if (tex_loc != -1) glUniform1i(tex_loc, 0); // Use texture unit 0
+    glUniform1i(use_glow_loc, (do_glow || do_neon) ? 1 : 0);
+    glUniform1i(tex_loc, 0); // Use texture unit 0
 
     /* Update vertex buffer with accumulated vertices */
     glBindBuffer(GL_ARRAY_BUFFER, bp->vertex_buffer);
@@ -1621,6 +1646,31 @@ ENTRYPOINT void init_hextrail(ModeInfo *mi) {
         bp->fbo_height = MI_HEIGHT(mi);
 #endif // else USE_SDL
 
+        /* Create main FBO */
+        glGenFramebuffers(1, &bp->fbo);
+        glBindFramebuffer(GL_FRAMEBUFFER, bp->fbo);
+
+        /* Create and attach texture for main FBO */
+        GLuint main_texture;
+        glGenTextures(1, &main_texture);
+        glBindTexture(GL_TEXTURE_2D, main_texture);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, bp->fbo_width, bp->fbo_height, 0, GL_RGBA, GL_FLOAT, NULL);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, main_texture, 0);
+
+        /* Check FBO completeness */
+        GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+        if (status != GL_FRAMEBUFFER_COMPLETE) {
+            fprintf(stderr, "Main FBO not complete, status: 0x%x\n", status);
+            glDeleteTextures(1, &main_texture);
+            glDeleteFramebuffers(1, &bp->fbo);
+            bp->fbo = 0;
+            return;
+        }
+
         /* Create scene FBO for initial rendering */
         glGenFramebuffers(1, &bp->scene_fbo);
         glBindFramebuffer(GL_FRAMEBUFFER, bp->scene_fbo);
@@ -1698,6 +1748,9 @@ ENTRYPOINT void init_hextrail(ModeInfo *mi) {
   qq = q * 2;
   printf("%s: N=%d q=%d qq=%d\n", __func__, N, q, qq);
   reset_hextrail(mi);
+
+  /* Set up OpenGL state */
+  setup_gl_state();
 }
 
 #ifdef GL_VERSION_2_0
@@ -1809,26 +1862,9 @@ ENTRYPOINT void draw_hextrail (ModeInfo *mi) {
     return;
   }
 
-  /* Ensure the GL context exists */
-  if (!bp->gl_context) {
-    fprintf(stderr, "%s: No SDL GL context\n", progname);
-    return;
-  }
-
-  /* Make our context current */
   if (SDL_GL_MakeCurrent(bp->window, bp->gl_context) < 0) {
     fprintf(stderr, "%s: SDL_GL_MakeCurrent failed: %s\n", progname, SDL_GetError());
     return;
-  }
-
-  /* Check if window size has changed */
-  int current_width, current_height;
-  if (sdl_get_window_size(bp->window, &current_width, &current_height) == 0) {
-    if (current_width != bp->window_width || current_height != bp->window_height) {
-      /* Update window dimensions */
-      bp->window_width = current_width;
-      bp->window_height = current_height;
-    }
   }
 #else // USE_SDL
   if (!bp->glx_context) return;
@@ -1842,19 +1878,12 @@ ENTRYPOINT void draw_hextrail (ModeInfo *mi) {
   glEnable(GL_NORMALIZE);
   glDisable(GL_CULL_FACE);
 
-  /* Clear color buffer */
-  glClear(GL_COLOR_BUFFER_BIT);
-
 #ifdef GL_VERSION_2_0
-  /* First pass: Render scene to framebuffer texture */
-  if ((do_glow || do_neon) && bp->scene_fbo) {
-    glBindFramebuffer(GL_FRAMEBUFFER, bp->scene_fbo);
-    glViewport(0, 0, bp->fbo_width, bp->fbo_height);
-    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT);
-  }
+  // First pass: Render scene to texture
+  if (do_glow || do_neon) glBindFramebuffer(GL_FRAMEBUFFER, bp->fbo);
 #endif
 
+  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
   glPushMatrix();
   {
     double x, y, z;
@@ -1863,7 +1892,9 @@ ENTRYPOINT void draw_hextrail (ModeInfo *mi) {
     gltrackball_rotate (bp->trackball);
     get_rotation (bp->rot, &x, &y, &z, !bp->button_down_p);
     glRotatef (z * 360, 0.0, 0.0, 1.0);
+  }
 
+  {
     GLfloat s = 18;
     glScalef (s, s, s);
   }
@@ -1874,50 +1905,24 @@ ENTRYPOINT void draw_hextrail (ModeInfo *mi) {
     glGetDoublev(GL_PROJECTION_MATRIX, bp->proj);
     tick_hexagons(mi);
   }
+
   draw_hexagons(mi);
   glPopMatrix();
 
 #ifdef GL_VERSION_2_0
-  if ((do_glow || do_neon) && bp->scene_fbo) {
-    /* First pass is complete - scene has been rendered to texture */
-
-    /* Apply blur effect using ping-pong technique */
-    apply_blur(mi);
-
-    /* Return to default framebuffer for final composition */
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    glViewport(bp->viewport[0], bp->viewport[1], bp->viewport[2], bp->viewport[3]);
-
-    /* Clear main framebuffer */
-    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT);
-
-    /* Render final composite combining scene and bloom */
-    render_composite(mi);
-  }
-#endif
-
-  if (mi->fps_p) {
-    /* If we're using shaders, add shader statistics to the FPS display */
-#ifdef GL_VERSION_2_0
-    fps_state *fps = mi->fpst;
-#ifdef USE_SDL
-    /* FPS display is handled differently in SDL - TODO probably should be the code below! */
+  fps_state *fps = mi->fpst;
+  if (fps && fps->frame_count == 0) {
     char shader_stats[100];
-    snprintf(shader_stats, sizeof(shader_stats), "\nVerts: %u", vertex_count);
-#else // USE_SDL
-    if (fps && fps->frame_count == 0) {
-      char shader_stats[100];
-      snprintf(shader_stats, sizeof(shader_stats), "\nVerts: %u", vertex_count);
 
-      /* Make sure we don't overflow the buffer */
-      if (strlen(fps->string) + strlen(shader_stats) < sizeof(fps->string))
-        strcat(fps->string, shader_stats);
-#endif // else USE_SDL
+    snprintf(shader_stats, sizeof(shader_stats), "\nVerts: %u", vertex_count);
+
+    /* Make sure we don't overflow the buffer */
+    if (strlen(fps->string) + strlen(shader_stats) < sizeof(fps->string)) {
+      strcat(fps->string, shader_stats);
     }
-#endif // GL_VERSION_2_0
-    do_fps(mi);
   }
+#endif // GL_VERSION_2_0
+  do_fps(mi);
   glFinish(); // TODO do if using shaders?
 
 #ifdef USE_SDL
@@ -1932,16 +1937,10 @@ ENTRYPOINT void free_hextrail (ModeInfo *mi) {
 
 #ifdef USE_SDL
   if (!bp->gl_context || !bp->window) return;
-
-  /* Make our context current for cleanup */
-  if (SDL_GL_MakeCurrent(bp->window, bp->gl_context) < 0) {
-    fprintf(stderr, "%s: SDL_GL_MakeCurrent failed during cleanup: %s\n",
-            progname, SDL_GetError());
-  }
-#else
+#else // USE_SDL
   if (!bp->glx_context) return;
   glXMakeCurrent(MI_DISPLAY(mi), MI_WINDOW(mi), *bp->glx_context);
-#endif
+#endif // else USE_SDL
 
   if (bp->trackball) gltrackball_free (bp->trackball);
   if (bp->rot) free_rotator (bp->rot);
@@ -1957,76 +1956,72 @@ ENTRYPOINT void free_hextrail (ModeInfo *mi) {
   }
 
 #ifdef GL_VERSION_2_0
-  /* Clean up shader resources */
-  glDeleteBuffers(1, &bp->vertex_buffer);
-  glDeleteBuffers(1, &bp->quad_vbo);
-  glDeleteBuffers(1, &bp->quad_texcoord_vbo);
-#ifdef GL_VERSION_3_0
-  if (bp->vertex_array) glDeleteVertexArrays(1, &bp->vertex_array);
-#endif
-
-  /* Clean up bloom effect resources */
-  if (do_glow || do_neon) {
-    /* Delete FBOs */
-    if (bp->scene_fbo) glDeleteFramebuffers(1, &bp->scene_fbo);
-    if (bp->ping_pong_fbo[0]) glDeleteFramebuffers(2, bp->ping_pong_fbo);
-
-    /* Delete textures */
-    if (bp->scene_texture) glDeleteTextures(1, &bp->scene_texture);
-    if (bp->ping_pong_textures[0]) glDeleteTextures(2, bp->ping_pong_textures);
-
-    /* Delete bloom shaders and programs */
-    if (bp->bloom_shader_program) glDeleteProgram(bp->bloom_shader_program);
-    if (bp->bloom_vertex_shader) glDeleteShader(bp->bloom_vertex_shader);
-    if (bp->bloom_fragment_shader) glDeleteShader(bp->bloom_fragment_shader);
-
-    /* Delete final composition shaders */
-    if (bp->final_shader_program) glDeleteProgram(bp->final_shader_program);
-    if (bp->final_fragment_shader) glDeleteShader(bp->final_fragment_shader);
-  }
-
-  /* Delete main shader program and shaders */
-  if (bp->shader_program) glDeleteProgram(bp->shader_program);
-  if (bp->vertex_shader) glDeleteShader(bp->vertex_shader);
-  if (bp->fragment_shader) glDeleteShader(bp->fragment_shader);
-
-  /* Free vertex array */
-  if (vertices) free(vertices);
+    if (bp->fbo) {
+        glDeleteFramebuffers(1, &bp->fbo);
+        bp->fbo = 0;
+    }
+    if (bp->main_texture) {
+        glDeleteTextures(1, &bp->main_texture);
+        bp->main_texture = 0;
+    }
+    if (bp->scene_fbo) {
+        glDeleteFramebuffers(1, &bp->scene_fbo);
+        bp->scene_fbo = 0;
+    }
+    if (bp->scene_texture) {
+        glDeleteTextures(1, &bp->scene_texture);
+        bp->scene_texture = 0;
+    }
+    if (bp->shader_program) {
+        glDeleteProgram(bp->shader_program);
+        bp->shader_program = 0;
+    }
+    if (bp->vertex_shader) {
+        glDeleteShader(bp->vertex_shader);
+        bp->vertex_shader = 0;
+    }
+    if (bp->fragment_shader) {
+        glDeleteShader(bp->fragment_shader);
+        bp->fragment_shader = 0;
+    }
+    if (bp->vbo) {
+        glDeleteBuffers(1, &bp->vbo);
+        bp->vbo = 0;
+    }
+    if (bp->vao) {
+        glDeleteVertexArrays(1, &bp->vao);
+        bp->vao = 0;
+    }
 #endif // GL_VERSION_2_0
 
-#ifdef USE_SDL
-  /* Clean up SDL resources if we created them */
-  if (bp->gl_context) {
-    /* Make sure the context is current before deletion to avoid potential issues */
-    if (SDL_GL_GetCurrentContext() == bp->gl_context) {
-      SDL_GL_MakeCurrent(NULL, NULL);
-    }
-    SDL_GL_DeleteContext(bp->gl_context);
-    bp->gl_context = NULL;
+  /* Free vertex array */
+  if (vertices) {
+    free(vertices);
+    vertices = NULL;
   }
 
-  /* Free SDL-specific resources */
-  if (bp->colors) {
-    free(bp->colors);
-    bp->colors = NULL;
-  }
-
-  /* Note: We don't destroy the window here as it might be managed by the main program */
-#endif // USE_SDL
+  /* Clean up OpenGL state */
+  cleanup_gl_state();
 }
+
 #ifdef USE_SDL
 typedef struct {
     const char *name;
     void (*init)(ModeInfo *);
     void (*draw)(ModeInfo *);
     void (*reshape)(ModeInfo *, int width, int height);
-    void (*reshape)(ModeInfo *);
     int (*event_handler)(ModeInfo *, SDL_Event *);
     void (*free)(ModeInfo *);
     int delay, count;
     float cycles;
     int size, ncolors;
     Bool fpspoll;
+    void (*finit)(ModeInfo *);
+    int flags;
+    int opacity;
+    void *dialog;
+} screenhack_function_table;
+
 /* Define this screenhack's function table */
 static const screenhack_function_table hextrail_screenhack_function_table = {
     .name = "hextrail",
@@ -2054,3 +2049,27 @@ XSCREENSAVER_MODULE ("HexTrail", hextrail)
 #endif // else USE_SDL
 
 #endif /* USE_GL */
+
+/* Check for OpenGL errors */
+void check_gl_error(const char* operation) {
+    GLenum err;
+    while ((err = glGetError()) != GL_NO_ERROR) {
+        fprintf(stderr, "OpenGL error during %s: 0x%x\n", operation, err);
+    }
+}
+
+/* Set up OpenGL state */
+void setup_gl_state(void) {
+    glEnable(GL_DEPTH_TEST);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+    check_gl_error("setup_gl_state");
+}
+
+/* Clean up OpenGL state */
+void cleanup_gl_state(void) {
+    glDisable(GL_DEPTH_TEST);
+    glDisable(GL_BLEND);
+    check_gl_error("cleanup_gl_state");
+}
