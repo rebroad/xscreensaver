@@ -57,7 +57,7 @@ typedef struct ModeInfo {
     void *gl_context;           /* OpenGL context */
     void *closure;              /* User data */
     int screen_number;                 /* Virtual screen number */
-int batchcount;           /* For MI_COUNT compatibility */
+    int batchcount;           /* For MI_COUNT compatibility */
     int fps_p;                  /* FPS display enabled */
     int count;                  /* Configuration value */
     int cycles;                 /* Configuration value */
@@ -74,6 +74,7 @@ int batchcount;           /* For MI_COUNT compatibility */
     fps_state *fpst;            /* FPS tracking state */
     record_anim_state *record;  /* Animation recording state */
     XWindowAttributes xgwa;     /* Window attributes */
+    unsigned long polygon_count; /* Number of polygons drawn */
 } ModeInfo;
 
 /* Required by xlockmore.h */
