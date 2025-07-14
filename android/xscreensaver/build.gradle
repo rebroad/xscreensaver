@@ -47,12 +47,36 @@ android {
 
 
     // put ndk-build in build's path, or replace below with its full path
+    def localProps = new Properties()
+    def localPropsFile = project.rootProject.file('local.properties')
+    if (localPropsFile.exists()) {
+        localPropsFile.withInputStream { stream -> localProps.load(stream) }
+    }
+
+    def ndkDir = localProps.getProperty('ndk.dir') ?:
+        System.getenv('ANDROID_NDK_HOME') ?:
+        System.getenv('NDK_HOME')
+    def androidSdkRoot = System.getenv('ANDROID_SDK_ROOT') ?:
+        System.getenv('ANDROID_HOME')
+    if (!ndkDir && androidSdkRoot) {
+        def ndkRoot = file("${androidSdkRoot}/ndk")
+        if (ndkRoot.exists()) {
+            def ndkVersions = ndkRoot.listFiles()?.findAll { it.isDirectory() }?.sort()
+            if (ndkVersions) {
+                ndkDir = ndkVersions.last().absolutePath
+            }
+        }
+    }
+
     task ndkBuild(type: Exec) {
-       Properties properties = new Properties()
-         properties.load(project.rootProject.file('local.properties').newDataInputStream())
-       def ndkDir = properties.getProperty('ndk.dir')
-       commandLine "$ndkDir/ndk-build", '-C', file('jni').absolutePath,
-          '-j' + Runtime.getRuntime().availableProcessors().toString()
+        if (!ndkDir) {
+            throw new GradleException(
+                "No NDK path found. Set ndk.dir in local.properties or export ANDROID_NDK_HOME."
+            )
+        }
+
+        commandLine "$ndkDir/ndk-build", '-C', file('jni').absolutePath,
+            '-j' + Runtime.getRuntime().availableProcessors().toString()
     }
 
     // generate files early in the process
@@ -60,7 +84,7 @@ android {
         commandLine 'sh', '-c',
           'cd ..; ../hacks/check-configs.pl --build-android $ANDROID_HACKS'
     }
-  
+
     task perlClean(type: Delete) {
         delete('../gen')
         delete('res/values')
@@ -79,7 +103,7 @@ android {
         commandLine 'sh', '-c',
           'cd ../ ; \
            for f in $ANDROID_HACKS; do \
-	     f=`echo "$f" | sed s/rd-bomb/rdbomb/` ; \
+             f=`echo "$f" | sed s/rd-bomb/rdbomb/` ; \
              make -s xscreensaver/res/drawable/$f.png ; \
            done'
     }
@@ -107,12 +131,22 @@ android {
         namespace "org.jwz.xscreensaver"
         minSdkVersion 18
         targetSdkVersion 33
+
+        // Target only the most common architectures to reduce APK size
+        ndk {
+            abiFilters 'arm64-v8a', 'armeabi-v7a'
+        }
     }
     productFlavors {
     }
     buildTypes {
         debug {
             debuggable true
+        }
+        release {
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
 }
