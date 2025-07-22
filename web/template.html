@@ -202,6 +202,26 @@
             display: none;
         }
 
+        #debug-header {
+            margin-bottom: 10px;
+        }
+
+        #debug-buttons {
+            position: sticky;
+            top: 0;
+            padding: 5px 0;
+            margin: -10px -10px 10px -10px;
+            z-index: 1001;
+            display: flex;
+            justify-content: flex-end;
+            gap: 5px;
+        }
+
+        #debug-buttons button {
+            background: rgba(0,0,0,0.9) !important;
+            border: 1px solid #666 !important;
+        }
+
         #debug-toggle {
             position: fixed;
             top: 10px;
@@ -278,6 +298,8 @@
 
             <div class="control-group">
                 <button id="reset">Reset</button>
+                <button id="stop-rendering">Stop Rendering</button>
+                <button id="start-rendering">Start Rendering</button>
                 <button id="fullscreen">Fullscreen</button>
             </div>
         </div>
@@ -289,12 +311,12 @@
 
         <!-- Debug Panel -->
         <div id="debug-panel">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+            <div id="debug-header">
                 <h3 style="margin: 0;">Debug Output</h3>
-                <div>
-                    <button onclick="toggleDebugPause()" id="debug-pause-btn" style="background: #333; color: white; border: 1px solid #666; padding: 2px 8px; cursor: pointer; margin-right: 5px;">Pause</button>
-                    <button onclick="document.getElementById('debug-panel').style.display='none'; document.getElementById('debug-toggle').style.display='block';" style="background: #333; color: white; border: 1px solid #666; padding: 2px 8px; cursor: pointer;">×</button>
-                </div>
+            </div>
+            <div id="debug-buttons">
+                <button onclick="toggleDebugPause()" id="debug-pause-btn" style="background: #333; color: white; border: 1px solid #666; padding: 2px 8px; cursor: pointer;">Pause</button>
+                <button onclick="document.getElementById('debug-panel').style.display='none'; document.getElementById('debug-toggle').style.display='block';" style="background: #333; color: white; border: 1px solid #666; padding: 2px 8px; cursor: pointer;">×</button>
             </div>
             <div id="debug-log"></div>
         </div>
@@ -437,13 +459,47 @@
                 if (Module._set_wander) Module._set_wander(1);
             });
 
+            // Stop/Start rendering buttons
+            var stopRenderingButton = document.getElementById('stop-rendering');
+            stopRenderingButton.addEventListener('click', function() {
+                if (Module._stop_rendering) {
+                    Module._stop_rendering();
+                    console.log('Rendering stopped');
+                }
+            });
+
+            var startRenderingButton = document.getElementById('start-rendering');
+            startRenderingButton.addEventListener('click', function() {
+                if (Module._start_rendering) {
+                    Module._start_rendering();
+                    console.log('Rendering started');
+                }
+            });
+
             // Fullscreen button
             var fullscreenButton = document.getElementById('fullscreen');
             fullscreenButton.addEventListener('click', function() {
+                var canvas = document.getElementById('canvas');
                 if (!document.fullscreenElement) {
-                    document.documentElement.requestFullscreen();
+                    if (canvas.requestFullscreen) {
+                        canvas.requestFullscreen();
+                    } else if (canvas.webkitRequestFullscreen) {
+                        canvas.webkitRequestFullscreen();
+                    } else if (canvas.mozRequestFullScreen) {
+                        canvas.mozRequestFullScreen();
+                    } else if (canvas.msRequestFullscreen) {
+                        canvas.msRequestFullscreen();
+                    }
                 } else {
-                    document.exitFullscreen();
+                    if (document.exitFullscreen) {
+                        document.exitFullscreen();
+                    } else if (document.webkitExitFullscreen) {
+                        document.webkitExitFullscreen();
+                    } else if (document.mozCancelFullScreen) {
+                        document.mozCancelFullScreen();
+                    } else if (document.msExitFullscreen) {
+                        document.msExitFullscreen();
+                    }
                 }
             });
 
@@ -484,10 +540,27 @@
             document.addEventListener('keydown', function(e) {
                 switch(e.key.toLowerCase()) {
                     case 'f':
+                        var canvas = document.getElementById('canvas');
                         if (!document.fullscreenElement) {
-                            document.documentElement.requestFullscreen();
+                            if (canvas.requestFullscreen) {
+                                canvas.requestFullscreen();
+                            } else if (canvas.webkitRequestFullscreen) {
+                                canvas.webkitRequestFullscreen();
+                            } else if (canvas.mozRequestFullScreen) {
+                                canvas.mozRequestFullScreen();
+                            } else if (canvas.msRequestFullscreen) {
+                                canvas.msRequestFullscreen();
+                            }
                         } else {
-                            document.exitFullscreen();
+                            if (document.exitFullscreen) {
+                                document.exitFullscreen();
+                            } else if (document.webkitExitFullscreen) {
+                                document.webkitExitFullscreen();
+                            } else if (document.mozCancelFullScreen) {
+                                document.mozCancelFullScreen();
+                            } else if (document.msExitFullscreen) {
+                                document.msExitFullscreen();
+                            }
                         }
                         break;
                     case 'r':

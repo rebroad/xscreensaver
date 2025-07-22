@@ -63,7 +63,7 @@ static double frand(double max) {
 
 // WebGL state management
 #define MAX_MATRIX_STACK_DEPTH 32
-#define MAX_VERTICES 10000
+#define MAX_VERTICES 100000
 
 typedef struct {
     GLfloat m[16];
@@ -102,6 +102,8 @@ static MatrixStack texture_stack;
 static GLenum current_matrix_mode = GL_MODELVIEW;
 static ImmediateMode immediate;
 static Color4f current_color = {1.0f, 1.0f, 1.0f, 1.0f};
+static int total_vertices_this_frame = 0;
+static Bool rendering_enabled = True;
 static Normal3f current_normal = {0.0f, 0.0f, 1.0f};
 static Bool lighting_enabled = False;
 static Bool depth_test_enabled = True;
@@ -323,10 +325,21 @@ static draw_func hack_draw = NULL;
 static reshape_func hack_reshape = NULL;
 static free_func hack_free = NULL;
 
+// Animation state (controlled by HexTrail's rotator system)
+static int spin_enabled = 1;
+static int wander_enabled = 1;
+static float animation_speed = 1.0f;
+
 // Main loop callback
 void main_loop(void) {
     static int frame_count = 0;
     frame_count++;
+    total_vertices_this_frame = 0; // Reset vertex counter each frame
+
+    // Check if rendering is disabled
+    if (!rendering_enabled) {
+        return; // Skip rendering entirely
+    }
 
     // Stop debug output after frame 240 (4 seconds)
     if (frame_count <= 240) {
@@ -335,7 +348,14 @@ void main_loop(void) {
         }
     }
 
+    // Animation is handled by HexTrail's rotator system
+    // We just need to make sure our WebGL wrapper properly handles
+    // the glTranslatef() and glRotatef() calls from HexTrail
+
     // Clear the screen
+    if (frame_count <= 240 && frame_count % 60 == 0) {
+        printf("Clearing screen with depth buffer...\n");
+    }
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     if (hack_draw) {
@@ -546,8 +566,8 @@ int xscreensaver_web_init(init_func init, draw_func draw, reshape_func reshape, 
 // Web-specific function exports for UI controls
 EMSCRIPTEN_KEEPALIVE
 void set_speed(GLfloat new_speed) {
-    // This would need to be implemented per-hack
-    printf("Speed set to: %f\n", new_speed);
+    animation_speed = new_speed;
+    printf("Animation speed set to: %f\n", animation_speed);
 }
 
 EMSCRIPTEN_KEEPALIVE
@@ -557,15 +577,27 @@ void set_thickness(GLfloat new_thickness) {
 }
 
 EMSCRIPTEN_KEEPALIVE
-void set_spin(int spin_enabled) {
-    // This would need to be implemented per-hack
+void set_spin(int new_spin_enabled) {
+    spin_enabled = new_spin_enabled;
     printf("Spin %s\n", spin_enabled ? "enabled" : "disabled");
 }
 
 EMSCRIPTEN_KEEPALIVE
-void set_wander(int wander_enabled) {
-    // This would need to be implemented per-hack
+void set_wander(int new_wander_enabled) {
+    wander_enabled = new_wander_enabled;
     printf("Wander %s\n", wander_enabled ? "enabled" : "disabled");
+}
+
+EMSCRIPTEN_KEEPALIVE
+void stop_rendering() {
+    rendering_enabled = False;
+    printf("Rendering stopped\n");
+}
+
+EMSCRIPTEN_KEEPALIVE
+void start_rendering() {
+    rendering_enabled = True;
+    printf("Rendering started\n");
 }
 
 EMSCRIPTEN_KEEPALIVE
@@ -850,7 +882,12 @@ void glMaterialfv(GLenum face, GLenum pname, const GLfloat *params) {
 }
 
 void glVertex3f(GLfloat x, GLfloat y, GLfloat z) {
-    if (!immediate.in_begin_end || immediate.vertex_count >= MAX_VERTICES) {
+    if (!immediate.in_begin_end) {
+        return;
+    }
+
+    if (immediate.vertex_count >= MAX_VERTICES) {
+        printf("WARNING: Vertex limit reached (%d), dropping vertex!\n", MAX_VERTICES);
         return;
     }
 
@@ -904,6 +941,17 @@ void glEnd(void) {
         immediate.vertices[2].x =  0.0f; immediate.vertices[2].y =  0.3f; immediate.vertices[2].z = 0.0f;
 
         printf("Test triangle vertices set\n");
+    } else if (glEnd_count > 1) {
+        // For subsequent frames, force colors to be visible (not black)
+        for (int i = 0; i < immediate.vertex_count; i++) {
+            if (immediate.colors[i].r == 0.0f && immediate.colors[i].g == 0.0f && immediate.colors[i].b == 0.0f) {
+                // If color is black, make it white so we can see it
+                immediate.colors[i].r = 1.0f;
+                immediate.colors[i].g = 1.0f;
+                immediate.colors[i].b = 1.0f;
+                immediate.colors[i].a = 1.0f;
+            }
+        }
     }
 
     // Create VBOs and render
@@ -912,53 +960,55 @@ void glEnd(void) {
     glGenBuffers(1, &vbo_colors);
     glGenBuffers(1, &vbo_normals);
 
-    glBindBuffer(GL_ARRAY_BUFFER, vbo_vertices);
-    glBufferData(GL_ARRAY_BUFFER, immediate.vertex_count * sizeof(Vertex3f),
-                 immediate.vertices, GL_STATIC_DRAW);
-
-    glBindBuffer(GL_ARRAY_BUFFER, vbo_colors);
-    glBufferData(GL_ARRAY_BUFFER, immediate.vertex_count * sizeof(Color4f),
-                 immediate.colors, GL_STATIC_DRAW);
-
-    glBindBuffer(GL_ARRAY_BUFFER, vbo_normals);
-    glBufferData(GL_ARRAY_BUFFER, immediate.vertex_count * sizeof(Normal3f),
-                 immediate.normals, GL_STATIC_DRAW);
-
     // Use our WebGL 2.0 wrapper
     printf("Using WebGL 2.0 wrapper...\n");
 
+    // Enable depth testing for proper 3D rendering
+    glEnable(GL_DEPTH_TEST);
+    glDepthFunc(GL_LESS);
+
     // Use the pre-compiled shader program
+    printf("Using shader program: %u\n", shader_program);
     glUseProgram(shader_program);
 
-    // Set up projection matrix (simple orthographic for now)
+    // Set up projection matrix from our matrix stack
     GLint projection_loc = glGetUniformLocation(shader_program, "projection");
     if (projection_loc != -1) {
-        // Simple orthographic projection
-        GLfloat projection[16] = {
-            1.0f, 0.0f, 0.0f, 0.0f,
-            0.0f, 1.0f, 0.0f, 0.0f,
-            0.0f, 0.0f, -1.0f, 0.0f,
-            0.0f, 0.0f, 0.0f, 1.0f
-        };
-        glUniformMatrix4fv(projection_loc, 1, GL_FALSE, projection);
+        // Get the current projection matrix from our matrix stack
+        Matrix4f projection = projection_stack.stack[projection_stack.top];
+        printf("Projection matrix: [%.3f, %.3f, %.3f, %.3f, %.3f, %.3f, %.3f, %.3f, %.3f, %.3f, %.3f, %.3f, %.3f, %.3f, %.3f, %.3f]\n",
+               projection.m[0], projection.m[1], projection.m[2], projection.m[3],
+               projection.m[4], projection.m[5], projection.m[6], projection.m[7],
+               projection.m[8], projection.m[9], projection.m[10], projection.m[11],
+               projection.m[12], projection.m[13], projection.m[14], projection.m[15]);
+        glUniformMatrix4fv(projection_loc, 1, GL_FALSE, projection.m);
+    } else {
+        printf("ERROR: Could not find projection uniform location!\n");
     }
 
-    // Set up modelview matrix (identity for now)
+    // Set up modelview matrix (HexTrail handles animation via glTranslatef/glRotatef)
     GLint modelview_loc = glGetUniformLocation(shader_program, "modelview");
     if (modelview_loc != -1) {
-        GLfloat modelview[16] = {
-            1.0f, 0.0f, 0.0f, 0.0f,
-            0.0f, 1.0f, 0.0f, 0.0f,
-            0.0f, 0.0f, 1.0f, 0.0f,
-            0.0f, 0.0f, 0.0f, 1.0f
-        };
-        glUniformMatrix4fv(modelview_loc, 1, GL_FALSE, modelview);
+        // Get the current modelview matrix from our matrix stack
+        Matrix4f modelview = modelview_stack.stack[modelview_stack.top];
+        printf("Modelview matrix: [%.3f, %.3f, %.3f, %.3f, %.3f, %.3f, %.3f, %.3f, %.3f, %.3f, %.3f, %.3f, %.3f, %.3f, %.3f, %.3f]\n",
+               modelview.m[0], modelview.m[1], modelview.m[2], modelview.m[3],
+               modelview.m[4], modelview.m[5], modelview.m[6], modelview.m[7],
+               modelview.m[8], modelview.m[9], modelview.m[10], modelview.m[11],
+               modelview.m[12], modelview.m[13], modelview.m[14], modelview.m[15]);
+
+        // Check if camera is too far away (translation component > 100)
+        if (fabs(modelview.m[12]) > 100 || fabs(modelview.m[13]) > 100 || fabs(modelview.m[14]) > 100) {
+            printf("WARNING: Camera too far away, using identity matrix for testing\n");
+            matrix_identity(&modelview);
+        }
+
+        glUniformMatrix4fv(modelview_loc, 1, GL_FALSE, modelview.m);
+    } else {
+        printf("ERROR: Could not find modelview uniform location!\n");
     }
 
-    // Create and bind VBOs
-    glGenBuffers(1, &vbo_vertices);
-    glGenBuffers(1, &vbo_colors);
-
+    // Bind and populate VBOs
     glBindBuffer(GL_ARRAY_BUFFER, vbo_vertices);
     glBufferData(GL_ARRAY_BUFFER, immediate.vertex_count * sizeof(Vertex3f), immediate.vertices, GL_STATIC_DRAW);
 
@@ -968,6 +1018,7 @@ void glEnd(void) {
     // Set up vertex attributes
     glBindBuffer(GL_ARRAY_BUFFER, vbo_vertices);
     GLint pos_attrib = glGetAttribLocation(shader_program, "position");
+    printf("Position attribute location: %d\n", pos_attrib);
     if (pos_attrib != -1) {
         glEnableVertexAttribArray(pos_attrib);
         glVertexAttribPointer(pos_attrib, 3, GL_FLOAT, GL_FALSE, 0, 0);
@@ -975,17 +1026,25 @@ void glEnd(void) {
 
     glBindBuffer(GL_ARRAY_BUFFER, vbo_colors);
     GLint color_attrib = glGetAttribLocation(shader_program, "color");
+    printf("Color attribute location: %d\n", color_attrib);
     if (color_attrib != -1) {
         glEnableVertexAttribArray(color_attrib);
-        glVertexAttribPointer(color_attrib, 4, GL_FLOAT, GL_FALSE, 0, 0);
+        glVertexAttribPointer(color_attrib, 3, GL_FLOAT, GL_FALSE, 0, 0);
+    }
+
+    // Check for WebGL errors after setting up attributes
+    GLenum attr_error = glGetError();
+    if (attr_error != GL_NO_ERROR) {
+        printf("WebGL error after setting attributes: %d\n", attr_error);
+        // Try to get more info about the error
+        printf("Last OpenGL call before error: glVertexAttribPointer for color\n");
     }
 
     // Draw
+    printf("Drawing %d vertices with primitive type %d (total this frame: %d)\n",
+           immediate.vertex_count, immediate.primitive_type, total_vertices_this_frame);
     glDrawArrays(immediate.primitive_type, 0, immediate.vertex_count);
-
-    // Cleanup
-    glDeleteBuffers(1, &vbo_vertices);
-    glDeleteBuffers(1, &vbo_colors);
+    total_vertices_this_frame += immediate.vertex_count;
 
     printf("WebGL 2.0 wrapper rendering completed\n");
 
@@ -1004,6 +1063,20 @@ void glEnd(void) {
 }
 
 // Missing GLX function
+void glClear(GLbitfield mask) {
+    // Call the actual WebGL clear function
+    if (webgl_context >= 0) {
+        emscripten_webgl_make_context_current(webgl_context);
+        // Use the WebGL context directly to avoid recursion
+        EM_ASM({
+            var gl = GLctx;
+            if (gl) {
+                gl.clear($0);
+            }
+        }, mask);
+    }
+}
+
 void glXMakeCurrent(Display *display, Window window, GLXContext context) {
     // This is handled by our WebGL context management
     // No-op for web builds
