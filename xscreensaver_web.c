@@ -1021,6 +1021,51 @@ void glEnd(void) {
         printf("glEnd #%d: Drawing %d vertices with primitive type %d\n", glEnd_count, immediate.vertex_count, immediate.primitive_type);
     }
 
+    // Draw a test triangle on the first frame to verify rendering works
+    static int test_triangle_drawn = 0;
+    if (glEnd_count == 1 && !test_triangle_drawn) {
+        printf("Drawing test triangle in bright red...\n");
+        test_triangle_drawn = 1;
+
+        // Create a bright red triangle
+        Vertex3f test_vertices[3] = {
+            {-0.5f, -0.5f, 0.0f},
+            { 0.5f, -0.5f, 0.0f},
+            { 0.0f,  0.5f, 0.0f}
+        };
+
+        Color4f test_colors[3] = {
+            {1.0f, 0.0f, 0.0f, 1.0f}, // Bright red
+            {1.0f, 0.0f, 0.0f, 1.0f}, // Bright red
+            {1.0f, 0.0f, 0.0f, 1.0f}  // Bright red
+        };
+
+        Normal3f test_normals[3] = {
+            {0.0f, 0.0f, 1.0f},
+            {0.0f, 0.0f, 1.0f},
+            {0.0f, 0.0f, 1.0f}
+        };
+
+        printf("Test triangle vertices: (%.2f,%.2f,%.2f), (%.2f,%.2f,%.2f), (%.2f,%.2f,%.2f)\n",
+               test_vertices[0].x, test_vertices[0].y, test_vertices[0].z,
+               test_vertices[1].x, test_vertices[1].y, test_vertices[1].z,
+               test_vertices[2].x, test_vertices[2].y, test_vertices[2].z);
+
+        render_with_shaders(test_vertices, test_colors, test_normals, 3, GL_TRIANGLES);
+        return; // Skip the normal rendering for this frame
+    }
+
+    // Debug: Check what colors are actually in the vertex data
+    if (glEnd_count <= 3) {
+        printf("Vertex colors (first 3 vertices): ");
+        for (int i = 0; i < 3 && i < immediate.vertex_count; i++) {
+            printf("(%.3f,%.3f,%.3f,%.3f) ",
+                   immediate.colors[i].r, immediate.colors[i].g,
+                   immediate.colors[i].b, immediate.colors[i].a);
+        }
+        printf("\n");
+    }
+
     // OPTION A: Use our custom immediate mode system with OpenGL ES 1.x
     // We collect vertices in glBegin/glEnd and render them directly with glDrawArrays
     // This bypasses jwzgles entirely and gives us full control
@@ -1070,53 +1115,15 @@ void glEnd(void) {
         // Use the triangle data for rendering
         printf("Converted %d quads to %d triangles\n", immediate.vertex_count / 4, draw_count / 3);
 
-        // Draw using OpenGL ES 1.x fixed-function pipeline
-        // Set up vertex arrays using our stub functions (which now store pointers)
-        glVertexPointer(3, GL_FLOAT, 0, tri_vertices);
-        glColorPointer(4, GL_FLOAT, 0, tri_colors);
-        glNormalPointer(GL_FLOAT, 0, tri_normals);
-
-        glEnableClientState(GL_VERTEX_ARRAY);
-        glEnableClientState(GL_COLOR_ARRAY);
-        glEnableClientState(GL_NORMAL_ARRAY);
-
-        // Log which client states are enabled for debugging
-        printf("Client states: vertex=%s, color=%s, normal=%s\n",
-               vertex_array_enabled ? "enabled" : "disabled",
-               color_array_enabled ? "enabled" : "disabled",
-               normal_array_enabled ? "enabled" : "disabled");
-
-        glDrawArrays(draw_mode, 0, draw_count);
-
-        glDisableClientState(GL_VERTEX_ARRAY);
-        glDisableClientState(GL_COLOR_ARRAY);
-        glDisableClientState(GL_NORMAL_ARRAY);
+        // Use WebGL 2.0 shader-based rendering
+        render_with_shaders(tri_vertices, tri_colors, tri_normals, draw_count, draw_mode);
 
         free(tri_vertices);
         free(tri_colors);
         free(tri_normals);
     } else {
         // For other primitive types (GL_TRIANGLES, etc.), render directly
-        // Set up vertex arrays using our stub functions (which now store pointers)
-        glVertexPointer(3, GL_FLOAT, 0, immediate.vertices);
-        glColorPointer(4, GL_FLOAT, 0, immediate.colors);
-        glNormalPointer(GL_FLOAT, 0, immediate.normals);
-
-        glEnableClientState(GL_VERTEX_ARRAY);
-        glEnableClientState(GL_COLOR_ARRAY);
-        glEnableClientState(GL_NORMAL_ARRAY);
-
-        // Log which client states are enabled for debugging
-        printf("Client states: vertex=%s, color=%s, normal=%s\n",
-               vertex_array_enabled ? "enabled" : "disabled",
-               color_array_enabled ? "enabled" : "disabled",
-               normal_array_enabled ? "enabled" : "disabled");
-
-        glDrawArrays(draw_mode, 0, draw_count);
-
-        glDisableClientState(GL_VERTEX_ARRAY);
-        glDisableClientState(GL_COLOR_ARRAY);
-        glDisableClientState(GL_NORMAL_ARRAY);
+        render_with_shaders(immediate.vertices, immediate.colors, immediate.normals, draw_count, draw_mode);
     }
 
     printf("WebGL 2.0 shader-based rendering completed\n");
@@ -1176,15 +1183,29 @@ static void render_with_shaders(Vertex3f *vertices, Color4f *colors, Normal3f *n
 
     if (modelview_uniform >= 0) {
         glUniformMatrix4fv(modelview_uniform, 1, GL_FALSE, modelview_stack.stack[modelview_stack.top].m);
+        printf("Set modelview matrix (uniform %d)\n", modelview_uniform);
+    } else {
+        printf("WARNING: modelview uniform not found!\n");
     }
 
     if (projection_uniform >= 0) {
         glUniformMatrix4fv(projection_uniform, 1, GL_FALSE, projection_stack.stack[projection_stack.top].m);
+        printf("Set projection matrix (uniform %d)\n", projection_uniform);
+    } else {
+        printf("WARNING: projection uniform not found!\n");
     }
 
     // Draw
     printf("Drawing %d vertices with shader program %u\n", count, shader_program);
     glDrawArrays(mode, 0, count);
+
+    // Check for WebGL errors
+    GLenum error = glGetError();
+    if (error != GL_NO_ERROR) {
+        printf("WebGL error after glDrawArrays: %d\n", error);
+    } else {
+        printf("No WebGL errors after drawing\n");
+    }
 
     // Clean up
     glDisableVertexAttribArray(position_attrib);
