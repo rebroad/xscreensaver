@@ -298,15 +298,15 @@
 
             <div class="control-group">
                 <button id="reset">Reset</button>
-                <button id="stop-rendering">Stop Rendering</button>
-                <button id="start-rendering">Start Rendering</button>
+                <button id="render-toggle">Stop Rendering</button>
                 <button id="fullscreen">Fullscreen</button>
             </div>
         </div>
 
         <div id="info">
             <p>Click and drag to rotate the view. Use mouse wheel to zoom.</p>
-            <p>Press 'F' for fullscreen, 'R' to reset, 'S' to toggle spin, 'W' to toggle wander.</p>
+            <p>Press 'F' for fullscreen, 'R' to reset parameters, 'S' to toggle spin, 'W' to toggle wander.</p>
+            <p><strong>Reset</strong> resets speed, thickness, spin, and wander to default values.</p>
         </div>
 
         <!-- Debug Panel -->
@@ -459,20 +459,24 @@
                 if (Module._set_wander) Module._set_wander(1);
             });
 
-            // Stop/Start rendering buttons
-            var stopRenderingButton = document.getElementById('stop-rendering');
-            stopRenderingButton.addEventListener('click', function() {
-                if (Module._stop_rendering) {
-                    Module._stop_rendering();
-                    console.log('Rendering stopped');
-                }
-            });
-
-            var startRenderingButton = document.getElementById('start-rendering');
-            startRenderingButton.addEventListener('click', function() {
-                if (Module._start_rendering) {
-                    Module._start_rendering();
-                    console.log('Rendering started');
+            // Render toggle button
+            var renderToggleButton = document.getElementById('render-toggle');
+            var renderingEnabled = true;
+            renderToggleButton.addEventListener('click', function() {
+                if (renderingEnabled) {
+                    if (Module._stop_rendering) {
+                        Module._stop_rendering();
+                        console.log('Rendering stopped');
+                    }
+                    renderToggleButton.textContent = 'Start Rendering';
+                    renderingEnabled = false;
+                } else {
+                    if (Module._start_rendering) {
+                        Module._start_rendering();
+                        console.log('Rendering started');
+                    }
+                    renderToggleButton.textContent = 'Stop Rendering';
+                    renderingEnabled = true;
                 }
             });
 

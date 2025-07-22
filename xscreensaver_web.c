@@ -1012,8 +1012,17 @@ void glEnd(void) {
     glBindBuffer(GL_ARRAY_BUFFER, vbo_vertices);
     glBufferData(GL_ARRAY_BUFFER, immediate.vertex_count * sizeof(Vertex3f), immediate.vertices, GL_STATIC_DRAW);
 
+    // Create RGB-only color buffer (skip alpha)
+    GLfloat *rgb_colors = malloc(immediate.vertex_count * 3 * sizeof(GLfloat));
+    for (int i = 0; i < immediate.vertex_count; i++) {
+        rgb_colors[i*3 + 0] = immediate.colors[i].r;
+        rgb_colors[i*3 + 1] = immediate.colors[i].g;
+        rgb_colors[i*3 + 2] = immediate.colors[i].b;
+    }
+
     glBindBuffer(GL_ARRAY_BUFFER, vbo_colors);
-    glBufferData(GL_ARRAY_BUFFER, immediate.vertex_count * sizeof(Color4f), immediate.colors, GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, immediate.vertex_count * 3 * sizeof(GLfloat), rgb_colors, GL_STATIC_DRAW);
+    free(rgb_colors);
 
     // Set up vertex attributes
     glBindBuffer(GL_ARRAY_BUFFER, vbo_vertices);
