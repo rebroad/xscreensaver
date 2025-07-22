@@ -149,6 +149,17 @@
             opacity: 0.8;
         }
 
+        .control-group:has(button) {
+            flex-direction: row;
+            justify-content: center;
+            gap: 10px;
+            padding: 0 20px;
+        }
+
+        .control-group:has(button) button {
+            min-width: 120px;
+        }
+
         button {
             background: linear-gradient(45deg, #4ecdc4, #45b7d1);
             color: white;
@@ -304,6 +315,7 @@
         </div>
 
         <div id="info">
+            <p><strong>Version: 1.0.2_20250722_164023</strong> - Testing WebGL fixes</p>
             <p>Click and drag to rotate the view. Use mouse wheel to zoom.</p>
             <p>Press 'F' for fullscreen, 'R' to reset parameters, 'S' to toggle spin, 'W' to toggle wander.</p>
             <p><strong>Reset</strong> resets speed, thickness, spin, and wander to default values.</p>

@@ -500,7 +500,7 @@ static void init_opengl_state() {
 // Generic web initialization
 EMSCRIPTEN_KEEPALIVE
 int xscreensaver_web_init(init_func init, draw_func draw, reshape_func reshape, free_func free) {
-    printf("xscreensaver_web_init called\n");
+    printf("xscreensaver_web_init called - Version 1.0.2_20250722_164023\n");
 
     hack_init = init;
     hack_draw = draw;
@@ -912,45 +912,34 @@ void glEnd(void) {
     }
 
     static int glEnd_count = 0;
+    static int last_frame = 0;
     glEnd_count++;
+
+    // Reset glEnd_count each frame
+    if (last_frame != total_vertices_this_frame) {
+        glEnd_count = 1;
+        last_frame = total_vertices_this_frame;
+    }
+
     if (glEnd_count <= 5) { // Only log first 5 glEnd calls
         printf("glEnd #%d: Drawing %d vertices with primitive type %d\n", glEnd_count, immediate.vertex_count, immediate.primitive_type);
     }
 
-    // Draw a test triangle on the first frame to verify rendering works
-    static int test_triangle_drawn = 0;
-    if (glEnd_count == 1 && !test_triangle_drawn) {
-        printf("Drawing test triangle in bright red...\n");
-        test_triangle_drawn = 1;
+    // Only render on the first glEnd call per frame
+    if (glEnd_count > 1) {
+        printf("Skipping render for glEnd #%d (already rendered this frame)\n", glEnd_count);
+        immediate.in_begin_end = False;
+        return;
+    }
 
-        // Temporarily override the current geometry with a bright red triangle
-        immediate.vertex_count = 3;
-        immediate.primitive_type = GL_TRIANGLES;
-
-        // Set bright red color
-        for (int i = 0; i < 3; i++) {
+        // Make black colors visible by converting them to white
+    for (int i = 0; i < immediate.vertex_count; i++) {
+        if (immediate.colors[i].r == 0.0f && immediate.colors[i].g == 0.0f && immediate.colors[i].b == 0.0f) {
+            // If color is black, make it white so we can see it
             immediate.colors[i].r = 1.0f;
-            immediate.colors[i].g = 0.0f;
-            immediate.colors[i].b = 0.0f;
+            immediate.colors[i].g = 1.0f;
+            immediate.colors[i].b = 1.0f;
             immediate.colors[i].a = 1.0f;
-        }
-
-        // Set triangle vertices (centered, visible)
-        immediate.vertices[0].x = -0.3f; immediate.vertices[0].y = -0.3f; immediate.vertices[0].z = 0.0f;
-        immediate.vertices[1].x =  0.3f; immediate.vertices[1].y = -0.3f; immediate.vertices[1].z = 0.0f;
-        immediate.vertices[2].x =  0.0f; immediate.vertices[2].y =  0.3f; immediate.vertices[2].z = 0.0f;
-
-        printf("Test triangle vertices set\n");
-    } else if (glEnd_count > 1) {
-        // For subsequent frames, force colors to be visible (not black)
-        for (int i = 0; i < immediate.vertex_count; i++) {
-            if (immediate.colors[i].r == 0.0f && immediate.colors[i].g == 0.0f && immediate.colors[i].b == 0.0f) {
-                // If color is black, make it white so we can see it
-                immediate.colors[i].r = 1.0f;
-                immediate.colors[i].g = 1.0f;
-                immediate.colors[i].b = 1.0f;
-                immediate.colors[i].a = 1.0f;
-            }
         }
     }
 
@@ -959,6 +948,8 @@ void glEnd(void) {
     glGenBuffers(1, &vbo_vertices);
     glGenBuffers(1, &vbo_colors);
     glGenBuffers(1, &vbo_normals);
+
+    printf("Created VBOs: vertices=%u, colors=%u, normals=%u\n", vbo_vertices, vbo_colors, vbo_normals);
 
     // Use our WebGL 2.0 wrapper
     printf("Using WebGL 2.0 wrapper...\n");
@@ -970,6 +961,17 @@ void glEnd(void) {
     // Use the pre-compiled shader program
     printf("Using shader program: %u\n", shader_program);
     glUseProgram(shader_program);
+
+    // Check if program is valid
+    GLint program_valid;
+    glGetProgramiv(shader_program, GL_VALIDATE_STATUS, &program_valid);
+    printf("Shader program validation status: %d\n", program_valid);
+
+    if (!program_valid) {
+        GLchar info_log[512];
+        glGetProgramInfoLog(shader_program, 512, NULL, info_log);
+        printf("Shader program validation error: %s\n", info_log);
+    }
 
     // Set up projection matrix from our matrix stack
     GLint projection_loc = glGetUniformLocation(shader_program, "projection");
@@ -997,11 +999,9 @@ void glEnd(void) {
                modelview.m[8], modelview.m[9], modelview.m[10], modelview.m[11],
                modelview.m[12], modelview.m[13], modelview.m[14], modelview.m[15]);
 
-        // Check if camera is too far away (translation component > 100)
-        if (fabs(modelview.m[12]) > 100 || fabs(modelview.m[13]) > 100 || fabs(modelview.m[14]) > 100) {
-            printf("WARNING: Camera too far away, using identity matrix for testing\n");
-            matrix_identity(&modelview);
-        }
+        // Don't override the modelview matrix - let HexTrail control the camera
+        // The "far away" camera is actually correct for HexTrail's animation
+        printf("Using HexTrail's camera positioning\n");
 
         glUniformMatrix4fv(modelview_loc, 1, GL_FALSE, modelview.m);
     } else {
@@ -1012,6 +1012,9 @@ void glEnd(void) {
     glBindBuffer(GL_ARRAY_BUFFER, vbo_vertices);
     glBufferData(GL_ARRAY_BUFFER, immediate.vertex_count * sizeof(Vertex3f), immediate.vertices, GL_STATIC_DRAW);
 
+    printf("Created vertex buffer with %d vertices, first vertex: %.3f, %.3f, %.3f\n",
+           immediate.vertex_count, immediate.vertices[0].x, immediate.vertices[0].y, immediate.vertices[0].z);
+
     // Create RGB-only color buffer (skip alpha)
     GLfloat *rgb_colors = malloc(immediate.vertex_count * 3 * sizeof(GLfloat));
     for (int i = 0; i < immediate.vertex_count; i++) {
@@ -1019,6 +1022,9 @@ void glEnd(void) {
         rgb_colors[i*3 + 1] = immediate.colors[i].g;
         rgb_colors[i*3 + 2] = immediate.colors[i].b;
     }
+
+    printf("Created RGB color buffer with %d vertices, first color: %.3f, %.3f, %.3f\n",
+           immediate.vertex_count, rgb_colors[0], rgb_colors[1], rgb_colors[2]);
 
     glBindBuffer(GL_ARRAY_BUFFER, vbo_colors);
     glBufferData(GL_ARRAY_BUFFER, immediate.vertex_count * 3 * sizeof(GLfloat), rgb_colors, GL_STATIC_DRAW);
@@ -1031,6 +1037,9 @@ void glEnd(void) {
     if (pos_attrib != -1) {
         glEnableVertexAttribArray(pos_attrib);
         glVertexAttribPointer(pos_attrib, 3, GL_FLOAT, GL_FALSE, 0, 0);
+        printf("Set up position attribute successfully\n");
+    } else {
+        printf("ERROR: Position attribute not found in shader!\n");
     }
 
     glBindBuffer(GL_ARRAY_BUFFER, vbo_colors);
@@ -1038,7 +1047,11 @@ void glEnd(void) {
     printf("Color attribute location: %d\n", color_attrib);
     if (color_attrib != -1) {
         glEnableVertexAttribArray(color_attrib);
+        printf("Enabled vertex attrib array for color\n");
         glVertexAttribPointer(color_attrib, 3, GL_FLOAT, GL_FALSE, 0, 0);
+        printf("Set vertex attrib pointer for color: location=%d, size=3, type=GL_FLOAT, normalized=GL_FALSE, stride=0, offset=0\n", color_attrib);
+    } else {
+        printf("ERROR: Color attribute not found in shader!\n");
     }
 
     // Check for WebGL errors after setting up attributes
@@ -1047,6 +1060,12 @@ void glEnd(void) {
         printf("WebGL error after setting attributes: %d\n", attr_error);
         // Try to get more info about the error
         printf("Last OpenGL call before error: glVertexAttribPointer for color\n");
+
+        // Check if WebGL context is still valid
+        if (webgl_context >= 0) {
+            EMSCRIPTEN_RESULT result = emscripten_webgl_make_context_current(webgl_context);
+            printf("WebGL context current result: %d\n", result);
+        }
     }
 
     // Draw
