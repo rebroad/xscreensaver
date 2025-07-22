@@ -8,6 +8,14 @@
 #include <GLES3/gl3.h>
 #include <emscripten/html5.h>
 #include "jwxyz.h"
+
+// Define GLdouble for OpenGL ES 3.0 compatibility with jwzgles
+#ifndef GLdouble
+#define GLdouble double
+#endif
+
+#include "jwzglesI.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -51,6 +59,102 @@ static double frand(double max) {
 #ifndef GL_NORMALIZE
 #define GL_NORMALIZE 0x0BA1
 #endif
+
+// OpenGL 1.x client state constants
+#ifndef GL_VERTEX_ARRAY
+#define GL_VERTEX_ARRAY 0x8074
+#endif
+#ifndef GL_COLOR_ARRAY
+#define GL_COLOR_ARRAY 0x8076
+#endif
+#ifndef GL_NORMAL_ARRAY
+#define GL_NORMAL_ARRAY 0x8075
+#endif
+
+// WebGL-compatible implementations of OpenGL 1.x functions
+// These functions don't exist in WebGL, so we implement them ourselves
+// OPTION A: Store pointers for use with glDrawArrays
+
+// Global variables to store the current vertex array pointers
+static const GLvoid *current_vertex_ptr = NULL;
+static const GLvoid *current_color_ptr = NULL;
+static const GLvoid *current_normal_ptr = NULL;
+static GLint current_vertex_size = 3;
+static GLint current_color_size = 4;
+static GLenum current_vertex_type = GL_FLOAT;
+static GLenum current_color_type = GL_FLOAT;
+static GLenum current_normal_type = GL_FLOAT;
+
+// Track which client states are enabled
+static Bool vertex_array_enabled = False;
+static Bool color_array_enabled = False;
+static Bool normal_array_enabled = False;
+
+// WebGL shader program
+static GLuint shader_program = 0;
+static GLuint vertex_shader = 0;
+static GLuint fragment_shader = 0;
+
+void glVertexPointer(GLint size, GLenum type, GLsizei stride, const GLvoid *ptr) {
+    printf("glVertexPointer: size=%d, type=%d, stride=%d, ptr=%p\n", size, type, stride, ptr);
+    // Store the pointer for use in glDrawArrays
+    current_vertex_ptr = ptr;
+    current_vertex_size = size;
+    current_vertex_type = type;
+}
+
+void glColorPointer(GLint size, GLenum type, GLsizei stride, const GLvoid *ptr) {
+    printf("glColorPointer: size=%d, type=%d, stride=%d, ptr=%p\n", size, type, stride, ptr);
+    // Store the pointer for use in glDrawArrays
+    current_color_ptr = ptr;
+    current_color_size = size;
+    current_color_type = type;
+}
+
+void glNormalPointer(GLenum type, GLsizei stride, const GLvoid *ptr) {
+    printf("glNormalPointer: type=%d, stride=%d, ptr=%p\n", type, stride, ptr);
+    // Store the pointer for use in glDrawArrays
+    current_normal_ptr = ptr;
+    current_normal_type = type;
+}
+
+void glEnableClientState(GLenum cap) {
+    printf("glEnableClientState: cap=%d\n", cap);
+    // Enable the corresponding vertex attribute
+    switch (cap) {
+        case 0x8074: // GL_VERTEX_ARRAY
+            vertex_array_enabled = True;
+            break;
+        case 0x8076: // GL_COLOR_ARRAY
+            color_array_enabled = True;
+            break;
+        case 0x8075: // GL_NORMAL_ARRAY
+            normal_array_enabled = True;
+            break;
+        default:
+            printf("Unknown client state: %d\n", cap);
+            break;
+    }
+}
+
+void glDisableClientState(GLenum cap) {
+    printf("glDisableClientState: cap=%d\n", cap);
+    // Disable the corresponding vertex attribute
+    switch (cap) {
+        case 0x8074: // GL_VERTEX_ARRAY
+            vertex_array_enabled = False;
+            break;
+        case 0x8076: // GL_COLOR_ARRAY
+            color_array_enabled = False;
+            break;
+        case 0x8075: // GL_NORMAL_ARRAY
+            normal_array_enabled = False;
+            break;
+        default:
+            printf("Unknown client state: %d\n", cap);
+            break;
+    }
+}
 
 // X11 color constants (already defined in jwxyz.h, so we don't redefine them)
 
@@ -109,9 +213,8 @@ static Bool lighting_enabled = False;
 static Bool depth_test_enabled = True;
 
 // WebGL shader program
-static GLuint shader_program = 0;
-static GLuint vertex_shader = 0;
-static GLuint fragment_shader = 0;
+
+
 
 // Forward declarations
 static void init_opengl_state(void);
@@ -120,8 +223,8 @@ static void matrix_multiply(Matrix4f *result, const Matrix4f *a, const Matrix4f 
 static void matrix_translate(Matrix4f *m, GLfloat x, GLfloat y, GLfloat z);
 static void matrix_rotate(Matrix4f *m, GLfloat angle, GLfloat x, GLfloat y, GLfloat z);
 static void matrix_scale(Matrix4f *m, GLfloat x, GLfloat y, GLfloat z);
-static GLuint compile_shader(const char *source, GLenum type);
 static void init_shaders(void);
+static void render_with_shaders(Vertex3f *vertices, Color4f *colors, Normal3f *normals, int count, GLenum mode);
 static void make_color_path_webgl(int npoints, int *h, double *s, double *v, XColor *colors, int *ncolorsP);
 static MatrixStack* get_current_matrix_stack(void);
 
@@ -184,7 +287,7 @@ static void matrix_scale(Matrix4f *m, GLfloat x, GLfloat y, GLfloat z) {
     matrix_multiply(m, m, &scale);
 }
 
-// Shader compilation
+// WebGL 2.0 shader compilation
 static GLuint compile_shader(const char *source, GLenum type) {
     GLuint shader = glCreateShader(type);
     printf("Created shader %u of type %d\n", shader, type);
@@ -207,12 +310,12 @@ static GLuint compile_shader(const char *source, GLenum type) {
 }
 
 static void init_shaders() {
-    printf("Initializing shaders...\n");
+    printf("Initializing WebGL 2.0 shaders...\n");
 
     const char *vertex_source =
         "#version 300 es\n"
         "in vec3 position;\n"
-        "in vec3 color;\n"
+        "in vec4 color;\n"
         "in vec3 normal;\n"
         "uniform mat4 modelview;\n"
         "uniform mat4 projection;\n"
@@ -220,7 +323,7 @@ static void init_shaders() {
         "out vec3 frag_normal;\n"
         "void main() {\n"
         "    gl_Position = projection * modelview * vec4(position, 1.0);\n"
-        "    frag_color = color;\n"
+        "    frag_color = color.rgb;\n"
         "    frag_normal = normal;\n"
         "}\n";
 
@@ -500,7 +603,7 @@ static void init_opengl_state() {
 // Generic web initialization
 EMSCRIPTEN_KEEPALIVE
 int xscreensaver_web_init(init_func init, draw_func draw, reshape_func reshape, free_func free) {
-    printf("xscreensaver_web_init called - Version 1.0.2_20250722_164023\n");
+    printf("xscreensaver_web_init called - Version 1.0.3_20250722_185123\n");
 
     hack_init = init;
     hack_draw = draw;
@@ -912,182 +1015,185 @@ void glEnd(void) {
     }
 
     static int glEnd_count = 0;
-    static int last_frame = 0;
     glEnd_count++;
-
-    // Reset glEnd_count each frame
-    if (last_frame != total_vertices_this_frame) {
-        glEnd_count = 1;
-        last_frame = total_vertices_this_frame;
-    }
 
     if (glEnd_count <= 5) { // Only log first 5 glEnd calls
         printf("glEnd #%d: Drawing %d vertices with primitive type %d\n", glEnd_count, immediate.vertex_count, immediate.primitive_type);
     }
 
-    // Only render on the first glEnd call per frame
-    if (glEnd_count > 1) {
-        printf("Skipping render for glEnd #%d (already rendered this frame)\n", glEnd_count);
-        immediate.in_begin_end = False;
+    // OPTION A: Use our custom immediate mode system with OpenGL ES 1.x
+    // We collect vertices in glBegin/glEnd and render them directly with glDrawArrays
+    // This bypasses jwzgles entirely and gives us full control
+
+    // Convert GL_QUADS to GL_TRIANGLES for WebGL compatibility
+    GLenum draw_mode = immediate.primitive_type;
+    int draw_count = immediate.vertex_count;
+
+    if (immediate.primitive_type == 0x0007) { // GL_QUADS
+        printf("Converting GL_QUADS to GL_TRIANGLES for WebGL compatibility\n");
+        draw_mode = 0x0004; // GL_TRIANGLES
+        draw_count = (immediate.vertex_count / 4) * 6; // 4 vertices -> 6 vertices (2 triangles)
+
+        // Create new vertex arrays for triangles
+        Vertex3f *tri_vertices = malloc(draw_count * sizeof(Vertex3f));
+        Color4f *tri_colors = malloc(draw_count * sizeof(Color4f));
+        Normal3f *tri_normals = malloc(draw_count * sizeof(Normal3f));
+
+        // Convert each quad to 2 triangles
+        for (int i = 0; i < immediate.vertex_count / 4; i++) {
+            int quad_start = i * 4;
+            int tri_start = i * 6;
+
+            // First triangle: vertices 0, 1, 2
+            tri_vertices[tri_start + 0] = immediate.vertices[quad_start + 0];
+            tri_vertices[tri_start + 1] = immediate.vertices[quad_start + 1];
+            tri_vertices[tri_start + 2] = immediate.vertices[quad_start + 2];
+            tri_colors[tri_start + 0] = immediate.colors[quad_start + 0];
+            tri_colors[tri_start + 1] = immediate.colors[quad_start + 1];
+            tri_colors[tri_start + 2] = immediate.colors[quad_start + 2];
+            tri_normals[tri_start + 0] = immediate.normals[quad_start + 0];
+            tri_normals[tri_start + 1] = immediate.normals[quad_start + 1];
+            tri_normals[tri_start + 2] = immediate.normals[quad_start + 2];
+
+            // Second triangle: vertices 0, 2, 3
+            tri_vertices[tri_start + 3] = immediate.vertices[quad_start + 0];
+            tri_vertices[tri_start + 4] = immediate.vertices[quad_start + 2];
+            tri_vertices[tri_start + 5] = immediate.vertices[quad_start + 3];
+            tri_colors[tri_start + 3] = immediate.colors[quad_start + 0];
+            tri_colors[tri_start + 4] = immediate.colors[quad_start + 2];
+            tri_colors[tri_start + 5] = immediate.colors[quad_start + 3];
+            tri_normals[tri_start + 3] = immediate.normals[quad_start + 0];
+            tri_normals[tri_start + 4] = immediate.normals[quad_start + 2];
+            tri_normals[tri_start + 5] = immediate.normals[quad_start + 3];
+        }
+
+        // Use the triangle data for rendering
+        printf("Converted %d quads to %d triangles\n", immediate.vertex_count / 4, draw_count / 3);
+
+        // Draw using OpenGL ES 1.x fixed-function pipeline
+        // Set up vertex arrays using our stub functions (which now store pointers)
+        glVertexPointer(3, GL_FLOAT, 0, tri_vertices);
+        glColorPointer(4, GL_FLOAT, 0, tri_colors);
+        glNormalPointer(GL_FLOAT, 0, tri_normals);
+
+        glEnableClientState(GL_VERTEX_ARRAY);
+        glEnableClientState(GL_COLOR_ARRAY);
+        glEnableClientState(GL_NORMAL_ARRAY);
+
+        // Log which client states are enabled for debugging
+        printf("Client states: vertex=%s, color=%s, normal=%s\n",
+               vertex_array_enabled ? "enabled" : "disabled",
+               color_array_enabled ? "enabled" : "disabled",
+               normal_array_enabled ? "enabled" : "disabled");
+
+        glDrawArrays(draw_mode, 0, draw_count);
+
+        glDisableClientState(GL_VERTEX_ARRAY);
+        glDisableClientState(GL_COLOR_ARRAY);
+        glDisableClientState(GL_NORMAL_ARRAY);
+
+        free(tri_vertices);
+        free(tri_colors);
+        free(tri_normals);
+    } else {
+        // For other primitive types (GL_TRIANGLES, etc.), render directly
+        // Set up vertex arrays using our stub functions (which now store pointers)
+        glVertexPointer(3, GL_FLOAT, 0, immediate.vertices);
+        glColorPointer(4, GL_FLOAT, 0, immediate.colors);
+        glNormalPointer(GL_FLOAT, 0, immediate.normals);
+
+        glEnableClientState(GL_VERTEX_ARRAY);
+        glEnableClientState(GL_COLOR_ARRAY);
+        glEnableClientState(GL_NORMAL_ARRAY);
+
+        // Log which client states are enabled for debugging
+        printf("Client states: vertex=%s, color=%s, normal=%s\n",
+               vertex_array_enabled ? "enabled" : "disabled",
+               color_array_enabled ? "enabled" : "disabled",
+               normal_array_enabled ? "enabled" : "disabled");
+
+        glDrawArrays(draw_mode, 0, draw_count);
+
+        glDisableClientState(GL_VERTEX_ARRAY);
+        glDisableClientState(GL_COLOR_ARRAY);
+        glDisableClientState(GL_NORMAL_ARRAY);
+    }
+
+    printf("WebGL 2.0 shader-based rendering completed\n");
+
+    // Reset immediate mode state
+    immediate.in_begin_end = False;
+    immediate.vertex_count = 0;
+}
+
+// WebGL 2.0 shader-based rendering function
+static void render_with_shaders(Vertex3f *vertices, Color4f *colors, Normal3f *normals, int count, GLenum mode) {
+    if (shader_program == 0) {
+        printf("ERROR: No shader program available for rendering!\n");
         return;
     }
 
-        // Make black colors visible by converting them to white
-    for (int i = 0; i < immediate.vertex_count; i++) {
-        if (immediate.colors[i].r == 0.0f && immediate.colors[i].g == 0.0f && immediate.colors[i].b == 0.0f) {
-            // If color is black, make it white so we can see it
-            immediate.colors[i].r = 1.0f;
-            immediate.colors[i].g = 1.0f;
-            immediate.colors[i].b = 1.0f;
-            immediate.colors[i].a = 1.0f;
-        }
-    }
+    // Use the shader program
+    glUseProgram(shader_program);
 
-    // Create VBOs and render
+    // Create VBOs for vertex data
     GLuint vbo_vertices, vbo_colors, vbo_normals;
     glGenBuffers(1, &vbo_vertices);
     glGenBuffers(1, &vbo_colors);
     glGenBuffers(1, &vbo_normals);
 
-    printf("Created VBOs: vertices=%u, colors=%u, normals=%u\n", vbo_vertices, vbo_colors, vbo_normals);
-
-    // Use our WebGL 2.0 wrapper
-    printf("Using WebGL 2.0 wrapper...\n");
-
-    // Enable depth testing for proper 3D rendering
-    glEnable(GL_DEPTH_TEST);
-    glDepthFunc(GL_LESS);
-
-    // Use the pre-compiled shader program
-    printf("Using shader program: %u\n", shader_program);
-    glUseProgram(shader_program);
-
-    // Check if program is valid
-    GLint program_valid;
-    glGetProgramiv(shader_program, GL_VALIDATE_STATUS, &program_valid);
-    printf("Shader program validation status: %d\n", program_valid);
-
-    if (!program_valid) {
-        GLchar info_log[512];
-        glGetProgramInfoLog(shader_program, 512, NULL, info_log);
-        printf("Shader program validation error: %s\n", info_log);
-    }
-
-    // Set up projection matrix from our matrix stack
-    GLint projection_loc = glGetUniformLocation(shader_program, "projection");
-    if (projection_loc != -1) {
-        // Get the current projection matrix from our matrix stack
-        Matrix4f projection = projection_stack.stack[projection_stack.top];
-        printf("Projection matrix: [%.3f, %.3f, %.3f, %.3f, %.3f, %.3f, %.3f, %.3f, %.3f, %.3f, %.3f, %.3f, %.3f, %.3f, %.3f, %.3f]\n",
-               projection.m[0], projection.m[1], projection.m[2], projection.m[3],
-               projection.m[4], projection.m[5], projection.m[6], projection.m[7],
-               projection.m[8], projection.m[9], projection.m[10], projection.m[11],
-               projection.m[12], projection.m[13], projection.m[14], projection.m[15]);
-        glUniformMatrix4fv(projection_loc, 1, GL_FALSE, projection.m);
-    } else {
-        printf("ERROR: Could not find projection uniform location!\n");
-    }
-
-    // Set up modelview matrix (HexTrail handles animation via glTranslatef/glRotatef)
-    GLint modelview_loc = glGetUniformLocation(shader_program, "modelview");
-    if (modelview_loc != -1) {
-        // Get the current modelview matrix from our matrix stack
-        Matrix4f modelview = modelview_stack.stack[modelview_stack.top];
-        printf("Modelview matrix: [%.3f, %.3f, %.3f, %.3f, %.3f, %.3f, %.3f, %.3f, %.3f, %.3f, %.3f, %.3f, %.3f, %.3f, %.3f, %.3f]\n",
-               modelview.m[0], modelview.m[1], modelview.m[2], modelview.m[3],
-               modelview.m[4], modelview.m[5], modelview.m[6], modelview.m[7],
-               modelview.m[8], modelview.m[9], modelview.m[10], modelview.m[11],
-               modelview.m[12], modelview.m[13], modelview.m[14], modelview.m[15]);
-
-        // Don't override the modelview matrix - let HexTrail control the camera
-        // The "far away" camera is actually correct for HexTrail's animation
-        printf("Using HexTrail's camera positioning\n");
-
-        glUniformMatrix4fv(modelview_loc, 1, GL_FALSE, modelview.m);
-    } else {
-        printf("ERROR: Could not find modelview uniform location!\n");
-    }
-
-    // Bind and populate VBOs
+    // Upload vertex data
     glBindBuffer(GL_ARRAY_BUFFER, vbo_vertices);
-    glBufferData(GL_ARRAY_BUFFER, immediate.vertex_count * sizeof(Vertex3f), immediate.vertices, GL_STATIC_DRAW);
-
-    printf("Created vertex buffer with %d vertices, first vertex: %.3f, %.3f, %.3f\n",
-           immediate.vertex_count, immediate.vertices[0].x, immediate.vertices[0].y, immediate.vertices[0].z);
-
-    // Create RGB-only color buffer (skip alpha)
-    GLfloat *rgb_colors = malloc(immediate.vertex_count * 3 * sizeof(GLfloat));
-    for (int i = 0; i < immediate.vertex_count; i++) {
-        rgb_colors[i*3 + 0] = immediate.colors[i].r;
-        rgb_colors[i*3 + 1] = immediate.colors[i].g;
-        rgb_colors[i*3 + 2] = immediate.colors[i].b;
-    }
-
-    printf("Created RGB color buffer with %d vertices, first color: %.3f, %.3f, %.3f\n",
-           immediate.vertex_count, rgb_colors[0], rgb_colors[1], rgb_colors[2]);
+    glBufferData(GL_ARRAY_BUFFER, count * sizeof(Vertex3f), vertices, GL_STATIC_DRAW);
 
     glBindBuffer(GL_ARRAY_BUFFER, vbo_colors);
-    glBufferData(GL_ARRAY_BUFFER, immediate.vertex_count * 3 * sizeof(GLfloat), rgb_colors, GL_STATIC_DRAW);
-    free(rgb_colors);
+    glBufferData(GL_ARRAY_BUFFER, count * sizeof(Color4f), colors, GL_STATIC_DRAW);
+
+    glBindBuffer(GL_ARRAY_BUFFER, vbo_normals);
+    glBufferData(GL_ARRAY_BUFFER, count * sizeof(Normal3f), normals, GL_STATIC_DRAW);
+
+    // Get attribute locations
+    GLint position_attrib = glGetAttribLocation(shader_program, "position");
+    GLint color_attrib = glGetAttribLocation(shader_program, "color");
+    GLint normal_attrib = glGetAttribLocation(shader_program, "normal");
 
     // Set up vertex attributes
     glBindBuffer(GL_ARRAY_BUFFER, vbo_vertices);
-    GLint pos_attrib = glGetAttribLocation(shader_program, "position");
-    printf("Position attribute location: %d\n", pos_attrib);
-    if (pos_attrib != -1) {
-        glEnableVertexAttribArray(pos_attrib);
-        glVertexAttribPointer(pos_attrib, 3, GL_FLOAT, GL_FALSE, 0, 0);
-        printf("Set up position attribute successfully\n");
-    } else {
-        printf("ERROR: Position attribute not found in shader!\n");
-    }
+    glVertexAttribPointer(position_attrib, 3, GL_FLOAT, GL_FALSE, 0, 0);
+    glEnableVertexAttribArray(position_attrib);
 
     glBindBuffer(GL_ARRAY_BUFFER, vbo_colors);
-    GLint color_attrib = glGetAttribLocation(shader_program, "color");
-    printf("Color attribute location: %d\n", color_attrib);
-    if (color_attrib != -1) {
-        glEnableVertexAttribArray(color_attrib);
-        printf("Enabled vertex attrib array for color\n");
-        glVertexAttribPointer(color_attrib, 3, GL_FLOAT, GL_FALSE, 0, 0);
-        printf("Set vertex attrib pointer for color: location=%d, size=3, type=GL_FLOAT, normalized=GL_FALSE, stride=0, offset=0\n", color_attrib);
-    } else {
-        printf("ERROR: Color attribute not found in shader!\n");
+    glVertexAttribPointer(color_attrib, 4, GL_FLOAT, GL_FALSE, 0, 0);
+    glEnableVertexAttribArray(color_attrib);
+
+    glBindBuffer(GL_ARRAY_BUFFER, vbo_normals);
+    glVertexAttribPointer(normal_attrib, 3, GL_FLOAT, GL_FALSE, 0, 0);
+    glEnableVertexAttribArray(normal_attrib);
+
+    // Set up uniforms (modelview and projection matrices)
+    GLint modelview_uniform = glGetUniformLocation(shader_program, "modelview");
+    GLint projection_uniform = glGetUniformLocation(shader_program, "projection");
+
+    if (modelview_uniform >= 0) {
+        glUniformMatrix4fv(modelview_uniform, 1, GL_FALSE, modelview_stack.stack[modelview_stack.top].m);
     }
 
-    // Check for WebGL errors after setting up attributes
-    GLenum attr_error = glGetError();
-    if (attr_error != GL_NO_ERROR) {
-        printf("WebGL error after setting attributes: %d\n", attr_error);
-        // Try to get more info about the error
-        printf("Last OpenGL call before error: glVertexAttribPointer for color\n");
-
-        // Check if WebGL context is still valid
-        if (webgl_context >= 0) {
-            EMSCRIPTEN_RESULT result = emscripten_webgl_make_context_current(webgl_context);
-            printf("WebGL context current result: %d\n", result);
-        }
+    if (projection_uniform >= 0) {
+        glUniformMatrix4fv(projection_uniform, 1, GL_FALSE, projection_stack.stack[projection_stack.top].m);
     }
 
     // Draw
-    printf("Drawing %d vertices with primitive type %d (total this frame: %d)\n",
-           immediate.vertex_count, immediate.primitive_type, total_vertices_this_frame);
-    glDrawArrays(immediate.primitive_type, 0, immediate.vertex_count);
-    total_vertices_this_frame += immediate.vertex_count;
+    printf("Drawing %d vertices with shader program %u\n", count, shader_program);
+    glDrawArrays(mode, 0, count);
 
-    printf("WebGL 2.0 wrapper rendering completed\n");
+    // Clean up
+    glDisableVertexAttribArray(position_attrib);
+    glDisableVertexAttribArray(color_attrib);
+    glDisableVertexAttribArray(normal_attrib);
 
-    // Check for WebGL errors after drawing
-    GLenum error = glGetError();
-    if (error != GL_NO_ERROR) {
-        printf("WebGL error after glDrawArrays: %d\n", error);
-    }
-
-    // Cleanup
     glDeleteBuffers(1, &vbo_vertices);
     glDeleteBuffers(1, &vbo_colors);
     glDeleteBuffers(1, &vbo_normals);
-
-    immediate.in_begin_end = False;
 }
 
 // Missing GLX function
