@@ -4,10 +4,21 @@
  * similar to how jwxyz.h provides Android compatibility.
  */
 
+#include <stdio.h>
+#include <stdarg.h>
 #include <emscripten.h>
 #include <GLES3/gl3.h>
 #include <emscripten/html5.h>
 #include "jwxyz.h"
+
+// Debug timestamp function
+static void debug_print(const char *format, ...) {
+    va_list args;
+    va_start(args, format);
+    printf("[%ld] ", (long)(emscripten_get_now()));
+    vprintf(format, args);
+    va_end(args);
+}
 
 // Define GLdouble for OpenGL ES 3.0 compatibility with jwzgles
 #ifndef GLdouble
@@ -27,6 +38,11 @@ static unsigned int random_seed = 1;
 static unsigned int webgl_random() {
     random_seed = random_seed * 1103515245 + 12345;
     return (random_seed >> 16) & 0x7fff;
+}
+
+// Standard random() function for compatibility
+long int random(void) {
+    return (long int)webgl_random();
 }
 
 static double frand(double max) {
@@ -89,11 +105,6 @@ static GLenum current_normal_type = GL_FLOAT;
 static Bool vertex_array_enabled = False;
 static Bool color_array_enabled = False;
 static Bool normal_array_enabled = False;
-
-// WebGL shader program
-static GLuint shader_program = 0;
-static GLuint vertex_shader = 0;
-static GLuint fragment_shader = 0;
 
 void glVertexPointer(GLint size, GLenum type, GLsizei stride, const GLvoid *ptr) {
     printf("glVertexPointer: size=%d, type=%d, stride=%d, ptr=%p\n", size, type, stride, ptr);
@@ -213,8 +224,9 @@ static Bool lighting_enabled = False;
 static Bool depth_test_enabled = True;
 
 // WebGL shader program
-
-
+static GLuint shader_program = 0;
+static GLuint vertex_shader = 0;
+static GLuint fragment_shader = 0;
 
 // Forward declarations
 static void init_opengl_state(void);
@@ -450,6 +462,11 @@ void main_loop(void) {
             printf("Main loop frame %d\n", frame_count);
         }
     }
+    
+    // Log first few frames to see if we're running multiple frames
+    if (frame_count <= 3) {
+        printf("[%ld] Main loop frame %d - calling hack_draw\n", (long)(emscripten_get_now()), frame_count);
+    }
 
     // Animation is handled by HexTrail's rotator system
     // We just need to make sure our WebGL wrapper properly handles
@@ -603,7 +620,7 @@ static void init_opengl_state() {
 // Generic web initialization
 EMSCRIPTEN_KEEPALIVE
 int xscreensaver_web_init(init_func init, draw_func draw, reshape_func reshape, free_func free) {
-    printf("xscreensaver_web_init called - Version 1.0.3_20250722_185123\n");
+    printf("xscreensaver_web_init called\n");
 
     hack_init = init;
     hack_draw = draw;
@@ -642,24 +659,24 @@ int xscreensaver_web_init(init_func init, draw_func draw, reshape_func reshape, 
 
     // Call the hack's init function
     if (hack_init) {
-        printf("Calling hack_init...\n");
+        printf("[%ld] Calling hack_init...\n", (long)(emscripten_get_now()));
         hack_init(&web_mi);
-        printf("hack_init completed\n");
+        printf("[%ld] hack_init completed\n", (long)(emscripten_get_now()));
     } else {
         printf("hack_init is NULL!\n");
     }
 
     // Set up reshape
     if (hack_reshape) {
-        printf("Calling hack_reshape...\n");
+        printf("[%ld] Calling hack_reshape...\n", (long)(emscripten_get_now()));
         hack_reshape(&web_mi, web_mi.width, web_mi.height);
-        printf("hack_reshape completed\n");
+        printf("[%ld] hack_reshape completed\n", (long)(emscripten_get_now()));
     } else {
         printf("hack_reshape is NULL!\n");
     }
 
     // Set up the main loop (60 FPS)
-    printf("Setting up main loop...\n");
+    printf("[%ld] Setting up main loop...\n", (long)(emscripten_get_now()));
     emscripten_set_main_loop(main_loop, 60, 1);
     printf("Main loop set up successfully\n");
 
@@ -1059,11 +1076,26 @@ void glEnd(void) {
     if (glEnd_count <= 3) {
         printf("Vertex colors (first 3 vertices): ");
         for (int i = 0; i < 3 && i < immediate.vertex_count; i++) {
-            printf("(%.3f,%.3f,%.3f,%.3f) ",
-                   immediate.colors[i].r, immediate.colors[i].g,
+            printf("(%.3f,%.3f,%.3f,%.3f) ", 
+                   immediate.colors[i].r, immediate.colors[i].g, 
                    immediate.colors[i].b, immediate.colors[i].a);
         }
         printf("\n");
+    }
+
+    // Debug: Check if we're getting any non-black colors at all
+    static int black_color_count = 0;
+    static int total_color_count = 0;
+    for (int i = 0; i < immediate.vertex_count; i++) {
+        total_color_count++;
+        if (immediate.colors[i].r == 0.0f && immediate.colors[i].g == 0.0f && immediate.colors[i].b == 0.0f) {
+            black_color_count++;
+        }
+    }
+    if (glEnd_count <= 5) {
+        printf("Color stats: %d/%d vertices are black (%.1f%%)\n", 
+               black_color_count, total_color_count, 
+               (float)black_color_count / total_color_count * 100.0f);
     }
 
     // OPTION A: Use our custom immediate mode system with OpenGL ES 1.x
@@ -1139,6 +1171,11 @@ static void render_with_shaders(Vertex3f *vertices, Color4f *colors, Normal3f *n
         printf("ERROR: No shader program available for rendering!\n");
         return;
     }
+    // Debug: Print first 3 colors sent to shader
+    printf("First 3 vertex colors sent to shader: ");
+    for (int i = 0; i < 3 && i < count; i++)
+        printf("(%.3f, %.3f, %.3f, %.3f) ", colors[i].r, colors[i].g, colors[i].b, colors[i].a);
+    printf("\n");
 
     // Use the shader program
     glUseProgram(shader_program);
@@ -1580,10 +1617,19 @@ void xcolor_to_glfloat(const XColor *xcolor, GLfloat *rgba) {
     rgba[1] = xcolor->green / 65535.0f; // Green
     rgba[2] = xcolor->blue / 65535.0f;  // Blue
     rgba[3] = 1.0f;                     // Alpha
+    
+    static int xcolor_count = 0;
+    xcolor_count++;
+    if (xcolor_count <= 5) { // Log first 5 color conversions
+        printf("[%ld] xcolor_to_glfloat: XColor(%d,%d,%d) -> GLfloat(%.3f,%.3f,%.3f,%.3f)\n",
+               (long)(emscripten_get_now()), xcolor->red, xcolor->green, xcolor->blue, rgba[0], rgba[1], rgba[2], rgba[3]);
+    }
 }
 
 // Generate smooth color map for WebGL
 void make_smooth_colormap_webgl(XColor *colors, int *ncolorsP, Bool allocate_p, Bool *writable_pP, Bool verbose_p) {
+    printf("make_smooth_colormap_webgl called: allocate_p=%d, verbose_p=%d\n", allocate_p, verbose_p);
+    printf("make_smooth_colormap_webgl: ncolorsP=%d before call\n", *ncolorsP);
     int npoints;
     int ncolors = *ncolorsP;
     int i;
@@ -1681,6 +1727,11 @@ static void make_color_path_webgl(int npoints, int *h, double *s, double *v, XCo
         colors[i].green = (unsigned short)(g * 65535);
         colors[i].blue = (unsigned short)(b * 65535);
         colors[i].flags = DoRed | DoGreen | DoBlue;
+        
+        if (i < 3) { // Log first 3 colors
+            printf("[%ld] make_color_path_webgl: Color[%d]: RGB(%d, %d, %d) from HSV(%.1f, %.2f, %.2f)\n", 
+                   (long)(emscripten_get_now()), i, colors[i].red, colors[i].green, colors[i].blue, interp_h, interp_s, interp_v);
+        }
     }
 }
 

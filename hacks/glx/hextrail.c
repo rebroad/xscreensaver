@@ -5,15 +5,15 @@
  * the above copyright notice appear in all copies and that both that
  * copyright notice and this permission notice appear in supporting
  * documentation.  No representations are made about the suitability of this
- * software for any purpose.  It is provided "as is" without express or 
+ * software for any purpose.  It is provided "as is" without express or
  * implied warranty.
  */
 
 #define DEFAULTS	"*delay:	30000       \n" \
-			"*showFPS:      False       \n" \
-			"*wireframe:    False       \n" \
-			"*count:        20          \n" \
-			"*suppressRotationAnimation: True\n" \
+            "*showFPS:      False       \n" \
+            "*wireframe:    False       \n" \
+            "*count:        20          \n" \
+            "*suppressRotationAnimation: True\n" \
 
 # define release_hextrail 0
 
@@ -120,9 +120,13 @@ make_plane (ModeInfo *mi)
   bp->ncolors = 8;
   if (! bp->colors)
     bp->colors = (XColor *) calloc(bp->ncolors, sizeof(XColor));
+  printf("[HEXTRAIL] About to call make_smooth_colormap with ncolors=%d\n", bp->ncolors);
   make_smooth_colormap (0, 0, 0,
                         bp->colors, &bp->ncolors,
                         False, 0, False);
+  printf("[HEXTRAIL] make_smooth_colormap returned with ncolors=%d\n", bp->ncolors);
+  printf("[HEXTRAIL] First color: RGB(%d,%d,%d)\n",
+         bp->colors[0].red, bp->colors[0].green, bp->colors[0].blue);
 
   size = 2.0 / bp->grid_w;
   w = size;
@@ -234,6 +238,11 @@ add_arms (ModeInfo *mi, hexagon *h0)
 
       bp->live_count++;
       added++;
+      static int arm_creation_count = 0;
+      arm_creation_count++;
+      if (arm_creation_count <= 5) {
+        printf("[HEXTRAIL] Created arm %d, live_count=%d\n", added, bp->live_count);
+      }
       if (added >= target)
         break;
     }
@@ -369,6 +378,11 @@ tick_hexagons (ModeInfo *mi)
             y = random() % bp->grid_h;
           }
         h0 = &bp->hexagons[y * bp->grid_w + x];
+        static int hex_creation_count = 0;
+        hex_creation_count++;
+        if (hex_creation_count <= 3) {
+          printf("[HEXTRAIL] Creating arms on hexagon at (%d,%d), ptr=%p\n", x, y, (void*)h0);
+        }
         if (empty_hexagon_p (h0) &&
             add_arms (mi, h0)) {
           h0->border_state = DONE;
@@ -391,9 +405,15 @@ tick_hexagons (ModeInfo *mi)
   else if (bp->state == FADE)
     {
       bp->fade_ratio -= 0.01 * speed;
+      static int fade_debug_count = 0;
+      fade_debug_count++;
+      if (fade_debug_count <= 10) {
+        printf("[HEXTRAIL] FADE: fade_ratio=%.3f, speed=%.3f\n", bp->fade_ratio, speed);
+      }
       scale_corners(mi);
       if (bp->fade_ratio <= 0)
         {
+          printf("[HEXTRAIL] FADE complete, restarting plane\n");
           make_plane (mi);
           bp->state = FIRST;
           bp->fade_ratio = 1;
@@ -421,7 +441,7 @@ static void scale_corners(ModeInfo *mi) {
   GLfloat thick2 = thickness * bp->fade_ratio;
   GLfloat size3 = size * thick2 * 0.8;
   GLfloat size4 = size3 * 2; // when total_arms == 1
-  
+
   int i;
   for (i = 0; i < 6; i++) {
     scaled_corners[i][0].x = corners[i].x * size1;
@@ -454,6 +474,11 @@ draw_hexagons (ModeInfo *mi)
   for (i = 0; i < bp->grid_w * bp->grid_h; i++)
     {
       hexagon *h = &bp->hexagons[i];
+      static int hex_draw_count = 0;
+      hex_draw_count++;
+      if (hex_draw_count <= 5) {
+        printf("[HEXTRAIL] Drawing hexagon %d, ptr=%p\n", i, (void*)h);
+      }
       int total_arms = 0;
       GLfloat color[4];
       GLfloat nub_ratio = 0;
@@ -468,13 +493,19 @@ draw_hexagons (ModeInfo *mi)
               nub_ratio = a->ratio;
           }
         }
-      
+
 
 # define HEXAGON_COLOR(V,H) do { \
           (V)[0] = bp->colors[(H)->ccolor].red   / 65535.0 * bp->fade_ratio; \
           (V)[1] = bp->colors[(H)->ccolor].green / 65535.0 * bp->fade_ratio; \
           (V)[2] = bp->colors[(H)->ccolor].blue  / 65535.0 * bp->fade_ratio; \
           (V)[3] = 1; \
+          static int color_debug_count = 0; \
+          color_debug_count++; \
+          if (color_debug_count <= 5) { \
+            printf("[HEXTRAIL] HEXAGON_COLOR: ccolor=%d, fade_ratio=%.3f, RGB(%.3f,%.3f,%.3f)\n", \
+                   (H)->ccolor, bp->fade_ratio, (V)[0], (V)[1], (V)[2]); \
+          } \
         } while (0)
       HEXAGON_COLOR (color, h);
 
@@ -494,6 +525,12 @@ draw_hexagons (ModeInfo *mi)
 
               glColor4fv (color1);
               glMaterialfv (GL_FRONT, GL_AMBIENT_AND_DIFFUSE, color1);
+              static int border_color1_debug_count = 0;
+              border_color1_debug_count++;
+              if (border_color1_debug_count <= 3) {
+                printf("[HEXTRAIL] BORDER glColor4fv(color1): RGB(%.3f,%.3f,%.3f), border_ratio=%.3f\n",
+                       color1[0], color1[1], color1[2], h->border_ratio);
+              }
 
               /* Outer edge of hexagon border */
               p[0].x = h->pos.x + scaled_corners[j][0].x;
@@ -527,6 +564,11 @@ draw_hexagons (ModeInfo *mi)
 
           /* Line from center to edge, or edge to center.
            */
+          static int arm_state_debug_count = 0;
+          arm_state_debug_count++;
+          if (arm_state_debug_count <= 10 && a->state != 0) {
+            printf("[HEXTRAIL] Arm[%d] state=%d (EMPTY=0,IN=1,WAIT=2,OUT=3,DONE=4)\n", j, a->state);
+          }
           if (a->state == IN || a->state == OUT || a->state == DONE || a->state == WAIT)
             {
               GLfloat x   = (corners[j].x + corners[k].x) / 2;
@@ -542,6 +584,14 @@ draw_hexagons (ModeInfo *mi)
               /* Color of the outer point of the line is average color of
                  this and the neighbor. */
               HEXAGON_COLOR (ncolor, h->neighbors[j]);
+              static int neighbor_debug_count = 0;
+              neighbor_debug_count++;
+              if (neighbor_debug_count <= 5) {
+                printf("[HEXTRAIL] Neighbor[%d] exists=%d, ccolor=%d, ncolor=RGB(%.3f,%.3f,%.3f)\n",
+                       j, h->neighbors[j] != NULL,
+                       h->neighbors[j] ? h->neighbors[j]->ccolor : -1,
+                       ncolor[0], ncolor[1], ncolor[2]);
+              }
               ncolor[0] = (ncolor[0] + color[0]) / 2;
               ncolor[1] = (ncolor[1] + color[1]) / 2;
               ncolor[2] = (ncolor[2] + color[2]) / 2;
@@ -553,6 +603,12 @@ draw_hexagons (ModeInfo *mi)
                   end = size * line_length;
                   memcpy (color1, color,  sizeof(color1));
                   memcpy (color2, ncolor, sizeof(color1));
+                  static int out_debug_count = 0;
+                  out_debug_count++;
+                  if (out_debug_count <= 3) {
+                    printf("[HEXTRAIL] OUT state: color1=RGB(%.3f,%.3f,%.3f), color2=RGB(%.3f,%.3f,%.3f)\n",
+                           color1[0], color1[1], color1[2], color2[0], color2[1], color2[2]);
+                  }
                 }
               else
                 {
@@ -560,6 +616,12 @@ draw_hexagons (ModeInfo *mi)
                   end = size * (1 - line_length);
                   memcpy (color1, ncolor, sizeof(color1));
                   memcpy (color2, color,  sizeof(color1));
+                  static int in_debug_count = 0;
+                  in_debug_count++;
+                  if (in_debug_count <= 3) {
+                    printf("[HEXTRAIL] IN state: color1=RGB(%.3f,%.3f,%.3f), color2=RGB(%.3f,%.3f,%.3f)\n",
+                           color1[0], color1[1], color1[2], color2[0], color2[1], color2[2]);
+                  }
                 }
 
               if (! h->neighbors[j]) abort();  /* arm/neighbor mismatch */
@@ -586,6 +648,12 @@ draw_hexagons (ModeInfo *mi)
               glVertex3f (p[3].x, p[3].y, p[3].z);
               glColor4fv (color1);
               glMaterialfv (GL_FRONT, GL_AMBIENT_AND_DIFFUSE, color1);
+              static int line_color1_debug_count = 0;
+              line_color1_debug_count++;
+              if (line_color1_debug_count <= 3) {
+                printf("[HEXTRAIL] LINE glColor4fv(color1): RGB(%.3f,%.3f,%.3f), state=%d\n",
+                       color1[0], color1[1], color1[2], a->state);
+              }
               glVertex3f (p[0].x, p[0].y, p[0].z);
               if (! wire)
                 glVertex3f (p[1].x, p[1].y, p[1].z);
@@ -624,6 +692,12 @@ draw_hexagons (ModeInfo *mi)
 
               glColor4fv (color);
               glMaterialfv (GL_FRONT, GL_AMBIENT_AND_DIFFUSE, color);
+              static int main_color_debug_count = 0;
+              main_color_debug_count++;
+              if (main_color_debug_count <= 3) {
+                printf("[HEXTRAIL] MAIN glColor4fv(color): RGB(%.3f,%.3f,%.3f), total_arms=%d\n",
+                       color[0], color[1], color[2], total_arms);
+              }
               if (! wire)
                 glVertex3f (p[0].x, p[0].y, p[0].z);
               glVertex3f (p[1].x, p[1].y, p[1].z);
@@ -726,7 +800,7 @@ hextrail_handle_event (ModeInfo *mi, XEvent *event)
 }
 
 
-ENTRYPOINT void 
+ENTRYPOINT void
 init_hextrail (ModeInfo *mi)
 {
   hextrail_configuration *bp;
@@ -814,8 +888,19 @@ draw_hextrail (ModeInfo *mi)
     glScalef (s, s, s);
   }
 
-  if (! bp->button_down_p)
+  if (! bp->button_down_p) {
+    static int tick_count = 0;
+    tick_count++;
+    if (tick_count <= 5) {
+      printf("[HEXTRAIL] About to call tick_hexagons (call #%d)\n", tick_count);
+    }
     tick_hexagons (mi);
+    if (tick_count <= 5) {
+      printf("[HEXTRAIL] tick_hexagons completed (call #%d)\n", tick_count);
+    }
+  } else {
+    printf("[HEXTRAIL] Button down, skipping tick_hexagons\n");
+  }
   draw_hexagons (mi);
 
   glPopMatrix ();
