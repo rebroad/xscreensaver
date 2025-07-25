@@ -230,10 +230,10 @@ static int8_t exits(config *bp, hexagon *h0) {
 }
 
 static int8_t add_arms(config *bp, hexagon *h0) {
-  int8_t added = 0, target = (random() % 4); /* Aim for 1-5 arms */
+  int8_t added = 0, target = 1 + (random() % 4); /* Aim for 1-4 arms */
   int8_t idx[6] = {0, 1, 2, 3, 4, 5};
   for (int8_t i = 0; i < 6; i++) {
-	int8_t j = random() % (6 - i);
+	int8_t j = random() % 6;
 	int8_t swap = idx[j];
 	idx[j] = idx[i];
 	idx[i] = swap;
