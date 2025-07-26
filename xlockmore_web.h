@@ -52,14 +52,8 @@ typedef struct {
 // Trackball function declarations for web builds
 #ifndef GLTRACKBALL_DECLARED
 #define GLTRACKBALL_DECLARED
-// Trackball functions are defined in xscreensaver_web.c
-extern void* gltrackball_init(int ignore_device_rotation_p);
-extern void gltrackball_free(void* tb);
-extern void gltrackball_reset(void* tb, GLfloat x, GLfloat y);
-extern void gltrackball_rotate(void* tb);
-extern Bool gltrackball_event_handler(XEvent* event, void* tb,
-                                     int window_width, int window_height,
-                                     Bool* button_down_p);
+// Trackball functions are now static internal functions in xscreensaver_web.c
+// No need to declare them here
 #endif
 
 // Additional function declarations needed for web builds
@@ -69,6 +63,7 @@ extern void MI_INIT(ModeInfo *mi, void *bps);
 extern GLXContext *init_GL(ModeInfo *mi);
 extern void do_fps(ModeInfo *mi);
 extern void render_text_simple(int x, int y, const char* text);
+extern void web_fps_set_target(double target_fps);
 #endif
 
 // Common utility functions - use web-specific names to avoid conflicts

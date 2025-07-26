@@ -104,7 +104,7 @@ typedef struct {
 // Use web_trackball_state directly instead of redefining trackball_state
 
 // Trackball functions with web implementation - using void* to avoid type conflicts
-void* gltrackball_init(int ignore_device_rotation_p) {
+static void* gltrackball_init(int ignore_device_rotation_p) {
     web_trackball_state* tb = (web_trackball_state*)calloc(1, sizeof(web_trackball_state));
     if (tb) {
         // Initialize to identity quaternion
@@ -114,11 +114,11 @@ void* gltrackball_init(int ignore_device_rotation_p) {
     return (void*)tb;
 }
 
-void gltrackball_free(void* tb) {
+static void gltrackball_free(void* tb) {
     if (tb) free(tb);
 }
 
-void gltrackball_reset(void* tb, GLfloat x, GLfloat y) {
+static void gltrackball_reset(void* tb, GLfloat x, GLfloat y) {
     if (!tb) return;
     web_trackball_state* wtb = (web_trackball_state*)tb;
     wtb->init_x = x;
@@ -132,7 +132,7 @@ void gltrackball_reset(void* tb, GLfloat x, GLfloat y) {
     }
 }
 
-void gltrackball_rotate(void* tb) {
+static void gltrackball_rotate(void* tb) {
     if (!tb) return;
     web_trackball_state* wtb = (web_trackball_state*)tb;
 
@@ -147,7 +147,7 @@ void gltrackball_rotate(void* tb) {
     glMultMatrixf(matrix);
 }
 
-Bool gltrackball_event_handler(XEvent* event, void* tb,
+static Bool gltrackball_event_handler(XEvent* event, void* tb,
                               int window_width, int window_height,
                               Bool* button_down_p) {
     if (!tb || !event) return False;
@@ -277,6 +277,21 @@ GLXContext *init_GL(ModeInfo *mi) {
     return &context;
 }
 
+// Web-specific FPS tracking state
+typedef struct {
+    double last_frame_time;
+    double last_fps_update_time;
+    int frame_count;
+    double current_fps;
+    double current_load;
+    int current_polys;
+    double target_frame_time;  // Target frame time (e.g., 1.0/30.0 for 30 FPS)
+    double total_idle_time;
+    double last_idle_start;
+} web_fps_state;
+
+static web_fps_state web_fps_state_var = {0};
+
 // Web-compatible FPS display function that integrates with existing FPS system
 void do_fps(ModeInfo *mi) {
     // This function should be called by hacks that want to display FPS
@@ -285,8 +300,53 @@ void do_fps(ModeInfo *mi) {
     // Check if FPS is enabled via the resource system
     if (!mi || !mi->fps_p) return;
 
-    // For web builds, we'll provide a simple FPS display
-    // In a full implementation, this would integrate with the existing fps.c system
+    // Initialize FPS state if needed
+    if (web_fps_state_var.last_frame_time == 0.0) {
+        web_fps_state_var.last_frame_time = emscripten_get_now() / 1000.0;
+        web_fps_state_var.last_fps_update_time = web_fps_state_var.last_frame_time;
+        web_fps_state_var.frame_count = 0;
+        web_fps_state_var.current_fps = 0.0;
+        web_fps_state_var.current_load = 0.0;
+        web_fps_state_var.current_polys = 0;
+        web_fps_state_var.target_frame_time = 1.0 / 30.0;  // Default to 30 FPS target
+        web_fps_state_var.total_idle_time = 0.0;
+        web_fps_state_var.last_idle_start = 0.0;
+    }
+
+    // Get current time
+    double current_time = emscripten_get_now() / 1000.0;
+    double frame_time = current_time - web_fps_state_var.last_frame_time;
+
+    // Update frame count
+    web_fps_state_var.frame_count++;
+
+    // Calculate FPS and load every second
+    if (current_time - web_fps_state_var.last_fps_update_time >= 1.0) {
+        double update_interval = current_time - web_fps_state_var.last_fps_update_time;
+        web_fps_state_var.current_fps = web_fps_state_var.frame_count / update_interval;
+
+        // Calculate load based on idle time
+        // Load = (1 - idle_time/total_time) * 100
+        double total_time = update_interval;
+        double idle_time = web_fps_state_var.total_idle_time;
+        web_fps_state_var.current_load = fmax(0.0, fmin(100.0, (1.0 - idle_time / total_time) * 100.0));
+
+        // Get polygon count from ModeInfo
+        web_fps_state_var.current_polys = mi->polygon_count;
+
+        // Reset counters
+        web_fps_state_var.frame_count = 0;
+        web_fps_state_var.last_fps_update_time = current_time;
+        web_fps_state_var.total_idle_time = 0.0;
+    }
+
+    // Track idle time if we're ahead of target frame rate
+    if (frame_time < web_fps_state_var.target_frame_time) {
+        double idle_time = web_fps_state_var.target_frame_time - frame_time;
+        web_fps_state_var.total_idle_time += idle_time;
+    }
+
+    web_fps_state_var.last_frame_time = current_time;
 
     // Save OpenGL state
     glPushAttrib(GL_ALL_ATTRIB_BITS);
@@ -310,11 +370,16 @@ void do_fps(ModeInfo *mi) {
     int x = 10;
     int y = MI_HEIGHT(mi) - 10 - 14 * 3; // 3 lines of text, 14px height
 
-    // For now, display placeholder text
-    // In a real implementation, this would use the actual FPS data from fps.c
-    render_text_simple(x, y, "FPS: --");
-    render_text_simple(x, y - 14, "Load: --");
-    render_text_simple(x, y - 28, "Polys: --");
+    // Display actual FPS values
+    char fps_text[256];
+    snprintf(fps_text, sizeof(fps_text), "FPS: %.1f", web_fps_state_var.current_fps);
+    render_text_simple(x, y, fps_text);
+
+    snprintf(fps_text, sizeof(fps_text), "Load: %.1f%%", web_fps_state_var.current_load);
+    render_text_simple(x, y - 14, fps_text);
+
+    snprintf(fps_text, sizeof(fps_text), "Polys: %d", web_fps_state_var.current_polys);
+    render_text_simple(x, y - 28, fps_text);
 
     // Restore OpenGL state
     glPopMatrix();
@@ -322,6 +387,13 @@ void do_fps(ModeInfo *mi) {
     glPopMatrix();
     glMatrixMode(GL_MODELVIEW);
     glPopAttrib();
+}
+
+// Function to set the target frame rate for FPS calculations
+void web_fps_set_target(double target_fps) {
+    if (target_fps > 0.0) {
+        web_fps_state_var.target_frame_time = 1.0 / target_fps;
+    }
 }
 
 // Simple text rendering function for web builds
