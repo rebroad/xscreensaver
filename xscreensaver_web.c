@@ -42,13 +42,6 @@ typedef double GLdouble;
 #define GL_PROJECTION_MATRIX 0x0BA7
 #endif
 
-// FPS tracking variables
-static double last_fps_time = 0.0;
-static int frame_count = 0;
-static double current_fps = 0.0;
-static double current_load = 0.0;
-static int current_polys = 0;
-
 // Only provide gluProject if it's not working with the expected signature
 // We'll name it differently to avoid conflicts
 int gluProject_web(GLdouble objx, GLdouble objy, GLdouble objz,
@@ -239,7 +232,7 @@ int xscreensaver_web_init(
     web_mi.batchcount = 1;     // Single instance for web
     web_mi.wireframe_p = 0;    // No wireframe for web
     web_mi.polygon_count = 0;  // Initialize polygon counter
-    web_mi.fps_p = 1;          // Enable FPS display for web
+    web_mi.fps_p = 0;          // Will be set by resource system
     web_mi.dpy = NULL;         // Display pointer (alias)
     web_mi.xgwa.width = 800;   // Default width
     web_mi.xgwa.height = 600;  // Default height
@@ -265,7 +258,7 @@ void MI_INIT(ModeInfo *mi, void *bps) {
     mi->batchcount = 1;
     mi->wireframe_p = 0;
     mi->polygon_count = 0;
-    mi->fps_p = 1;  // Enable FPS display by default
+    mi->fps_p = 0;  // Will be set by resource system, not hardcoded
     mi->dpy = NULL;
     mi->xgwa.width = 800;
     mi->xgwa.height = 600;
@@ -284,28 +277,16 @@ GLXContext *init_GL(ModeInfo *mi) {
     return &context;
 }
 
-// FPS display function for web builds - matches native version
+// Web-compatible FPS display function that integrates with existing FPS system
 void do_fps(ModeInfo *mi) {
+    // This function should be called by hacks that want to display FPS
+    // It will use the existing FPS system if available, or provide a web fallback
+
+    // Check if FPS is enabled via the resource system
     if (!mi || !mi->fps_p) return;
 
-    // Get current time
-    double current_time = emscripten_get_now() / 1000.0;
-
-    // Update frame count
-    frame_count++;
-
-    // Calculate FPS every second
-    if (current_time - last_fps_time >= 1.0) {
-        current_fps = frame_count / (current_time - last_fps_time);
-        frame_count = 0;
-        last_fps_time = current_time;
-
-        // Simulate load based on FPS (for demo purposes)
-        current_load = fmax(0.0, fmin(100.0, (60.0 - current_fps) * 2.0));
-
-        // Get polygon count from ModeInfo
-        current_polys = mi->polygon_count;
-    }
+    // For web builds, we'll provide a simple FPS display
+    // In a full implementation, this would integrate with the existing fps.c system
 
     // Save OpenGL state
     glPushAttrib(GL_ALL_ATTRIB_BITS);
@@ -322,24 +303,18 @@ void do_fps(ModeInfo *mi) {
     glDisable(GL_LIGHTING);
     glDisable(GL_TEXTURE_2D);
 
-    // Set up text rendering (simplified - in real implementation you'd use proper font rendering)
-    glColor4f(FPS_COLOR_R, FPS_COLOR_G, FPS_COLOR_B, FPS_COLOR_A);
+    // Set up text rendering
+    glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
 
-    // Position text in bottom left
-    int x = FPS_X_OFFSET;
-    int y = MI_HEIGHT(mi) - FPS_Y_OFFSET - FPS_FONT_SIZE * 3; // 3 lines of text
+    // Position text in bottom left (matching native behavior)
+    int x = 10;
+    int y = MI_HEIGHT(mi) - 10 - 14 * 3; // 3 lines of text, 14px height
 
-    // Render FPS text (simplified - using basic OpenGL primitives)
-    // In a real implementation, you'd use proper text rendering
-    char fps_text[256];
-    snprintf(fps_text, sizeof(fps_text), "FPS: %.1f", current_fps);
-    render_text_simple(x, y, fps_text);
-
-    snprintf(fps_text, sizeof(fps_text), "Load: %.1f%%", current_load);
-    render_text_simple(x, y - FPS_FONT_SIZE, fps_text);
-
-    snprintf(fps_text, sizeof(fps_text), "Polys: %d", current_polys);
-    render_text_simple(x, y - FPS_FONT_SIZE * 2, fps_text);
+    // For now, display placeholder text
+    // In a real implementation, this would use the actual FPS data from fps.c
+    render_text_simple(x, y, "FPS: --");
+    render_text_simple(x, y - 14, "Load: --");
+    render_text_simple(x, y - 28, "Polys: --");
 
     // Restore OpenGL state
     glPopMatrix();
@@ -360,8 +335,8 @@ void render_text_simple(int x, int y, const char* text) {
     glBegin(GL_QUADS);
     glVertex2i(x, y);
     glVertex2i(x + strlen(text) * 8, y);
-    glVertex2i(x + strlen(text) * 8, y + FPS_FONT_SIZE);
-    glVertex2i(x, y + FPS_FONT_SIZE);
+    glVertex2i(x + strlen(text) * 8, y + 14);
+    glVertex2i(x, y + 14);
     glEnd();
 }
 

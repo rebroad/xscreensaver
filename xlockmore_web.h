@@ -71,15 +71,6 @@ extern void do_fps(ModeInfo *mi);
 extern void render_text_simple(int x, int y, const char* text);
 #endif
 
-// FPS display constants and macros
-#define FPS_X_OFFSET 10
-#define FPS_Y_OFFSET 10
-#define FPS_FONT_SIZE 14
-#define FPS_COLOR_R 1.0f
-#define FPS_COLOR_G 1.0f
-#define FPS_COLOR_B 1.0f
-#define FPS_COLOR_A 1.0f
-
 // Common utility functions - use web-specific names to avoid conflicts
 // web_frand removed - not implemented in wrapper
 
