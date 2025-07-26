@@ -10,6 +10,11 @@
 #include "jwxyz.h"
 #include <math.h>
 
+// GLdouble is missing in WebGL, provide it
+#ifndef GLdouble
+typedef double GLdouble;
+#endif
+
 // Essential macros and definitions - only if not already defined
 #ifndef ENTRYPOINT
 #define ENTRYPOINT
@@ -49,6 +54,17 @@ typedef enum {
     WEB_PARAM_INT,
     WEB_PARAM_BOOL
 } web_param_type;
+
+typedef struct {
+    const char* name;
+    const char* display_name;
+    web_param_type type;
+    void* variable;
+    void (*update_callback)(void*);
+    double min_value;
+    double max_value;
+    double step_value;
+} web_parameter;
 
 // Common xscreensaver types and macros
 // ModeInfo is now defined above
@@ -94,18 +110,31 @@ extern void glPopMatrix(void);
 extern void glTranslatef(GLfloat x, GLfloat y, GLfloat z);
 extern void glRotatef(GLfloat angle, GLfloat x, GLfloat y, GLfloat z);
 extern void glScalef(GLfloat x, GLfloat y, GLfloat z);
-extern void glOrtho(GLfloat left, GLfloat right, GLfloat bottom, GLfloat top, GLfloat near_val, GLfloat far_val);
-extern void glFrustum(GLfloat left, GLfloat right, GLfloat bottom, GLfloat top, GLfloat near_val, GLfloat far_val);
+extern void glOrtho(GLdouble left, GLdouble right, GLdouble bottom, GLdouble top, GLdouble near_val, GLdouble far_val);
+extern void glFrustum(GLdouble left, GLdouble right, GLdouble bottom, GLdouble top, GLdouble near_val, GLdouble far_val);
 extern void glMultMatrixf(const GLfloat *m);
 extern void glColor3f(GLfloat r, GLfloat g, GLfloat b);
 extern void glColor4f(GLfloat r, GLfloat g, GLfloat b, GLfloat a);
+extern void glColor4fv(const GLfloat *v);
 extern void glNormal3f(GLfloat nx, GLfloat ny, GLfloat nz);
 extern void glBegin(GLenum mode);
 extern void glVertex3f(GLfloat x, GLfloat y, GLfloat z);
+extern void glVertex2i(GLint x, GLint y);
 extern void glEnd(void);
 extern void glClear(GLbitfield mask);
 extern void glEnable(GLenum cap);
 extern void glDisable(GLenum cap);
+extern void glPushAttrib(GLbitfield mask);
+extern void glPopAttrib(void);
+extern void glRasterPos2i(GLint x, GLint y);
+extern void glMaterialfv(GLenum face, GLenum pname, const GLfloat *params);
+extern void glShadeModel(GLenum mode);
+extern void gluPerspective(GLfloat fovy, GLfloat aspect, GLfloat zNear, GLfloat zFar);
+extern void gluLookAt(GLfloat eyex, GLfloat eyey, GLfloat eyez,
+                      GLfloat centerx, GLfloat centery, GLfloat centerz,
+                      GLfloat upx, GLfloat upy, GLfloat upz);
+extern Bool screenhack_event_helper(void *display, void *window, void *event);
+extern double frand(double max);
 #endif
 
 // Common utility functions - use web-specific names to avoid conflicts
@@ -187,5 +216,7 @@ typedef struct {
 #ifndef XK_Next
 #define XK_Next      0xFF56
 #endif
+
+// These constants should be available, but define them if missing
 
 #endif /* XLOCKMORE_WEB_H */

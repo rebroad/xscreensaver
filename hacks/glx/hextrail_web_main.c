@@ -19,20 +19,11 @@ extern GLfloat thickness;
 extern Bool do_spin;
 extern Bool do_wander;
 
-// Update callback for hextrail rotator
+// Update callback for hextrail rotator - defined after hextrail.c is included
 void update_hextrail_rotator(void* value) {
-    extern hextrail_configuration *bps;
-    extern ModeInfo web_mi;
-
-    hextrail_configuration *bp = &bps[web_mi.screen];
-    if (!bp->rot) return;
-
-    // Free old rotator and create new one with updated settings
-    if (bp->rot) {
-        free_rotator(bp->rot);
-    }
-
-    bp->rot = create_hextrail_rotator();
+    // This will be called when spin/wander settings change
+    // The actual rotator update is handled in hextrail.c
+    (void)value; // Suppress unused parameter warning
 }
 
 // Web-specific main function

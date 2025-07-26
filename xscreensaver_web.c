@@ -13,8 +13,96 @@
 #include <string.h>
 #include <math.h>
 #include <emscripten/emscripten.h>
-#include "screenhackI.h"
 #include "xlockmore_web.h"
+
+// Missing OpenGL constants that might not be defined
+#ifndef GL_COLOR_BUFFER_BIT
+#define GL_COLOR_BUFFER_BIT 0x00004000
+#endif
+
+#ifndef GL_DEPTH_BUFFER_BIT
+#define GL_DEPTH_BUFFER_BIT 0x00000100
+#endif
+
+#ifndef GL_DEPTH_TEST
+#define GL_DEPTH_TEST 0x0B71
+#endif
+
+#ifndef GL_TRIANGLES
+#define GL_TRIANGLES 0x0004
+#endif
+
+#ifndef GL_ARRAY_BUFFER
+#define GL_ARRAY_BUFFER 0x8892
+#endif
+
+#ifndef GL_STATIC_DRAW
+#define GL_STATIC_DRAW 0x88E4
+#endif
+
+#ifndef GL_FLOAT
+#define GL_FLOAT 0x1406
+#endif
+
+#ifndef GL_FALSE
+#define GL_FALSE 0
+#endif
+
+#ifndef GL_VERTEX_SHADER
+#define GL_VERTEX_SHADER 0x8B31
+#endif
+
+#ifndef GL_FRAGMENT_SHADER
+#define GL_FRAGMENT_SHADER 0x8B30
+#endif
+
+#ifndef GL_COMPILE_STATUS
+#define GL_COMPILE_STATUS 0x8B81
+#endif
+
+#ifndef GL_LINK_STATUS
+#define GL_LINK_STATUS 0x8B82
+#endif
+
+#ifndef GL_NO_ERROR
+#define GL_NO_ERROR 0
+#endif
+
+#ifndef GL_MODELVIEW
+#define GL_MODELVIEW 0x1700
+#endif
+
+#ifndef GL_PROJECTION
+#define GL_PROJECTION 0x1701
+#endif
+
+#ifndef GL_LIGHTING
+#define GL_LIGHTING 0x0B50
+#endif
+
+#ifndef GL_ALL_ATTRIB_BITS
+#define GL_ALL_ATTRIB_BITS 0x000FFFFF
+#endif
+
+#ifndef GL_QUADS
+#define GL_QUADS 0x0007
+#endif
+
+#ifndef GL_FRONT
+#define GL_FRONT 0x0404
+#endif
+
+#ifndef GL_AMBIENT_AND_DIFFUSE
+#define GL_AMBIENT_AND_DIFFUSE 0x1602
+#endif
+
+#ifndef GL_SMOOTH
+#define GL_SMOOTH 0x1D01
+#endif
+
+#ifndef GL_NORMALIZE
+#define GL_NORMALIZE 0x0BA1
+#endif
 
 // Web-specific type definitions
 #ifndef Bool
@@ -213,42 +301,7 @@ static Bool gltrackball_event_handler(XEvent* event, void* tb,
 }
 
 // Web wrapper initialization function
-EMSCRIPTEN_KEEPALIVE
-int xscreensaver_web_init(
-    void (*init_func)(ModeInfo *mi),
-    void (*draw_func)(ModeInfo *mi),
-    void (*reshape_func)(ModeInfo *mi, int width, int height),
-    void (*free_func)(ModeInfo *mi),
-    Bool (*handle_event_func)(ModeInfo *mi, XEvent *event)
-) {
-    // Initialize web-specific ModeInfo
-    static ModeInfo web_mi = {0};
-    web_mi.display = NULL;  // Not used in web
-    web_mi.window = NULL;   // Not used in web
-    web_mi.visual = NULL;   // Not used in web
-    web_mi.colormap = 0;    // Not used in web
-    web_mi.screen = 0;      // Single screen for web
-    web_mi.screen_number = 0;  // Single screen for web
-    web_mi.batchcount = 1;     // Single instance for web
-    web_mi.wireframe_p = 0;    // No wireframe for web
-    web_mi.polygon_count = 0;  // Initialize polygon counter
-    web_mi.fps_p = 0;          // Will be set by resource system
-    web_mi.dpy = NULL;         // Display pointer (alias)
-    web_mi.xgwa.width = 800;   // Default width
-    web_mi.xgwa.height = 600;  // Default height
-    web_mi.xgwa.visual = NULL; // Visual (not used in web)
 
-    // Store function pointers for later use
-    // (In a real implementation, these would be stored globally)
-
-    // Initialize the hack
-    init_func(&web_mi);
-
-    // Set up the web canvas and start rendering loop
-    // This is a simplified version - real implementation would be more complex
-
-    return 0; // Success
-}
 
 // Web implementations of missing functions
 void MI_INIT(ModeInfo *mi, void *bps) {
@@ -293,23 +346,6 @@ typedef struct {
 static web_fps_state web_fps_state_var = {0};
 
 // Generic UI control system
-typedef enum {
-    WEB_PARAM_FLOAT,
-    WEB_PARAM_INT,
-    WEB_PARAM_BOOL
-} web_param_type;
-
-typedef struct {
-    const char* name;
-    const char* display_name;
-    web_param_type type;
-    void* variable;
-    void (*update_callback)(void*);
-    double min_value;
-    double max_value;
-    double step_value;
-} web_parameter;
-
 #define MAX_WEB_PARAMETERS 20
 static web_parameter web_parameters[MAX_WEB_PARAMETERS];
 static int web_parameter_count = 0;
@@ -785,7 +821,7 @@ void glScalef(GLfloat x, GLfloat y, GLfloat z) {
     matrix_scale(&stack->stack[stack->top], x, y, z);
 }
 
-void glOrtho(GLfloat left, GLfloat right, GLfloat bottom, GLfloat top, GLfloat near_val, GLfloat far_val) {
+void glOrtho(GLdouble left, GLdouble right, GLdouble bottom, GLdouble top, GLdouble near_val, GLdouble far_val) {
     MatrixStack *stack = get_current_matrix_stack();
 
     // Create orthographic projection matrix
@@ -806,7 +842,7 @@ void glOrtho(GLfloat left, GLfloat right, GLfloat bottom, GLfloat top, GLfloat n
     matrix_multiply(&stack->stack[stack->top], &ortho, &stack->stack[stack->top]);
 }
 
-void glFrustum(GLfloat left, GLfloat right, GLfloat bottom, GLfloat top, GLfloat near_val, GLfloat far_val) {
+void glFrustum(GLdouble left, GLdouble right, GLdouble bottom, GLdouble top, GLdouble near_val, GLdouble far_val) {
     MatrixStack *stack = get_current_matrix_stack();
 
     // Create perspective projection matrix
@@ -1156,6 +1192,189 @@ void xscreensaver_web_cleanup() {
         emscripten_webgl_destroy_context(webgl_context);
         webgl_context = -1;
     }
+}
+
+// Missing OpenGL functions
+void glPushAttrib(GLbitfield mask) {
+    // WebGL doesn't support attribute stacks, so this is a no-op
+    (void)mask;
+}
+
+void glPopAttrib(void) {
+    // WebGL doesn't support attribute stacks, so this is a no-op
+}
+
+void glRasterPos2i(GLint x, GLint y) {
+    // WebGL doesn't support raster position, so this is a no-op
+    (void)x;
+    (void)y;
+}
+
+void glVertex2i(GLint x, GLint y) {
+    // Convert to 3D by adding z=0
+    glVertex3f((GLfloat)x, (GLfloat)y, 0.0f);
+}
+
+void glColor4fv(const GLfloat *v) {
+    glColor4f(v[0], v[1], v[2], v[3]);
+}
+
+void glMaterialfv(GLenum face, GLenum pname, const GLfloat *params) {
+    // WebGL doesn't support materials, so this is a no-op
+    (void)face;
+    (void)pname;
+    (void)params;
+}
+
+void glShadeModel(GLenum mode) {
+    // WebGL doesn't support shade model, so this is a no-op
+    (void)mode;
+}
+
+void gluPerspective(GLfloat fovy, GLfloat aspect, GLfloat zNear, GLfloat zFar) {
+    GLfloat xmin, xmax, ymin, ymax;
+
+    ymax = zNear * tan(fovy * M_PI / 360.0f);
+    ymin = -ymax;
+    xmin = ymin * aspect;
+    xmax = ymax * aspect;
+
+    glFrustum(xmin, xmax, ymin, ymax, zNear, zFar);
+}
+
+void gluLookAt(GLfloat eyex, GLfloat eyey, GLfloat eyez,
+               GLfloat centerx, GLfloat centery, GLfloat centerz,
+               GLfloat upx, GLfloat upy, GLfloat upz) {
+    GLfloat m[16];
+    GLfloat x[3], y[3], z[3];
+    GLfloat mag;
+
+    /* Make rotation matrix */
+
+    /* Z vector */
+    z[0] = eyex - centerx;
+    z[1] = eyey - centery;
+    z[2] = eyez - centerz;
+    mag = sqrt(z[0] * z[0] + z[1] * z[1] + z[2] * z[2]);
+    if (mag) {
+        z[0] /= mag;
+        z[1] /= mag;
+        z[2] /= mag;
+    }
+
+    /* Y vector */
+    y[0] = upx;
+    y[1] = upy;
+    y[2] = upz;
+
+    /* X vector = Y cross Z */
+    x[0] = y[1] * z[2] - y[2] * z[1];
+    x[1] = -y[0] * z[2] + y[2] * z[0];
+    x[2] = y[0] * z[1] - y[1] * z[0];
+
+    /* Recompute Y = Z cross X */
+    y[0] = z[1] * x[2] - z[2] * x[1];
+    y[1] = -z[0] * x[2] + z[2] * x[0];
+    y[2] = z[0] * x[1] - z[1] * x[0];
+
+    /* cross product gives area of parallelogram, which is < 1.0 for
+     * non-perpendicular unit vectors; so normalize x, y here
+     */
+
+    mag = sqrt(x[0] * x[0] + x[1] * x[1] + x[2] * x[2]);
+    if (mag) {
+        x[0] /= mag;
+        x[1] /= mag;
+        x[2] /= mag;
+    }
+
+    mag = sqrt(y[0] * y[0] + y[1] * y[1] + y[2] * y[2]);
+    if (mag) {
+        y[0] /= mag;
+        y[1] /= mag;
+        y[2] /= mag;
+    }
+
+#define M(row,col)  m[col*4+row]
+    M(0,0) = x[0];  M(0,1) = x[1];  M(0,2) = x[2];  M(0,3) = 0.0;
+    M(1,0) = y[0];  M(1,1) = y[1];  M(1,2) = y[2];  M(1,3) = 0.0;
+    M(2,0) = z[0];  M(2,1) = z[1];  M(2,2) = z[2];  M(2,3) = 0.0;
+    M(3,0) = 0.0;   M(3,1) = 0.0;   M(3,2) = 0.0;   M(3,3) = 1.0;
+#undef M
+    glMultMatrixf(m);
+
+    /* Translate Eye to Origin */
+    glTranslatef(-eyex, -eyey, -eyez);
+}
+
+Bool screenhack_event_helper(void *display, void *window, void *event) {
+    // Web stub - events are handled differently in web environment
+    (void)display;
+    (void)window;
+    (void)event;
+    return False;
+}
+
+// Missing X11 function for web builds
+int XLookupString(XKeyEvent *event_struct, char *buffer_return, int bytes_buffer, KeySym *keysym_return, XComposeStatus *status_in_out) {
+    // Web stub - return empty string for now
+    if (buffer_return && bytes_buffer > 0) {
+        buffer_return[0] = '\0';
+    }
+    if (keysym_return) *keysym_return = 0;
+    return 0;
+}
+
+// Web-specific function exports for UI controls (using generic system)
+EMSCRIPTEN_KEEPALIVE
+void set_speed(GLfloat new_speed) {
+    web_set_parameter("speed", (double)new_speed);
+}
+
+EMSCRIPTEN_KEEPALIVE
+void set_thickness(GLfloat new_thickness) {
+    web_set_parameter("thickness", (double)new_thickness);
+}
+
+EMSCRIPTEN_KEEPALIVE
+void set_spin(int new_spin_enabled) {
+    web_set_parameter("spin", (double)new_spin_enabled);
+}
+
+EMSCRIPTEN_KEEPALIVE
+void set_wander(int new_wander_enabled) {
+    web_set_parameter("wander", (double)new_wander_enabled);
+}
+
+EMSCRIPTEN_KEEPALIVE
+void handle_mouse_drag(int delta_x, int delta_y) {
+    // This would need to be implemented per-hack
+    (void)delta_x;
+    (void)delta_y;
+}
+
+EMSCRIPTEN_KEEPALIVE
+void handle_mouse_wheel(int delta) {
+    // This would need to be implemented per-hack
+    (void)delta;
+}
+
+EMSCRIPTEN_KEEPALIVE
+void handle_keypress(int keycode, int charcode) {
+    // This would need to be implemented per-hack
+    (void)keycode;
+    (void)charcode;
+}
+
+// Random number generation for hextrail
+static unsigned int random_seed = 1;
+static unsigned int webgl_random() {
+    random_seed = random_seed * 1103515245 + 12345;
+    return (random_seed >> 16) & 0x7fff;
+}
+
+double frand(double max) {
+    return ((double)webgl_random() / 32767.0) * max;
 }
 
 
