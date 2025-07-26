@@ -413,7 +413,7 @@ static void handle_arm_out(config *bp, hexagon *h0, arm *a0, int j) {
 	hexagon *h1 = get_hex(bp, neighbor(h0->x, h0->y, j, NULL, NULL));
 	arm *a1 = &h1->arms[(j + 3) % 6];
 	a1->state = IN;
-	a1->ratio = a0->ratio - 1;
+	a1->ratio = 0;
 	a1->speed = a0->speed;
 	h0->doing--; h1->doing++;
 	a0->state = DONE;
@@ -429,15 +429,14 @@ static void handle_arm_out(config *bp, hexagon *h0, arm *a0, int j) {
 static void handle_arm_in(config *bp, hexagon *h0, arm *a0, int j) {
   a0->ratio += a0->speed * speed;
   if (a0->ratio >= 1) {
-	h0->doing = 0;
 	/* Just finished growing from edge to center.  Look for any available exits. */
+	h0->doing = 0;
 	if (add_arms(bp, h0)) {
 	  a0->state = DONE;
 	  a0->ratio = 1;
 	} else { // nub grow
 	  a0->state = WAIT;
 	  a0->ratio = ((a0->ratio - 1) * 5) + 1; a0->speed *= 5;
-	  h0->doing = 1;
 	}
   } else if (a0->ratio >= 0.9 && a0->speed < 0.2 && (a0->speed > 0.1 || !exits(bp, h0))) {
 	//DL(2, "%s: %d,%d speed=%f->", __func__, h0->x, h0->y, a0->speed);
@@ -450,7 +449,6 @@ static void handle_nub_grow(config *bp, hexagon *h0, arm *a0, int j) {
   a0->ratio += a0->speed * (2 - a0->ratio);
   if (a0->ratio >= 1.999) {
 	a0->state = DONE;
-	h0->doing = 0;
 	a0->ratio = 1;
   }
 }
@@ -631,7 +629,7 @@ static void tick_hexagons (ModeInfo *mi) {
 		h0->doing, iters, fails, h0->x, h0->y);
 	  fails = 0;
 	  h0->ccolor = random() % bp->ncolors;
-	  h0->state = DONE;
+	  h0->state = IN;
 	  started = True;
 	  if (new_hex) bp->pause_until = bp->now + 5;
 	} else {
