@@ -440,103 +440,6 @@ double web_get_parameter_step(int index) {
     return 0.1;
 }
 
-// Web-compatible FPS display function that integrates with existing FPS system
-void do_fps(ModeInfo *mi) {
-    // This function should be called by hacks that want to display FPS
-    // It will use the existing FPS system if available, or provide a web fallback
-
-    // Check if FPS is enabled via the resource system
-    if (!mi || !mi->fps_p) return;
-
-    // Initialize FPS state if needed
-    if (web_fps_state_var.last_frame_time == 0.0) {
-        web_fps_state_var.last_frame_time = emscripten_get_now() / 1000.0;
-        web_fps_state_var.last_fps_update_time = web_fps_state_var.last_frame_time;
-        web_fps_state_var.frame_count = 0;
-        web_fps_state_var.current_fps = 0.0;
-        web_fps_state_var.current_load = 0.0;
-        web_fps_state_var.current_polys = 0;
-        web_fps_state_var.target_frame_time = 1.0 / 30.0;  // Default to 30 FPS target
-        web_fps_state_var.total_idle_time = 0.0;
-        web_fps_state_var.last_idle_start = 0.0;
-    }
-
-    // Get current time
-    double current_time = emscripten_get_now() / 1000.0;
-    double frame_time = current_time - web_fps_state_var.last_frame_time;
-
-    // Update frame count
-    web_fps_state_var.frame_count++;
-
-    // Calculate FPS and load every second
-    if (current_time - web_fps_state_var.last_fps_update_time >= 1.0) {
-        double update_interval = current_time - web_fps_state_var.last_fps_update_time;
-        web_fps_state_var.current_fps = web_fps_state_var.frame_count / update_interval;
-
-        // Calculate load based on idle time
-        // Load = (1 - idle_time/total_time) * 100
-        double total_time = update_interval;
-        double idle_time = web_fps_state_var.total_idle_time;
-        web_fps_state_var.current_load = fmax(0.0, fmin(100.0, (1.0 - idle_time / total_time) * 100.0));
-
-        // Get polygon count from ModeInfo
-        web_fps_state_var.current_polys = mi->polygon_count;
-
-        // Reset counters
-        web_fps_state_var.frame_count = 0;
-        web_fps_state_var.last_fps_update_time = current_time;
-        web_fps_state_var.total_idle_time = 0.0;
-    }
-
-    // Track idle time if we're ahead of target frame rate
-    if (frame_time < web_fps_state_var.target_frame_time) {
-        double idle_time = web_fps_state_var.target_frame_time - frame_time;
-        web_fps_state_var.total_idle_time += idle_time;
-    }
-
-    web_fps_state_var.last_frame_time = current_time;
-
-    // Save OpenGL state
-    glPushAttrib(GL_ALL_ATTRIB_BITS);
-    glMatrixMode(GL_PROJECTION);
-    glPushMatrix();
-    glLoadIdentity();
-    glOrtho(0, MI_WIDTH(mi), 0, MI_HEIGHT(mi), -1, 1);
-    glMatrixMode(GL_MODELVIEW);
-    glPushMatrix();
-    glLoadIdentity();
-
-    // Disable depth testing for 2D overlay
-    glDisable(GL_DEPTH_TEST);
-    glDisable(GL_LIGHTING);
-    glDisable(GL_TEXTURE_2D);
-
-    // Set up text rendering
-    glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
-
-    // Position text in bottom left (matching native behavior)
-    int x = 10;
-    int y = MI_HEIGHT(mi) - 10 - 14 * 3; // 3 lines of text, 14px height
-
-    // Display actual FPS values
-    char fps_text[256];
-    snprintf(fps_text, sizeof(fps_text), "FPS: %.1f", web_fps_state_var.current_fps);
-    render_text_simple(x, y, fps_text);
-
-    snprintf(fps_text, sizeof(fps_text), "Load: %.1f%%", web_fps_state_var.current_load);
-    render_text_simple(x, y - 14, fps_text);
-
-    snprintf(fps_text, sizeof(fps_text), "Polys: %d", web_fps_state_var.current_polys);
-    render_text_simple(x, y - 28, fps_text);
-
-    // Restore OpenGL state
-    glPopMatrix();
-    glMatrixMode(GL_PROJECTION);
-    glPopMatrix();
-    glMatrixMode(GL_MODELVIEW);
-    glPopAttrib();
-}
-
 // Function to set the target frame rate for FPS calculations
 void web_fps_set_target(double target_fps) {
     if (target_fps > 0.0) {
@@ -722,214 +625,6 @@ static void init_shaders() {
     }
 }
 
-// Immediate mode OpenGL function implementations
-void glMatrixMode(GLenum mode) {
-    current_matrix_mode = mode;
-}
-
-void glLoadIdentity(void) {
-    MatrixStack *stack = get_current_matrix_stack();
-    matrix_identity(&stack->stack[stack->top]);
-}
-
-void glPushMatrix(void) {
-    MatrixStack *stack = get_current_matrix_stack();
-    if (stack->top < MAX_MATRIX_STACK_DEPTH - 1) {
-        stack->top++;
-        stack->stack[stack->top] = stack->stack[stack->top - 1];
-    }
-}
-
-void glPopMatrix(void) {
-    MatrixStack *stack = get_current_matrix_stack();
-    if (stack->top > 0) {
-        stack->top--;
-    }
-}
-
-void glTranslatef(GLfloat x, GLfloat y, GLfloat z) {
-    MatrixStack *stack = get_current_matrix_stack();
-    matrix_translate(&stack->stack[stack->top], x, y, z);
-}
-
-void glRotatef(GLfloat angle, GLfloat x, GLfloat y, GLfloat z) {
-    MatrixStack *stack = get_current_matrix_stack();
-    matrix_rotate(&stack->stack[stack->top], angle, x, y, z);
-}
-
-void glScalef(GLfloat x, GLfloat y, GLfloat z) {
-    MatrixStack *stack = get_current_matrix_stack();
-    matrix_scale(&stack->stack[stack->top], x, y, z);
-}
-
-void glFrustum(GLdouble left, GLdouble right, GLdouble bottom, GLdouble top, GLdouble near_val, GLdouble far_val) {
-    MatrixStack *stack = get_current_matrix_stack();
-
-    // Create perspective projection matrix
-    Matrix4f frustum;
-    matrix_identity(&frustum);
-
-    GLfloat a = (right + left) / (right - left);
-    GLfloat b = (top + bottom) / (top - bottom);
-    GLfloat c = -(far_val + near_val) / (far_val - near_val);
-    GLfloat d = -(2 * far_val * near_val) / (far_val - near_val);
-
-    frustum.m[0] = 2 * near_val / (right - left);
-    frustum.m[5] = 2 * near_val / (top - bottom);
-    frustum.m[8] = a;
-    frustum.m[9] = b;
-    frustum.m[10] = c;
-    frustum.m[11] = -1;
-    frustum.m[14] = d;
-    frustum.m[15] = 0;
-
-    matrix_multiply(&stack->stack[stack->top], &stack->stack[stack->top], &frustum);
-}
-
-void glMultMatrixf(const GLfloat *m) {
-    Matrix4f matrix;
-    for (int i = 0; i < 16; i++) {
-        matrix.m[i] = m[i];
-    }
-
-    MatrixStack *stack = get_current_matrix_stack();
-    matrix_multiply(&stack->stack[stack->top], &stack->stack[stack->top], &matrix);
-}
-
-void glColor3f(GLfloat r, GLfloat g, GLfloat b) {
-    current_color.r = r;
-    current_color.g = g;
-    current_color.b = b;
-    current_color.a = 1.0f;
-}
-
-void glColor4f(GLfloat r, GLfloat g, GLfloat b, GLfloat a) {
-    current_color.r = r;
-    current_color.g = g;
-    current_color.b = b;
-    current_color.a = a;
-}
-
-void glNormal3f(GLfloat nx, GLfloat ny, GLfloat nz) {
-    current_normal.x = nx;
-    current_normal.y = ny;
-    current_normal.z = nz;
-}
-
-void glBegin(GLenum mode) {
-    immediate.in_begin_end = True;
-    immediate.primitive_type = mode;
-    immediate.vertex_count = 0;
-}
-
-void glVertex3f(GLfloat x, GLfloat y, GLfloat z) {
-    if (!immediate.in_begin_end) return;
-
-    if (immediate.vertex_count >= MAX_VERTICES) {
-        printf("WARNING: Vertex limit reached (%d), dropping vertex!\n", MAX_VERTICES);
-        return;
-    }
-
-    immediate.vertices[immediate.vertex_count].x = x;
-    immediate.vertices[immediate.vertex_count].y = y;
-    immediate.vertices[immediate.vertex_count].z = z;
-    immediate.colors[immediate.vertex_count] = current_color;
-    immediate.normals[immediate.vertex_count] = current_normal;
-    immediate.vertex_count++;
-    total_vertices_this_frame++;
-}
-
-void glEnd(void) {
-    if (!immediate.in_begin_end || immediate.vertex_count == 0) {
-        immediate.in_begin_end = False;
-        return;
-    }
-
-    // Use our WebGL 2.0 shader program
-    glUseProgram(shader_program);
-
-    // Set up projection matrix
-    GLint projection_loc = glGetUniformLocation(shader_program, "projection");
-    if (projection_loc != -1) {
-        glUniformMatrix4fv(projection_loc, 1, GL_FALSE, projection_stack.stack[projection_stack.top].m);
-    }
-
-    // Set up modelview matrix
-    GLint modelview_loc = glGetUniformLocation(shader_program, "modelview");
-    if (modelview_loc != -1) {
-        glUniformMatrix4fv(modelview_loc, 1, GL_FALSE, modelview_stack.stack[modelview_stack.top].m);
-    }
-
-    // Create and bind VBOs
-    GLuint vbo_vertices, vbo_colors, vbo_normals;
-    glGenBuffers(1, &vbo_vertices);
-    glGenBuffers(1, &vbo_colors);
-    glGenBuffers(1, &vbo_normals);
-
-    glBindBuffer(GL_ARRAY_BUFFER, vbo_vertices);
-    glBufferData(GL_ARRAY_BUFFER, immediate.vertex_count * sizeof(Vertex3f), immediate.vertices, GL_STATIC_DRAW);
-
-    glBindBuffer(GL_ARRAY_BUFFER, vbo_colors);
-    glBufferData(GL_ARRAY_BUFFER, immediate.vertex_count * sizeof(Color4f), immediate.colors, GL_STATIC_DRAW);
-
-    glBindBuffer(GL_ARRAY_BUFFER, vbo_normals);
-    glBufferData(GL_ARRAY_BUFFER, immediate.vertex_count * sizeof(Normal3f), immediate.normals, GL_STATIC_DRAW);
-
-    // Set up vertex attributes
-    glBindBuffer(GL_ARRAY_BUFFER, vbo_vertices);
-    GLint pos_attrib = glGetAttribLocation(shader_program, "position");
-    if (pos_attrib != -1) {
-        glEnableVertexAttribArray(pos_attrib);
-        glVertexAttribPointer(pos_attrib, 3, GL_FLOAT, GL_FALSE, 0, 0);
-    }
-
-    glBindBuffer(GL_ARRAY_BUFFER, vbo_colors);
-    GLint color_attrib = glGetAttribLocation(shader_program, "color");
-    if (color_attrib != -1) {
-        glEnableVertexAttribArray(color_attrib);
-        glVertexAttribPointer(color_attrib, 4, GL_FLOAT, GL_FALSE, 0, 0);
-    }
-
-    glBindBuffer(GL_ARRAY_BUFFER, vbo_normals);
-    GLint normal_attrib = glGetAttribLocation(shader_program, "normal");
-    if (normal_attrib != -1) {
-        glEnableVertexAttribArray(normal_attrib);
-        glVertexAttribPointer(normal_attrib, 3, GL_FLOAT, GL_FALSE, 0, 0);
-    }
-
-    // Draw
-    glDrawArrays(immediate.primitive_type, 0, immediate.vertex_count);
-
-    // Cleanup
-    glDeleteBuffers(1, &vbo_vertices);
-    glDeleteBuffers(1, &vbo_colors);
-    glDeleteBuffers(1, &vbo_normals);
-
-    immediate.in_begin_end = False;
-}
-
-// Additional OpenGL functions
-void glClear(GLbitfield mask) {
-    if (mask & GL_COLOR_BUFFER_BIT) {
-        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-    }
-    if (mask & GL_DEPTH_BUFFER_BIT) {
-        glClear(GL_DEPTH_BUFFER_BIT);
-    }
-}
-
-void glEnable(GLenum cap) {
-    if (cap == GL_DEPTH_TEST) {
-        glEnable(GL_DEPTH_TEST);
-    }
-}
-
-void glDisable(GLenum cap) {
-    if (cap == GL_DEPTH_TEST) {
-        glDisable(GL_DEPTH_TEST);
-    }
-}
-
 // WebGL context handle
 static EMSCRIPTEN_WEBGL_CONTEXT_HANDLE webgl_context = -1;
 
@@ -971,6 +666,11 @@ void main_loop(void) {
     }
 }
 
+// Immediate mode OpenGL function implementations
+void glMatrixMode(GLenum mode) {
+    current_matrix_mode = mode;
+}
+
 void glOrtho(GLdouble left, GLdouble right, GLdouble bottom, GLdouble top, GLdouble near_val, GLdouble far_val) {
     MatrixStack *stack = get_current_matrix_stack();
 
@@ -992,6 +692,10 @@ void glOrtho(GLdouble left, GLdouble right, GLdouble bottom, GLdouble top, GLdou
     matrix_multiply(&stack->stack[stack->top], &ortho, &stack->stack[stack->top]);
 }
 
+void glLoadIdentity(void) {
+    MatrixStack *stack = get_current_matrix_stack();
+    matrix_identity(&stack->stack[stack->top]);
+}
 // Initialize WebGL context and OpenGL state
 static int init_webgl() {
     EmscriptenWebGLContextAttributes attrs;
@@ -1222,6 +926,14 @@ void xscreensaver_web_cleanup() {
     }
 }
 
+Bool screenhack_event_helper(void *display, void *window, void *event) {
+    // Web stub - events are handled differently in web environment
+    (void)display;
+    (void)window;
+    (void)event;
+    return False;
+}
+
 // Missing OpenGL functions
 void glPushAttrib(GLbitfield mask) {
     // WebGL doesn't support attribute stacks, so this is a no-op
@@ -1230,6 +942,16 @@ void glPushAttrib(GLbitfield mask) {
 
 void glPopAttrib(void) {
     // WebGL doesn't support attribute stacks, so this is a no-op
+}
+
+// Missing X11 function for web builds
+int XLookupString(XKeyEvent *event_struct, char *buffer_return, int bytes_buffer, KeySym *keysym_return, XComposeStatus *status_in_out) {
+    // Web stub - return empty string for now
+    if (buffer_return && bytes_buffer > 0) {
+        buffer_return[0] = '\0';
+    }
+    if (keysym_return) *keysym_return = 0;
+    return 0;
 }
 
 void glRasterPos2i(GLint x, GLint y) {
@@ -1241,17 +963,6 @@ void glRasterPos2i(GLint x, GLint y) {
 void glVertex2i(GLint x, GLint y) {
     // Convert to 3D by adding z=0
     glVertex3f((GLfloat)x, (GLfloat)y, 0.0f);
-}
-
-void glColor4fv(const GLfloat *v) {
-    glColor4f(v[0], v[1], v[2], v[3]);
-}
-
-void glMaterialfv(GLenum face, GLenum pname, const GLfloat *params) {
-    // WebGL doesn't support materials, so this is a no-op
-    (void)face;
-    (void)pname;
-    (void)params;
 }
 
 void glShadeModel(GLenum mode) {
@@ -1335,20 +1046,308 @@ void gluLookAt(GLfloat eyex, GLfloat eyey, GLfloat eyez,
     glTranslatef(-eyex, -eyey, -eyez);
 }
 
-Bool screenhack_event_helper(void *display, void *window, void *event) {
-    // Web stub - events are handled differently in web environment
-    (void)display;
-    (void)window;
-    (void)event;
-    return False;
+void glPushMatrix(void) {
+    MatrixStack *stack = get_current_matrix_stack();
+    if (stack->top < MAX_MATRIX_STACK_DEPTH - 1) {
+        stack->top++;
+        stack->stack[stack->top] = stack->stack[stack->top - 1];
+    }
 }
 
-// Missing X11 function for web builds
-int XLookupString(XKeyEvent *event_struct, char *buffer_return, int bytes_buffer, KeySym *keysym_return, XComposeStatus *status_in_out) {
-    // Web stub - return empty string for now
-    if (buffer_return && bytes_buffer > 0) {
-        buffer_return[0] = '\0';
+void glPopMatrix(void) {
+    MatrixStack *stack = get_current_matrix_stack();
+    if (stack->top > 0) {
+        stack->top--;
     }
-    if (keysym_return) *keysym_return = 0;
-    return 0;
+}
+
+void glTranslatef(GLfloat x, GLfloat y, GLfloat z) {
+    MatrixStack *stack = get_current_matrix_stack();
+    matrix_translate(&stack->stack[stack->top], x, y, z);
+}
+
+void glRotatef(GLfloat angle, GLfloat x, GLfloat y, GLfloat z) {
+    MatrixStack *stack = get_current_matrix_stack();
+    matrix_rotate(&stack->stack[stack->top], angle, x, y, z);
+}
+
+void glScalef(GLfloat x, GLfloat y, GLfloat z) {
+    MatrixStack *stack = get_current_matrix_stack();
+    matrix_scale(&stack->stack[stack->top], x, y, z);
+}
+
+void glNormal3f(GLfloat nx, GLfloat ny, GLfloat nz) {
+    current_normal.x = nx;
+    current_normal.y = ny;
+    current_normal.z = nz;
+}
+
+void glColor3f(GLfloat r, GLfloat g, GLfloat b) {
+    current_color.r = r;
+    current_color.g = g;
+    current_color.b = b;
+    current_color.a = 1.0f;
+}
+
+void glColor4f(GLfloat r, GLfloat g, GLfloat b, GLfloat a) {
+    current_color.r = r;
+    current_color.g = g;
+    current_color.b = b;
+    current_color.a = a;
+}
+
+void glColor4fv(const GLfloat *v) {
+    glColor4f(v[0], v[1], v[2], v[3]);
+}
+
+void glMaterialfv(GLenum face, GLenum pname, const GLfloat *params) {
+    // WebGL doesn't support materials, so this is a no-op
+    (void)face;
+    (void)pname;
+    (void)params;
+}
+
+void glVertex3f(GLfloat x, GLfloat y, GLfloat z) {
+    if (!immediate.in_begin_end) return;
+
+    if (immediate.vertex_count >= MAX_VERTICES) {
+        printf("WARNING: Vertex limit reached (%d), dropping vertex!\n", MAX_VERTICES);
+        return;
+    }
+
+    immediate.vertices[immediate.vertex_count].x = x;
+    immediate.vertices[immediate.vertex_count].y = y;
+    immediate.vertices[immediate.vertex_count].z = z;
+    immediate.colors[immediate.vertex_count] = current_color;
+    immediate.normals[immediate.vertex_count] = current_normal;
+    immediate.vertex_count++;
+    total_vertices_this_frame++;
+}
+
+void glBegin(GLenum mode) {
+    immediate.in_begin_end = True;
+    immediate.primitive_type = mode;
+    immediate.vertex_count = 0;
+}
+
+void glEnd(void) {
+    if (!immediate.in_begin_end || immediate.vertex_count == 0) {
+        immediate.in_begin_end = False;
+        return;
+    }
+
+    // Use our WebGL 2.0 shader program
+    glUseProgram(shader_program);
+
+    // Set up projection matrix
+    GLint projection_loc = glGetUniformLocation(shader_program, "projection");
+    if (projection_loc != -1) {
+        glUniformMatrix4fv(projection_loc, 1, GL_FALSE, projection_stack.stack[projection_stack.top].m);
+    }
+
+    // Set up modelview matrix
+    GLint modelview_loc = glGetUniformLocation(shader_program, "modelview");
+    if (modelview_loc != -1) {
+        glUniformMatrix4fv(modelview_loc, 1, GL_FALSE, modelview_stack.stack[modelview_stack.top].m);
+    }
+
+    // Create and bind VBOs
+    GLuint vbo_vertices, vbo_colors, vbo_normals;
+    glGenBuffers(1, &vbo_vertices);
+    glGenBuffers(1, &vbo_colors);
+    glGenBuffers(1, &vbo_normals);
+
+    glBindBuffer(GL_ARRAY_BUFFER, vbo_vertices);
+    glBufferData(GL_ARRAY_BUFFER, immediate.vertex_count * sizeof(Vertex3f), immediate.vertices, GL_STATIC_DRAW);
+
+    glBindBuffer(GL_ARRAY_BUFFER, vbo_colors);
+    glBufferData(GL_ARRAY_BUFFER, immediate.vertex_count * sizeof(Color4f), immediate.colors, GL_STATIC_DRAW);
+
+    glBindBuffer(GL_ARRAY_BUFFER, vbo_normals);
+    glBufferData(GL_ARRAY_BUFFER, immediate.vertex_count * sizeof(Normal3f), immediate.normals, GL_STATIC_DRAW);
+
+    // Set up vertex attributes
+    glBindBuffer(GL_ARRAY_BUFFER, vbo_vertices);
+    GLint pos_attrib = glGetAttribLocation(shader_program, "position");
+    if (pos_attrib != -1) {
+        glEnableVertexAttribArray(pos_attrib);
+        glVertexAttribPointer(pos_attrib, 3, GL_FLOAT, GL_FALSE, 0, 0);
+    }
+
+    glBindBuffer(GL_ARRAY_BUFFER, vbo_colors);
+    GLint color_attrib = glGetAttribLocation(shader_program, "color");
+    if (color_attrib != -1) {
+        glEnableVertexAttribArray(color_attrib);
+        glVertexAttribPointer(color_attrib, 4, GL_FLOAT, GL_FALSE, 0, 0);
+    }
+
+    glBindBuffer(GL_ARRAY_BUFFER, vbo_normals);
+    GLint normal_attrib = glGetAttribLocation(shader_program, "normal");
+    if (normal_attrib != -1) {
+        glEnableVertexAttribArray(normal_attrib);
+        glVertexAttribPointer(normal_attrib, 3, GL_FLOAT, GL_FALSE, 0, 0);
+    }
+
+    // Draw
+    glDrawArrays(immediate.primitive_type, 0, immediate.vertex_count);
+
+    // Cleanup
+    glDeleteBuffers(1, &vbo_vertices);
+    glDeleteBuffers(1, &vbo_colors);
+    glDeleteBuffers(1, &vbo_normals);
+
+    immediate.in_begin_end = False;
+}
+
+void glFrustum(GLdouble left, GLdouble right, GLdouble bottom, GLdouble top, GLdouble near_val, GLdouble far_val) {
+    MatrixStack *stack = get_current_matrix_stack();
+
+    // Create perspective projection matrix
+    Matrix4f frustum;
+    matrix_identity(&frustum);
+
+    GLfloat a = (right + left) / (right - left);
+    GLfloat b = (top + bottom) / (top - bottom);
+    GLfloat c = -(far_val + near_val) / (far_val - near_val);
+    GLfloat d = -(2 * far_val * near_val) / (far_val - near_val);
+
+    frustum.m[0] = 2 * near_val / (right - left);
+    frustum.m[5] = 2 * near_val / (top - bottom);
+    frustum.m[8] = a;
+    frustum.m[9] = b;
+    frustum.m[10] = c;
+    frustum.m[11] = -1;
+    frustum.m[14] = d;
+    frustum.m[15] = 0;
+
+    matrix_multiply(&stack->stack[stack->top], &stack->stack[stack->top], &frustum);
+}
+
+void glMultMatrixf(const GLfloat *m) {
+    Matrix4f matrix;
+    for (int i = 0; i < 16; i++) {
+        matrix.m[i] = m[i];
+    }
+
+    MatrixStack *stack = get_current_matrix_stack();
+    matrix_multiply(&stack->stack[stack->top], &stack->stack[stack->top], &matrix);
+}
+
+// Additional OpenGL functions
+void glClear(GLbitfield mask) {
+    if (mask & GL_COLOR_BUFFER_BIT) {
+        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+    }
+    if (mask & GL_DEPTH_BUFFER_BIT) {
+        glClear(GL_DEPTH_BUFFER_BIT);
+    }
+}
+
+void glEnable(GLenum cap) {
+    if (cap == GL_DEPTH_TEST) {
+        glEnable(GL_DEPTH_TEST);
+    }
+}
+
+void glDisable(GLenum cap) {
+    if (cap == GL_DEPTH_TEST) {
+        glDisable(GL_DEPTH_TEST);
+    }
+}
+
+// Web-compatible FPS display function that integrates with existing FPS system
+void do_fps(ModeInfo *mi) {
+    // This function should be called by hacks that want to display FPS
+    // It will use the existing FPS system if available, or provide a web fallback
+
+    // Check if FPS is enabled via the resource system
+    if (!mi || !mi->fps_p) return;
+
+    // Initialize FPS state if needed
+    if (web_fps_state_var.last_frame_time == 0.0) {
+        web_fps_state_var.last_frame_time = emscripten_get_now() / 1000.0;
+        web_fps_state_var.last_fps_update_time = web_fps_state_var.last_frame_time;
+        web_fps_state_var.frame_count = 0;
+        web_fps_state_var.current_fps = 0.0;
+        web_fps_state_var.current_load = 0.0;
+        web_fps_state_var.current_polys = 0;
+        web_fps_state_var.target_frame_time = 1.0 / 30.0;  // Default to 30 FPS target
+        web_fps_state_var.total_idle_time = 0.0;
+        web_fps_state_var.last_idle_start = 0.0;
+    }
+
+    // Get current time
+    double current_time = emscripten_get_now() / 1000.0;
+    double frame_time = current_time - web_fps_state_var.last_frame_time;
+
+    // Update frame count
+    web_fps_state_var.frame_count++;
+
+    // Calculate FPS and load every second
+    if (current_time - web_fps_state_var.last_fps_update_time >= 1.0) {
+        double update_interval = current_time - web_fps_state_var.last_fps_update_time;
+        web_fps_state_var.current_fps = web_fps_state_var.frame_count / update_interval;
+
+        // Calculate load based on idle time
+        // Load = (1 - idle_time/total_time) * 100
+        double total_time = update_interval;
+        double idle_time = web_fps_state_var.total_idle_time;
+        web_fps_state_var.current_load = fmax(0.0, fmin(100.0, (1.0 - idle_time / total_time) * 100.0));
+
+        // Get polygon count from ModeInfo
+        web_fps_state_var.current_polys = mi->polygon_count;
+
+        // Reset counters
+        web_fps_state_var.frame_count = 0;
+        web_fps_state_var.last_fps_update_time = current_time;
+        web_fps_state_var.total_idle_time = 0.0;
+    }
+
+    // Track idle time if we're ahead of target frame rate
+    if (frame_time < web_fps_state_var.target_frame_time) {
+        double idle_time = web_fps_state_var.target_frame_time - frame_time;
+        web_fps_state_var.total_idle_time += idle_time;
+    }
+
+    web_fps_state_var.last_frame_time = current_time;
+
+    // Save OpenGL state
+    glPushAttrib(GL_ALL_ATTRIB_BITS);
+    glMatrixMode(GL_PROJECTION);
+    glPushMatrix();
+    glLoadIdentity();
+    glOrtho(0, MI_WIDTH(mi), 0, MI_HEIGHT(mi), -1, 1);
+    glMatrixMode(GL_MODELVIEW);
+    glPushMatrix();
+    glLoadIdentity();
+
+    // Disable depth testing for 2D overlay
+    glDisable(GL_DEPTH_TEST);
+    glDisable(GL_LIGHTING);
+    glDisable(GL_TEXTURE_2D);
+
+    // Set up text rendering
+    glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
+
+    // Position text in bottom left (matching native behavior)
+    int x = 10;
+    int y = MI_HEIGHT(mi) - 10 - 14 * 3; // 3 lines of text, 14px height
+
+    // Display actual FPS values
+    char fps_text[256];
+    snprintf(fps_text, sizeof(fps_text), "FPS: %.1f", web_fps_state_var.current_fps);
+    render_text_simple(x, y, fps_text);
+
+    snprintf(fps_text, sizeof(fps_text), "Load: %.1f%%", web_fps_state_var.current_load);
+    render_text_simple(x, y - 14, fps_text);
+
+    snprintf(fps_text, sizeof(fps_text), "Polys: %d", web_fps_state_var.current_polys);
+    render_text_simple(x, y - 28, fps_text);
+
+    // Restore OpenGL state
+    glPopMatrix();
+    glMatrixMode(GL_PROJECTION);
+    glPopMatrix();
+    glMatrixMode(GL_MODELVIEW);
+    glPopAttrib();
 }
