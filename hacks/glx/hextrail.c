@@ -984,7 +984,8 @@ static void tick_hexagons (ModeInfo *mi) {
     bp->debug = bp->now;
   }
 
-  /* Start a new cell growing.  */
+  /* Start a new cell growing.
+   */
   Bool new_hex = False, started = False;
   static int fails = 0;
   if ((doinga - ignorea) <= 0) {
@@ -1407,86 +1408,39 @@ ENTRYPOINT void reshape_hextrail(ModeInfo *mi, int width, int height) {
 }
 
 ENTRYPOINT Bool hextrail_handle_event(ModeInfo *mi,
-#ifdef USE_SDL
-        SDL_Event *event
-#else // USE_SDL
-        XEvent *event
-#endif // else USE_SDL
-        ) {
+        XEvent *event) {
   config *bp = &bps[MI_SCREEN(mi)];
 
   if (gltrackball_event_handler (event, bp->trackball,
-#ifdef USE_SDL
-              bp->window_width, bp->window_height, &bp->button_down_p)) {
-#else
               MI_WIDTH(mi), MI_HEIGHT(mi), &bp->button_down_p)) {
-#endif
     if (bp->fade_speed > 0) {
       bp->fade_speed = -bp->fade_speed;
     }
     return True;
   }
-#ifdef USE_SDL
-  else if (event->type == SDL_EVENT_KEY_DOWN) {
-    SDL_Keycode keysym = event->key.key;
-    char c = (char)event->key.key;
-
-    /* Additional SDL3 event handling if needed */
-    switch (event->key.key) {
-      /* Map special keys to their character equivalents for consistent handling */
-      case SDLK_ESCAPE:  c = '\033'; break;
-      case SDLK_RETURN:  c = '\r'; break;
-      case SDLK_TAB:     c = '\t'; break;
-      case SDLK_SPACE:   c = ' '; break;
-      default: break;
-    }
-#else // USE_SDL
   else if (event->xany.type == KeyPress) {
     KeySym keysym;
     char c = 0;
     XLookupString (&event->xkey, &c, 1, &keysym, 0);
-#endif // else USE_SDL
 
     if (c == '\t' || c == '\r' || c == '\n') ;
     else if (c == '>' || c == '.' ||
-#ifdef USE_SDL
-            keysym == SDLK_UP || keysym == SDLK_PAGEDOWN
-#else // USE_SDL
-            keysym == XK_Up || keysym == XK_Next
-#endif // else USE_SDL
-            ) {
+            keysym == XK_Up || keysym == XK_Next) {
       MI_COUNT(mi)--;
       if (MI_COUNT(mi) < 1) MI_COUNT(mi) = 1;
       bp->size = MI_COUNT(mi) * 2;
       scale_corners(mi);
-    } else if (
-#ifdef USE_SDL
-            keysym == SDLK_RIGHT
-#else
-            keysym == XK_Right
-#endif
-            ) {
+    } else if ( keysym == XK_Right) {
       speed *= 2;
       if (speed > 20) speed = 20;
       printf("%s: speed = %f -> %f\n", __func__, speed/2, speed);
-    } else if (
-#ifdef USE_SDL
-            keysym == SDLK_LEFT
-#else
-            keysym == XK_Left
-#endif
-      ) {
+    } else if (keysym == XK_Left) {
       speed /= 2;
       if (speed < 0.0001) speed = 0.0001;
       printf("%s: speed = %f -> %f\n", __func__, speed*2, speed);
     } else if (c == '<' || c == ',' || c == '_' ||
                c == '\010' || c == '\177' ||
-#ifdef USE_SDL
-            keysym == SDLK_DOWN || keysym == SDLK_PAGEUP
-#else
-            keysym == XK_Down || keysym == XK_Prior
-#endif
-            ) {
+            keysym == XK_Down || keysym == XK_Prior) {
       MI_COUNT(mi)++;
       bp->size = MI_COUNT(mi) * 2;
       scale_corners(mi);
@@ -1521,37 +1475,7 @@ ENTRYPOINT Bool hextrail_handle_event(ModeInfo *mi,
         printf("%s: pausing = %d hexagons=%d\n", __func__, pausing, bp->total_hexagons);
       }
     }
-#ifdef USE_SDL
-    else if (event->type == SDL_EVENT_QUIT)
-      return True;
-    else if (event->type == SDL_EVENT_WINDOW_CLOSE_REQUESTED) {
-      /* Handle window close event in SDL3 */
-      return True;
-    }
-    else if (event->type == SDL_EVENT_WINDOW_RESIZED ||
-             event->type == SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED ||
-             event->type == SDL_EVENT_WINDOW_MAXIMIZED ||
-             event->type == SDL_EVENT_WINDOW_RESTORED) {
-      /* Handle window resize in SDL3 */
-      int width, height;
-
-      /* Get the actual window size from SDL */
-      if (SDL_GetWindowSizeInPixels(bp->window, &width, &height) == 0) {
-        /* Update window dimensions */
-        bp->window_width = width;
-        bp->window_height = height;
-        reshape_hextrail(mi, width, height);
-      } else {
-        /* Fallback if SDL_GetWindowSizeInPixels fails */
-        bp->window_width = event->window.data1;
-        bp->window_height = event->window.data2;
-        reshape_hextrail(mi, event->window.data1, event->window.data2);
-      }
-    }
-    else if (screenhack_event_helper (mi, bp->window, event))
-#else // USE_SDL
     else if (screenhack_event_helper (MI_DISPLAY(mi), MI_WINDOW(mi), event))
-#endif // else USE_SDL
       return True;
     else return False;
 
