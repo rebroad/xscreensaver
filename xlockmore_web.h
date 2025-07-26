@@ -10,25 +10,46 @@
 #include "jwxyz.h"
 #include <math.h>
 
-// Essential macros and definitions
+// Essential macros and definitions - only if not already defined
+#ifndef ENTRYPOINT
 #define ENTRYPOINT
+#endif
+
+#ifndef XSCREENSAVER_MODULE
 #define XSCREENSAVER_MODULE(name, func)
+#endif
 
 // Common xscreensaver types and macros
-// ModeInfo is already defined in xscreensaver_web.c
+// ModeInfo is defined in xscreensaver_web.c
 
-// Common function declarations
-extern void do_fps(ModeInfo *mi);
-extern Bool screenhack_event_helper(void *display, void *window, void *event);
+// Common function declarations - these are already declared in real headers
+// No need to redeclare them here
+
+// Trackball function declarations for web builds
+#ifndef GLTRACKBALL_DECLARED
+#define GLTRACKBALL_DECLARED
+// Trackball functions are defined in xscreensaver_web.c
+extern void* gltrackball_init(int ignore_device_rotation_p);
+extern void gltrackball_free(void* tb);
+extern void gltrackball_reset(void* tb, GLfloat x, GLfloat y);
+extern void gltrackball_rotate(void* tb);
+extern Bool gltrackball_event_handler(XEvent* event, void* tb, 
+                                     int window_width, int window_height,
+                                     Bool* button_down_p);
+#endif
+
+// Additional function declarations needed for web builds
+#ifndef WEB_FUNCTIONS_DECLARED
+#define WEB_FUNCTIONS_DECLARED
+extern void MI_INIT(ModeInfo *mi, void *bps);
 extern GLXContext *init_GL(ModeInfo *mi);
+extern void do_fps(ModeInfo *mi);
+#endif
 
-// Common utility functions
-extern double frand(double max);
-// random() is already defined in stdlib.h
+// Common utility functions - use web-specific names to avoid conflicts
+// web_frand removed - not implemented in wrapper
 
-// Missing types and macros
-// XrmOptionDescRec is already defined in jwxyz.h
-
+// Type definitions needed for web builds
 typedef struct {
     void *var;
     char *name;
@@ -39,7 +60,7 @@ typedef struct {
 
 typedef struct {
     int count;
-    XrmOptionDescRec *opts;
+    void *opts;  // XrmOptionDescRec* - simplified for web
     int vars_count;
     argtype *vars;
     char *desc;
@@ -48,23 +69,61 @@ typedef struct {
 // Type constants
 #define t_Bool 1
 #define t_Float 2
+#define t_Int 3
+#define t_String 4
 
-// Utility macros
+// Utility macros - only if not already defined
+#ifndef countof
 #define countof(arr) (sizeof(arr) / sizeof((arr)[0]))
+#endif
 
-// Missing ModeInfo macros
+// Missing ModeInfo macros - only if not already defined
+#ifndef MI_IS_WIREFRAME
 #define MI_IS_WIREFRAME(mi) 0
+#endif
+#ifndef MI_WINDOW
 #define MI_WINDOW(mi) ((mi)->window)
+#endif
+#ifndef MI_DISPLAY
 #define MI_DISPLAY(mi) ((mi)->display)
+#endif
+#ifndef MI_VISUAL
 #define MI_VISUAL(mi) ((mi)->visual)
+#endif
+#ifndef MI_COLORMAP
 #define MI_COLORMAP(mi) ((mi)->colormap)
+#endif
+#ifndef MI_SCREEN
+#define MI_SCREEN(mi) ((mi)->screen_number)
+#endif
+#ifndef MI_COUNT
+#define MI_COUNT(mi) ((mi)->batchcount)
+#endif
+#ifndef MI_WIDTH
+#define MI_WIDTH(mi) ((mi)->xgwa.width)
+#endif
+#ifndef MI_HEIGHT
+#define MI_HEIGHT(mi) ((mi)->xgwa.height)
+#endif
 
-// Common constants
+// Common constants - only if not already defined
+#ifndef XK_Up
 #define XK_Up        0xFF52
+#endif
+#ifndef XK_Down
 #define XK_Down      0xFF54
+#endif
+#ifndef XK_Left
 #define XK_Left      0xFF51
+#endif
+#ifndef XK_Right
 #define XK_Right     0xFF53
+#endif
+#ifndef XK_Prior
 #define XK_Prior     0xFF55
+#endif
+#ifndef XK_Next
 #define XK_Next      0xFF56
+#endif
 
 #endif /* XLOCKMORE_WEB_H */ 

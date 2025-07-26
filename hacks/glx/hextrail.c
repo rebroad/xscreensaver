@@ -20,11 +20,14 @@
 #ifndef WEB_BUILD
 #include "xlockmore.h"
 #endif
-#include "fpsI.h"
 #include "colors.h"
 #include "normals.h"
 #include "rotator.h"
+#ifdef WEB_BUILD
+// Trackball functions are provided by xscreensaver_web.c
+#else
 #include "gltrackball.h"
+#endif
 #include <ctype.h>
 
 // Rotator constants
@@ -70,7 +73,11 @@ typedef struct {
   GLdouble model[16], proj[16];
   GLint viewport[4];
   rotator *rot;
+#ifdef WEB_BUILD
+  web_trackball_state *trackball;
+#else
   trackball_state *trackball;
+#endif
   Bool button_down_p;
   time_t now, pause_until, debug;
 
@@ -292,8 +299,7 @@ static Bool hex_invis(config *bp, int x, int y, GLfloat *rad) {
   GLdouble winX, winY, winZ;
 
   /* Project point to screen coordinates */
-  gluProject((GLdouble)pos.x, (GLdouble)pos.y, (GLdouble)pos.z,
-			 bp->model, bp->proj, bp->viewport, &winX, &winY, &winZ);
+  gluProject(pos.x, pos.y, pos.z, bp->model, bp->proj, bp->viewport, &winX, &winY, &winZ);
 
   static time_t debug = 0;
   if (debug != bp->now) {
@@ -1063,24 +1069,6 @@ free_hextrail (ModeInfo *mi)
 	free(bp->chunks);
   }
 }
-
-#ifdef WEB_BUILD
-// Function to update rotator when spin/wander settings change
-void update_hextrail_rotator(void) {
-	extern hextrail_configuration *bps;
-	extern ModeInfo web_mi;
-
-	hextrail_configuration *bp = &bps[web_mi.screen];
-	if (!bp->rot) return;
-
-	// Free old rotator and create new one with updated settings
-	if (bp->rot) {
-		free_rotator(bp->rot);
-	}
-
-	bp->rot = create_hextrail_rotator();
-}
-#endif
 
 XSCREENSAVER_MODULE ("HexTrail", hextrail)
 
