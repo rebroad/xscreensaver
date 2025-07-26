@@ -43,6 +43,13 @@ typedef struct {
     // Add other fields as needed
 } ModeInfo;
 
+// Generic UI control system types
+typedef enum {
+    WEB_PARAM_FLOAT,
+    WEB_PARAM_INT,
+    WEB_PARAM_BOOL
+} web_param_type;
+
 // Common xscreensaver types and macros
 // ModeInfo is now defined above
 
@@ -64,6 +71,41 @@ extern GLXContext *init_GL(ModeInfo *mi);
 extern void do_fps(ModeInfo *mi);
 extern void render_text_simple(int x, int y, const char* text);
 extern void web_fps_set_target(double target_fps);
+
+// Generic UI control system
+extern void register_web_parameter(const char* name, const char* display_name, web_param_type type, 
+                                  void* variable, void (*update_callback)(void*),
+                                  double min_value, double max_value, double step_value);
+extern void web_set_parameter(const char* name, double value);
+extern int web_get_parameter_count();
+extern const char* web_get_parameter_name(int index);
+extern const char* web_get_parameter_display_name(int index);
+extern int web_get_parameter_type(int index);
+extern double web_get_parameter_value(int index);
+extern double web_get_parameter_min(int index);
+extern double web_get_parameter_max(int index);
+extern double web_get_parameter_step(int index);
+
+// Immediate mode OpenGL functions
+extern void glMatrixMode(GLenum mode);
+extern void glLoadIdentity(void);
+extern void glPushMatrix(void);
+extern void glPopMatrix(void);
+extern void glTranslatef(GLfloat x, GLfloat y, GLfloat z);
+extern void glRotatef(GLfloat angle, GLfloat x, GLfloat y, GLfloat z);
+extern void glScalef(GLfloat x, GLfloat y, GLfloat z);
+extern void glOrtho(GLfloat left, GLfloat right, GLfloat bottom, GLfloat top, GLfloat near_val, GLfloat far_val);
+extern void glFrustum(GLfloat left, GLfloat right, GLfloat bottom, GLfloat top, GLfloat near_val, GLfloat far_val);
+extern void glMultMatrixf(const GLfloat *m);
+extern void glColor3f(GLfloat r, GLfloat g, GLfloat b);
+extern void glColor4f(GLfloat r, GLfloat g, GLfloat b, GLfloat a);
+extern void glNormal3f(GLfloat nx, GLfloat ny, GLfloat nz);
+extern void glBegin(GLenum mode);
+extern void glVertex3f(GLfloat x, GLfloat y, GLfloat z);
+extern void glEnd(void);
+extern void glClear(GLbitfield mask);
+extern void glEnable(GLenum cap);
+extern void glDisable(GLenum cap);
 #endif
 
 // Common utility functions - use web-specific names to avoid conflicts
