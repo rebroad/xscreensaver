@@ -19,8 +19,32 @@
 #define XSCREENSAVER_MODULE(name, func)
 #endif
 
+// ModeInfo structure for web builds - define this first so it's available everywhere
+typedef struct {
+    void *display;
+    void *window;       // Changed to pointer to match jwxyz expectations
+    void *visual;
+    unsigned long colormap;
+    int screen;
+    int screen_number;  // Added for MI_SCREEN macro
+    int batchcount;     // Added for MI_COUNT macro
+    int wireframe_p;    // Added for MI_IS_WIREFRAME macro
+    int polygon_count;  // Added for polygon counting
+    int fps_p;          // Added for FPS display
+
+    // Additional fields needed by real XScreenSaver headers
+    void *dpy;          // Display pointer (alias for display)
+    struct {
+        int width;
+        int height;
+        void *visual;
+    } xgwa;             // XGetWindowAttributes structure
+
+    // Add other fields as needed
+} ModeInfo;
+
 // Common xscreensaver types and macros
-// ModeInfo is defined in xscreensaver_web.c
+// ModeInfo is now defined above
 
 // Common function declarations - these are already declared in real headers
 // No need to redeclare them here
@@ -33,7 +57,7 @@ extern void* gltrackball_init(int ignore_device_rotation_p);
 extern void gltrackball_free(void* tb);
 extern void gltrackball_reset(void* tb, GLfloat x, GLfloat y);
 extern void gltrackball_rotate(void* tb);
-extern Bool gltrackball_event_handler(XEvent* event, void* tb, 
+extern Bool gltrackball_event_handler(XEvent* event, void* tb,
                                      int window_width, int window_height,
                                      Bool* button_down_p);
 #endif
@@ -44,7 +68,17 @@ extern Bool gltrackball_event_handler(XEvent* event, void* tb,
 extern void MI_INIT(ModeInfo *mi, void *bps);
 extern GLXContext *init_GL(ModeInfo *mi);
 extern void do_fps(ModeInfo *mi);
+extern void render_text_simple(int x, int y, const char* text);
 #endif
+
+// FPS display constants and macros
+#define FPS_X_OFFSET 10
+#define FPS_Y_OFFSET 10
+#define FPS_FONT_SIZE 14
+#define FPS_COLOR_R 1.0f
+#define FPS_COLOR_G 1.0f
+#define FPS_COLOR_B 1.0f
+#define FPS_COLOR_A 1.0f
 
 // Common utility functions - use web-specific names to avoid conflicts
 // web_frand removed - not implemented in wrapper
@@ -126,4 +160,4 @@ typedef struct {
 #define XK_Next      0xFF56
 #endif
 
-#endif /* XLOCKMORE_WEB_H */ 
+#endif /* XLOCKMORE_WEB_H */
