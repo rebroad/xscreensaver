@@ -15,91 +15,81 @@
 #include <emscripten/emscripten.h>
 #include "xlockmore_web.h"
 
-// Missing OpenGL constants that might not be defined
+// Random number generation for color functions
+static unsigned int random_seed = 1;
+static unsigned int webgl_random() {
+    random_seed = random_seed * 1103515245 + 12345;
+    return (random_seed >> 16) & 0x7fff;
+}
+
+double frand(double max) {
+    return ((double)webgl_random() / 32767.0) * max;
+}
+
+// OpenGL constants that might be missing
 #ifndef GL_COLOR_BUFFER_BIT
 #define GL_COLOR_BUFFER_BIT 0x00004000
 #endif
-
 #ifndef GL_DEPTH_BUFFER_BIT
 #define GL_DEPTH_BUFFER_BIT 0x00000100
 #endif
-
 #ifndef GL_DEPTH_TEST
 #define GL_DEPTH_TEST 0x0B71
 #endif
-
 #ifndef GL_TRIANGLES
 #define GL_TRIANGLES 0x0004
 #endif
-
 #ifndef GL_ARRAY_BUFFER
 #define GL_ARRAY_BUFFER 0x8892
 #endif
-
 #ifndef GL_STATIC_DRAW
 #define GL_STATIC_DRAW 0x88E4
 #endif
-
 #ifndef GL_FLOAT
 #define GL_FLOAT 0x1406
 #endif
-
 #ifndef GL_FALSE
 #define GL_FALSE 0
 #endif
-
 #ifndef GL_VERTEX_SHADER
 #define GL_VERTEX_SHADER 0x8B31
 #endif
-
 #ifndef GL_FRAGMENT_SHADER
 #define GL_FRAGMENT_SHADER 0x8B30
 #endif
-
 #ifndef GL_COMPILE_STATUS
 #define GL_COMPILE_STATUS 0x8B81
 #endif
-
 #ifndef GL_LINK_STATUS
 #define GL_LINK_STATUS 0x8B82
 #endif
-
 #ifndef GL_NO_ERROR
 #define GL_NO_ERROR 0
 #endif
-
 #ifndef GL_MODELVIEW
 #define GL_MODELVIEW 0x1700
 #endif
-
 #ifndef GL_PROJECTION
 #define GL_PROJECTION 0x1701
 #endif
-
 #ifndef GL_LIGHTING
 #define GL_LIGHTING 0x0B50
 #endif
-
 #ifndef GL_ALL_ATTRIB_BITS
 #define GL_ALL_ATTRIB_BITS 0x000FFFFF
 #endif
-
 #ifndef GL_QUADS
 #define GL_QUADS 0x0007
 #endif
-
 #ifndef GL_FRONT
 #define GL_FRONT 0x0404
 #endif
-
 #ifndef GL_AMBIENT_AND_DIFFUSE
 #define GL_AMBIENT_AND_DIFFUSE 0x1602
 #endif
-
 #ifndef GL_SMOOTH
 #define GL_SMOOTH 0x1D01
 #endif
-
 #ifndef GL_NORMALIZE
 #define GL_NORMALIZE 0x0BA1
 #endif
@@ -316,18 +306,6 @@ void MI_INIT(ModeInfo *mi, void *bps) {
     mi->xgwa.width = 800;
     mi->xgwa.height = 600;
     mi->xgwa.visual = NULL;
-}
-
-GLXContext *init_GL(ModeInfo *mi) {
-    // Initialize OpenGL context for web
-    // This is a simplified version - in a real implementation,
-    // you would set up the WebGL context here
-    static GLXContext context = NULL;
-    if (!context) {
-        // Create a dummy context for web builds
-        context = (GLXContext)malloc(sizeof(void*));
-    }
-    return &context;
 }
 
 // Web-specific FPS tracking state
@@ -582,13 +560,10 @@ void render_text_simple(int x, int y, const char* text) {
     glEnd();
 }
 
-// WebGL 2.0 shader program
-static GLuint shader_program = 0;
-static GLuint vertex_shader = 0;
-static GLuint fragment_shader = 0;
-
 // Matrix stack management
 #define MAX_MATRIX_STACK_DEPTH 32
+#define MAX_VERTICES 100000
+
 typedef struct {
     GLfloat m[16];
 } Matrix4f;
@@ -598,13 +573,6 @@ typedef struct {
     int top;
 } MatrixStack;
 
-static MatrixStack modelview_stack;
-static MatrixStack projection_stack;
-static MatrixStack texture_stack;
-static GLenum current_matrix_mode = GL_MODELVIEW;
-
-// Immediate mode state
-#define MAX_VERTICES 100000
 typedef struct {
     GLfloat x, y, z;
 } Vertex3f;
@@ -626,10 +594,19 @@ typedef struct {
     Bool in_begin_end;
 } ImmediateMode;
 
+static MatrixStack modelview_stack;
+static MatrixStack projection_stack;
+static MatrixStack texture_stack;
+static GLenum current_matrix_mode = GL_MODELVIEW;
 static ImmediateMode immediate;
 static Color4f current_color = {1.0f, 1.0f, 1.0f, 1.0f};
-static Normal3f current_normal = {0.0f, 0.0f, 1.0f};
 static int total_vertices_this_frame = 0;
+static Normal3f current_normal = {0.0f, 0.0f, 1.0f};
+
+// WebGL shader program
+static GLuint shader_program = 0;
+static GLuint vertex_shader = 0;
+static GLuint fragment_shader = 0;
 
 // Matrix utility functions
 static void matrix_identity(Matrix4f *m) {
@@ -683,19 +660,6 @@ static void matrix_scale(Matrix4f *m, GLfloat x, GLfloat y, GLfloat z) {
     scale.m[5] = y;
     scale.m[10] = z;
     matrix_multiply(m, m, &scale);
-}
-
-static MatrixStack* get_current_matrix_stack(void) {
-    switch (current_matrix_mode) {
-        case GL_MODELVIEW:
-            return &modelview_stack;
-        case GL_PROJECTION:
-            return &projection_stack;
-        case GL_TEXTURE:
-            return &texture_stack;
-        default:
-            return &modelview_stack;
-    }
 }
 
 // WebGL 2.0 shader compilation
@@ -758,29 +722,6 @@ static void init_shaders() {
     }
 }
 
-// Initialize OpenGL state
-static void init_opengl_state() {
-    // Initialize matrix stacks
-    matrix_identity(&modelview_stack.stack[0]);
-    matrix_identity(&projection_stack.stack[0]);
-    matrix_identity(&texture_stack.stack[0]);
-    modelview_stack.top = 0;
-    projection_stack.top = 0;
-    texture_stack.top = 0;
-
-    // Initialize immediate mode
-    immediate.in_begin_end = False;
-    immediate.vertex_count = 0;
-
-    // Initialize shaders
-    init_shaders();
-
-    // Set up basic OpenGL state
-    glEnable(GL_DEPTH_TEST);
-    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-}
-
 // Immediate mode OpenGL function implementations
 void glMatrixMode(GLenum mode) {
     current_matrix_mode = mode;
@@ -819,27 +760,6 @@ void glRotatef(GLfloat angle, GLfloat x, GLfloat y, GLfloat z) {
 void glScalef(GLfloat x, GLfloat y, GLfloat z) {
     MatrixStack *stack = get_current_matrix_stack();
     matrix_scale(&stack->stack[stack->top], x, y, z);
-}
-
-void glOrtho(GLdouble left, GLdouble right, GLdouble bottom, GLdouble top, GLdouble near_val, GLdouble far_val) {
-    MatrixStack *stack = get_current_matrix_stack();
-
-    // Create orthographic projection matrix
-    Matrix4f ortho;
-    matrix_identity(&ortho);
-
-    GLfloat tx = -(right + left) / (right - left);
-    GLfloat ty = -(top + bottom) / (top - bottom);
-    GLfloat tz = -(far_val + near_val) / (far_val - near_val);
-
-    ortho.m[0] = 2.0f / (right - left);
-    ortho.m[5] = 2.0f / (top - bottom);
-    ortho.m[10] = -2.0f / (far_val - near_val);
-    ortho.m[12] = tx;
-    ortho.m[13] = ty;
-    ortho.m[14] = tz;
-
-    matrix_multiply(&stack->stack[stack->top], &ortho, &stack->stack[stack->top]);
 }
 
 void glFrustum(GLdouble left, GLdouble right, GLdouble bottom, GLdouble top, GLdouble near_val, GLdouble far_val) {
@@ -1051,6 +971,27 @@ void main_loop(void) {
     }
 }
 
+void glOrtho(GLdouble left, GLdouble right, GLdouble bottom, GLdouble top, GLdouble near_val, GLdouble far_val) {
+    MatrixStack *stack = get_current_matrix_stack();
+
+    // Create orthographic projection matrix
+    Matrix4f ortho;
+    matrix_identity(&ortho);
+
+    GLfloat tx = -(right + left) / (right - left);
+    GLfloat ty = -(top + bottom) / (top - bottom);
+    GLfloat tz = -(far_val + near_val) / (far_val - near_val);
+
+    ortho.m[0] = 2.0f / (right - left);
+    ortho.m[5] = 2.0f / (top - bottom);
+    ortho.m[10] = -2.0f / (far_val - near_val);
+    ortho.m[12] = tx;
+    ortho.m[13] = ty;
+    ortho.m[14] = tz;
+
+    matrix_multiply(&stack->stack[stack->top], &ortho, &stack->stack[stack->top]);
+}
+
 // Initialize WebGL context and OpenGL state
 static int init_webgl() {
     EmscriptenWebGLContextAttributes attrs;
@@ -1085,6 +1026,41 @@ static int init_webgl() {
     init_opengl_state();
 
     return 1;
+}
+
+static MatrixStack* get_current_matrix_stack() {
+    switch (current_matrix_mode) {
+        case GL_MODELVIEW:
+            return &modelview_stack;
+        case GL_PROJECTION:
+            return &projection_stack;
+        case GL_TEXTURE:
+            return &texture_stack;
+        default:
+            return &modelview_stack;
+    }
+}
+
+static void init_opengl_state() {
+    // Initialize matrix stacks
+    matrix_identity(&modelview_stack.stack[0]);
+    matrix_identity(&projection_stack.stack[0]);
+    matrix_identity(&texture_stack.stack[0]);
+    modelview_stack.top = 0;
+    projection_stack.top = 0;
+    texture_stack.top = 0;
+
+    // Initialize immediate mode
+    immediate.in_begin_end = False;
+    immediate.vertex_count = 0;
+
+    // Initialize shaders
+    init_shaders();
+
+    // Set up basic OpenGL state
+    glEnable(GL_DEPTH_TEST);
+    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 }
 
 // Generic web initialization
@@ -1158,7 +1134,27 @@ int xscreensaver_web_init(init_func init, draw_func draw, reshape_func reshape, 
     return 1;
 }
 
-// Web-specific function exports for UI controls
+// Web-specific function exports for UI controls (using generic system)
+EMSCRIPTEN_KEEPALIVE
+void set_speed(GLfloat new_speed) {
+    web_set_parameter("speed", (double)new_speed);
+}
+
+EMSCRIPTEN_KEEPALIVE
+void set_thickness(GLfloat new_thickness) {
+    web_set_parameter("thickness", (double)new_thickness);
+}
+
+EMSCRIPTEN_KEEPALIVE
+void set_spin(int new_spin_enabled) {
+    web_set_parameter("spin", (double)new_spin_enabled);
+}
+
+EMSCRIPTEN_KEEPALIVE
+void set_wander(int new_wander_enabled) {
+    web_set_parameter("wander", (double)new_wander_enabled);
+}
+
 EMSCRIPTEN_KEEPALIVE
 void stop_rendering() {
     rendering_enabled = False;
@@ -1172,6 +1168,26 @@ void start_rendering() {
 }
 
 EMSCRIPTEN_KEEPALIVE
+void handle_mouse_drag(int delta_x, int delta_y) {
+    // This would need to be implemented per-hack
+    (void)delta_x;
+    (void)delta_y;
+}
+
+EMSCRIPTEN_KEEPALIVE
+void handle_mouse_wheel(int delta) {
+    // This would need to be implemented per-hack
+    (void)delta;
+}
+
+EMSCRIPTEN_KEEPALIVE
+void handle_keypress(int keycode, int charcode) {
+    // This would need to be implemented per-hack
+    (void)keycode;
+    (void)charcode;
+}
+
+EMSCRIPTEN_KEEPALIVE
 void reshape_hextrail_wrapper(int width, int height) {
     if (hack_reshape) {
         web_mi.xgwa.width = width;
@@ -1179,6 +1195,18 @@ void reshape_hextrail_wrapper(int width, int height) {
         hack_reshape(&web_mi, width, height);
         printf("Reshaped to %dx%d\n", width, height);
     }
+}
+
+GLXContext *init_GL(ModeInfo *mi) {
+    // Initialize OpenGL context for web
+    // This is a simplified version - in a real implementation,
+    // you would set up the WebGL context here
+    static GLXContext context = NULL;
+    if (!context) {
+        // Create a dummy context for web builds
+        context = (GLXContext)malloc(sizeof(void*));
+    }
+    return &context;
 }
 
 // Cleanup function
@@ -1324,57 +1352,3 @@ int XLookupString(XKeyEvent *event_struct, char *buffer_return, int bytes_buffer
     if (keysym_return) *keysym_return = 0;
     return 0;
 }
-
-// Web-specific function exports for UI controls (using generic system)
-EMSCRIPTEN_KEEPALIVE
-void set_speed(GLfloat new_speed) {
-    web_set_parameter("speed", (double)new_speed);
-}
-
-EMSCRIPTEN_KEEPALIVE
-void set_thickness(GLfloat new_thickness) {
-    web_set_parameter("thickness", (double)new_thickness);
-}
-
-EMSCRIPTEN_KEEPALIVE
-void set_spin(int new_spin_enabled) {
-    web_set_parameter("spin", (double)new_spin_enabled);
-}
-
-EMSCRIPTEN_KEEPALIVE
-void set_wander(int new_wander_enabled) {
-    web_set_parameter("wander", (double)new_wander_enabled);
-}
-
-EMSCRIPTEN_KEEPALIVE
-void handle_mouse_drag(int delta_x, int delta_y) {
-    // This would need to be implemented per-hack
-    (void)delta_x;
-    (void)delta_y;
-}
-
-EMSCRIPTEN_KEEPALIVE
-void handle_mouse_wheel(int delta) {
-    // This would need to be implemented per-hack
-    (void)delta;
-}
-
-EMSCRIPTEN_KEEPALIVE
-void handle_keypress(int keycode, int charcode) {
-    // This would need to be implemented per-hack
-    (void)keycode;
-    (void)charcode;
-}
-
-// Random number generation for hextrail
-static unsigned int random_seed = 1;
-static unsigned int webgl_random() {
-    random_seed = random_seed * 1103515245 + 12345;
-    return (random_seed >> 16) & 0x7fff;
-}
-
-double frand(double max) {
-    return ((double)webgl_random() / 32767.0) * max;
-}
-
-
