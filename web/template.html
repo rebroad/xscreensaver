@@ -213,49 +213,51 @@
             font-size: 12px;
             padding: 10px;
             border: 1px solid #333;
-            overflow-y: auto;
             z-index: 1000;
             display: none;
         }
 
-        /* Left edge resize handle - positioned over the panel but doesn't interfere with content */
-        #debug-panel::before {
-            content: '';
+        #debug-content {
+            width: 100%;
+            height: 100%;
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+
+        /* Left edge resize handle - positioned at the panel edge, not content edge */
+        #debug-panel .left-resize {
             position: absolute;
             left: 0;
             top: 0;
             bottom: 0;
-            width: 8px; /* Wider invisible clickable area */
+            width: 8px;
             background: transparent;
             cursor: ew-resize;
             z-index: 1002;
-            pointer-events: auto;
         }
 
         /* Visual line for left edge */
-        #debug-panel::after {
+        #debug-panel .left-resize::after {
             content: '';
             position: absolute;
-            left: 0;
+            right: 0;
             top: 0;
             bottom: 0;
-            width: 1px; /* Thin visual line */
+            width: 1px;
             background: rgba(128, 128, 128, 0.3);
-            z-index: 1002;
-            pointer-events: none; /* Don't interfere with clicking */
+            pointer-events: none;
         }
 
-        /* Bottom edge resize handle - positioned to avoid scrollbar */
+        /* Bottom edge resize handle - positioned at the panel edge, not content edge */
         #debug-panel .bottom-resize {
             position: absolute;
             left: 0;
             right: 16px; /* Leave space for scrollbar */
             bottom: 0;
-            height: 8px; /* Wider invisible clickable area */
+            height: 8px;
             background: transparent;
             cursor: ns-resize;
             z-index: 1002;
-            pointer-events: auto;
         }
 
         /* Visual line for bottom edge */
@@ -264,11 +266,13 @@
             position: absolute;
             left: 0;
             right: 0;
-            bottom: 0;
-            height: 1px; /* Thin visual line */
+            top: 0;
+            height: 1px;
             background: rgba(128, 128, 128, 0.3);
-            pointer-events: none; /* Don't interfere with clicking */
+            pointer-events: none;
         }
+
+
 
         /* Make the close button sticky */
         #debug-panel > div:first-child {
@@ -395,13 +399,16 @@
 
         <!-- Debug Panel -->
         <div id="debug-panel">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                <h3 style="margin: 0;">Debug Output</h3>
-                <div>
-                    <button onclick="document.getElementById('debug-panel').style.display='none'; document.getElementById('debug-toggle').style.display='block';" style="background: #333; color: white; border: 1px solid #666; padding: 2px 8px; cursor: pointer;">×</button>
+            <div id="debug-content">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                    <h3 style="margin: 0;">Debug Output</h3>
+                    <div>
+                        <button onclick="document.getElementById('debug-panel').style.display='none'; document.getElementById('debug-toggle').style.display='block';" style="background: #333; color: white; border: 1px solid #666; padding: 2px 8px; cursor: pointer;">×</button>
+                    </div>
                 </div>
+                <div id="debug-log"></div>
             </div>
-            <div id="debug-log"></div>
+            <div class="left-resize"></div>
             <div class="bottom-resize"></div>
         </div>
 
