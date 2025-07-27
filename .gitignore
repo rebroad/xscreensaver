@@ -1,0 +1,66 @@
+build_web/
+Makefile
+android/xscreensaver/res/drawable/*.png
+android/xscreensaver/res/values/
+android/xscreensaver/res/xml/
+config.h
+config.log
+config.status
+driver/XScreenSaver.ad
+driver/demo-Gtk-resources.c
+driver/wayland-protocols/*.o
+driver/wayland-protocols/ext-idle-notify-v1-client-protocol.h
+driver/wayland-protocols/ext-idle-notify-v1-protocol.c
+driver/xscreensaver.desktop
+driver/xscreensaver.pam
+driver/xscreensaver.service
+hacks/*.o
+hacks/glx/*.o
+hacks/m6502.h
+hacks/glx/molecules.h
+utils/*.o
+po/Makefile.in
+po/POTFILES
+po/stamp-it
+
+# Autotools build artifacts
+aclocal.m4
+autom4te.cache/
+config.guess
+config.sub
+config.h.in
+config.h.in~
+configure
+configure.old
+configure~
+*.dir/
+build_*/
+
+# IDE/Editor files
+*.code-workspace
+
+# Built binaries
+driver/xscreensaver
+driver/xscreensaver-*
+!driver/xscreensaver-*.c
+hacks/*[!.]
+!hacks/config/
+
+# Build cache
+**/.make_memory_cache
+**/.intltool-merge-cache*
+
+# Node modules
+node_modules/
+package-lock.json
+package.json
+
+# Temporary/backup files
+*~
+*.bak
+*.part*
+
+# Test/debug directories
+*_debug*/
+*_test*/
+*_output*/
