@@ -218,6 +218,58 @@
             display: none;
         }
 
+        /* Left edge resize handle - positioned over the panel but doesn't interfere with content */
+        #debug-panel::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 8px; /* Wider invisible clickable area */
+            background: transparent;
+            cursor: ew-resize;
+            z-index: 1002;
+            pointer-events: auto;
+        }
+
+        /* Visual line for left edge */
+        #debug-panel::after {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 1px; /* Thin visual line */
+            background: rgba(128, 128, 128, 0.3);
+            z-index: 1002;
+            pointer-events: none; /* Don't interfere with clicking */
+        }
+
+        /* Bottom edge resize handle - positioned to avoid scrollbar */
+        #debug-panel .bottom-resize {
+            position: absolute;
+            left: 0;
+            right: 16px; /* Leave space for scrollbar */
+            bottom: 0;
+            height: 8px; /* Wider invisible clickable area */
+            background: transparent;
+            cursor: ns-resize;
+            z-index: 1002;
+            pointer-events: auto;
+        }
+
+        /* Visual line for bottom edge */
+        #debug-panel .bottom-resize::after {
+            content: '';
+            position: absolute;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            height: 1px; /* Thin visual line */
+            background: rgba(128, 128, 128, 0.3);
+            pointer-events: none; /* Don't interfere with clicking */
+        }
+
         /* Make the close button sticky */
         #debug-panel > div:first-child {
             position: sticky;
@@ -350,6 +402,7 @@
                 </div>
             </div>
             <div id="debug-log"></div>
+            <div class="bottom-resize"></div>
         </div>
 
         <!-- Debug Toggle Button -->
@@ -851,6 +904,117 @@
 
         // Fullscreen button
         document.getElementById('fullscreen').addEventListener('click', toggleFullscreen);
+
+        // Debug panel resizing functionality
+        function setupDebugPanelResizing() {
+            var debugPanel = document.getElementById('debug-panel');
+            if (!debugPanel) return;
+
+            var isResizing = false;
+            var resizeType = ''; // 'width' or 'height'
+            var startX = 0;
+            var startY = 0;
+            var startWidth = 0;
+            var startHeight = 0;
+
+            // Mouse down on the left edge (using the ::before pseudo-element)
+            debugPanel.addEventListener('mousedown', function(e) {
+                // Check if click is on the left edge (first 8px)
+                if (e.offsetX <= 8) {
+                    isResizing = true;
+                    resizeType = 'width';
+                    startX = e.clientX;
+                    startWidth = debugPanel.offsetWidth;
+
+                    // Prevent text selection during resize
+                    e.preventDefault();
+
+                    // Add resizing class for visual feedback
+                    debugPanel.style.cursor = 'ew-resize';
+                    debugPanel.style.userSelect = 'none';
+                }
+            });
+
+            // Mouse down on the bottom edge
+            var bottomResize = debugPanel.querySelector('.bottom-resize');
+            if (bottomResize) {
+                bottomResize.addEventListener('mousedown', function(e) {
+                    isResizing = true;
+                    resizeType = 'height';
+                    startY = e.clientY;
+                    startHeight = debugPanel.offsetHeight;
+
+                    // Prevent text selection during resize
+                    e.preventDefault();
+
+                    // Add resizing class for visual feedback
+                    debugPanel.style.cursor = 'ns-resize';
+                    debugPanel.style.userSelect = 'none';
+                });
+            }
+
+            // Mouse move for resizing
+            document.addEventListener('mousemove', function(e) {
+                if (!isResizing) return;
+
+                if (resizeType === 'width') {
+                    var deltaX = startX - e.clientX;
+                    var newWidth = startWidth + deltaX;
+
+                    // Constrain width between 200px and 800px
+                    newWidth = Math.max(200, Math.min(800, newWidth));
+
+                    debugPanel.style.width = newWidth + 'px';
+                } else if (resizeType === 'height') {
+                    var deltaY = e.clientY - startY;
+                    var newHeight = startHeight + deltaY;
+
+                    // Constrain height between 150px and 600px
+                    newHeight = Math.max(150, Math.min(600, newHeight));
+
+                    debugPanel.style.height = newHeight + 'px';
+                }
+
+                // Prevent text selection during resize
+                e.preventDefault();
+            });
+
+            // Mouse up to stop resizing
+            document.addEventListener('mouseup', function() {
+                if (isResizing) {
+                    isResizing = false;
+                    resizeType = '';
+                    debugPanel.style.cursor = '';
+                    debugPanel.style.userSelect = '';
+
+                    // Save the dimensions to localStorage for persistence
+                    localStorage.setItem('debugPanelWidth', debugPanel.offsetWidth);
+                    localStorage.setItem('debugPanelHeight', debugPanel.offsetHeight);
+                }
+            });
+
+            // Restore saved dimensions on page load
+            var savedWidth = localStorage.getItem('debugPanelWidth');
+            if (savedWidth) {
+                var width = parseInt(savedWidth);
+                if (width >= 200 && width <= 800) {
+                    debugPanel.style.width = width + 'px';
+                }
+            }
+
+            var savedHeight = localStorage.getItem('debugPanelHeight');
+            if (savedHeight) {
+                var height = parseInt(savedHeight);
+                if (height >= 150 && height <= 600) {
+                    debugPanel.style.height = height + 'px';
+                }
+            }
+        }
+
+        // Initialize debug panel resizing when the page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            setupDebugPanelResizing();
+        });
     </script>
 
     <!-- This will be replaced by the generated script tag -->
