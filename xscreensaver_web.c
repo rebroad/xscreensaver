@@ -625,6 +625,30 @@ static void init_shaders() {
     }
 }
 
+// ModeInfo structure for web builds - define this first so it's available everywhere
+typedef struct {
+    void *display;
+    void *window;       // Changed to pointer to match jwxyz expectations
+    void *visual;
+    unsigned long colormap;
+    int screen;
+    int screen_number;  // Added for MI_SCREEN macro
+    int batchcount;     // Added for MI_COUNT macro
+    int wireframe_p;    // Added for MI_IS_WIREFRAME macro
+    int polygon_count;  // Added for polygon counting
+    int fps_p;          // Added for FPS display
+
+    // Additional fields needed by real XScreenSaver headers
+    void *dpy;          // Display pointer (alias for display)
+    struct {
+        int width;
+        int height;
+        void *visual;
+    } xgwa;             // XGetWindowAttributes structure
+
+    // Add other fields as needed
+} ModeInfo;
+
 // WebGL context handle
 static EMSCRIPTEN_WEBGL_CONTEXT_HANDLE webgl_context = -1;
 

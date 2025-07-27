@@ -15,38 +15,9 @@
 typedef double GLdouble;
 #endif
 
-// Essential macros and definitions - only if not already defined
-#ifndef ENTRYPOINT
+// Essential macros and definitions
 #define ENTRYPOINT
-#endif
-
-#ifndef XSCREENSAVER_MODULE
 #define XSCREENSAVER_MODULE(name, func)
-#endif
-
-// ModeInfo structure for web builds - define this first so it's available everywhere
-typedef struct {
-    void *display;
-    void *window;       // Changed to pointer to match jwxyz expectations
-    void *visual;
-    unsigned long colormap;
-    int screen;
-    int screen_number;  // Added for MI_SCREEN macro
-    int batchcount;     // Added for MI_COUNT macro
-    int wireframe_p;    // Added for MI_IS_WIREFRAME macro
-    int polygon_count;  // Added for polygon counting
-    int fps_p;          // Added for FPS display
-
-    // Additional fields needed by real XScreenSaver headers
-    void *dpy;          // Display pointer (alias for display)
-    struct {
-        int width;
-        int height;
-        void *visual;
-    } xgwa;             // XGetWindowAttributes structure
-
-    // Add other fields as needed
-} ModeInfo;
 
 // Generic UI control system types
 typedef enum {
