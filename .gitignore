@@ -14,6 +14,12 @@ driver/wayland-protocols/ext-idle-notify-v1-protocol.c
 driver/xscreensaver.desktop
 driver/xscreensaver.pam
 driver/xscreensaver.service
+driver/*.o
+hacks/[a-z]*
+!hacks/glx/
+hacks/glx/[a-z]*
+!hacks/glx/*.?
+!hacks/*.?
 hacks/*.o
 hacks/glx/*.o
 hacks/m6502.h
