@@ -28,8 +28,8 @@ void init_matrix_debug_functions(void);
 // Wrapper function declarations
 void debug_glMatrixMode(GLenum mode);
 void debug_glLoadIdentity(void);
-void debug_glOrtho(GLfloat left, GLfloat right, GLfloat bottom, GLfloat top, GLfloat near_val, GLfloat far_val);
-void debug_glFrustum(GLfloat left, GLfloat right, GLfloat bottom, GLfloat top, GLfloat near_val, GLfloat far_val);
+void debug_glOrtho(GLdouble left, GLdouble right, GLdouble bottom, GLdouble top, GLdouble near_val, GLdouble far_val);
+void debug_glFrustum(GLdouble left, GLdouble right, GLdouble bottom, GLdouble top, GLdouble near_val, GLdouble far_val);
 void debug_glTranslatef(GLfloat x, GLfloat y, GLfloat z);
 void debug_glRotatef(GLfloat angle, GLfloat x, GLfloat y, GLfloat z);
 void debug_glScalef(GLfloat x, GLfloat y, GLfloat z);
@@ -38,8 +38,7 @@ void debug_glPopMatrix(void);
 void debug_glMultMatrixf(const float* m);
 
 // Macro to replace OpenGL calls with debug versions
-// Only enable these for native builds, not WebGL builds
-#ifndef WEB_BUILD
+// Enable these for both native and WebGL builds
 #define glMatrixMode debug_glMatrixMode
 #define glLoadIdentity debug_glLoadIdentity
 #define glOrtho debug_glOrtho
@@ -50,7 +49,6 @@ void debug_glMultMatrixf(const float* m);
 #define glPushMatrix debug_glPushMatrix
 #define glPopMatrix debug_glPopMatrix
 #define glMultMatrixf debug_glMultMatrixf
-#endif
 
 #endif // MATRIX_DEBUG
 

@@ -30,13 +30,22 @@ done
 # Get the repository root directory (same directory as this script)
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Source emsdk environment (adjust path as needed)
-if [ -f "$HOME/src/emsdk/emsdk_env.sh" ]; then
-    source "$HOME/src/emsdk/emsdk_env.sh"
-elif [ -f "$REPO_ROOT/emsdk/emsdk_env.sh" ]; then
-    source "$REPO_ROOT/emsdk/emsdk_env.sh"
+# Check for emcc (Emscripten) first, source emsdk only if needed
+if ! command -v emcc &> /dev/null; then
+    echo -e "${YELLOW}⚠️  emcc not found, trying to source emsdk environment...${NC}"
+
+    # Try to source emsdk environment
+    if [ -f "$HOME/src/emsdk/emsdk_env.sh" ]; then
+        source "$HOME/src/emsdk/emsdk_env.sh"
+        echo -e "${GREEN}✅ Sourced emsdk from $HOME/src/emsdk/emsdk_env.sh${NC}"
+    elif [ -f "$REPO_ROOT/emsdk/emsdk_env.sh" ]; then
+        source "$REPO_ROOT/emsdk/emsdk_env.sh"
+        echo -e "${GREEN}✅ Sourced emsdk from $REPO_ROOT/emsdk/emsdk_env.sh${NC}"
+    else
+        echo -e "${YELLOW}⚠️  emsdk_env.sh not found. Make sure emscripten is in your PATH.${NC}"
+    fi
 else
-    echo "Warning: emsdk_env.sh not found. Make sure emscripten is in your PATH."
+    echo -e "${GREEN}✅ emcc found in PATH: $(which emcc)${NC}"
 fi
 
 # Colors for output
