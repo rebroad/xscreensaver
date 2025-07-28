@@ -1,0 +1,37 @@
+# Matrix Test Makefile
+# Builds matrix test program for both native and WebGL
+
+CC = gcc
+EMCC = emcc
+
+# Native build
+native: matrix_test.c matrix_debug.c matrix_debug.h
+	$(CC) -DMATRIX_DEBUG -o matrix_test_native matrix_test.c matrix_debug.c -lGL -lGLU -lX11
+
+# Native build without debugging
+native_clean: matrix_test.c matrix_debug.c matrix_debug.h
+	$(CC) -o matrix_test_native_clean matrix_test.c matrix_debug.c -lGL -lGLU -lX11
+
+# WebGL build
+webgl: matrix_test.c matrix_debug.c matrix_debug.h
+	$(EMCC) -DMATRIX_DEBUG -DWEB_BUILD -o matrix_test_webgl.html matrix_test.c matrix_debug.c -s USE_WEBGL2=1 -s FULL_ES3=1
+
+# WebGL build without debugging
+webgl_clean: matrix_test.c matrix_debug.c matrix_debug.h
+	$(EMCC) -DWEB_BUILD -o matrix_test_webgl_clean.html matrix_test.c matrix_debug.c -s USE_WEBGL2=1 -s FULL_ES3=1
+
+# Run native test
+run_native: native
+	./matrix_test_native
+
+# Run native test without debugging
+run_native_clean: native_clean
+	./matrix_test_native_clean
+
+# Clean up
+clean:
+	rm -f matrix_test_native matrix_test_native_clean
+	rm -f matrix_test_webgl.html matrix_test_webgl.js matrix_test_webgl.wasm
+	rm -f matrix_test_webgl_clean.html matrix_test_webgl_clean.js matrix_test_webgl_clean.wasm
+
+.PHONY: native native_clean webgl webgl_clean run_native run_native_clean clean 
