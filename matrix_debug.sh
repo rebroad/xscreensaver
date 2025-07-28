@@ -20,7 +20,6 @@ show_usage() {
     echo -e "${YELLOW}Usage: $0 [COMMAND]${NC}"
     echo ""
     echo -e "${CYAN}Available Commands:${NC}"
-    echo -e "  ${GREEN}test${NC}          - Build and run matrix test program (both native and WebGL)"
     echo -e "  ${GREEN}compare${NC}       - Build both versions and compare matrix outputs"
     echo -e "  ${GREEN}hextrail-web${NC}  - Build hextrail for WebGL with matrix debugging"
     echo -e "  ${GREEN}hextrail-native${NC} - Build hextrail for native with matrix debugging"
@@ -28,12 +27,11 @@ show_usage() {
     echo -e "  ${GREEN}help${NC}          - Show this help message"
     echo ""
     echo -e "${CYAN}Examples:${NC}"
-    echo -e "  $0 test          # Test the matrix debugging framework"
     echo -e "  $0 compare       # Compare native vs WebGL matrix operations"
     echo -e "  $0 hextrail-web  # Build WebGL hextrail with debugging"
     echo -e "  $0 hextrail-native # Build native hextrail with debugging"
     echo ""
-    echo -e "${YELLOW}💡 Tip: Run '$0 test' first to verify the framework works!${NC}"
+    echo -e "${YELLOW}💡 Tip: Run '$0 compare' to debug matrix differences between native and WebGL!${NC}"
 }
 
 # Function to check dependencies
@@ -83,47 +81,6 @@ check_dependencies() {
     fi
 
     echo -e "${GREEN}✅ Dependencies check complete${NC}"
-}
-
-# Function to build and run matrix test
-run_matrix_test() {
-    echo -e "${BLUE}🧪 Building and running matrix test...${NC}"
-
-    # Build native version
-    echo -e "${YELLOW}📦 Building native version...${NC}"
-    make -f Makefile.matrix_test native
-
-    if [ $? -eq 0 ]; then
-        echo -e "${GREEN}✅ Native build successful${NC}"
-
-        # Run native test
-        echo -e "${YELLOW}🚀 Running native test...${NC}"
-        echo -e "${CYAN}=== NATIVE OUTPUT ===${NC}"
-        ./matrix_test_native
-        echo -e "${CYAN}=====================${NC}"
-    else
-        echo -e "${RED}❌ Native build failed${NC}"
-        return 1
-    fi
-
-    # Build WebGL version if available
-    if [ "$WEBGL_AVAILABLE" = true ]; then
-        echo -e "${YELLOW}📦 Building WebGL version...${NC}"
-        make -f Makefile.matrix_test webgl
-
-        if [ $? -eq 0 ]; then
-            echo -e "${GREEN}✅ WebGL build successful${NC}"
-            echo -e "${YELLOW}🌐 WebGL files created:${NC}"
-            echo -e "   - matrix_test_webgl.html"
-            echo -e "   - matrix_test_webgl.js"
-            echo -e "   - matrix_test_webgl.wasm"
-            echo -e "${CYAN}💡 Open matrix_test_webgl.html in your browser to run the WebGL test${NC}"
-        else
-            echo -e "${RED}❌ WebGL build failed${NC}"
-        fi
-    else
-        echo -e "${YELLOW}⚠️  Skipping WebGL build (emcc not available)${NC}"
-    fi
 }
 
 # Function to compare native vs WebGL outputs
@@ -313,9 +270,6 @@ main() {
 
     # Parse command
     case "${1:-help}" in
-        "test")
-            run_matrix_test
-            ;;
         "compare")
             compare_outputs
             ;;
