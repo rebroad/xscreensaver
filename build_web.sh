@@ -90,6 +90,7 @@ EMCC_ARGS=(
     -DHAVE_CONFIG_H
     -DWEB_BUILD
     -DHAVE_JWXYZ
+    -DMATRIX_DEBUG
     -s USE_WEBGL2=1
     -s FULL_ES3=1
     -s ALLOW_MEMORY_GROWTH=1
@@ -114,6 +115,7 @@ EMCC_ARGS=(
     $GLX_DIR/gltrackball.c
     $GLX_DIR/normals.c
     $JWXYZ_DIR/jwxyz-timers.c
+    matrix_debug.c
     -o index.html
     --shell-file $REPO_ROOT/web/template.html
 )
