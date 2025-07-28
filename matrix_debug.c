@@ -146,11 +146,11 @@ void debug_glMatrixMode(GLenum mode) {
     current_matrix_mode = mode;
     debug_matrix_mode_switch(old_mode, mode);
     
-    // Handle the actual OpenGL operation
+    // For both native and WebGL builds, we only log and call real functions
+    // The actual matrix work is done by the calling code (xscreensaver_web.c or real OpenGL)
     #ifdef WEB_BUILD
-        // WebGL version: we provide the actual implementation
-        // since we're intercepting the calls directly in matrix_test.c
-        // The matrix state is already updated above, so we're done
+        // WebGL version: only log, don't do matrix work
+        // xscreensaver_web.c will handle the actual matrix operations
     #else
         // Native version: call real OpenGL function
         if (real_glMatrixMode) {
@@ -160,16 +160,13 @@ void debug_glMatrixMode(GLenum mode) {
 }
 
 void debug_glLoadIdentity(void) {
-    float* current_matrix = (current_matrix_mode == GL_MODELVIEW) ? modelview_matrix : projection_matrix;
-    debug_matrix_operation("Before LoadIdentity", current_matrix);
-    matrix_identity(current_matrix);
-    debug_matrix_operation("After LoadIdentity", current_matrix);
+    // For both native and WebGL builds, we only log
+    // The actual matrix work is done by the calling code
+    matrix_debug_log("glLoadIdentity()\n");
     
-    // Handle the actual OpenGL operation
     #ifdef WEB_BUILD
-        // WebGL version: we provide the actual implementation
-        // since we're intercepting the calls directly in matrix_test.c
-        // The matrix state is already updated above, so we're done
+        // WebGL version: only log, don't do matrix work
+        // xscreensaver_web.c will handle the actual matrix operations
     #else
         // Native version: call real OpenGL function
         if (real_glLoadIdentity) {
@@ -182,33 +179,9 @@ void debug_glOrtho(GLdouble left, GLdouble right, GLdouble bottom, GLdouble top,
     matrix_debug_log("glOrtho: %.3f, %.3f, %.3f, %.3f, %.3f, %.3f\n", 
        left, right, bottom, top, near_val, far_val);
     
-    float* current_matrix = (current_matrix_mode == GL_MODELVIEW) ? modelview_matrix : projection_matrix;
-    debug_matrix_operation("Before Ortho", current_matrix);
-    
-    // Create orthographic matrix
-    float ortho[16];
-    matrix_identity(ortho);
-    
-    GLfloat tx = -(right + left) / (right - left);
-    GLfloat ty = -(top + bottom) / (top - bottom);
-    GLfloat tz = -(far_val + near_val) / (far_val - near_val);
-    
-    ortho[0] = 2.0f / (right - left);
-    ortho[5] = 2.0f / (top - bottom);
-    ortho[10] = -2.0f / (far_val - near_val);
-    ortho[12] = tx;
-    ortho[13] = ty;
-    ortho[14] = tz;
-    
-    debug_matrix_operation("Ortho Matrix", ortho);
-    matrix_multiply(current_matrix, current_matrix, ortho);
-    debug_matrix_operation("After Ortho", current_matrix);
-    
-    // Handle the actual OpenGL operation
     #ifdef WEB_BUILD
-        // WebGL version: we provide the actual implementation
-        // since we're intercepting the calls directly in matrix_test.c
-        // The matrix state is already updated above, so we're done
+        // WebGL version: only log, don't do matrix work
+        // xscreensaver_web.c will handle the actual matrix operations
     #else
         // Native version: call real OpenGL function
         if (real_glOrtho) {
@@ -221,36 +194,9 @@ void debug_glFrustum(GLdouble left, GLdouble right, GLdouble bottom, GLdouble to
     matrix_debug_log("glFrustum: left=%.3f, right=%.3f, bottom=%.3f, top=%.3f, near=%.3f, far=%.3f\n", 
        left, right, bottom, top, near_val, far_val);
     
-    float* current_matrix = (current_matrix_mode == GL_MODELVIEW) ? modelview_matrix : projection_matrix;
-    debug_matrix_operation("Before Frustum", current_matrix);
-    
-    // Create frustum matrix
-    float frustum[16];
-    matrix_identity(frustum);
-    
-    GLfloat a = (right + left) / (right - left);
-    GLfloat b = (top + bottom) / (top - bottom);
-    GLfloat c = -(far_val + near_val) / (far_val - near_val);
-    GLfloat d = -(2 * far_val * near_val) / (far_val - near_val);
-    
-    frustum[0] = 2 * near_val / (right - left);
-    frustum[5] = 2 * near_val / (top - bottom);
-    frustum[8] = a;
-    frustum[9] = b;
-    frustum[10] = c;
-    frustum[11] = -1;
-    frustum[14] = d;
-    frustum[15] = 0;
-    
-    debug_matrix_operation("Frustum Matrix", frustum);
-    matrix_multiply(current_matrix, current_matrix, frustum);
-    debug_matrix_operation("After Frustum", current_matrix);
-    
-    // Handle the actual OpenGL operation
     #ifdef WEB_BUILD
-        // WebGL version: we provide the actual implementation
-        // since we're intercepting the calls directly in matrix_test.c
-        // The matrix state is already updated above, so we're done
+        // WebGL version: only log, don't do matrix work
+        // xscreensaver_web.c will handle the actual matrix operations
     #else
         // Native version: call real OpenGL function
         if (real_glFrustum) {
@@ -260,17 +206,11 @@ void debug_glFrustum(GLdouble left, GLdouble right, GLdouble bottom, GLdouble to
 }
 
 void debug_glTranslatef(GLfloat x, GLfloat y, GLfloat z) {
-    float* current_matrix = (current_matrix_mode == GL_MODELVIEW) ? modelview_matrix : projection_matrix;
-    debug_matrix_operation("Before Translate", current_matrix);
-    matrix_debug_log("Translate: (%.3f, %.3f, %.3f)\n", x, y, z);
-    matrix_translate(current_matrix, x, y, z);
-    debug_matrix_operation("After Translate", current_matrix);
+    matrix_debug_log("glTranslatef: (%.3f, %.3f, %.3f)\n", x, y, z);
     
-    // Handle the actual OpenGL operation
     #ifdef WEB_BUILD
-        // WebGL version: we provide the actual implementation
-        // since we're intercepting the calls directly in matrix_test.c
-        // The matrix state is already updated above, so we're done
+        // WebGL version: only log, don't do matrix work
+        // xscreensaver_web.c will handle the actual matrix operations
     #else
         // Native version: call real OpenGL function
         if (real_glTranslatef) {
@@ -280,17 +220,11 @@ void debug_glTranslatef(GLfloat x, GLfloat y, GLfloat z) {
 }
 
 void debug_glRotatef(GLfloat angle, GLfloat x, GLfloat y, GLfloat z) {
-    float* current_matrix = (current_matrix_mode == GL_MODELVIEW) ? modelview_matrix : projection_matrix;
-    debug_matrix_operation("Before Rotate", current_matrix);
-    matrix_debug_log("Rotate: %.3f degrees around (%.3f, %.3f, %.3f)\n", angle, x, y, z);
-    matrix_rotate(current_matrix, angle, x, y, z);
-    debug_matrix_operation("After Rotate", current_matrix);
+    matrix_debug_log("glRotatef: %.3f degrees around (%.3f, %.3f, %.3f)\n", angle, x, y, z);
     
-    // Handle the actual OpenGL operation
     #ifdef WEB_BUILD
-        // WebGL version: we provide the actual implementation
-        // since we're intercepting the calls directly in matrix_test.c
-        // The matrix state is already updated above, so we're done
+        // WebGL version: only log, don't do matrix work
+        // xscreensaver_web.c will handle the actual matrix operations
     #else
         // Native version: call real OpenGL function
         if (real_glRotatef) {
@@ -300,17 +234,11 @@ void debug_glRotatef(GLfloat angle, GLfloat x, GLfloat y, GLfloat z) {
 }
 
 void debug_glScalef(GLfloat x, GLfloat y, GLfloat z) {
-    float* current_matrix = (current_matrix_mode == GL_MODELVIEW) ? modelview_matrix : projection_matrix;
-    debug_matrix_operation("Before Scale", current_matrix);
-    matrix_debug_log("Scale: (%.3f, %.3f, %.3f)\n", x, y, z);
-    matrix_scale(current_matrix, x, y, z);
-    debug_matrix_operation("After Scale", current_matrix);
+    matrix_debug_log("glScalef: (%.3f, %.3f, %.3f)\n", x, y, z);
     
-    // Handle the actual OpenGL operation
     #ifdef WEB_BUILD
-        // WebGL version: we provide the actual implementation
-        // since we're intercepting the calls directly in matrix_test.c
-        // The matrix state is already updated above, so we're done
+        // WebGL version: only log, don't do matrix work
+        // xscreensaver_web.c will handle the actual matrix operations
     #else
         // Native version: call real OpenGL function
         if (real_glScalef) {
@@ -320,13 +248,11 @@ void debug_glScalef(GLfloat x, GLfloat y, GLfloat z) {
 }
 
 void debug_glPushMatrix(void) {
-    matrix_debug_log("PushMatrix\n");
+    matrix_debug_log("glPushMatrix()\n");
     
-    // Handle the actual OpenGL operation
     #ifdef WEB_BUILD
-        // WebGL version: we provide the actual implementation
-        // since we're intercepting the calls directly in matrix_test.c
-        // The matrix state is already updated above, so we're done
+        // WebGL version: only log, don't do matrix work
+        // xscreensaver_web.c will handle the actual matrix operations
     #else
         // Native version: call real OpenGL function
         if (real_glPushMatrix) {
@@ -336,13 +262,11 @@ void debug_glPushMatrix(void) {
 }
 
 void debug_glPopMatrix(void) {
-    matrix_debug_log("PopMatrix\n");
+    matrix_debug_log("glPopMatrix()\n");
     
-    // Handle the actual OpenGL operation
     #ifdef WEB_BUILD
-        // WebGL version: we provide the actual implementation
-        // since we're intercepting the calls directly in matrix_test.c
-        // The matrix state is already updated above, so we're done
+        // WebGL version: only log, don't do matrix work
+        // xscreensaver_web.c will handle the actual matrix operations
     #else
         // Native version: call real OpenGL function
         if (real_glPopMatrix) {
@@ -352,17 +276,11 @@ void debug_glPopMatrix(void) {
 }
 
 void debug_glMultMatrixf(const float* m) {
-    float* current_matrix = (current_matrix_mode == GL_MODELVIEW) ? modelview_matrix : projection_matrix;
-    debug_matrix_operation("Before MultMatrixf", current_matrix);
-    debug_matrix_operation("Input Matrix", m);
-    matrix_multiply(current_matrix, current_matrix, m);
-    debug_matrix_operation("After MultMatrixf", current_matrix);
+    matrix_debug_log("glMultMatrixf()\n");
     
-    // Handle the actual OpenGL operation
     #ifdef WEB_BUILD
-        // WebGL version: we provide the actual implementation
-        // since we're intercepting the calls directly in matrix_test.c
-        // The matrix state is already updated above, so we're done
+        // WebGL version: only log, don't do matrix work
+        // xscreensaver_web.c will handle the actual matrix operations
     #else
         // Native version: call real OpenGL function
         if (real_glMultMatrixf) {

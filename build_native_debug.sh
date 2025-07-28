@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Build native hextrail with matrix debugging enabled
-# This script compiles hextrail with our matrix debug framework
+# This script uses the existing Makefile and adds our matrix debug framework
 
 set -e
 
@@ -30,110 +30,44 @@ fi
 mkdir -p build_native_debug
 cd build_native_debug
 
-echo -e "${YELLOW}📦 Compiling Hextrail with Matrix Debugging...${NC}"
+echo -e "${YELLOW}📦 Building hextrail with matrix debugging...${NC}"
 
-# Get the original hextrail build command from the Makefile
-# We'll extract the compilation flags and add our debug framework
-
-# First, let's get the original hextrail object file
-echo -e "${YELLOW}🔨 Compiling hextrail.c with matrix debugging...${NC}"
-
-# Get the original CFLAGS and other variables from the main Makefile
-source <(grep -E '^(CC|CFLAGS|CPPFLAGS|LDFLAGS|HACK_LIBS)=' ../Makefile | sed 's/^/export /')
-
-# Compile hextrail.c with matrix debugging
-$CC $CFLAGS $CPPFLAGS \
-    -DMATRIX_DEBUG \
-    -I.. \
-    -I../hacks \
-    -I../utils \
-    -I../hacks/glx \
-    -c ../hacks/glx/hextrail.c -o hextrail_debug.o
+# Copy our matrix debug files to the build directory
+cp ../matrix_debug.h .
+cp ../matrix_debug.c .
 
 # Compile our matrix debug framework
 echo -e "${YELLOW}🔨 Compiling matrix debug framework...${NC}"
-$CC $CFLAGS $CPPFLAGS \
-    -DMATRIX_DEBUG \
-    -I.. \
-    -I../hacks \
-    -I../utils \
-    -I../hacks/glx \
-    -c ../matrix_debug.c -o matrix_debug.o
+gcc -c -DMATRIX_DEBUG -DUSE_GL -I.. -I../hacks -I../utils -I../hacks/glx matrix_debug.c -o matrix_debug.o
 
-# Compile normals.c (required by hextrail)
-echo -e "${YELLOW}🔨 Compiling normals.c...${NC}"
-$CC $CFLAGS $CPPFLAGS \
-    -I.. \
-    -I../hacks \
-    -I../utils \
-    -I../hacks/glx \
-    -c ../hacks/glx/normals.c -o normals.o
+# Build hextrail using the existing Makefile, but with our matrix debugging
+echo -e "${YELLOW}🔨 Building hextrail with matrix debugging...${NC}"
+cd ../hacks/glx
 
-# Compile other required object files
-echo -e "${YELLOW}🔨 Compiling required utilities...${NC}"
+# Temporarily modify hextrail.c to include our matrix debugging
+cp hextrail.c hextrail.c.backup
+echo '#include "../../matrix_debug.h"' > hextrail.c.tmp
+cat hextrail.c >> hextrail.c.tmp
+mv hextrail.c.tmp hextrail.c
 
-# Compile colors.c
-$CC $CFLAGS $CPPFLAGS \
-    -I.. \
-    -I../utils \
-    -c ../utils/colors.c -o colors.o
+# Temporarily modify the Makefile to include our matrix_debug.o
+cp Makefile Makefile.backup
+sed -i 's|hextrail:	hextrail.o	 normals.o $(HACK_TRACK_OBJS)|hextrail:	hextrail.o	 normals.o $(HACK_TRACK_OBJS) ../../build_native_debug/matrix_debug.o|' Makefile
+sed -i 's|$(CC_HACK) -o $@ $@.o	 normals.o $(HACK_TRACK_OBJS) $(HACK_LIBS)|$(CC_HACK) -o $@ $@.o	 normals.o $(HACK_TRACK_OBJS) ../../build_native_debug/matrix_debug.o $(HACK_LIBS)|' Makefile
 
-# Compile hsv.c
-$CC $CFLAGS $CPPFLAGS \
-    -I.. \
-    -I../utils \
-    -c ../utils/hsv.c -o hsv.o
+# Build hextrail with matrix debugging
+make hextrail CFLAGS="-DMATRIX_DEBUG -DUSE_GL" CPPFLAGS="-I../../build_native_debug"
 
-# Compile yarandom.c
-$CC $CFLAGS $CPPFLAGS \
-    -I.. \
-    -I../utils \
-    -c ../utils/yarandom.c -o yarandom.o
+# Restore original files
+mv hextrail.c.backup hextrail.c
+mv Makefile.backup Makefile
 
-# Compile usleep.c
-$CC $CFLAGS $CPPFLAGS \
-    -I.. \
-    -I../utils \
-    -c ../utils/usleep.c -o usleep.o
+# Copy the built binary to our debug directory
+cp hextrail ../../build_native_debug/hextrail_debug
 
-# Compile screenhack.c
-$CC $CFLAGS $CPPFLAGS \
-    -I.. \
-    -I../hacks \
-    -I../utils \
-    -c ../hacks/screenhack.c -o screenhack.o
+cd ../../build_native_debug
 
-# Compile rotator.c
-$CC $CFLAGS $CPPFLAGS \
-    -I.. \
-    -I../hacks \
-    -I../hacks/glx \
-    -c ../hacks/glx/rotator.c -o rotator.o
-
-# Compile gltrackball.c
-$CC $CFLAGS $CPPFLAGS \
-    -I.. \
-    -I../hacks \
-    -I../hacks/glx \
-    -c ../hacks/glx/gltrackball.c -o gltrackball.o
-
-# Link everything together
-echo -e "${YELLOW}🔗 Linking hextrail with matrix debugging...${NC}"
-$CC $LDFLAGS \
-    -o hextrail_debug \
-    hextrail_debug.o \
-    matrix_debug.o \
-    normals.o \
-    colors.o \
-    hsv.o \
-    yarandom.o \
-    usleep.o \
-    screenhack.o \
-    rotator.o \
-    gltrackball.o \
-    $HACK_LIBS -ldl
-
-if [ $? -eq 0 ]; then
+if [ -f "hextrail_debug" ]; then
     echo -e "${GREEN}✅ Native hextrail with matrix debugging built successfully!${NC}"
     echo -e "${BLUE}📁 Output: build_native_debug/hextrail_debug${NC}"
     echo -e "${YELLOW}🚀 To run:${NC}"
