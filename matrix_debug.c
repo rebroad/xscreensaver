@@ -125,23 +125,53 @@ void init_matrix_debug_functions(void) {
     // This requires linking with -ldl
     #ifdef __linux__
     #include <dlfcn.h>
-    void* handle = RTLD_DEFAULT;
-    real_glMatrixMode = dlsym(handle, "glMatrixMode");
-    real_glLoadIdentity = dlsym(handle, "glLoadIdentity");
-    real_glOrtho = dlsym(handle, "glOrtho");
-    real_glFrustum = dlsym(handle, "glFrustum");
-    real_glTranslatef = dlsym(handle, "glTranslatef");
-    real_glRotatef = dlsym(handle, "glRotatef");
-    real_glScalef = dlsym(handle, "glScalef");
-    real_glPushMatrix = dlsym(handle, "glPushMatrix");
-    real_glPopMatrix = dlsym(handle, "glPopMatrix");
-    real_glMultMatrixf = dlsym(handle, "glMultMatrixf");
+    
+    // Try to get the real functions using RTLD_NEXT
+    // This will find the next occurrence of these symbols in the library search order
+    real_glMatrixMode = dlsym(RTLD_NEXT, "glMatrixMode");
+    real_glLoadIdentity = dlsym(RTLD_NEXT, "glLoadIdentity");
+    real_glOrtho = dlsym(RTLD_NEXT, "glOrtho");
+    real_glFrustum = dlsym(RTLD_NEXT, "glFrustum");
+    real_glTranslatef = dlsym(RTLD_NEXT, "glTranslatef");
+    real_glRotatef = dlsym(RTLD_NEXT, "glRotatef");
+    real_glScalef = dlsym(RTLD_NEXT, "glScalef");
+    real_glPushMatrix = dlsym(RTLD_NEXT, "glPushMatrix");
+    real_glPopMatrix = dlsym(RTLD_NEXT, "glPopMatrix");
+    real_glMultMatrixf = dlsym(RTLD_NEXT, "glMultMatrixf");
+    
+    // If RTLD_NEXT didn't work, try RTLD_DEFAULT
+    if (!real_glMatrixMode) {
+        real_glMatrixMode = dlsym(RTLD_DEFAULT, "glMatrixMode");
+        real_glLoadIdentity = dlsym(RTLD_DEFAULT, "glLoadIdentity");
+        real_glOrtho = dlsym(RTLD_DEFAULT, "glOrtho");
+        real_glFrustum = dlsym(RTLD_DEFAULT, "glFrustum");
+        real_glTranslatef = dlsym(RTLD_DEFAULT, "glTranslatef");
+        real_glRotatef = dlsym(RTLD_DEFAULT, "glRotatef");
+        real_glScalef = dlsym(RTLD_DEFAULT, "glScalef");
+        real_glPushMatrix = dlsym(RTLD_DEFAULT, "glPushMatrix");
+        real_glPopMatrix = dlsym(RTLD_DEFAULT, "glPopMatrix");
+        real_glMultMatrixf = dlsym(RTLD_DEFAULT, "glMultMatrixf");
+    }
+    
+    // Log if we found the functions
+    if (real_glMatrixMode) {
+        matrix_debug_log("Matrix debug: Successfully initialized OpenGL function pointers\n");
+    } else {
+        matrix_debug_log("Matrix debug: WARNING - Failed to get OpenGL function pointers\n");
+    }
     #endif
 }
 #endif
 
 // Wrapper function implementations
 void debug_glMatrixMode(GLenum mode) {
+    // Auto-initialize if needed
+    #ifndef WEB_BUILD
+    if (!real_glMatrixMode) {
+        init_matrix_debug_functions();
+    }
+    #endif
+    
     GLenum old_mode = current_matrix_mode;
     current_matrix_mode = mode;
     debug_matrix_mode_switch(old_mode, mode);
@@ -160,6 +190,13 @@ void debug_glMatrixMode(GLenum mode) {
 }
 
 void debug_glLoadIdentity(void) {
+    // Auto-initialize if needed
+    #ifndef WEB_BUILD
+    if (!real_glLoadIdentity) {
+        init_matrix_debug_functions();
+    }
+    #endif
+    
     // For both native and WebGL builds, we only log
     // The actual matrix work is done by the calling code
     matrix_debug_log("glLoadIdentity()\n");
@@ -176,6 +213,13 @@ void debug_glLoadIdentity(void) {
 }
 
 void debug_glOrtho(GLdouble left, GLdouble right, GLdouble bottom, GLdouble top, GLdouble near_val, GLdouble far_val) {
+    // Auto-initialize if needed
+    #ifndef WEB_BUILD
+    if (!real_glOrtho) {
+        init_matrix_debug_functions();
+    }
+    #endif
+    
     matrix_debug_log("glOrtho: %.3f, %.3f, %.3f, %.3f, %.3f, %.3f\n", 
        left, right, bottom, top, near_val, far_val);
     
@@ -191,6 +235,13 @@ void debug_glOrtho(GLdouble left, GLdouble right, GLdouble bottom, GLdouble top,
 }
 
 void debug_glFrustum(GLdouble left, GLdouble right, GLdouble bottom, GLdouble top, GLdouble near_val, GLdouble far_val) {
+    // Auto-initialize if needed
+    #ifndef WEB_BUILD
+    if (!real_glFrustum) {
+        init_matrix_debug_functions();
+    }
+    #endif
+    
     matrix_debug_log("glFrustum: left=%.3f, right=%.3f, bottom=%.3f, top=%.3f, near=%.3f, far=%.3f\n", 
        left, right, bottom, top, near_val, far_val);
     
@@ -206,6 +257,13 @@ void debug_glFrustum(GLdouble left, GLdouble right, GLdouble bottom, GLdouble to
 }
 
 void debug_glTranslatef(GLfloat x, GLfloat y, GLfloat z) {
+    // Auto-initialize if needed
+    #ifndef WEB_BUILD
+    if (!real_glTranslatef) {
+        init_matrix_debug_functions();
+    }
+    #endif
+    
     matrix_debug_log("glTranslatef: (%.3f, %.3f, %.3f)\n", x, y, z);
     
     #ifdef WEB_BUILD
@@ -220,6 +278,13 @@ void debug_glTranslatef(GLfloat x, GLfloat y, GLfloat z) {
 }
 
 void debug_glRotatef(GLfloat angle, GLfloat x, GLfloat y, GLfloat z) {
+    // Auto-initialize if needed
+    #ifndef WEB_BUILD
+    if (!real_glRotatef) {
+        init_matrix_debug_functions();
+    }
+    #endif
+    
     matrix_debug_log("glRotatef: %.3f degrees around (%.3f, %.3f, %.3f)\n", angle, x, y, z);
     
     #ifdef WEB_BUILD
@@ -234,6 +299,13 @@ void debug_glRotatef(GLfloat angle, GLfloat x, GLfloat y, GLfloat z) {
 }
 
 void debug_glScalef(GLfloat x, GLfloat y, GLfloat z) {
+    // Auto-initialize if needed
+    #ifndef WEB_BUILD
+    if (!real_glScalef) {
+        init_matrix_debug_functions();
+    }
+    #endif
+    
     matrix_debug_log("glScalef: (%.3f, %.3f, %.3f)\n", x, y, z);
     
     #ifdef WEB_BUILD
@@ -248,6 +320,13 @@ void debug_glScalef(GLfloat x, GLfloat y, GLfloat z) {
 }
 
 void debug_glPushMatrix(void) {
+    // Auto-initialize if needed
+    #ifndef WEB_BUILD
+    if (!real_glPushMatrix) {
+        init_matrix_debug_functions();
+    }
+    #endif
+    
     matrix_debug_log("glPushMatrix()\n");
     
     #ifdef WEB_BUILD
@@ -262,6 +341,13 @@ void debug_glPushMatrix(void) {
 }
 
 void debug_glPopMatrix(void) {
+    // Auto-initialize if needed
+    #ifndef WEB_BUILD
+    if (!real_glPopMatrix) {
+        init_matrix_debug_functions();
+    }
+    #endif
+    
     matrix_debug_log("glPopMatrix()\n");
     
     #ifdef WEB_BUILD
@@ -276,6 +362,13 @@ void debug_glPopMatrix(void) {
 }
 
 void debug_glMultMatrixf(const float* m) {
+    // Auto-initialize if needed
+    #ifndef WEB_BUILD
+    if (!real_glMultMatrixf) {
+        init_matrix_debug_functions();
+    }
+    #endif
+    
     matrix_debug_log("glMultMatrixf()\n");
     
     #ifdef WEB_BUILD
