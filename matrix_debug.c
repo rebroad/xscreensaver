@@ -15,9 +15,9 @@
 #define GET_FUNC_PTR(func_ptr, func_name) \
     do { \
         if (!func_ptr) { \
-            func_ptr = dlsym(RTLD_NEXT, func_name); \
+            func_ptr = (void (*)(void))dlsym(RTLD_NEXT, func_name); \
             if (!func_ptr) { \
-                func_ptr = dlsym(RTLD_DEFAULT, func_name); \
+                func_ptr = (void (*)(void))dlsym(RTLD_DEFAULT, func_name); \
             } \
         } \
     } while(0)
@@ -211,35 +211,35 @@ void init_matrix_debug_functions(void) {
 
     // Try to get the real functions using RTLD_NEXT
     // This will find the next occurrence of these symbols in the library search order
-    real_glMatrixMode = dlsym(RTLD_NEXT, "glMatrixMode");
-    real_glLoadIdentity = dlsym(RTLD_NEXT, "glLoadIdentity");
-    real_glOrtho = dlsym(RTLD_NEXT, "glOrtho");
-    real_glFrustum = dlsym(RTLD_NEXT, "glFrustum");
-    real_glTranslatef = dlsym(RTLD_NEXT, "glTranslatef");
-    real_glRotatef = dlsym(RTLD_NEXT, "glRotatef");
-    real_glScalef = dlsym(RTLD_NEXT, "glScalef");
-    real_glPushMatrix = dlsym(RTLD_NEXT, "glPushMatrix");
-    real_glPopMatrix = dlsym(RTLD_NEXT, "glPopMatrix");
-    real_glMultMatrixf = dlsym(RTLD_NEXT, "glMultMatrixf");
-    real_glViewport = dlsym(RTLD_NEXT, "glViewport");
-    real_gluPerspective = dlsym(RTLD_NEXT, "gluPerspective");
-    real_gluLookAt = dlsym(RTLD_NEXT, "gluLookAt");
+    real_glMatrixMode = (typeof(real_glMatrixMode))dlsym(RTLD_NEXT, "glMatrixMode");
+    real_glLoadIdentity = (typeof(real_glLoadIdentity))dlsym(RTLD_NEXT, "glLoadIdentity");
+    real_glOrtho = (typeof(real_glOrtho))dlsym(RTLD_NEXT, "glOrtho");
+    real_glFrustum = (typeof(real_glFrustum))dlsym(RTLD_NEXT, "glFrustum");
+    real_glTranslatef = (typeof(real_glTranslatef))dlsym(RTLD_NEXT, "glTranslatef");
+    real_glRotatef = (typeof(real_glRotatef))dlsym(RTLD_NEXT, "glRotatef");
+    real_glScalef = (typeof(real_glScalef))dlsym(RTLD_NEXT, "glScalef");
+    real_glPushMatrix = (typeof(real_glPushMatrix))dlsym(RTLD_NEXT, "glPushMatrix");
+    real_glPopMatrix = (typeof(real_glPopMatrix))dlsym(RTLD_NEXT, "glPopMatrix");
+    real_glMultMatrixf = (typeof(real_glMultMatrixf))dlsym(RTLD_NEXT, "glMultMatrixf");
+    real_glViewport = (typeof(real_glViewport))dlsym(RTLD_NEXT, "glViewport");
+    real_gluPerspective = (typeof(real_gluPerspective))dlsym(RTLD_NEXT, "gluPerspective");
+    real_gluLookAt = (typeof(real_gluLookAt))dlsym(RTLD_NEXT, "gluLookAt");
 
     // If RTLD_NEXT didn't work, try RTLD_DEFAULT
     if (!real_glMatrixMode) {
-        real_glMatrixMode = dlsym(RTLD_DEFAULT, "glMatrixMode");
-        real_glLoadIdentity = dlsym(RTLD_DEFAULT, "glLoadIdentity");
-        real_glOrtho = dlsym(RTLD_DEFAULT, "glOrtho");
-        real_glFrustum = dlsym(RTLD_DEFAULT, "glFrustum");
-        real_glTranslatef = dlsym(RTLD_DEFAULT, "glTranslatef");
-        real_glRotatef = dlsym(RTLD_DEFAULT, "glRotatef");
-        real_glScalef = dlsym(RTLD_DEFAULT, "glScalef");
-        real_glPushMatrix = dlsym(RTLD_DEFAULT, "glPushMatrix");
-        real_glPopMatrix = dlsym(RTLD_DEFAULT, "glPopMatrix");
-        real_glMultMatrixf = dlsym(RTLD_DEFAULT, "glMultMatrixf");
-        real_glViewport = dlsym(RTLD_DEFAULT, "glViewport");
-        real_gluPerspective = dlsym(RTLD_DEFAULT, "gluPerspective");
-        real_gluLookAt = dlsym(RTLD_DEFAULT, "gluLookAt");
+        real_glMatrixMode = (typeof(real_glMatrixMode))dlsym(RTLD_DEFAULT, "glMatrixMode");
+        real_glLoadIdentity = (typeof(real_glLoadIdentity))dlsym(RTLD_DEFAULT, "glLoadIdentity");
+        real_glOrtho = (typeof(real_glOrtho))dlsym(RTLD_DEFAULT, "glOrtho");
+        real_glFrustum = (typeof(real_glFrustum))dlsym(RTLD_DEFAULT, "glFrustum");
+        real_glTranslatef = (typeof(real_glTranslatef))dlsym(RTLD_DEFAULT, "glTranslatef");
+        real_glRotatef = (typeof(real_glRotatef))dlsym(RTLD_DEFAULT, "glRotatef");
+        real_glScalef = (typeof(real_glScalef))dlsym(RTLD_DEFAULT, "glScalef");
+        real_glPushMatrix = (typeof(real_glPushMatrix))dlsym(RTLD_DEFAULT, "glPushMatrix");
+        real_glPopMatrix = (typeof(real_glPopMatrix))dlsym(RTLD_DEFAULT, "glPopMatrix");
+        real_glMultMatrixf = (typeof(real_glMultMatrixf))dlsym(RTLD_DEFAULT, "glMultMatrixf");
+        real_glViewport = (typeof(real_glViewport))dlsym(RTLD_DEFAULT, "glViewport");
+        real_gluPerspective = (typeof(real_gluPerspective))dlsym(RTLD_DEFAULT, "gluPerspective");
+        real_gluLookAt = (typeof(real_gluLookAt))dlsym(RTLD_DEFAULT, "gluLookAt");
     }
 
     // Log if we found the functions
@@ -436,9 +436,9 @@ void debug_glViewport(GLint x, GLint y, GLsizei width, GLsizei height) {
         static void (*real_glViewport)(GLint, GLint, GLsizei, GLsizei) = NULL;
         if (!real_glViewport) {
             #ifdef __linux__
-            real_glViewport = dlsym(RTLD_NEXT, "glViewport");
+            real_glViewport = (typeof(real_glViewport))dlsym(RTLD_NEXT, "glViewport");
             if (!real_glViewport) {
-                real_glViewport = dlsym(RTLD_DEFAULT, "glViewport");
+                real_glViewport = (typeof(real_glViewport))dlsym(RTLD_DEFAULT, "glViewport");
             }
             #endif
         }
