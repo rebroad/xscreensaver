@@ -124,6 +124,7 @@ EMCC_ARGS=(
     $GLX_DIR/gltrackball.c
     $GLX_DIR/normals.c
     $JWXYZ_DIR/jwxyz-timers.c
+    $REPO_ROOT/matrix_debug.c
     -o index.html
     --shell-file $REPO_ROOT/web/template.html
 )
