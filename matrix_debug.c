@@ -8,20 +8,20 @@
 #endif
 #ifdef WEB_BUILD
 #include <emscripten/emscripten.h>
-#include <emscripten/webgl.h>
+#include <emscripten/emscripten_webgl.h>
 #endif
 
-// Unified macro to get function pointers for both native and WebGL platforms
-#define GET_FUNC_PTR(func_ptr, func_name, func_type) \
+// Unified function pointer acquisition for both native and WebGL platforms
+#define GET_FUNC_PTR(func_ptr, func_name) \
     do { \
         if (!func_ptr) { \
             #ifdef WEB_BUILD \
-                func_ptr = (func_type)emscripten_webgl_get_proc_address(func_name); \
+                func_ptr = emscripten_webgl_get_proc_address(func_name); \
             #else \
                 #ifdef __linux__ \
-                func_ptr = (func_type)dlsym(RTLD_NEXT, func_name); \
+                func_ptr = dlsym(RTLD_NEXT, func_name); \
                 if (!func_ptr) { \
-                    func_ptr = (func_type)dlsym(RTLD_DEFAULT, func_name); \
+                    func_ptr = dlsym(RTLD_DEFAULT, func_name); \
                 } \
                 #endif \
             #endif \
@@ -462,7 +462,7 @@ void debug_gluPerspective(GLdouble fovy, GLdouble aspect, GLdouble zNear, GLdoub
     matrix_debug_log("gluPerspective(%f, %f, %f, %f)\n", fovy, aspect, zNear, zFar);
 
     static void (*real_gluPerspective)(GLdouble, GLdouble, GLdouble, GLdouble) = NULL;
-    GET_FUNC_PTR(real_gluPerspective, "gluPerspective", void (*)(GLdouble, GLdouble, GLdouble, GLdouble));
+    GET_FUNC_PTR(real_gluPerspective, "gluPerspective");
     if (real_gluPerspective) {
         real_gluPerspective(fovy, aspect, zNear, zFar);
     }
@@ -475,7 +475,7 @@ void debug_gluLookAt(GLdouble eyex, GLdouble eyey, GLdouble eyez,
                      eyex, eyey, eyez, centerx, centery, centerz, upx, upy, upz);
 
     static void (*real_gluLookAt)(GLdouble, GLdouble, GLdouble, GLdouble, GLdouble, GLdouble, GLdouble, GLdouble, GLdouble) = NULL;
-    GET_FUNC_PTR(real_gluLookAt, "gluLookAt", void (*)(GLdouble, GLdouble, GLdouble, GLdouble, GLdouble, GLdouble, GLdouble, GLdouble, GLdouble));
+    GET_FUNC_PTR(real_gluLookAt, "gluLookAt");
     if (real_gluLookAt) {
         real_gluLookAt(eyex, eyey, eyez, centerx, centery, centerz, upx, upy, upz);
     }
@@ -488,7 +488,7 @@ void debug_glMultMatrixd(const GLdouble* m) {
                      m[8], m[9], m[10], m[11], m[12], m[13], m[14], m[15]);
 
     static void (*real_glMultMatrixd)(const GLdouble*) = NULL;
-    GET_FUNC_PTR(real_glMultMatrixd, "glMultMatrixd", void (*)(const GLdouble*));
+    GET_FUNC_PTR(real_glMultMatrixd, "glMultMatrixd");
     if (real_glMultMatrixd) {
         real_glMultMatrixd(m);
     }
@@ -498,25 +498,8 @@ void debug_glTranslated(GLdouble x, GLdouble y, GLdouble z) {
     matrix_debug_log("glTranslated(%f, %f, %f)\n", x, y, z);
 
     static void (*real_glTranslated)(GLdouble, GLdouble, GLdouble) = NULL;
-    GET_FUNC_PTR(real_glTranslated, "glTranslated", void (*)(GLdouble, GLdouble, GLdouble));
+    GET_FUNC_PTR(real_glTranslated, "glTranslated");
     if (real_glTranslated) {
         real_glTranslated(x, y, z);
     }
-}
-    #else
-        // For native builds, we need to get the real function pointer
-        static void (*real_gluLookAt)(GLdouble, GLdouble, GLdouble, GLdouble, GLdouble, GLdouble, GLdouble, GLdouble, GLdouble) = NULL;
-        if (!real_gluLookAt) {
-            #ifdef __linux__
-            real_gluLookAt = dlsym(RTLD_NEXT, "gluLookAt");
-            if (!real_gluLookAt) {
-                real_gluLookAt = dlsym(RTLD_DEFAULT, "gluLookAt");
-            }
-            #endif
-        }
-
-        if (real_gluLookAt) {
-            real_gluLookAt(eyex, eyey, eyez, centerx, centery, centerz, upx, upy, upz);
-        }
-    #endif
 }

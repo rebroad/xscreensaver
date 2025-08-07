@@ -213,18 +213,10 @@ build_hextrail() {
         return 1
     fi
 
-    # Temporarily modify hextrail.c to include matrix debugging
-    echo -e "${YELLOW}🔧 Adding matrix debugging to hextrail.c...${NC}"
-    cp hacks/glx/hextrail.c hacks/glx/hextrail.c.backup
-    echo '#include "../../matrix_debug.h"' > hacks/glx/hextrail.c.tmp
-    cat hacks/glx/hextrail.c >> hacks/glx/hextrail.c.tmp
-    mv hacks/glx/hextrail.c.tmp hacks/glx/hextrail.c
-
-    # Build based on type
+    # Build based on type (hextrail.c now has permanent conditional matrix debugging)
     if [ "$build_type" = "web" ]; then
         if [ ! -f "$build_script" ]; then
             echo -e "${RED}❌ $build_script not found${NC}"
-            mv hacks/glx/hextrail.c.backup hacks/glx/hextrail.c
             return 1
         fi
         ./$build_script
@@ -232,10 +224,6 @@ build_hextrail() {
         # Native build - incorporate logic directly
         build_native_hextrail
     fi
-
-    # Restore original hextrail.c
-    echo -e "${YELLOW}🧹 Restoring original hextrail.c...${NC}"
-    mv hacks/glx/hextrail.c.backup hacks/glx/hextrail.c
 
     if [ $? -eq 0 ]; then
         echo -e "${GREEN}✅ $build_type hextrail build successful!${NC}"
