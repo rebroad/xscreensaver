@@ -56,8 +56,8 @@ static int matrix_stack_depth = 0;
 
 static void (*real_glMatrixMode)(GLenum) = NULL;
 static void (*real_glLoadIdentity)(void) = NULL;
-static void (*real_glOrtho)(GLdouble, GLdouble, GLdouble, GLdouble, GLdouble, GLdouble) = NULL;
-static void (*real_glFrustum)(GLdouble, GLdouble, GLdouble, GLdouble, GLdouble, GLdouble) = NULL;
+static void (*real_glOrtho)(GLfloat, GLfloat, GLfloat, GLfloat, GLfloat, GLfloat) = NULL;
+static void (*real_glFrustum)(GLfloat, GLfloat, GLfloat, GLfloat, GLfloat, GLfloat) = NULL;
 static void (*real_glTranslatef)(GLfloat, GLfloat, GLfloat) = NULL;
 static void (*real_glRotatef)(GLfloat, GLfloat, GLfloat, GLfloat) = NULL;
 static void (*real_glScalef)(GLfloat, GLfloat, GLfloat) = NULL;
@@ -89,6 +89,21 @@ void matrix_debug_next_frame(void) {
     }
     #endif
 }
+
+// Stub functions for WebGL wrapper compatibility
+#ifdef WEB_BUILD
+void debug_matrix(const char* label, const void* matrix_ptr) {
+    // Cast to float array - the WebGL wrapper uses Matrix4f which is compatible
+    const float* matrix = (const float*)matrix_ptr;
+    matrix_debug_log("Matrix %s: [%.6f %.6f %.6f %.6f %.6f %.6f %.6f %.6f %.6f %.6f %.6f %.6f %.6f %.6f %.6f %.6f]\n",
+                     label, matrix[0], matrix[1], matrix[2], matrix[3], matrix[4], matrix[5], matrix[6], matrix[7],
+                     matrix[8], matrix[9], matrix[10], matrix[11], matrix[12], matrix[13], matrix[14], matrix[15]);
+}
+
+void debug_matrix_stack(const char* name, void* stack) {
+    matrix_debug_log("Matrix Stack %s: (stack pointer: %p)\n", name, stack);
+}
+#endif
 
 // Matrix utility functions
 void matrix_identity(float* m) {
@@ -163,22 +178,8 @@ void debug_current_matrix_state(void) {
 // Initialize function pointers (call this once)
 void init_matrix_debug_functions(void) {
     #ifdef WEB_BUILD
-    // For WebGL builds, get pointers to the real web wrapper functions
-    // These are the actual implementations in xscreensaver_web.c
-    extern void glMatrixMode(GLenum);
-    extern void glLoadIdentity(void);
-    extern void glOrtho(GLdouble, GLdouble, GLdouble, GLdouble, GLdouble, GLdouble);
-    extern void glFrustum(GLdouble, GLdouble, GLdouble, GLdouble, GLdouble, GLdouble);
-    extern void glTranslatef(GLfloat, GLfloat, GLfloat);
-    extern void glRotatef(GLfloat, GLfloat, GLfloat, GLfloat);
-    extern void glScalef(GLfloat, GLfloat, GLfloat);
-    extern void glPushMatrix(void);
-    extern void glPopMatrix(void);
-    extern void glMultMatrixf(const GLfloat*);
-    extern void glViewport(GLint, GLint, GLsizei, GLsizei);
-    extern void gluPerspective(GLdouble, GLdouble, GLdouble, GLdouble);
-    extern void gluLookAt(GLdouble, GLdouble, GLdouble, GLdouble, GLdouble, GLdouble, GLdouble, GLdouble, GLdouble);
-
+    // For WebGL builds, the functions are already available from xscreensaver_web.c
+    // We just need to assign them to our function pointers
     real_glMatrixMode = glMatrixMode;
     real_glLoadIdentity = glLoadIdentity;
     real_glOrtho = glOrtho;
@@ -256,7 +257,6 @@ void debug_glMatrixMode(GLenum mode) {
 
     #ifdef WEB_BUILD
         // WebGL version: call the real web wrapper function
-        extern void glMatrixMode(GLenum);
         glMatrixMode(mode);
     #else
         // Native version: call real OpenGL function
@@ -273,7 +273,6 @@ void debug_glLoadIdentity(void) {
 
     #ifdef WEB_BUILD
         // WebGL version: call the real web wrapper function
-        extern void glLoadIdentity(void);
         glLoadIdentity();
     #else
         // Native version: call real OpenGL function
@@ -283,14 +282,13 @@ void debug_glLoadIdentity(void) {
     #endif
 }
 
-void debug_glOrtho(GLdouble left, GLdouble right, GLdouble bottom, GLdouble top, GLdouble near_val, GLdouble far_val) {
+void debug_glOrtho(GLfloat left, GLfloat right, GLfloat bottom, GLfloat top, GLfloat near_val, GLfloat far_val) {
     AUTO_INIT_NATIVE(real_glOrtho);
 
     matrix_debug_log("glOrtho(%f, %f, %f, %f, %f, %f)\n", left, right, bottom, top, near_val, far_val);
 
     #ifdef WEB_BUILD
         // WebGL version: call the real web wrapper function
-        extern void glOrtho(GLdouble, GLdouble, GLdouble, GLdouble, GLdouble, GLdouble);
         glOrtho(left, right, bottom, top, near_val, far_val);
     #else
         // Native version: call real OpenGL function
@@ -300,14 +298,13 @@ void debug_glOrtho(GLdouble left, GLdouble right, GLdouble bottom, GLdouble top,
     #endif
 }
 
-void debug_glFrustum(GLdouble left, GLdouble right, GLdouble bottom, GLdouble top, GLdouble near_val, GLdouble far_val) {
+void debug_glFrustum(GLfloat left, GLfloat right, GLfloat bottom, GLfloat top, GLfloat near_val, GLfloat far_val) {
     AUTO_INIT_NATIVE(real_glFrustum);
 
     matrix_debug_log("glFrustum(%f, %f, %f, %f, %f, %f)\n", left, right, bottom, top, near_val, far_val);
 
     #ifdef WEB_BUILD
         // WebGL version: call the real web wrapper function
-        extern void glFrustum(GLdouble, GLdouble, GLdouble, GLdouble, GLdouble, GLdouble);
         glFrustum(left, right, bottom, top, near_val, far_val);
     #else
         // Native version: call real OpenGL function
@@ -324,7 +321,6 @@ void debug_glTranslatef(GLfloat x, GLfloat y, GLfloat z) {
 
     #ifdef WEB_BUILD
         // WebGL version: call the real web wrapper function
-        extern void glTranslatef(GLfloat, GLfloat, GLfloat);
         glTranslatef(x, y, z);
     #else
         // Native version: call real OpenGL function
@@ -341,7 +337,6 @@ void debug_glRotatef(GLfloat angle, GLfloat x, GLfloat y, GLfloat z) {
 
     #ifdef WEB_BUILD
         // WebGL version: call the real web wrapper function
-        extern void glRotatef(GLfloat, GLfloat, GLfloat, GLfloat);
         glRotatef(angle, x, y, z);
     #else
         // Native version: call real OpenGL function
@@ -358,7 +353,6 @@ void debug_glScalef(GLfloat x, GLfloat y, GLfloat z) {
 
     #ifdef WEB_BUILD
         // WebGL version: call the real web wrapper function
-        extern void glScalef(GLfloat, GLfloat, GLfloat);
         glScalef(x, y, z);
     #else
         // Native version: call real OpenGL function
@@ -375,7 +369,6 @@ void debug_glPushMatrix(void) {
 
     #ifdef WEB_BUILD
         // WebGL version: call the real web wrapper function
-        extern void glPushMatrix(void);
         glPushMatrix();
     #else
         // Native version: call real OpenGL function
@@ -392,7 +385,6 @@ void debug_glPopMatrix(void) {
 
     #ifdef WEB_BUILD
         // WebGL version: call the real web wrapper function
-        extern void glPopMatrix(void);
         glPopMatrix();
     #else
         // Native version: call real OpenGL function
@@ -411,7 +403,6 @@ void debug_glMultMatrixf(const GLfloat* m) {
 
     #ifdef WEB_BUILD
         // WebGL version: call the real web wrapper function
-        extern void glMultMatrixf(const GLfloat*);
         glMultMatrixf(m);
     #else
         // Native version: call real OpenGL function
@@ -427,7 +418,6 @@ void debug_glViewport(GLint x, GLint y, GLsizei width, GLsizei height) {
 
     #ifdef WEB_BUILD
         // WebGL version: call the real web wrapper function
-        extern void glViewport(GLint, GLint, GLsizei, GLsizei);
         glViewport(x, y, width, height);
     #else
         // For native builds, we need to get the real function pointer
@@ -452,7 +442,6 @@ void debug_gluPerspective(GLdouble fovy, GLdouble aspect, GLdouble zNear, GLdoub
 
     #ifdef WEB_BUILD
         // WebGL version: call the real web wrapper function
-        extern void gluPerspective(GLdouble, GLdouble, GLdouble, GLdouble);
         gluPerspective(fovy, aspect, zNear, zFar);
     #else
         // For native builds, we need to get the real function pointer
@@ -480,7 +469,6 @@ void debug_gluLookAt(GLdouble eyex, GLdouble eyey, GLdouble eyez,
 
     #ifdef WEB_BUILD
         // WebGL version: call the real web wrapper function
-        extern void gluLookAt(GLdouble, GLdouble, GLdouble, GLdouble, GLdouble, GLdouble, GLdouble, GLdouble, GLdouble);
         gluLookAt(eyex, eyey, eyez, centerx, centery, centerz, upx, upy, upz);
     #else
         // For native builds, we need to get the real function pointer
