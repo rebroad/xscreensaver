@@ -2,6 +2,9 @@
 #define MATRIX_DEBUG_H
 
 #include <GL/gl.h>
+#ifndef WEB_BUILD
+#include <GL/glu.h>
+#endif
 #include <stdio.h>
 
 // Matrix debugging infrastructure that works for both native and WebGL builds
@@ -19,12 +22,8 @@ void debug_matrix(const char* label, const void* matrix);
 void debug_matrix_stack(const char* name, void* stack);
 #endif
 
-// Matrix utility functions (used internally)
-void matrix_identity(float* m);
-void matrix_multiply(float* result, const float* a, const float* b);
-void matrix_translate(float* m, float x, float y, float z);
-void matrix_rotate(float* m, float angle, float x, float y, float z);
-void matrix_scale(float* m, float x, float y, float z);
+// Matrix utility functions (used internally by matrix_debug.c only)
+// These are not declared here to avoid conflicts with WebGL wrapper's own matrix functions
 
 // Matrix state tracking
 #ifndef WEB_BUILD
@@ -46,8 +45,8 @@ void init_matrix_debug_functions(void);
 // Debug wrapper function declarations
 void debug_glMatrixMode(GLenum mode);
 void debug_glLoadIdentity(void);
-void debug_glOrtho(GLfloat left, GLfloat right, GLfloat bottom, GLfloat top, GLfloat near_val, GLfloat far_val);
-void debug_glFrustum(GLfloat left, GLfloat right, GLfloat bottom, GLfloat top, GLfloat near_val, GLfloat far_val);
+void debug_glOrtho(GLdouble left, GLdouble right, GLdouble bottom, GLdouble top, GLdouble near_val, GLdouble far_val);
+void debug_glFrustum(GLdouble left, GLdouble right, GLdouble bottom, GLdouble top, GLdouble near_val, GLdouble far_val);
 void debug_glTranslatef(GLfloat x, GLfloat y, GLfloat z);
 void debug_glRotatef(GLfloat angle, GLfloat x, GLfloat y, GLfloat z);
 void debug_glScalef(GLfloat x, GLfloat y, GLfloat z);
