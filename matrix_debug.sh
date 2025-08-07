@@ -258,13 +258,18 @@ build_native_hextrail() {
     echo -e "${YELLOW}🔧 Modifying Makefile for matrix debugging...${NC}"
     cp ../hacks/glx/Makefile ../hacks/glx/Makefile.backup
 
-    # Add matrix_debug.o to the hextrail target
-    sed -i 's|hextrail: hextrail.o|hextrail: hextrail.o ../../matrix_debug.o|' ../hacks/glx/Makefile
+    # Add matrix_debug.o to the hextrail target dependencies
+    sed -i 's|hextrail:	hextrail.o	 normals.o $(HACK_TRACK_OBJS)|hextrail:	hextrail.o	 normals.o ../../matrix_debug.o $(HACK_TRACK_OBJS)|' ../hacks/glx/Makefile
 
-    # Add matrix_debug.o compilation rule
-    echo "" >> ../hacks/glx/Makefile
-    echo "../../matrix_debug.o: ../../matrix_debug.c ../../matrix_debug.h" >> ../hacks/glx/Makefile
-    echo -e "\t\$(CC) \$(CFLAGS) -DMATRIX_DEBUG -c \$< -o \$@" >> ../hacks/glx/Makefile
+    # Add matrix_debug.o to the link command
+    sed -i 's|$(CC_HACK) -o $@ $@.o	 normals.o $(HACK_TRACK_OBJS) $(HACK_LIBS)|$(CC_HACK) -o $@ $@.o	 normals.o ../../matrix_debug.o $(HACK_TRACK_OBJS) $(HACK_LIBS)|' ../hacks/glx/Makefile
+
+    # Add matrix_debug.o compilation rule (only if it doesn't exist)
+    if ! grep -q "../../matrix_debug.o:" ../hacks/glx/Makefile; then
+        echo "" >> ../hacks/glx/Makefile
+        echo "../../matrix_debug.o: ../../matrix_debug.c ../../matrix_debug.h" >> ../hacks/glx/Makefile
+        echo -e "\t\$(CC) \$(CFLAGS) -DMATRIX_DEBUG -c \$< -o \$@" >> ../hacks/glx/Makefile
+    fi
 
     # Build using the existing Makefile
     cd ../hacks/glx
