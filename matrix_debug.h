@@ -19,6 +19,13 @@ void debug_matrix(const char* label, const void* matrix);
 void debug_matrix_stack(const char* name, void* stack);
 #endif
 
+// Matrix utility functions (used internally)
+void matrix_identity(float* m);
+void matrix_multiply(float* result, const float* a, const float* b);
+void matrix_translate(float* m, float x, float y, float z);
+void matrix_rotate(float* m, float angle, float x, float y, float z);
+void matrix_scale(float* m, float x, float y, float z);
+
 // Matrix state tracking
 #ifndef WEB_BUILD
 extern GLenum current_matrix_mode;
