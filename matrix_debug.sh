@@ -194,46 +194,89 @@ compare_outputs() {
     echo -e "${CYAN}📁 Output files saved in: matrix_debug_outputs/${NC}"
 }
 
-# Function to build hextrail for WebGL
-build_hextrail_web() {
-    echo -e "${BLUE}🌐 Building hextrail for WebGL with matrix debugging...${NC}"
+# Function to build hextrail with matrix debugging
+build_hextrail() {
+    local build_type="$1"
 
-    if [ ! -f "build_web.sh" ]; then
-        echo -e "${RED}❌ build_web.sh not found${NC}"
+    if [ "$build_type" = "web" ]; then
+        echo -e "${BLUE}🌐 Building hextrail for WebGL with matrix debugging...${NC}"
+        build_script="build_web.sh"
+        output_dir="build_web"
+        run_instructions="🌐 To run: open build_web/index.html in your browser"
+    elif [ "$build_type" = "native" ]; then
+        echo -e "${BLUE}🖥️  Building hextrail for native with matrix debugging...${NC}"
+        build_script=""
+        output_dir="build_native_debug"
+        run_instructions="🚀 To run: cd build_native_debug && ./hextrail_debug"
+    else
+        echo -e "${RED}❌ Invalid build type: $build_type${NC}"
         return 1
     fi
 
-    # Run the WebGL build script
-    ./build_web.sh
+    # Temporarily modify hextrail.c to include matrix debugging
+    echo -e "${YELLOW}🔧 Adding matrix debugging to hextrail.c...${NC}"
+    cp hacks/glx/hextrail.c hacks/glx/hextrail.c.backup
+    echo '#include "../../matrix_debug.h"' > hacks/glx/hextrail.c.tmp
+    cat hacks/glx/hextrail.c >> hacks/glx/hextrail.c.tmp
+    mv hacks/glx/hextrail.c.tmp hacks/glx/hextrail.c
+
+    # Build based on type
+    if [ "$build_type" = "web" ]; then
+        if [ ! -f "$build_script" ]; then
+            echo -e "${RED}❌ $build_script not found${NC}"
+            mv hacks/glx/hextrail.c.backup hacks/glx/hextrail.c
+            return 1
+        fi
+        ./$build_script
+    else
+        # Native build - incorporate logic directly
+        build_native_hextrail
+    fi
+
+    # Restore original hextrail.c
+    echo -e "${YELLOW}🧹 Restoring original hextrail.c...${NC}"
+    mv hacks/glx/hextrail.c.backup hacks/glx/hextrail.c
 
     if [ $? -eq 0 ]; then
-        echo -e "${GREEN}✅ WebGL hextrail build successful!${NC}"
-        echo -e "${CYAN}📁 Output files in: build_web/${NC}"
-        echo -e "${YELLOW}🌐 To run: open build_web/index.html in your browser${NC}"
+        echo -e "${GREEN}✅ $build_type hextrail build successful!${NC}"
+        echo -e "${CYAN}📁 Output files in: $output_dir/${NC}"
+        echo -e "${YELLOW}$run_instructions${NC}"
     else
-        echo -e "${RED}❌ WebGL hextrail build failed${NC}"
+        echo -e "${RED}❌ $build_type hextrail build failed${NC}"
     fi
 }
 
-# Function to build hextrail for native
-build_hextrail_native() {
-    echo -e "${BLUE}🖥️  Building hextrail for native with matrix debugging...${NC}"
+# Function to build native hextrail using existing Makefile
+build_native_hextrail() {
+    echo -e "${YELLOW}📦 Building native hextrail using Makefile...${NC}"
 
-    if [ ! -f "build_native_debug.sh" ]; then
-        echo -e "${RED}❌ build_native_debug.sh not found${NC}"
-        return 1
-    fi
+    # Create build directory
+    mkdir -p build_native_debug
+    cd build_native_debug
 
-    # Run the native build script
-    ./build_native_debug.sh
+    # Temporarily modify the Makefile to include matrix debugging
+    echo -e "${YELLOW}🔧 Modifying Makefile for matrix debugging...${NC}"
+    cp ../hacks/glx/Makefile ../hacks/glx/Makefile.backup
 
-    if [ $? -eq 0 ]; then
-        echo -e "${GREEN}✅ Native hextrail build successful!${NC}"
-        echo -e "${CYAN}📁 Output file: build_native_debug/hextrail_debug${NC}"
-        echo -e "${YELLOW}🚀 To run: cd build_native_debug && ./hextrail_debug${NC}"
-    else
-        echo -e "${RED}❌ Native hextrail build failed${NC}"
-    fi
+    # Add matrix_debug.o to the hextrail target
+    sed -i 's|hextrail: hextrail.o|hextrail: hextrail.o ../../matrix_debug.o|' ../hacks/glx/Makefile
+
+    # Add matrix_debug.o compilation rule
+    echo "" >> ../hacks/glx/Makefile
+    echo "../../matrix_debug.o: ../../matrix_debug.c ../../matrix_debug.h" >> ../hacks/glx/Makefile
+    echo -e "\t\$(CC) \$(CFLAGS) -DMATRIX_DEBUG -c \$< -o \$@" >> ../hacks/glx/Makefile
+
+    # Build using the existing Makefile
+    cd ../hacks/glx
+    make hextrail CFLAGS="-DMATRIX_DEBUG"
+
+    # Copy the built binary to our build directory
+    cp hextrail ../../build_native_debug/hextrail_debug
+
+    # Restore original Makefile
+    mv Makefile.backup Makefile
+
+    cd ../..
 }
 
 # Function to clean all build files
@@ -274,10 +317,10 @@ main() {
             compare_outputs
             ;;
         "hextrail-web")
-            build_hextrail_web
+            build_hextrail "web"
             ;;
         "hextrail-native")
-            build_hextrail_native
+            build_hextrail "native"
             ;;
         "clean")
             clean_all

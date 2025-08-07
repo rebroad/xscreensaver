@@ -15,9 +15,6 @@
 #include <stdarg.h>
 #include <emscripten/emscripten.h>
 
-// Include unified matrix debugging framework
-#include "matrix_debug.h"
-
 // Random number generation for color functions
 static unsigned int random_seed = 1;
 static unsigned int webgl_random() {
