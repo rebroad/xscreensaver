@@ -13,6 +13,12 @@ void matrix_debug_log(const char* format, ...);
 // Frame counter function
 void matrix_debug_next_frame(void);
 
+// Stub functions for WebGL wrapper compatibility
+#ifdef WEB_BUILD
+void debug_matrix(const char* label, const void* matrix);
+void debug_matrix_stack(const char* name, void* stack);
+#endif
+
 // Matrix state tracking
 extern GLenum current_matrix_mode;
 extern float modelview_matrix[16];
@@ -31,8 +37,8 @@ void init_matrix_debug_functions(void);
 // Debug wrapper function declarations
 void debug_glMatrixMode(GLenum mode);
 void debug_glLoadIdentity(void);
-void debug_glOrtho(GLdouble left, GLdouble right, GLdouble bottom, GLdouble top, GLdouble near_val, GLdouble far_val);
-void debug_glFrustum(GLdouble left, GLdouble right, GLdouble bottom, GLdouble top, GLdouble near_val, GLdouble far_val);
+void debug_glOrtho(GLfloat left, GLfloat right, GLfloat bottom, GLfloat top, GLfloat near_val, GLfloat far_val);
+void debug_glFrustum(GLfloat left, GLfloat right, GLfloat bottom, GLfloat top, GLfloat near_val, GLfloat far_val);
 void debug_glTranslatef(GLfloat x, GLfloat y, GLfloat z);
 void debug_glRotatef(GLfloat angle, GLfloat x, GLfloat y, GLfloat z);
 void debug_glScalef(GLfloat x, GLfloat y, GLfloat z);
