@@ -15,10 +15,13 @@
 #define GET_FUNC_PTR(func_ptr, func_name) \
     do { \
         if (!func_ptr) { \
-            func_ptr = (void (*)(void))dlsym(RTLD_NEXT, func_name); \
+            _Pragma("GCC diagnostic push") \
+            _Pragma("GCC diagnostic ignored \"-Wpedantic\"") \
+            func_ptr = (typeof(func_ptr))dlsym(RTLD_NEXT, func_name); \
             if (!func_ptr) { \
-                func_ptr = (void (*)(void))dlsym(RTLD_DEFAULT, func_name); \
+                func_ptr = (typeof(func_ptr))dlsym(RTLD_DEFAULT, func_name); \
             } \
+            _Pragma("GCC diagnostic pop") \
         } \
     } while(0)
 #endif
@@ -211,6 +214,8 @@ void init_matrix_debug_functions(void) {
 
     // Try to get the real functions using RTLD_NEXT
     // This will find the next occurrence of these symbols in the library search order
+    #pragma GCC diagnostic push
+    #pragma GCC diagnostic ignored "-Wpedantic"
     real_glMatrixMode = (typeof(real_glMatrixMode))dlsym(RTLD_NEXT, "glMatrixMode");
     real_glLoadIdentity = (typeof(real_glLoadIdentity))dlsym(RTLD_NEXT, "glLoadIdentity");
     real_glOrtho = (typeof(real_glOrtho))dlsym(RTLD_NEXT, "glOrtho");
@@ -224,9 +229,12 @@ void init_matrix_debug_functions(void) {
     real_glViewport = (typeof(real_glViewport))dlsym(RTLD_NEXT, "glViewport");
     real_gluPerspective = (typeof(real_gluPerspective))dlsym(RTLD_NEXT, "gluPerspective");
     real_gluLookAt = (typeof(real_gluLookAt))dlsym(RTLD_NEXT, "gluLookAt");
+    #pragma GCC diagnostic pop
 
     // If RTLD_NEXT didn't work, try RTLD_DEFAULT
     if (!real_glMatrixMode) {
+        #pragma GCC diagnostic push
+        #pragma GCC diagnostic ignored "-Wpedantic"
         real_glMatrixMode = (typeof(real_glMatrixMode))dlsym(RTLD_DEFAULT, "glMatrixMode");
         real_glLoadIdentity = (typeof(real_glLoadIdentity))dlsym(RTLD_DEFAULT, "glLoadIdentity");
         real_glOrtho = (typeof(real_glOrtho))dlsym(RTLD_DEFAULT, "glOrtho");
@@ -240,6 +248,7 @@ void init_matrix_debug_functions(void) {
         real_glViewport = (typeof(real_glViewport))dlsym(RTLD_DEFAULT, "glViewport");
         real_gluPerspective = (typeof(real_gluPerspective))dlsym(RTLD_DEFAULT, "gluPerspective");
         real_gluLookAt = (typeof(real_gluLookAt))dlsym(RTLD_DEFAULT, "gluLookAt");
+        #pragma GCC diagnostic pop
     }
 
     // Log if we found the functions
@@ -436,10 +445,13 @@ void debug_glViewport(GLint x, GLint y, GLsizei width, GLsizei height) {
         static void (*real_glViewport)(GLint, GLint, GLsizei, GLsizei) = NULL;
         if (!real_glViewport) {
             #ifdef __linux__
+            #pragma GCC diagnostic push
+            #pragma GCC diagnostic ignored "-Wpedantic"
             real_glViewport = (typeof(real_glViewport))dlsym(RTLD_NEXT, "glViewport");
             if (!real_glViewport) {
                 real_glViewport = (typeof(real_glViewport))dlsym(RTLD_DEFAULT, "glViewport");
             }
+            #pragma GCC diagnostic pop
             #endif
         }
 
