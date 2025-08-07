@@ -10,6 +10,9 @@
 // Debug logging function
 void matrix_debug_log(const char* format, ...);
 
+// Frame counter function
+void matrix_debug_next_frame(void);
+
 // Matrix state tracking
 extern GLenum current_matrix_mode;
 extern float modelview_matrix[16];

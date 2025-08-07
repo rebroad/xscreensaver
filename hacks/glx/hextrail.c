@@ -17,6 +17,9 @@
 
 # define release_hextrail 0
 
+#ifdef MATRIX_DEBUG
+#include "../../matrix_debug.h"
+#endif
 #ifndef WEB_BUILD
 #include "xlockmore.h"
 #endif
@@ -843,6 +846,10 @@ ENTRYPOINT void
 draw_hextrail (ModeInfo *mi)
 {
   hextrail_configuration *bp = &bps[MI_SCREEN(mi)];
+
+  #ifdef MATRIX_DEBUG
+  matrix_debug_next_frame();
+  #endif
 
   if (!bp->glx_context) return;
   Display *dpy = MI_DISPLAY(mi);
