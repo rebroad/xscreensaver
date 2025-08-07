@@ -13,7 +13,7 @@ void matrix_debug_log(const char* format, ...);
 // Frame counter function
 void matrix_debug_next_frame(void);
 
-// Stub functions for WebGL wrapper compatibility
+// Matrix debugging functions for WebGL builds only
 #ifdef WEB_BUILD
 void debug_matrix(const char* label, const void* matrix);
 void debug_matrix_stack(const char* name, void* stack);
