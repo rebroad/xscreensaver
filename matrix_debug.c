@@ -1,3 +1,4 @@
+#ifdef MATRIX_DEBUG
 #include "matrix_debug.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -61,14 +62,6 @@ float texture_matrix[16] = {
     0.0f, 0.0f, 0.0f, 1.0f
 };
 
-// Matrix stack for push/pop operations
-#define MAX_MATRIX_STACK_DEPTH 32
-static struct {
-    GLenum mode;
-    float matrix[16];
-} matrix_stack[MAX_MATRIX_STACK_DEPTH];
-static int matrix_stack_depth = 0;
-
 static void (*real_glMatrixMode)(GLenum) = NULL;
 static void (*real_glLoadIdentity)(void) = NULL;
 static void (*real_glOrtho)(GLfloat, GLfloat, GLfloat, GLfloat, GLfloat, GLfloat) = NULL;
@@ -105,7 +98,7 @@ void matrix_debug_next_frame(void) {
     #endif
 }
 
-// Stub functions for WebGL wrapper compatibility
+// Matrix debugging functions for WebGL builds only
 #ifdef WEB_BUILD
 void debug_matrix(const char* label, const void* matrix_ptr) {
     // Cast to float array - the WebGL wrapper uses Matrix4f which is compatible
@@ -332,11 +325,12 @@ void debug_glFrustum(GLfloat left, GLfloat right, GLfloat bottom, GLfloat top, G
 void debug_glTranslatef(GLfloat x, GLfloat y, GLfloat z) {
     AUTO_INIT_NATIVE(real_glTranslatef);
 
-    matrix_debug_log("glTranslatef(%f, %f, %f)\n", x, y, z);
+    matrix_debug_log("glTranslatef(%f, %f, %f) - Matrix will be modified\n", x, y, z);
 
     #ifdef WEB_BUILD
         // WebGL version: call the real web wrapper function
         glTranslatef(x, y, z);
+        // Note: The WebGL wrapper will call debug_matrix("Before Translate") and debug_matrix("After Translate")
     #else
         // Native version: call real OpenGL function
         if (real_glTranslatef) {
@@ -348,11 +342,12 @@ void debug_glTranslatef(GLfloat x, GLfloat y, GLfloat z) {
 void debug_glRotatef(GLfloat angle, GLfloat x, GLfloat y, GLfloat z) {
     AUTO_INIT_NATIVE(real_glRotatef);
 
-    matrix_debug_log("glRotatef(%f, %f, %f, %f)\n", angle, x, y, z);
+    matrix_debug_log("glRotatef(%f, %f, %f, %f) - Matrix will be modified\n", angle, x, y, z);
 
     #ifdef WEB_BUILD
         // WebGL version: call the real web wrapper function
         glRotatef(angle, x, y, z);
+        // Note: The WebGL wrapper will call debug_matrix("Before Rotate") and debug_matrix("After Rotate")
     #else
         // Native version: call real OpenGL function
         if (real_glRotatef) {
@@ -380,11 +375,12 @@ void debug_glScalef(GLfloat x, GLfloat y, GLfloat z) {
 void debug_glPushMatrix(void) {
     AUTO_INIT_NATIVE(real_glPushMatrix);
 
-    matrix_debug_log("glPushMatrix()\n");
+    matrix_debug_log("glPushMatrix() - Stack depth will increase\n");
 
     #ifdef WEB_BUILD
         // WebGL version: call the real web wrapper function
         glPushMatrix();
+        // Note: The WebGL wrapper will call its own debug_matrix() to show the stack state
     #else
         // Native version: call real OpenGL function
         if (real_glPushMatrix) {
@@ -396,11 +392,12 @@ void debug_glPushMatrix(void) {
 void debug_glPopMatrix(void) {
     AUTO_INIT_NATIVE(real_glPopMatrix);
 
-    matrix_debug_log("glPopMatrix()\n");
+    matrix_debug_log("glPopMatrix() - Stack depth will decrease\n");
 
     #ifdef WEB_BUILD
         // WebGL version: call the real web wrapper function
         glPopMatrix();
+        // Note: The WebGL wrapper will call its own debug_matrix() to show the stack state
     #else
         // Native version: call real OpenGL function
         if (real_glPopMatrix) {
@@ -521,3 +518,5 @@ void debug_glTranslated(GLdouble x, GLdouble y, GLdouble z) {
         }
     #endif
 }
+
+#endif // MATRIX_DEBUG
