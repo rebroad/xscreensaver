@@ -354,6 +354,10 @@ static void cleanup_vbo_pool(void);
 void glFrustum(GLdouble left, GLdouble right, GLdouble bottom, GLdouble top, GLdouble near_val, GLdouble far_val);
 void glMultMatrixd(const GLdouble *m);
 void glTranslated(GLdouble x, GLdouble y, GLdouble z);
+void gluPerspective(GLdouble fovy, GLdouble aspect, GLdouble zNear, GLdouble zFar);
+void gluLookAt(GLdouble eyex, GLdouble eyey, GLdouble eyez,
+               GLdouble centerx, GLdouble centery, GLdouble centerz,
+               GLdouble upx, GLdouble upy, GLdouble upz);
 
 // Matrix utility functions
 static void matrix_identity(Matrix4f *m) {
