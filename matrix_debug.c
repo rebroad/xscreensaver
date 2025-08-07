@@ -2,6 +2,15 @@
 #include "matrix_debug.h"
 #include <stdio.h>
 #include <stdlib.h>
+
+// Forward declarations for WebGL functions (needed because xscreensaver_web.c is included later)
+#ifdef WEB_BUILD
+extern void gluPerspective(GLdouble fovy, GLdouble aspect, GLdouble zNear, GLdouble zFar);
+extern void gluLookAt(GLdouble eyex, GLdouble eyey, GLdouble eyez,
+                      GLdouble centerx, GLdouble centery, GLdouble centerz,
+                      GLdouble upx, GLdouble upy, GLdouble upz);
+#endif
+
 #include <string.h>
 #include <stdarg.h>
 #ifdef __linux__
@@ -67,8 +76,8 @@ float texture_matrix[16] = {
 
 static void (*real_glMatrixMode)(GLenum) = NULL;
 static void (*real_glLoadIdentity)(void) = NULL;
-static void (*real_glOrtho)(GLfloat, GLfloat, GLfloat, GLfloat, GLfloat, GLfloat) = NULL;
-static void (*real_glFrustum)(GLfloat, GLfloat, GLfloat, GLfloat, GLfloat, GLfloat) = NULL;
+static void (*real_glOrtho)(GLdouble, GLdouble, GLdouble, GLdouble, GLdouble, GLdouble) = NULL;
+static void (*real_glFrustum)(GLdouble, GLdouble, GLdouble, GLdouble, GLdouble, GLdouble) = NULL;
 static void (*real_glTranslatef)(GLfloat, GLfloat, GLfloat) = NULL;
 static void (*real_glRotatef)(GLfloat, GLfloat, GLfloat, GLfloat) = NULL;
 static void (*real_glScalef)(GLfloat, GLfloat, GLfloat) = NULL;
@@ -299,10 +308,10 @@ void debug_glLoadIdentity(void) {
     #endif
 }
 
-void debug_glOrtho(GLfloat left, GLfloat right, GLfloat bottom, GLfloat top, GLfloat near_val, GLfloat far_val) {
+void debug_glOrtho(GLdouble left, GLdouble right, GLdouble bottom, GLdouble top, GLdouble near_val, GLdouble far_val) {
     AUTO_INIT_NATIVE(real_glOrtho);
 
-    matrix_debug_log("glOrtho(%f, %f, %f, %f, %f, %f)\n", left, right, bottom, top, near_val, far_val);
+    matrix_debug_log("glOrtho(%f, %f, %f, %f, %f, %f) - Matrix will be modified\n", left, right, bottom, top, near_val, far_val);
 
     #ifdef WEB_BUILD
         // WebGL version: call the real web wrapper function
@@ -315,10 +324,10 @@ void debug_glOrtho(GLfloat left, GLfloat right, GLfloat bottom, GLfloat top, GLf
     #endif
 }
 
-void debug_glFrustum(GLfloat left, GLfloat right, GLfloat bottom, GLfloat top, GLfloat near_val, GLfloat far_val) {
+void debug_glFrustum(GLdouble left, GLdouble right, GLdouble bottom, GLdouble top, GLdouble near_val, GLdouble far_val) {
     AUTO_INIT_NATIVE(real_glFrustum);
 
-    matrix_debug_log("glFrustum(%f, %f, %f, %f, %f, %f)\n", left, right, bottom, top, near_val, far_val);
+    matrix_debug_log("glFrustum(%f, %f, %f, %f, %f, %f) - Matrix will be modified\n", left, right, bottom, top, near_val, far_val);
 
     #ifdef WEB_BUILD
         // WebGL version: call the real web wrapper function
