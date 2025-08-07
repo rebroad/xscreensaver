@@ -23,6 +23,10 @@
 
 // Global variables for matrix state tracking (matching header declarations)
 GLenum current_matrix_mode = GL_MODELVIEW;
+
+// Frame counting for debug output limiting
+static int frame_count = 0;
+static int max_debug_frames = 5;
 float modelview_matrix[16] = {
     1.0f, 0.0f, 0.0f, 0.0f,
     0.0f, 1.0f, 0.0f, 0.0f,
@@ -67,10 +71,22 @@ static void (*real_gluLookAt)(GLdouble, GLdouble, GLdouble, GLdouble, GLdouble, 
 // Debug logging function
 void matrix_debug_log(const char* format, ...) {
     #ifdef MATRIX_DEBUG
-    va_list args;
-    va_start(args, format);
-    vfprintf(stderr, format, args);
-    va_end(args);
+    if (frame_count < max_debug_frames) {
+        va_list args;
+        va_start(args, format);
+        vfprintf(stderr, format, args);
+        va_end(args);
+    }
+    #endif
+}
+
+// Function to increment frame counter (call this at the start of each frame)
+void matrix_debug_next_frame(void) {
+    #ifdef MATRIX_DEBUG
+    frame_count++;
+    if (frame_count == max_debug_frames) {
+        matrix_debug_log("Matrix debug: Reached frame limit (%d), stopping debug output\n", max_debug_frames);
+    }
     #endif
 }
 
