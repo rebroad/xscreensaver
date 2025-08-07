@@ -3,6 +3,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
+#ifdef __linux__
+#include <dlfcn.h>
+#endif
 
 // Macro to handle auto-initialization for native builds
 #ifdef WEB_BUILD
@@ -415,7 +418,6 @@ void debug_glViewport(GLint x, GLint y, GLsizei width, GLsizei height) {
         static void (*real_glViewport)(GLint, GLint, GLsizei, GLsizei) = NULL;
         if (!real_glViewport) {
             #ifdef __linux__
-            #include <dlfcn.h>
             real_glViewport = dlsym(RTLD_NEXT, "glViewport");
             if (!real_glViewport) {
                 real_glViewport = dlsym(RTLD_DEFAULT, "glViewport");
@@ -441,7 +443,6 @@ void debug_gluPerspective(GLdouble fovy, GLdouble aspect, GLdouble zNear, GLdoub
         static void (*real_gluPerspective)(GLdouble, GLdouble, GLdouble, GLdouble) = NULL;
         if (!real_gluPerspective) {
             #ifdef __linux__
-            #include <dlfcn.h>
             real_gluPerspective = dlsym(RTLD_NEXT, "gluPerspective");
             if (!real_gluPerspective) {
                 real_gluPerspective = dlsym(RTLD_DEFAULT, "gluPerspective");
@@ -470,7 +471,6 @@ void debug_gluLookAt(GLdouble eyex, GLdouble eyey, GLdouble eyez,
         static void (*real_gluLookAt)(GLdouble, GLdouble, GLdouble, GLdouble, GLdouble, GLdouble, GLdouble, GLdouble, GLdouble) = NULL;
         if (!real_gluLookAt) {
             #ifdef __linux__
-            #include <dlfcn.h>
             real_gluLookAt = dlsym(RTLD_NEXT, "gluLookAt");
             if (!real_gluLookAt) {
                 real_gluLookAt = dlsym(RTLD_DEFAULT, "gluLookAt");
