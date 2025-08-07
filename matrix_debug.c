@@ -7,26 +7,20 @@
 #include <dlfcn.h>
 #endif
 #ifdef WEB_BUILD
-#include <emscripten/emscripten.h>
-#include <emscripten/emscripten_webgl.h>
+#include <emscripten.h>
 #endif
 
-// Unified function pointer acquisition for both native and WebGL platforms
+#if !defined(WEB_BUILD) && defined(__linux__)
 #define GET_FUNC_PTR(func_ptr, func_name) \
     do { \
         if (!func_ptr) { \
-            #ifdef WEB_BUILD \
-                func_ptr = emscripten_webgl_get_proc_address(func_name); \
-            #else \
-                #ifdef __linux__ \
-                func_ptr = dlsym(RTLD_NEXT, func_name); \
-                if (!func_ptr) { \
-                    func_ptr = dlsym(RTLD_DEFAULT, func_name); \
-                } \
-                #endif \
-            #endif \
+            func_ptr = dlsym(RTLD_NEXT, func_name); \
+            if (!func_ptr) { \
+                func_ptr = dlsym(RTLD_DEFAULT, func_name); \
+            } \
         } \
     } while(0)
+#endif
 
 // Macro to handle auto-initialization for native builds
 #ifdef WEB_BUILD
@@ -461,11 +455,17 @@ void debug_glViewport(GLint x, GLint y, GLsizei width, GLsizei height) {
 void debug_gluPerspective(GLdouble fovy, GLdouble aspect, GLdouble zNear, GLdouble zFar) {
     matrix_debug_log("gluPerspective(%f, %f, %f, %f)\n", fovy, aspect, zNear, zFar);
 
-    static void (*real_gluPerspective)(GLdouble, GLdouble, GLdouble, GLdouble) = NULL;
-    GET_FUNC_PTR(real_gluPerspective, "gluPerspective");
-    if (real_gluPerspective) {
-        real_gluPerspective(fovy, aspect, zNear, zFar);
-    }
+    #ifdef WEB_BUILD
+        // For WebGL, call the xscreensaver_web wrapper function directly
+        gluPerspective(fovy, aspect, zNear, zFar);
+    #else
+        // For native, use function pointer
+        static void (*real_gluPerspective)(GLdouble, GLdouble, GLdouble, GLdouble) = NULL;
+        GET_FUNC_PTR(real_gluPerspective, "gluPerspective");
+        if (real_gluPerspective) {
+            real_gluPerspective(fovy, aspect, zNear, zFar);
+        }
+    #endif
 }
 
 void debug_gluLookAt(GLdouble eyex, GLdouble eyey, GLdouble eyez,
@@ -474,11 +474,17 @@ void debug_gluLookAt(GLdouble eyex, GLdouble eyey, GLdouble eyez,
     matrix_debug_log("gluLookAt(eye=(%f, %f, %f), center=(%f, %f, %f), up=(%f, %f, %f))\n",
                      eyex, eyey, eyez, centerx, centery, centerz, upx, upy, upz);
 
-    static void (*real_gluLookAt)(GLdouble, GLdouble, GLdouble, GLdouble, GLdouble, GLdouble, GLdouble, GLdouble, GLdouble) = NULL;
-    GET_FUNC_PTR(real_gluLookAt, "gluLookAt");
-    if (real_gluLookAt) {
-        real_gluLookAt(eyex, eyey, eyez, centerx, centery, centerz, upx, upy, upz);
-    }
+    #ifdef WEB_BUILD
+        // For WebGL, call the xscreensaver_web wrapper function directly
+        gluLookAt(eyex, eyey, eyez, centerx, centery, centerz, upx, upy, upz);
+    #else
+        // For native, use function pointer
+        static void (*real_gluLookAt)(GLdouble, GLdouble, GLdouble, GLdouble, GLdouble, GLdouble, GLdouble, GLdouble, GLdouble) = NULL;
+        GET_FUNC_PTR(real_gluLookAt, "gluLookAt");
+        if (real_gluLookAt) {
+            real_gluLookAt(eyex, eyey, eyez, centerx, centery, centerz, upx, upy, upz);
+        }
+    #endif
 }
 
 // Additional debug functions for both native and web
@@ -487,19 +493,31 @@ void debug_glMultMatrixd(const GLdouble* m) {
                      m[0], m[1], m[2], m[3], m[4], m[5], m[6], m[7],
                      m[8], m[9], m[10], m[11], m[12], m[13], m[14], m[15]);
 
-    static void (*real_glMultMatrixd)(const GLdouble*) = NULL;
-    GET_FUNC_PTR(real_glMultMatrixd, "glMultMatrixd");
-    if (real_glMultMatrixd) {
-        real_glMultMatrixd(m);
-    }
+    #ifdef WEB_BUILD
+        // For WebGL, call the xscreensaver_web wrapper function directly
+        glMultMatrixd(m);
+    #else
+        // For native, use function pointer
+        static void (*real_glMultMatrixd)(const GLdouble*) = NULL;
+        GET_FUNC_PTR(real_glMultMatrixd, "glMultMatrixd");
+        if (real_glMultMatrixd) {
+            real_glMultMatrixd(m);
+        }
+    #endif
 }
 
 void debug_glTranslated(GLdouble x, GLdouble y, GLdouble z) {
     matrix_debug_log("glTranslated(%f, %f, %f)\n", x, y, z);
 
-    static void (*real_glTranslated)(GLdouble, GLdouble, GLdouble) = NULL;
-    GET_FUNC_PTR(real_glTranslated, "glTranslated");
-    if (real_glTranslated) {
-        real_glTranslated(x, y, z);
-    }
+    #ifdef WEB_BUILD
+        // For WebGL, call the xscreensaver_web wrapper function directly
+        glTranslated(x, y, z);
+    #else
+        // For native, use function pointer
+        static void (*real_glTranslated)(GLdouble, GLdouble, GLdouble) = NULL;
+        GET_FUNC_PTR(real_glTranslated, "glTranslated");
+        if (real_glTranslated) {
+            real_glTranslated(x, y, z);
+        }
+    #endif
 }
