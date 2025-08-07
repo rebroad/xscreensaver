@@ -20,7 +20,9 @@ void debug_matrix_stack(const char* name, void* stack);
 #endif
 
 // Matrix state tracking
+#ifndef WEB_BUILD
 extern GLenum current_matrix_mode;
+#endif
 extern float modelview_matrix[16];
 extern float projection_matrix[16];
 
