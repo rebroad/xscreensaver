@@ -352,8 +352,8 @@ static void cleanup_vbo_pool(void);
 
 // OpenGL function forward declarations
 void glFrustum(GLfloat left, GLfloat right, GLfloat bottom, GLfloat top, GLfloat near_val, GLfloat far_val);
-void glMultMatrixd(const GLfloat *m);
-void glTranslated(GLfloat x, GLfloat y, GLfloat z);
+void glMultMatrixd(const GLdouble *m);
+void glTranslated(GLdouble x, GLdouble y, GLdouble z);
 
 // Matrix utility functions
 static void matrix_identity(Matrix4f *m) {
@@ -1131,20 +1131,20 @@ int XLookupString(XKeyEvent *event_struct, char *buffer_return, int bytes_buffer
 }
 
 // Missing GLU functions for WebGL
-void gluPerspective(GLfloat fovy, GLfloat aspect, GLfloat zNear, GLfloat zFar) {
+void gluPerspective(GLdouble fovy, GLdouble aspect, GLdouble zNear, GLdouble zFar) {
     GLfloat xmin, xmax, ymin, ymax;
 
-    ymax = zNear * tan(fovy * M_PI / 360.0f);
+    ymax = (GLfloat)zNear * tan((GLfloat)fovy * M_PI / 360.0f);
     ymin = -ymax;
-    xmin = ymin * aspect;
-    xmax = ymax * aspect;
+    xmin = ymin * (GLfloat)aspect;
+    xmax = ymax * (GLfloat)aspect;
 
-    glFrustum(xmin, xmax, ymin, ymax, zNear, zFar);
+    glFrustum(xmin, xmax, ymin, ymax, (GLfloat)zNear, (GLfloat)zFar);
 }
 
-void gluLookAt(GLfloat eyex, GLfloat eyey, GLfloat eyez,
-               GLfloat centerx, GLfloat centery, GLfloat centerz,
-               GLfloat upx, GLfloat upy, GLfloat upz) {
+void gluLookAt(GLdouble eyex, GLdouble eyey, GLdouble eyez,
+               GLdouble centerx, GLdouble centery, GLdouble centerz,
+               GLdouble upx, GLdouble upy, GLdouble upz) {
     GLfloat m[16];
     GLfloat x[3], y[3], z[3];
     GLfloat mag;
@@ -1152,9 +1152,9 @@ void gluLookAt(GLfloat eyex, GLfloat eyey, GLfloat eyez,
     /* Make rotation matrix */
 
     /* Z vector */
-    z[0] = eyex - centerx;
-    z[1] = eyey - centery;
-    z[2] = eyez - centerz;
+    z[0] = (GLfloat)(eyex - centerx);
+    z[1] = (GLfloat)(eyey - centery);
+    z[2] = (GLfloat)(eyez - centerz);
     mag = sqrt(z[0] * z[0] + z[1] * z[1] + z[2] * z[2]);
     if (mag) {
         z[0] /= mag;
@@ -1163,9 +1163,9 @@ void gluLookAt(GLfloat eyex, GLfloat eyey, GLfloat eyez,
     }
 
     /* Y vector */
-    y[0] = upx;
-    y[1] = upy;
-    y[2] = upz;
+    y[0] = (GLfloat)upx;
+    y[1] = (GLfloat)upy;
+    y[2] = (GLfloat)upz;
 
     /* X vector = Y cross Z */
     x[0] = y[1] * z[2] - y[2] * z[1];
@@ -1207,7 +1207,7 @@ void gluLookAt(GLfloat eyex, GLfloat eyey, GLfloat eyez,
     check_gl_error_wrapper("after glMultMatrixd in gluLookAt");
 
     /* Translate Eye to Origin */
-    glTranslated(-eyex, -eyey, -eyez);
+    glTranslated((GLfloat)(-eyex), (GLfloat)(-eyey), (GLfloat)(-eyez));
     check_gl_error_wrapper("after glTranslated in gluLookAt");
 }
 
@@ -1945,10 +1945,10 @@ void glFrustum(GLfloat left, GLfloat right, GLfloat bottom, GLfloat top, GLfloat
     check_gl_error_wrapper("after glFrustum");
 }
 
-void glMultMatrixd(const GLfloat *m) {
+void glMultMatrixd(const GLdouble *m) {
     Matrix4f matrix;
     for (int i = 0; i < 16; i++) {
-        matrix.m[i] = m[i];
+        matrix.m[i] = (GLfloat)m[i];
     }
 
     MatrixStack *stack;
@@ -1974,8 +1974,8 @@ void glMultMatrixd(const GLfloat *m) {
     check_gl_error_wrapper("after glMultMatrixd");
 }
 
-void glTranslated(GLfloat x, GLfloat y, GLfloat z) {
-    glTranslatef(x, y, z);
+void glTranslated(GLdouble x, GLdouble y, GLdouble z) {
+    glTranslatef((GLfloat)x, (GLfloat)y, (GLfloat)z);
 
     check_gl_error_wrapper("after glTranslated");
 }

@@ -48,10 +48,15 @@ void debug_glMultMatrixf(const GLfloat* m);
 
 // Additional functions used by hextrail
 void debug_glViewport(GLint x, GLint y, GLsizei width, GLsizei height);
+// Type-agnostic debug wrappers that work for both native and web
 void debug_gluPerspective(GLdouble fovy, GLdouble aspect, GLdouble zNear, GLdouble zFar);
 void debug_gluLookAt(GLdouble eyex, GLdouble eyey, GLdouble eyez,
                      GLdouble centerx, GLdouble centery, GLdouble centerz,
                      GLdouble upx, GLdouble upy, GLdouble upz);
+
+// Additional debug functions for both native and web
+void debug_glMultMatrixd(const GLdouble* m);
+void debug_glTranslated(GLdouble x, GLdouble y, GLdouble z);
 
 // Macro to replace OpenGL calls with debug versions
 #define glMatrixMode debug_glMatrixMode
@@ -67,8 +72,12 @@ void debug_gluLookAt(GLdouble eyex, GLdouble eyey, GLdouble eyez,
 
 // Additional macros for hextrail functions
 #define glViewport debug_glViewport
+
+// Unified debug macros that work for both native and web
 #define gluPerspective debug_gluPerspective
 #define gluLookAt debug_gluLookAt
+#define glMultMatrixd debug_glMultMatrixd
+#define glTranslated debug_glTranslated
 
 #endif // MATRIX_DEBUG
 
