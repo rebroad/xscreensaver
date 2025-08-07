@@ -351,7 +351,7 @@ static void return_vbo_to_pool(VBOPoolEntry* entry);
 static void cleanup_vbo_pool(void);
 
 // OpenGL function forward declarations
-void glFrustum(GLfloat left, GLfloat right, GLfloat bottom, GLfloat top, GLfloat near_val, GLfloat far_val);
+void glFrustum(GLdouble left, GLdouble right, GLdouble bottom, GLdouble top, GLdouble near_val, GLdouble far_val);
 void glMultMatrixd(const GLdouble *m);
 void glTranslated(GLdouble x, GLdouble y, GLdouble z);
 
@@ -759,7 +759,7 @@ void glMatrixMode(GLenum mode) {
     check_gl_error_wrapper("after glMatrixMode");
 }
 
-void glOrtho(GLfloat left, GLfloat right, GLfloat bottom, GLfloat top, GLfloat near_val, GLfloat far_val) {
+void glOrtho(GLdouble left, GLdouble right, GLdouble bottom, GLdouble top, GLdouble near_val, GLdouble far_val) {
     check_gl_error_wrapper("before glOrtho");
 
     // Call our unified debug function first
@@ -771,13 +771,13 @@ void glOrtho(GLfloat left, GLfloat right, GLfloat bottom, GLfloat top, GLfloat n
         Matrix4f ortho;
         matrix_identity(&ortho);
 
-        GLfloat tx = -(right + left) / (right - left);
-        GLfloat ty = -(top + bottom) / (top - bottom);
-        GLfloat tz = -(far_val + near_val) / (far_val - near_val);
+        GLfloat tx = -(GLfloat)(right + left) / (GLfloat)(right - left);
+        GLfloat ty = -(GLfloat)(top + bottom) / (GLfloat)(top - bottom);
+        GLfloat tz = -(GLfloat)(far_val + near_val) / (GLfloat)(far_val - near_val);
 
-        ortho.m[0] = 2.0f / (right - left);
-        ortho.m[5] = 2.0f / (top - bottom);
-        ortho.m[10] = -2.0f / (far_val - near_val);
+        ortho.m[0] = 2.0f / (GLfloat)(right - left);
+        ortho.m[5] = 2.0f / (GLfloat)(top - bottom);
+        ortho.m[10] = -2.0f / (GLfloat)(far_val - near_val);
         ortho.m[12] = tx;
         ortho.m[13] = ty;
         ortho.m[14] = tz;
@@ -1912,7 +1912,7 @@ void glXMakeCurrent(Display *display, Window window, GLXContext context) {
 }
 
 // Missing OpenGL functions for WebGL compatibility
-void glFrustum(GLfloat left, GLfloat right, GLfloat bottom, GLfloat top, GLfloat near_val, GLfloat far_val) {
+void glFrustum(GLdouble left, GLdouble right, GLdouble bottom, GLdouble top, GLdouble near_val, GLdouble far_val) {
     check_gl_error_wrapper("before glFrustum");
 
     DL(1, "glFrustum: left=%.3f, right=%.3f, bottom=%.3f, top=%.3f, near=%.3f, far=%.3f\n",
@@ -1922,13 +1922,13 @@ void glFrustum(GLfloat left, GLfloat right, GLfloat bottom, GLfloat top, GLfloat
     Matrix4f frustum;
     matrix_identity(&frustum);
 
-    GLfloat a = (right + left) / (right - left);
-    GLfloat b = (top + bottom) / (top - bottom);
-    GLfloat c = -(far_val + near_val) / (far_val - near_val);
-    GLfloat d = -(2 * far_val * near_val) / (far_val - near_val);
+    GLfloat a = (GLfloat)(right + left) / (GLfloat)(right - left);
+    GLfloat b = (GLfloat)(top + bottom) / (GLfloat)(top - bottom);
+    GLfloat c = -(GLfloat)(far_val + near_val) / (GLfloat)(far_val - near_val);
+    GLfloat d = -(GLfloat)(2 * far_val * near_val) / (GLfloat)(far_val - near_val);
 
-    frustum.m[0] = 2 * near_val / (right - left);
-    frustum.m[5] = 2 * near_val / (top - bottom);
+    frustum.m[0] = (GLfloat)(2 * near_val) / (GLfloat)(right - left);
+    frustum.m[5] = (GLfloat)(2 * near_val) / (GLfloat)(top - bottom);
     frustum.m[8] = a;
     frustum.m[9] = b;
     frustum.m[10] = c;
