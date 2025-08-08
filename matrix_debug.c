@@ -128,50 +128,7 @@ void debug_matrix_stack(const char* name, void* stack) {
 }
 #endif
 
-// Matrix utility functions
-void matrix_identity(float* m) {
-    m[0] = 1.0f; m[1] = 0.0f; m[2] = 0.0f; m[3] = 0.0f;
-    m[4] = 0.0f; m[5] = 1.0f; m[6] = 0.0f; m[7] = 0.0f;
-    m[8] = 0.0f; m[9] = 0.0f; m[10] = 1.0f; m[11] = 0.0f;
-    m[12] = 0.0f; m[13] = 0.0f; m[14] = 0.0f; m[15] = 1.0f;
-}
 
-void matrix_multiply(float* result, const float* a, const float* b) {
-    float temp[16];
-    for (int i = 0; i < 4; i++) {
-        for (int j = 0; j < 4; j++) {
-            temp[i*4 + j] = 0.0f;
-            for (int k = 0; k < 4; k++) {
-                temp[i*4 + j] += a[i*4 + k] * b[k*4 + j];
-            }
-        }
-    }
-    memcpy(result, temp, 16 * sizeof(float));
-}
-
-void matrix_translate(float* m, float x, float y, float z) {
-    float translate[16];
-    matrix_identity(translate);
-    translate[12] = x;
-    translate[13] = y;
-    translate[14] = z;
-    matrix_multiply(m, m, translate);
-}
-
-void matrix_rotate(float* m, float angle, float x, float y, float z) {
-    // Simplified rotation - in practice you'd want a full rotation matrix
-    // For debugging purposes, we'll just log the rotation
-    matrix_debug_log("Rotation: %.3f degrees around (%.3f, %.3f, %.3f)\n", angle, x, y, z);
-}
-
-void matrix_scale(float* m, float x, float y, float z) {
-    float scale[16];
-    matrix_identity(scale);
-    scale[0] = x;
-    scale[5] = y;
-    scale[10] = z;
-    matrix_multiply(m, m, scale);
-}
 
 // Function to read current OpenGL matrix state
 void debug_current_opengl_matrix(const char* label) {
@@ -425,23 +382,35 @@ void debug_glScalef(GLfloat x, GLfloat y, GLfloat z) {
 void debug_glPushMatrix(void) {
     AUTO_INIT_NATIVE(real_glPushMatrix);
 
-    matrix_debug_log("glPushMatrix() - Stack depth will increase\n");
+    matrix_debug_log("glPushMatrix()\n");
+    
+    // Show the matrix being pushed onto the stack
+    debug_current_opengl_matrix("Matrix Being Pushed");
 
     // Call real function (works for both native and WebGL)
     if (real_glPushMatrix) {
         real_glPushMatrix();
     }
+    
+    matrix_debug_log("✓ Matrix pushed to stack\n");
 }
 
 void debug_glPopMatrix(void) {
     AUTO_INIT_NATIVE(real_glPopMatrix);
 
-    matrix_debug_log("glPopMatrix() - Stack depth will decrease\n");
+    matrix_debug_log("glPopMatrix()\n");
+    
+    // Show the current matrix before popping (what will be discarded)
+    debug_current_opengl_matrix("Current Matrix (Before Pop)");
 
     // Call real function (works for both native and WebGL)
     if (real_glPopMatrix) {
         real_glPopMatrix();
     }
+    
+    // Show the matrix after popping (what was restored from stack)
+    debug_current_opengl_matrix("Restored Matrix (After Pop)");
+    matrix_debug_log("✓ Matrix popped from stack\n");
 }
 
 void debug_glMultMatrixf(const GLfloat* m) {
