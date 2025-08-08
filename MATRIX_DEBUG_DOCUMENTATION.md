@@ -23,7 +23,7 @@ matrix_debug.sh (Main Orchestrator)
 **Purpose**: User-friendly interface for all matrix debugging operations
 
 **Commands**:
-- `compare` - Builds both versions and compares outputs
+- `compare` - Builds both versions and uses other scripts for comparison
 - `hextrail-web` - Builds WebGL version with debugging
 - `hextrail-native` - Builds native version with debugging
 - `clean` - Cleans all build files
@@ -31,7 +31,7 @@ matrix_debug.sh (Main Orchestrator)
 
 **Dependencies**:
 - ✅ **build_web.sh** - Called for WebGL builds
-- ✅ **enhanced_compare.sh** - Referenced for comparison logic
+- ✅ **auto_probe_web.sh** - Called for advanced web debugging (required)
 - ✅ **matrix_debug.c/h** - Core debugging implementation
 - ✅ **hextrail.c** - Modified with conditional debugging code
 
@@ -39,7 +39,7 @@ matrix_debug.sh (Main Orchestrator)
 - Dependency checking (gcc, emcc, required files)
 - Automatic Emscripten environment sourcing
 - Makefile modification for native builds
-- Web server management for WebGL testing
+- **Script orchestration** - Uses other scripts (required for full functionality)
 
 ### 2. **build_web.sh** - WebGL Build Script 🌐
 **Purpose**: Compiles HexTrail for WebGL using Emscripten
@@ -61,29 +61,6 @@ matrix_debug.sh (Main Orchestrator)
 ```bash
 emcc [flags] hextrail_web_main.c matrix_debug.c xscreensaver_web.c [other files] -o index.html
 ```
-
-### 3. **enhanced_compare.sh** - Advanced Comparison 🔍
-**Purpose**: Intelligently compares native vs WebGL matrix operations
-
-**Dependencies**:
-- ✅ **matrix_debug.sh** - Called for building versions
-- ✅ **curl** - For web page probing
-- ✅ **python3** - For web server management
-
-**Key Features**:
-- Automatic native output capture (10-second timeout)
-- WebGL output extraction via webpage probing
-- Intelligent matrix operation filtering
-- Detailed difference analysis
-- HTML-based debug extraction attempts
-
-**Comparison Process**:
-1. Builds native version if needed
-2. Captures native debug output
-3. Builds WebGL version if needed
-4. Starts web server for WebGL testing
-5. Extracts matrix operations from both outputs
-6. Performs intelligent comparison
 
 ### 4. **auto_probe_web.sh** - Web Debugging Automation 🤖
 **Purpose**: Advanced web server management and debug output capture
@@ -142,19 +119,15 @@ build_native_debug/hextrail_debug (Native version)
 ```
 matrix_debug.sh compare
     ↓
-enhanced_compare.sh
-    ↓
 [Build both versions]
     ↓
-[Capture native output]
+[Run native hextrail and capture debug output]
     ↓
-[Start web server]
+auto_probe_web.sh (required)
     ↓
-[Capture WebGL output]
+[Intelligent matrix operation comparison (integrated)]
     ↓
-[Compare matrix operations]
-    ↓
-[Generate diff report]
+[Generate comparison report]
 ```
 
 ### Web Debugging Flow:
@@ -212,11 +185,40 @@ auto_probe_web.sh
 - Matrix stack management
 - Emscripten integration
 
+## 🔧 Architectural Improvements
+
+### **Fixed Issues:**
+
+1. **✅ Eliminated Duplication:**
+   - Web server management now centralized in `auto_probe_web.sh`
+   - WebGL output capture logic unified
+   - Build logic consolidated
+
+2. **✅ Corrected Dependencies:**
+   - `matrix_debug.sh` now properly calls other scripts
+   - `enhanced_compare.sh` no longer depends on `matrix_debug.sh`
+   - Each script can operate independently
+
+3. **✅ Improved Modularity:**
+   - Scripts can be used individually or together
+   - Graceful fallbacks when scripts are missing
+   - Clear separation of concerns
+
+### **New Architecture:**
+```
+matrix_debug.sh (Orchestrator)
+├── build_web.sh (WebGL Build)
+├── auto_probe_web.sh (Web Debugging)
+└── [Intelligent comparison logic (integrated)]
+
+Each script can also run independently!
+```
+
 ## 🎯 Usage Examples
 
 ### Basic Comparison:
 ```bash
-# Compare native vs WebGL matrix operations
+# Compare native vs WebGL matrix operations (uses all available scripts)
 ./matrix_debug.sh compare
 ```
 
