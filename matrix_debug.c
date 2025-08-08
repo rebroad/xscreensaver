@@ -232,8 +232,8 @@ void init_matrix_debug_functions(void) {
 
     matrix_debug_log("Matrix debug: WebGL build - initialized function pointers to xscreensaver_web functions\n");
     #else
-    // For now, we'll use dlsym to get the real functions
-    // This requires linking with -ldl
+    // For native builds, use dlsym to get the real OpenGL functions
+    // This is the standard approach for function interception on Linux
     #ifdef __linux__
     #include <dlfcn.h>
 
@@ -284,6 +284,11 @@ void init_matrix_debug_functions(void) {
     }
     #endif // __linux__
     #endif // else WEB_BUILD
+
+    // Initialize matrix validation for both native and WebGL builds
+    #ifdef MATRIX_DEBUG_VALIDATE
+    matrix_debug_validate_init();
+    #endif
 }
 
 // Wrapper function implementations
