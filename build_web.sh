@@ -8,6 +8,7 @@ set -e
 # Parse command line arguments
 DEBUG_MODE=false
 MEMORY_DEBUG=false
+MATRIX_DEBUG_MODE=false
 while [[ $# -gt 0 ]]; do
     case $1 in
         -debug)
@@ -18,10 +19,15 @@ while [[ $# -gt 0 ]]; do
             MEMORY_DEBUG=true
             shift
             ;;
+        -matrix-debug)
+            MATRIX_DEBUG_MODE=true
+            shift
+            ;;
         *)
-            echo "Usage: $0 [-debug] [-memory]"
+            echo "Usage: $0 [-debug] [-memory] [-matrix-debug]"
             echo "  -debug: Enable FINDBUG mode for GL error hunting"
             echo "  -memory: Enable memory debugging and leak detection"
+            echo "  -matrix-debug: Enable matrix debugging (for matrix_debug.sh)"
             exit 1
             ;;
     esac
@@ -99,7 +105,6 @@ EMCC_ARGS=(
     -DHAVE_CONFIG_H
     -DWEB_BUILD
     -DHAVE_JWXYZ
-    -DMATRIX_DEBUG
     -s USE_WEBGL2=1
     -s FULL_ES3=1
     -s ALLOW_MEMORY_GROWTH=1
@@ -147,6 +152,11 @@ if [ "$MEMORY_DEBUG" = true ]; then
         -s ABORTING_MALLOC=0
         "${EMCC_ARGS[@]}"
     )
+fi
+
+# Add matrix debugging flag if requested
+if [ "$MATRIX_DEBUG_MODE" = true ]; then
+    EMCC_ARGS=(-DMATRIX_DEBUG "${EMCC_ARGS[@]}")
 fi
 
 # Compile with emscripten using custom HTML template
