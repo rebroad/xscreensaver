@@ -18,6 +18,7 @@ extern void gluLookAt(GLdouble eyex, GLdouble eyey, GLdouble eyez,
 #endif
 #ifdef WEB_BUILD
 #include <emscripten.h>
+#include <emscripten/webgl.h>
 #endif
 
 #if !defined(WEB_BUILD) && defined(__linux__)
@@ -201,25 +202,26 @@ void debug_current_matrix_state(void) {
 void init_matrix_debug_functions(void) {
     #ifdef WEB_BUILD
     // For WebGL builds, we need to get function pointers to the actual xscreensaver_web functions
-    // We'll use dlsym to get the real function addresses, avoiding the macro redirection
+    // We'll use Emscripten's function pointer mechanism to get the actual functions
+    // from xscreensaver_web.c, avoiding the macro redirection
 
     // Get function pointers to the actual xscreensaver_web functions
     // These are the real implementations, not our debug wrappers
-    real_glMatrixMode = (typeof(real_glMatrixMode))dlsym(RTLD_DEFAULT, "glMatrixMode");
-    real_glLoadIdentity = (typeof(real_glLoadIdentity))dlsym(RTLD_DEFAULT, "glLoadIdentity");
-    real_glOrtho = (typeof(real_glOrtho))dlsym(RTLD_DEFAULT, "glOrtho");
-    real_glFrustum = (typeof(real_glFrustum))dlsym(RTLD_DEFAULT, "glFrustum");
-    real_glTranslatef = (typeof(real_glTranslatef))dlsym(RTLD_DEFAULT, "glTranslatef");
-    real_glRotatef = (typeof(real_glRotatef))dlsym(RTLD_DEFAULT, "glRotatef");
-    real_glScalef = (typeof(real_glScalef))dlsym(RTLD_DEFAULT, "glScalef");
-    real_glPushMatrix = (typeof(real_glPushMatrix))dlsym(RTLD_DEFAULT, "glPushMatrix");
-    real_glPopMatrix = (typeof(real_glPopMatrix))dlsym(RTLD_DEFAULT, "glPopMatrix");
-    real_glMultMatrixf = (typeof(real_glMultMatrixf))dlsym(RTLD_DEFAULT, "glMultMatrixf");
-    real_glMultMatrixd = (typeof(real_glMultMatrixd))dlsym(RTLD_DEFAULT, "glMultMatrixd");
-    real_glViewport = (typeof(real_glViewport))dlsym(RTLD_DEFAULT, "glViewport");
-    real_gluPerspective = (typeof(real_gluPerspective))dlsym(RTLD_DEFAULT, "gluPerspective");
-    real_gluLookAt = (typeof(real_gluLookAt))dlsym(RTLD_DEFAULT, "gluLookAt");
-    real_glTranslated = (typeof(real_glTranslated))dlsym(RTLD_DEFAULT, "glTranslated");
+    real_glMatrixMode = (typeof(real_glMatrixMode))emscripten_webgl_get_proc_address("glMatrixMode");
+    real_glLoadIdentity = (typeof(real_glLoadIdentity))emscripten_webgl_get_proc_address("glLoadIdentity");
+    real_glOrtho = (typeof(real_glOrtho))emscripten_webgl_get_proc_address("glOrtho");
+    real_glFrustum = (typeof(real_glFrustum))emscripten_webgl_get_proc_address("glFrustum");
+    real_glTranslatef = (typeof(real_glTranslatef))emscripten_webgl_get_proc_address("glTranslatef");
+    real_glRotatef = (typeof(real_glRotatef))emscripten_webgl_get_proc_address("glRotatef");
+    real_glScalef = (typeof(real_glScalef))emscripten_webgl_get_proc_address("glScalef");
+    real_glPushMatrix = (typeof(real_glPushMatrix))emscripten_webgl_get_proc_address("glPushMatrix");
+    real_glPopMatrix = (typeof(real_glPopMatrix))emscripten_webgl_get_proc_address("glPopMatrix");
+    real_glMultMatrixf = (typeof(real_glMultMatrixf))emscripten_webgl_get_proc_address("glMultMatrixf");
+    real_glMultMatrixd = (typeof(real_glMultMatrixd))emscripten_webgl_get_proc_address("glMultMatrixd");
+    real_glViewport = (typeof(real_glViewport))emscripten_webgl_get_proc_address("glViewport");
+    real_gluPerspective = (typeof(real_gluPerspective))emscripten_webgl_get_proc_address("gluPerspective");
+    real_gluLookAt = (typeof(real_gluLookAt))emscripten_webgl_get_proc_address("gluLookAt");
+    real_glTranslated = (typeof(real_glTranslated))emscripten_webgl_get_proc_address("glTranslated");
 
     matrix_debug_log("Matrix debug: WebGL build - initialized function pointers to xscreensaver_web functions\n");
     #else
