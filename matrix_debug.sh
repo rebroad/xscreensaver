@@ -195,7 +195,7 @@ build_hextrail() {
             echo -e "${RED}❌ $build_script not found${NC}"
             return 1
         fi
-        ./$build_script
+        ./$build_script -matrix-debug
     else
         # Native build - incorporate logic directly
         build_native_hextrail
