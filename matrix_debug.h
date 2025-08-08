@@ -36,6 +36,7 @@ extern float projection_matrix[16];
 void debug_matrix_mode_switch(GLenum old_mode, GLenum new_mode);
 void debug_matrix_operation(const char* operation, const float* matrix);
 void debug_current_matrix_state(void);
+void debug_current_opengl_matrix(const char* label);
 
 // Initialize function pointers (for native builds)
 #ifndef WEB_BUILD
