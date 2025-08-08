@@ -18,21 +18,21 @@ echo ""
 # Function to check if web server is running and start if needed
 check_and_start_web_server() {
     echo -e "${YELLOW}🔍 Checking web server...${NC}"
-    
+
     # Check if build_web directory exists
     if [ ! -d "build_web" ]; then
         echo -e "${RED}❌ build_web directory not found${NC}"
         echo -e "${YELLOW}💡 Please build WebGL version first: ./matrix_debug.sh hextrail-web${NC}"
         return 1
     fi
-    
+
     # Check if index.html exists in build_web
     if [ ! -f "build_web/index.html" ]; then
         echo -e "${RED}❌ build_web/index.html not found${NC}"
         echo -e "${YELLOW}💡 Please build WebGL version first: ./matrix_debug.sh hextrail-web${NC}"
         return 1
     fi
-    
+
     # Check if there's already a server running on any port serving our files (quick check)
     echo -e "${YELLOW}🔍 Checking for existing hextrail servers...${NC}"
     for test_port in 8000 8001 8002 8003 8004 8005; do
@@ -40,7 +40,7 @@ check_and_start_web_server() {
             # Test if it's serving our hextrail page
             if timeout 2 curl -s http://localhost:$test_port | grep -q "HexTrail"; then
                 echo -e "${YELLOW}🔍 Found server on port $test_port, verifying directory...${NC}"
-                
+
                 # Use lsof to verify the server is serving from the correct directory
                 SERVER_PIDS=$(lsof -ti:$test_port 2>/dev/null)
                 if [ ! -z "$SERVER_PIDS" ]; then
@@ -61,7 +61,7 @@ check_and_start_web_server() {
             fi
         fi
     done
-    
+
     # Clean up any stale python http servers that might be blocking ports
     echo -e "${YELLOW}🧹 Checking for stale web servers...${NC}"
     STALE_PIDS=$(ps aux | grep "python3 -m http.server" | grep -v grep | awk '{print $2}')
@@ -83,7 +83,7 @@ check_and_start_web_server() {
             fi
         done
     fi
-    
+
     # Find an available port starting from 8000 (quick check)
     echo -e "${YELLOW}🔍 Finding available port...${NC}"
     PORT=8000
@@ -93,26 +93,37 @@ check_and_start_web_server() {
             break
         fi
     done
-    
+
     if [ $PORT -gt 8010 ]; then
         echo -e "${RED}❌ Could not find available port between 8000-8010${NC}"
         return 1
     fi
-    
+
     # No server found, start one
     echo -e "${YELLOW}🚀 Starting web server on port $PORT...${NC}"
-    
+
     if command -v python3 &> /dev/null; then
         cd build_web && python3 -m http.server $PORT > /dev/null 2>&1 &
         SERVER_PID=$!
         sleep 2
-        
+
         # Check if server started successfully
         if kill -0 $SERVER_PID 2>/dev/null && curl -s http://localhost:$PORT > /dev/null 2>&1; then
             echo -e "${GREEN}✅ Web server started successfully (PID: $SERVER_PID, Port: $PORT)${NC}"
-            echo $PORT > /tmp/hextrail_web_port.txt
-            echo $SERVER_PID > /tmp/hextrail_web_pid.txt
-            return 0
+
+            # Verify hextrail page is accessible
+            echo -e "${YELLOW}🔍 Verifying hextrail page is accessible...${NC}"
+            if curl -s http://localhost:$PORT | grep -q "HexTrail"; then
+                echo -e "${GREEN}✅ HexTrail page is accessible and contains expected content${NC}"
+                echo $PORT > /tmp/hextrail_web_port.txt
+                echo $SERVER_PID > /tmp/hextrail_web_pid.txt
+                return 0
+            else
+                echo -e "${RED}❌ HexTrail page not found or not accessible${NC}"
+                echo -e "${YELLOW}💡 Check that build_web/index.html exists and contains HexTrail content${NC}"
+                kill $SERVER_PID 2>/dev/null
+                return 1
+            fi
         else
             echo -e "${RED}❌ Failed to start web server${NC}"
             return 1
@@ -126,30 +137,30 @@ check_and_start_web_server() {
 # Function to create a JavaScript injection page
 create_injection_page() {
     echo -e "${YELLOW}🔧 Creating JavaScript injection page...${NC}"
-    
+
     cat > matrix_debug_outputs/inject_debug.js << 'EOF'
 // JavaScript injection to extract debug output
 (function() {
     console.log('🔍 Debug extraction script injected');
-    
+
     // Wait for page to load
     setTimeout(function() {
         console.log('⏳ Page loaded, looking for debug elements...');
-        
+
         // Try to find the debug panel
         const debugPanel = document.getElementById('debug-panel');
         const debugLog = document.getElementById('debug-log');
         const debugToggle = document.getElementById('debug-toggle');
-        
+
         if (debugPanel && debugLog) {
             console.log('✅ Debug panel found');
-            
+
             // Show debug panel if hidden
             if (debugPanel.style.display === 'none') {
                 debugToggle.click();
                 console.log('🔘 Debug panel opened');
             }
-            
+
             // Wait for debug output to accumulate
             setTimeout(function() {
                 const debugContent = debugLog.innerHTML;
@@ -157,19 +168,19 @@ create_injection_page() {
                 console.log('---START DEBUG OUTPUT---');
                 console.log(debugContent);
                 console.log('---END DEBUG OUTPUT---');
-                
+
                 // Also log to a global variable for external access
                 window.extractedDebugOutput = debugContent;
-                
+
             }, 5000); // Wait 5 seconds for output
-            
+
         } else {
             console.log('❌ Debug panel not found');
             console.log('Available elements:', document.querySelectorAll('[id*="debug"]'));
         }
-        
+
     }, 2000); // Wait 2 seconds for page load
-    
+
 })();
 EOF
 
@@ -179,13 +190,13 @@ EOF
 # Function to create a curl-based extraction script
 create_curl_extractor() {
     echo -e "${YELLOW}🔧 Creating curl-based extraction script...${NC}"
-    
+
     # Get the port from the temp file or default to 8000
     PORT=8000
     if [ -f "/tmp/hextrail_web_port.txt" ]; then
         PORT=$(cat /tmp/hextrail_web_port.txt)
     fi
-    
+
     cat > matrix_debug_outputs/curl_extract.sh << EOF
 #!/bin/bash
 
@@ -228,13 +239,13 @@ EOF
 # Function to create a browser automation script
 create_browser_automation() {
     echo -e "${YELLOW}🔧 Creating browser automation script...${NC}"
-    
+
     # Get the port from the temp file or default to 8000
     PORT=8000
     if [ -f "/tmp/hextrail_web_port.txt" ]; then
         PORT=$(cat /tmp/hextrail_web_port.txt)
     fi
-    
+
     cat > matrix_debug_outputs/automate_browser.html << EOF
 <!DOCTYPE html>
 <html>
@@ -252,38 +263,38 @@ create_browser_automation() {
 </head>
 <body>
     <h1>🤖 Browser Automation for Debug Extraction</h1>
-    
+
     <div id="status" class="status info">Ready to extract debug output...</div>
-    
+
     <div>
         <button onclick="startExtraction()">🚀 Start Extraction</button>
         <button onclick="clearOutput()">🧹 Clear Output</button>
         <button onclick="copyToClipboard()">📋 Copy to Clipboard</button>
     </div>
-    
+
     <div id="output">Click "Start Extraction" to begin...</div>
-    
+
     <script>
         let extractionInterval;
         let debugOutput = '';
-        
+
         function updateStatus(message, type = 'info') {
             const status = document.getElementById('status');
             status.textContent = message;
             status.className = `status ${type}`;
         }
-        
+
         function addOutput(text) {
             const output = document.getElementById('output');
             output.textContent += text + '\n';
             output.scrollTop = output.scrollHeight;
         }
-        
+
         function clearOutput() {
             document.getElementById('output').textContent = '';
             debugOutput = '';
         }
-        
+
         function copyToClipboard() {
             const output = document.getElementById('output').textContent;
             navigator.clipboard.writeText(output).then(() => {
@@ -292,82 +303,82 @@ create_browser_automation() {
                 updateStatus('❌ Failed to copy to clipboard', 'error');
             });
         }
-        
+
         function startExtraction() {
             updateStatus('🚀 Starting debug extraction...', 'info');
             addOutput('=== DEBUG EXTRACTION STARTED ===');
             addOutput('Timestamp: ' + new Date().toISOString());
             addOutput('');
-            
+
             // Step 1: Open hextrail page in new window
             addOutput('Step 1: Opening hextrail page...');
             const hextrailWindow = window.open('http://localhost:$PORT', 'hextrail', 'width=1200,height=800');
-            
+
             if (!hextrailWindow) {
                 updateStatus('❌ Failed to open hextrail page (popup blocked?)', 'error');
                 addOutput('ERROR: Popup blocked or failed to open hextrail page');
                 return;
             }
-            
+
             // Step 2: Wait for page to load and inject our script
             setTimeout(() => {
                 addOutput('Step 2: Injecting debug extraction script...');
-                
+
                 try {
                     // Inject our extraction script
                     const script = hextrailWindow.document.createElement('script');
-                    script.textContent = `
+                    script.textContent = \`
                         console.log('🔍 Debug extraction script injected');
-                        
+
                         // Function to extract debug output
                         function extractDebugOutput() {
                             const debugPanel = document.getElementById('debug-panel');
                             const debugLog = document.getElementById('debug-log');
                             const debugToggle = document.getElementById('debug-toggle');
-                            
+
                             if (debugPanel && debugLog) {
                                 console.log('✅ Debug panel found');
-                                
+
                                 // Show debug panel if hidden
                                 if (debugPanel.style.display === 'none') {
                                     debugToggle.click();
                                     console.log('🔘 Debug panel opened');
                                 }
-                                
+
                                 // Extract content
                                 const content = debugLog.innerHTML;
                                 console.log('📊 Debug content extracted:', content);
-                                
+
                                 // Send to parent window
                                 window.opener.postMessage({
                                     type: 'debug_output',
                                     content: content
                                 }, '*');
-                                
+
                                 return content;
                             } else {
                                 console.log('❌ Debug panel not found');
                                 return null;
                             }
                         }
-                        
+
                         // Auto-extract every 2 seconds
                         setInterval(extractDebugOutput, 2000);
-                        
+
                         // Initial extraction
                         setTimeout(extractDebugOutput, 1000);
                     `;
-                    
+
                     hextrailWindow.document.head.appendChild(script);
                     addOutput('✅ Script injected successfully');
-                    
+
                 } catch (error) {
                     addOutput('ERROR: Failed to inject script: ' + error.message);
                     updateStatus('❌ Script injection failed', 'error');
                 }
-                
+
             }, 3000);
-            
+
             // Step 3: Listen for messages from hextrail page
             window.addEventListener('message', (event) => {
                 if (event.data.type === 'debug_output') {
@@ -380,7 +391,7 @@ create_browser_automation() {
                     }
                 }
             });
-            
+
             // Step 4: Auto-stop after 30 seconds
             setTimeout(() => {
                 addOutput('⏰ Auto-stopping extraction after 30 seconds...');
@@ -401,7 +412,7 @@ EOF
 # Function to cleanup web servers
 cleanup_web_servers() {
     echo -e "${YELLOW}🧹 Cleaning up web servers...${NC}"
-    
+
     # Kill any servers we started
     if [ -f "/tmp/hextrail_web_pid.txt" ]; then
         SERVER_PID=$(cat /tmp/hextrail_web_pid.txt)
@@ -417,41 +428,60 @@ cleanup_web_servers() {
         fi
         rm -f /tmp/hextrail_web_pid.txt
     fi
-    
+
     # Clean up port file
     rm -f /tmp/hextrail_web_port.txt
-    
+
     echo -e "${GREEN}✅ Web server cleanup complete${NC}"
 }
 
 # Function to run the automated extraction
 run_automated_extraction() {
     echo -e "${YELLOW}🤖 Running automated extraction...${NC}"
-    
+
     # Create output directory
     mkdir -p matrix_debug_outputs
-    
+
     # Create extraction tools
     create_injection_page
     create_curl_extractor
     create_browser_automation
-    
+
     echo ""
     echo -e "${CYAN}📋 Automated extraction tools created:${NC}"
     echo -e "   1. matrix_debug_outputs/inject_debug.js - JavaScript injection script"
     echo -e "   2. matrix_debug_outputs/curl_extract.sh - Curl-based extraction"
     echo -e "   3. matrix_debug_outputs/automate_browser.html - Browser automation page"
     echo ""
-    
+
+    # Get the port from the server
+    PORT=$(cat /tmp/hextrail_web_port.txt 2>/dev/null || echo "8000")
+
     # Try curl extraction first
     echo -e "${YELLOW}🔍 Attempting curl-based extraction...${NC}"
     ./matrix_debug_outputs/curl_extract.sh
-    
+
+    echo ""
+    echo -e "${CYAN}🚀 Opening hextrail page directly to verify it works...${NC}"
+    echo -e "${YELLOW}💡 This will open the actual hextrail page in your browser${NC}"
+    echo ""
+
+    # Open the hextrail page directly first
+    if command -v xdg-open &> /dev/null; then
+        echo -e "${YELLOW}🔧 Opening hextrail page directly...${NC}"
+        xdg-open "http://localhost:$PORT"
+    elif command -v open &> /dev/null; then
+        echo -e "${YELLOW}🔧 Opening hextrail page directly...${NC}"
+        open "http://localhost:$PORT"
+    else
+        echo -e "${YELLOW}💡 Please manually open: http://localhost:$PORT${NC}"
+    fi
+
     echo ""
     echo -e "${CYAN}🚀 For full automation, open: matrix_debug_outputs/automate_browser.html${NC}"
     echo -e "${YELLOW}💡 This will open the hextrail page and automatically extract debug output${NC}"
     echo ""
-    
+
     # Check if we can open the automation page
     if command -v xdg-open &> /dev/null; then
         echo -e "${YELLOW}🔧 Opening browser automation page...${NC}"
@@ -471,18 +501,18 @@ main() {
         cleanup_web_servers
         exit 0
     fi
-    
+
     echo -e "${BLUE}🚀 Starting automated web debug output probe...${NC}"
     echo ""
-    
+
     # Check and start web server if needed
     if ! check_and_start_web_server; then
         exit 1
     fi
-    
+
     # Run automated extraction
     run_automated_extraction
-    
+
     echo ""
     echo -e "${GREEN}✅ Automated extraction setup complete!${NC}"
     echo -e "${CYAN}📁 Check matrix_debug_outputs/ for extraction tools and results${NC}"
