@@ -87,111 +87,87 @@ check_dependencies() {
 compare_outputs() {
     echo -e "${BLUE}🔍 Comparing native vs WebGL matrix outputs...${NC}"
 
-    # Build both versions
+    # Build both versions first
     echo -e "${YELLOW}📦 Building both versions...${NC}"
-    make -f Makefile.matrix_test native
+    build_hextrail "native"
+    build_hextrail "web"
 
-    if [ "$WEBGL_AVAILABLE" = true ]; then
-        make -f Makefile.matrix_test webgl
-    else
-        echo -e "${RED}❌ Cannot compare: WebGL build not available (emcc missing)${NC}"
-        return 1
-    fi
-
-    # Create output directories
+    # Create output directory
     mkdir -p matrix_debug_outputs
 
-    # Run native and capture output
-    echo -e "${YELLOW}📊 Capturing native output...${NC}"
-    ./matrix_test_native > matrix_debug_outputs/native_output.txt 2>&1
-
-    # Run WebGL and capture output (this is trickier)
-    echo -e "${YELLOW}📊 Capturing WebGL output...${NC}"
-
-    # Check if we have a web server available
-    if command -v python3 &> /dev/null; then
-        echo -e "${GREEN}🚀 Starting Python web server...${NC}"
-
-        # Find an available port
-        PORT=8000
-        while netstat -tuln 2>/dev/null | grep -q ":$PORT " || ss -tuln 2>/dev/null | grep -q ":$PORT "; do
-            PORT=$((PORT + 1))
-            if [ $PORT -gt 8100 ]; then
-                echo -e "${RED}❌ Could not find available port between 8000-8100${NC}"
-                break
-            fi
-        done
-
-        echo -e "${YELLOW}💡 WebGL test will be available at: http://localhost:$PORT/matrix_test_webgl.html${NC}"
-        echo -e "${YELLOW}📋 Instructions:${NC}"
-        echo -e "   1. Open http://localhost:$PORT/matrix_test_webgl.html in your browser"
-        echo -e "   2. Open browser developer tools (F12)"
-        echo -e "   3. Go to Console tab"
-        echo -e "   4. Copy the console output"
-        echo -e "   5. Save it to: matrix_debug_outputs/webgl_output.txt"
-        echo ""
-        echo -e "${YELLOW}⏳ Starting web server on port $PORT...${NC}"
-        python3 -m http.server $PORT > /dev/null 2>&1 &
-        SERVER_PID=$!
-
-        # Wait a moment for server to start
-        sleep 1
-
-        # Check if server started successfully
-        if kill -0 $SERVER_PID 2>/dev/null; then
-            echo -e "${GREEN}✅ Web server started (PID: $SERVER_PID, Port: $PORT)${NC}"
-            echo -e "${YELLOW}💡 Server will be stopped when you press Enter${NC}"
-            echo ""
-            echo -e "${YELLOW}⏳ Waiting for you to capture WebGL output...${NC}"
-            echo -e "${CYAN}Press Enter when you've saved the WebGL output to matrix_debug_outputs/webgl_output.txt${NC}"
-            read -p ""
-
-            # Stop the web server
-            if kill $SERVER_PID 2>/dev/null; then
-                echo -e "${GREEN}✅ Web server stopped${NC}"
-            fi
+    # Capture native debug output
+    echo -e "${YELLOW}📊 Capturing native debug output...${NC}"
+    if [ -f "build_native_debug/hextrail_debug" ]; then
+        echo -e "${YELLOW}⏳ Running native hextrail for 10 seconds...${NC}"
+        timeout 10s cd build_native_debug && ./hextrail_debug 2>&1 | head -50 > ../matrix_debug_outputs/native_output.txt
+        if [ $? -eq 0 ]; then
+            echo -e "${GREEN}✅ Native output captured: matrix_debug_outputs/native_output.txt${NC}"
         else
-            echo -e "${RED}❌ Failed to start web server${NC}"
-            echo -e "${YELLOW}💡 Falling back to manual instructions...${NC}"
+            echo -e "${RED}❌ Failed to capture native output${NC}"
+            return 1
         fi
     else
-        echo -e "${YELLOW}⚠️  Python3 not found. You'll need to serve the files manually.${NC}"
-        echo -e "${YELLOW}💡 Options:${NC}"
-        echo -e "   1. Install Python3 and run: python3 -m http.server 8000"
-        echo -e "   2. Use Node.js: npx http-server"
-        echo -e "   3. Open matrix_test_webgl.html directly as a file (may not work due to CORS)"
-        echo ""
-        echo -e "${YELLOW}📁 File location: $(pwd)/matrix_test_webgl.html${NC}"
-        echo -e "${YELLOW}💡 To capture WebGL output:${NC}"
-        echo -e "   1. Open matrix_test_webgl.html in your browser"
-        echo -e "   2. Open browser developer tools (F12)"
-        echo -e "   3. Go to Console tab"
-        echo -e "   4. Copy the console output"
-        echo -e "   5. Save it to: matrix_debug_outputs/webgl_output.txt"
-        echo ""
-        echo -e "${YELLOW}⏳ Waiting for you to capture WebGL output...${NC}"
-        echo -e "${CYAN}Press Enter when you've saved the WebGL output to matrix_debug_outputs/webgl_output.txt${NC}"
-        read -p ""
-    fi
-
-    # Check if WebGL output exists
-    if [ ! -f "matrix_debug_outputs/webgl_output.txt" ]; then
-        echo -e "${RED}❌ WebGL output file not found: matrix_debug_outputs/webgl_output.txt${NC}"
-        echo -e "${YELLOW}💡 Please capture the WebGL console output and save it to that file${NC}"
+        echo -e "${RED}❌ Native hextrail not found: build_native_debug/hextrail_debug${NC}"
         return 1
     fi
 
-    # Compare outputs
-    echo -e "${YELLOW}🔍 Comparing outputs...${NC}"
-    if diff matrix_debug_outputs/native_output.txt matrix_debug_outputs/webgl_output.txt > matrix_debug_outputs/diff.txt; then
-        echo -e "${GREEN}✅ Outputs are identical! Matrix operations match perfectly.${NC}"
+    # Use auto_probe_web.sh for web debugging if available
+    if [ -f "auto_probe_web.sh" ]; then
+        echo -e "${YELLOW}🤖 Using auto_probe_web.sh for web debugging...${NC}"
+        ./auto_probe_web.sh
     else
-        echo -e "${RED}❌ Outputs differ! Check matrix_debug_outputs/diff.txt for details.${NC}"
-        echo -e "${YELLOW}📋 Differences found:${NC}"
-        cat matrix_debug_outputs/diff.txt
+        echo -e "${RED}❌ auto_probe_web.sh not found - required for web debugging${NC}"
+        echo -e "${YELLOW}💡 Please ensure auto_probe_web.sh is available for full comparison${NC}"
+        return 1
     fi
 
-    echo -e "${CYAN}📁 Output files saved in: matrix_debug_outputs/${NC}"
+    # Perform intelligent comparison of matrix operations
+    echo -e "${YELLOW}🔍 Performing intelligent matrix operation comparison...${NC}"
+    compare_matrix_operations_intelligently
+
+    echo -e "${GREEN}✅ Comparison complete! Check matrix_debug_outputs/ for results${NC}"
+}
+
+# Function to compare matrix operations intelligently (from enhanced_compare.sh)
+compare_matrix_operations_intelligently() {
+    echo -e "${YELLOW}🔍 Comparing outputs intelligently...${NC}"
+    
+    if [ ! -f "matrix_debug_outputs/native_output.txt" ] || [ ! -f "matrix_debug_outputs/webgl_output.txt" ]; then
+        echo -e "${RED}❌ Missing output files for comparison${NC}"
+        return 1
+    fi
+    
+    # Extract key matrix operations for comparison
+    echo -e "${YELLOW}📊 Extracting key matrix operations...${NC}"
+    
+    # Extract matrix operations from native output
+    grep -E "(glMatrixMode|glLoadIdentity|gluPerspective|gluLookAt|glTranslatef|glRotatef|glScalef|glPushMatrix|glPopMatrix)" matrix_debug_outputs/native_output.txt > matrix_debug_outputs/native_matrix_ops.txt
+    
+    # Extract matrix operations from WebGL output (assuming HTML format)
+    grep -E "(glMatrixMode|glLoadIdentity|gluPerspective|gluLookAt|glTranslatef|glRotatef|glScalef|glPushMatrix|glPopMatrix)" matrix_debug_outputs/webgl_output.txt | sed 's/<[^>]*>//g' > matrix_debug_outputs/webgl_matrix_ops.txt
+    
+    # Compare the matrix operations
+    echo -e "${YELLOW}🔍 Comparing matrix operations...${NC}"
+    if diff matrix_debug_outputs/native_matrix_ops.txt matrix_debug_outputs/webgl_matrix_ops.txt > matrix_debug_outputs/matrix_diff.txt; then
+        echo -e "${GREEN}✅ Matrix operations are identical! 🎉${NC}"
+        echo -e "${CYAN}📋 Both versions perform the same matrix operations in the same order${NC}"
+    else
+        echo -e "${RED}❌ Matrix operations differ!${NC}"
+        echo -e "${YELLOW}📋 Differences found:${NC}"
+        cat matrix_debug_outputs/matrix_diff.txt
+        echo ""
+        echo -e "${CYAN}📊 Summary of differences:${NC}"
+        echo -e "   Native operations: $(wc -l < matrix_debug_outputs/native_matrix_ops.txt)"
+        echo -e "   WebGL operations:  $(wc -l < matrix_debug_outputs/webgl_matrix_ops.txt)"
+    fi
+    
+    echo ""
+    echo -e "${CYAN}📁 All output files saved in: matrix_debug_outputs/${NC}"
+    echo -e "   - native_output.txt: Full native debug output"
+    echo -e "   - webgl_output.txt: Full WebGL debug output"
+    echo -e "   - native_matrix_ops.txt: Native matrix operations only"
+    echo -e "   - webgl_matrix_ops.txt: WebGL matrix operations only"
+    echo -e "   - matrix_diff.txt: Differences in matrix operations"
 }
 
 # Function to build hextrail with matrix debugging
