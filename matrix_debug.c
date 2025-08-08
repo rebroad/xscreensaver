@@ -173,6 +173,39 @@ void matrix_scale(float* m, float x, float y, float z) {
     matrix_multiply(m, m, scale);
 }
 
+// Function to read current OpenGL matrix state
+void debug_current_opengl_matrix(const char* label) {
+    GLfloat matrix[16];
+    GLenum matrix_mode;
+
+    // Determine which matrix to read based on current mode
+    switch (current_matrix_mode) {
+        case GL_MODELVIEW:
+            matrix_mode = GL_MODELVIEW_MATRIX;
+            break;
+        case GL_PROJECTION:
+            matrix_mode = GL_PROJECTION_MATRIX;
+            break;
+        case GL_TEXTURE:
+            matrix_mode = GL_TEXTURE_MATRIX;
+            break;
+        default:
+            matrix_mode = GL_MODELVIEW_MATRIX;
+            break;
+    }
+
+    // Read the actual OpenGL matrix
+    glGetFloatv(matrix_mode, matrix);
+
+    // Display the matrix
+    matrix_debug_log("=== %s Matrix ===\n", label);
+    for (int i = 0; i < 4; i++) {
+        matrix_debug_log("  [%.6f %.6f %.6f %.6f]\n",
+           matrix[i*4], matrix[i*4+1], matrix[i*4+2], matrix[i*4+3]);
+    }
+    matrix_debug_log("================\n");
+}
+
 // Debug matrix operations
 void debug_matrix_operation(const char* operation, const float* matrix) {
     matrix_debug_log("=== %s Matrix ===\n", operation);
@@ -321,45 +354,72 @@ void debug_glOrtho(GLdouble left, GLdouble right, GLdouble bottom, GLdouble top,
 void debug_glFrustum(GLdouble left, GLdouble right, GLdouble bottom, GLdouble top, GLdouble near_val, GLdouble far_val) {
     AUTO_INIT_NATIVE(real_glFrustum);
 
-    matrix_debug_log("glFrustum(%f, %f, %f, %f, %f, %f) - Matrix will be modified\n", left, right, bottom, top, near_val, far_val);
+    matrix_debug_log("glFrustum(%f, %f, %f, %f, %f, %f)\n", left, right, bottom, top, near_val, far_val);
+
+    // Show matrix state before frustum
+    debug_current_opengl_matrix("Before Frustum");
 
     // Call real function (works for both native and WebGL)
     if (real_glFrustum) {
         real_glFrustum(left, right, bottom, top, near_val, far_val);
     }
+
+    // Show matrix state after frustum
+    debug_current_opengl_matrix("After Frustum");
 }
 
 void debug_glTranslatef(GLfloat x, GLfloat y, GLfloat z) {
     AUTO_INIT_NATIVE(real_glTranslatef);
 
-    matrix_debug_log("glTranslatef(%f, %f, %f) - Matrix will be modified\n", x, y, z);
+    // Log the operation parameters
+    matrix_debug_log("glTranslatef(%.3f, %.3f, %.3f)\n", x, y, z);
+
+    // Show matrix state before transformation
+    debug_current_opengl_matrix("Before Translate");
 
     // Call real function (works for both native and WebGL)
     if (real_glTranslatef) {
         real_glTranslatef(x, y, z);
     }
+
+    // Show matrix state after transformation
+    debug_current_opengl_matrix("After Translate");
 }
 
 void debug_glRotatef(GLfloat angle, GLfloat x, GLfloat y, GLfloat z) {
     AUTO_INIT_NATIVE(real_glRotatef);
 
-    matrix_debug_log("glRotatef(%f, %f, %f, %f) - Matrix will be modified\n", angle, x, y, z);
+    // Log the operation parameters
+    matrix_debug_log("glRotatef(%.3f degrees around %.3f, %.3f, %.3f)\n", angle, x, y, z);
+
+    // Show matrix state before transformation
+    debug_current_opengl_matrix("Before Rotate");
 
     // Call real function (works for both native and WebGL)
     if (real_glRotatef) {
         real_glRotatef(angle, x, y, z);
     }
+
+    // Show matrix state after transformation
+    debug_current_opengl_matrix("After Rotate");
 }
 
 void debug_glScalef(GLfloat x, GLfloat y, GLfloat z) {
     AUTO_INIT_NATIVE(real_glScalef);
 
-    matrix_debug_log("glScalef(%f, %f, %f)\n", x, y, z);
+    // Log the operation parameters
+    matrix_debug_log("glScalef(%.3f, %.3f, %.3f)\n", x, y, z);
+
+    // Show matrix state before transformation
+    debug_current_opengl_matrix("Before Scale");
 
     // Call real function (works for both native and WebGL)
     if (real_glScalef) {
         real_glScalef(x, y, z);
     }
+
+    // Show matrix state after transformation
+    debug_current_opengl_matrix("After Scale");
 }
 
 void debug_glPushMatrix(void) {
@@ -430,14 +490,22 @@ void debug_gluLookAt(GLdouble eyex, GLdouble eyey, GLdouble eyez,
 
 // Additional debug functions for both native and web
 void debug_glMultMatrixd(const GLdouble* m) {
-    matrix_debug_log("glMultMatrixd([%f, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f])\n",
-                     m[0], m[1], m[2], m[3], m[4], m[5], m[6], m[7],
-                     m[8], m[9], m[10], m[11], m[12], m[13], m[14], m[15]);
+    matrix_debug_log("glMultMatrixd - Input Matrix:\n");
+    for (int i = 0; i < 4; i++) {
+        matrix_debug_log("  [%.6f %.6f %.6f %.6f]\n",
+           m[i*4], m[i*4+1], m[i*4+2], m[i*4+3]);
+    }
+
+    // Show matrix state before multiplication
+    debug_current_opengl_matrix("Before MultMatrixd");
 
     // Call real function (works for both native and WebGL)
     if (real_glMultMatrixd) {
         real_glMultMatrixd(m);
     }
+
+    // Show matrix state after multiplication
+    debug_current_opengl_matrix("After MultMatrixd");
 }
 
 void debug_glTranslated(GLdouble x, GLdouble y, GLdouble z) {
