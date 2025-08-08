@@ -702,11 +702,6 @@ void main_loop(void) {
         print_memory_stats();
     }
 
-    // Debug matrix state every 60 frames (about once per second)
-    if (frame_count % 60 == 0) {
-        debug_current_matrix_state();
-    }
-
     check_gl_error_wrapper("start of main loop");
 
     // Don't reset the matrix stack - let it accumulate transformations from glTranslatef/glRotatef
@@ -751,23 +746,11 @@ void glMatrixMode(GLenum mode) {
     GLenum old_mode = current_matrix_mode;
     current_matrix_mode = mode;
     
-    // Call our unified debug function
-    debug_matrix_mode_switch(old_mode, mode);
-    
-    // Debug current state of all matrix stacks
-    DL(1, "Matrix stacks after mode switch:\n");
-    debug_matrix_stack("ModelView", &modelview_stack);
-    debug_matrix_stack("Projection", &projection_stack);
-    debug_matrix_stack("Texture", &texture_stack);
-    
     check_gl_error_wrapper("after glMatrixMode");
 }
 
 void glOrtho(GLdouble left, GLdouble right, GLdouble bottom, GLdouble top, GLdouble near_val, GLdouble far_val) {
     check_gl_error_wrapper("before glOrtho");
-
-    // Call our unified debug function first
-    debug_glOrtho(left, right, bottom, top, near_val, far_val);
 
     MatrixStack *stack = get_current_matrix_stack();
     if (stack && stack->top >= 0) {
@@ -795,9 +778,6 @@ void glOrtho(GLdouble left, GLdouble right, GLdouble bottom, GLdouble top, GLdou
 
 void glLoadIdentity(void) {
     check_gl_error_wrapper("before glLoadIdentity");
-
-    // Call our unified debug function first
-    debug_glLoadIdentity();
 
     MatrixStack *stack;
     switch (current_matrix_mode) {
@@ -1448,10 +1428,7 @@ void glTranslatef(GLfloat x, GLfloat y, GLfloat z) {
             return;
     }
 
-    debug_matrix("Before Translate", &stack->stack[stack->top]);
-    DL(1, "Translate: (%.3f, %.3f, %.3f)\n", x, y, z);
     matrix_translate(&stack->stack[stack->top], x, y, z);
-    debug_matrix("After Translate", &stack->stack[stack->top]);
 }
 
 void glRotatef(GLfloat angle, GLfloat x, GLfloat y, GLfloat z) {
@@ -1470,10 +1447,8 @@ void glRotatef(GLfloat angle, GLfloat x, GLfloat y, GLfloat z) {
             return;
     }
 
-    debug_matrix("Before Rotate", &stack->stack[stack->top]);
     DL(1, "Rotate: %.3f degrees around (%.3f, %.3f, %.3f)\n", angle, x, y, z);
     matrix_rotate(&stack->stack[stack->top], angle, x, y, z);
-    debug_matrix("After Rotate", &stack->stack[stack->top]);
 }
 
 void glScalef(GLfloat x, GLfloat y, GLfloat z) {
@@ -1492,10 +1467,8 @@ void glScalef(GLfloat x, GLfloat y, GLfloat z) {
             return;
     }
 
-    debug_matrix("Before Scale", &stack->stack[stack->top]);
     DL(1, "Scale: (%.3f, %.3f, %.3f)\n", x, y, z);
     matrix_scale(&stack->stack[stack->top], x, y, z);
-    debug_matrix("After Scale", &stack->stack[stack->top]);
 }
 
 void glNormal3f(GLfloat nx, GLfloat ny, GLfloat nz) {
@@ -1940,11 +1913,8 @@ void glFrustum(GLdouble left, GLdouble right, GLdouble bottom, GLdouble top, GLd
     frustum.m[14] = d;
     frustum.m[15] = 0;
 
-    debug_matrix("Before Frustum", &projection_stack.stack[projection_stack.top]);
-    debug_matrix("Frustum Matrix", &frustum);
     matrix_multiply(&projection_stack.stack[projection_stack.top],
                    &projection_stack.stack[projection_stack.top], &frustum);
-    debug_matrix("After Frustum", &projection_stack.stack[projection_stack.top]);
 
     check_gl_error_wrapper("after glFrustum");
 }
@@ -1970,10 +1940,7 @@ void glMultMatrixd(const GLdouble *m) {
             return;
     }
 
-    debug_matrix("Before MultMatrixd", &stack->stack[stack->top]);
-    debug_matrix("Input Matrix", &matrix);
     matrix_multiply(&stack->stack[stack->top], &stack->stack[stack->top], &matrix);
-    debug_matrix("After MultMatrixd", &stack->stack[stack->top]);
 
     check_gl_error_wrapper("after glMultMatrixd");
 }
