@@ -13,6 +13,7 @@ extern void gluLookAt(GLdouble eyex, GLdouble eyey, GLdouble eyez,
 
 #include <string.h>
 #include <stdarg.h>
+#include <math.h>
 #ifdef __linux__
 #include <dlfcn.h>
 #endif
@@ -128,7 +129,23 @@ void debug_matrix_stack(const char* name, void* stack) {
 }
 #endif
 
+// Deterministic random number generator for reproducible comparisons
+static unsigned long debug_random_seed_value = 1;
 
+void debug_random_seed(unsigned int seed) {
+    debug_random_seed_value = seed;
+    matrix_debug_log("Debug random seed set to: %u\n", seed);
+}
+
+long debug_random(void) {
+    // Simple linear congruential generator (same as many standard implementations)
+    debug_random_seed_value = debug_random_seed_value * 1103515245 + 12345;
+    return (debug_random_seed_value / 65536) % 32768;
+}
+
+double debug_frand(double f) {
+    return f * (debug_random() / 32768.0);
+}
 
 // Function to read current OpenGL matrix state
 void debug_current_opengl_matrix(const char* label) {
@@ -383,7 +400,7 @@ void debug_glPushMatrix(void) {
     AUTO_INIT_NATIVE(real_glPushMatrix);
 
     matrix_debug_log("glPushMatrix()\n");
-    
+
     // Show the matrix being pushed onto the stack
     debug_current_opengl_matrix("Matrix Being Pushed");
 
@@ -391,7 +408,7 @@ void debug_glPushMatrix(void) {
     if (real_glPushMatrix) {
         real_glPushMatrix();
     }
-    
+
     matrix_debug_log("✓ Matrix pushed to stack\n");
 }
 
@@ -399,7 +416,7 @@ void debug_glPopMatrix(void) {
     AUTO_INIT_NATIVE(real_glPopMatrix);
 
     matrix_debug_log("glPopMatrix()\n");
-    
+
     // Show the current matrix before popping (what will be discarded)
     debug_current_opengl_matrix("Current Matrix (Before Pop)");
 
@@ -407,7 +424,7 @@ void debug_glPopMatrix(void) {
     if (real_glPopMatrix) {
         real_glPopMatrix();
     }
-    
+
     // Show the matrix after popping (what was restored from stack)
     debug_current_opengl_matrix("Restored Matrix (After Pop)");
     matrix_debug_log("✓ Matrix popped from stack\n");
@@ -485,5 +502,120 @@ void debug_glTranslated(GLdouble x, GLdouble y, GLdouble z) {
         real_glTranslated(x, y, z);
     }
 }
+
+#ifdef MATRIX_DEBUG_VALIDATE
+// Reference matrix state for validation
+static float reference_modelview[16];
+static float reference_projection[16];
+static float reference_texture[16];
+static GLenum reference_matrix_mode = GL_MODELVIEW;
+
+// Get current reference matrix based on mode
+static float* get_reference_matrix(void) {
+    switch (reference_matrix_mode) {
+        case GL_MODELVIEW: return reference_modelview;
+        case GL_PROJECTION: return reference_projection;
+        case GL_TEXTURE: return reference_texture;
+        default: return reference_modelview;
+    }
+}
+
+// Reference matrix math functions
+void reference_matrix_identity(float* m) {
+    m[0] = 1.0f; m[1] = 0.0f; m[2] = 0.0f; m[3] = 0.0f;
+    m[4] = 0.0f; m[5] = 1.0f; m[6] = 0.0f; m[7] = 0.0f;
+    m[8] = 0.0f; m[9] = 0.0f; m[10] = 1.0f; m[11] = 0.0f;
+    m[12] = 0.0f; m[13] = 0.0f; m[14] = 0.0f; m[15] = 1.0f;
+}
+
+void reference_matrix_multiply(float* result, const float* a, const float* b) {
+    float temp[16];
+    for (int i = 0; i < 4; i++) {
+        for (int j = 0; j < 4; j++) {
+            temp[i*4 + j] = 0.0f;
+            for (int k = 0; k < 4; k++) {
+                temp[i*4 + j] += a[i*4 + k] * b[k*4 + j];
+            }
+        }
+    }
+    memcpy(result, temp, 16 * sizeof(float));
+}
+
+void reference_matrix_translate(float* m, float x, float y, float z) {
+    float translate[16];
+    reference_matrix_identity(translate);
+    translate[12] = x;
+    translate[13] = y;
+    translate[14] = z;
+    reference_matrix_multiply(m, m, translate);
+}
+
+void reference_matrix_scale(float* m, float x, float y, float z) {
+    float scale[16];
+    reference_matrix_identity(scale);
+    scale[0] = x;
+    scale[5] = y;
+    scale[10] = z;
+    reference_matrix_multiply(m, m, scale);
+}
+
+void reference_matrix_rotate(float* m, float angle, float x, float y, float z) {
+    // Convert angle to radians
+    float rad = angle * M_PI / 180.0f;
+    float c = cosf(rad);
+    float s = sinf(rad);
+
+    // Normalize the axis
+    float len = sqrtf(x*x + y*y + z*z);
+    if (len == 0.0f) return; // Invalid axis
+    x /= len; y /= len; z /= len;
+
+    // Build rotation matrix
+    float rotate[16];
+    rotate[0] = x*x*(1-c) + c;     rotate[1] = x*y*(1-c) - z*s;   rotate[2] = x*z*(1-c) + y*s;   rotate[3] = 0;
+    rotate[4] = y*x*(1-c) + z*s;   rotate[5] = y*y*(1-c) + c;     rotate[6] = y*z*(1-c) - x*s;   rotate[7] = 0;
+    rotate[8] = z*x*(1-c) - y*s;   rotate[9] = z*y*(1-c) + x*s;   rotate[10] = z*z*(1-c) + c;    rotate[11] = 0;
+    rotate[12] = 0;                rotate[13] = 0;                rotate[14] = 0;                rotate[15] = 1;
+
+    reference_matrix_multiply(m, m, rotate);
+}
+
+// Matrix comparison with tolerance for floating point errors
+int compare_matrices(const char* operation, const float* reference, const float* actual) {
+    const float tolerance = 1e-5f;
+    int differences = 0;
+
+    matrix_debug_log("=== Matrix Validation: %s ===\n", operation);
+
+    for (int i = 0; i < 16; i++) {
+        float diff = fabsf(reference[i] - actual[i]);
+        if (diff > tolerance) {
+            differences++;
+            matrix_debug_log("  [%d]: REF=%.6f ACT=%.6f DIFF=%.6f ❌\n", i, reference[i], actual[i], diff);
+        }
+    }
+
+    if (differences == 0) {
+        matrix_debug_log("✅ Matrix validation PASSED for %s\n", operation);
+    } else {
+        matrix_debug_log("❌ Matrix validation FAILED for %s (%d differences)\n", operation, differences);
+    }
+
+    return differences;
+}
+
+void matrix_debug_validate_init(void) {
+    // Initialize reference matrices to identity
+    reference_matrix_identity(reference_modelview);
+    reference_matrix_identity(reference_projection);
+    reference_matrix_identity(reference_texture);
+    reference_matrix_mode = GL_MODELVIEW;
+
+    // Set deterministic seed for reproducible comparisons
+    debug_random_seed(12345);
+
+    matrix_debug_log("Matrix validation initialized with deterministic random seed\n");
+}
+#endif // MATRIX_DEBUG_VALIDATE
 
 #endif // MATRIX_DEBUG

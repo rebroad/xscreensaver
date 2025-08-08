@@ -16,6 +16,14 @@ void matrix_debug_log(const char* format, ...);
 // Frame counter function
 void matrix_debug_next_frame(void);
 
+// Matrix validation mode (define this to enable reference math validation)
+// #define MATRIX_DEBUG_VALIDATE
+
+// Deterministic random functions for reproducible comparisons
+long debug_random(void);
+double debug_frand(double f);
+void debug_random_seed(unsigned int seed);
+
 // Matrix debugging functions for WebGL builds only
 #ifdef WEB_BUILD
 void debug_matrix(const char* label, const void* matrix);
@@ -88,6 +96,26 @@ void debug_glTranslated(GLdouble x, GLdouble y, GLdouble z);
 #define gluLookAt debug_gluLookAt
 #define glMultMatrixd debug_glMultMatrixd
 #define glTranslated debug_glTranslated
+
+// Deterministic random function macros for reproducible comparisons
+#define random debug_random
+#define frand debug_frand
+
+#ifdef MATRIX_DEBUG_VALIDATE
+// Reference matrix math functions for validation
+void reference_matrix_identity(float* m);
+void reference_matrix_translate(float* m, float x, float y, float z);
+void reference_matrix_rotate(float* m, float angle, float x, float y, float z);
+void reference_matrix_scale(float* m, float x, float y, float z);
+void reference_matrix_multiply(float* result, const float* a, const float* b);
+void reference_matrix_frustum(float* m, double left, double right, double bottom, double top, double near_val, double far_val);
+void reference_matrix_perspective(float* m, double fovy, double aspect, double zNear, double zFar);
+void reference_matrix_lookat(float* m, double eyex, double eyey, double eyez, double centerx, double centery, double centerz, double upx, double upy, double upz);
+
+// Matrix comparison functions
+int compare_matrices(const char* operation, const float* reference, const float* actual);
+void matrix_debug_validate_init(void);
+#endif // MATRIX_DEBUG_VALIDATE
 
 #endif // MATRIX_DEBUG
 
