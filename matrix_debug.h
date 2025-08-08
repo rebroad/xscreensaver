@@ -67,8 +67,7 @@ void debug_glMultMatrixd(const GLdouble* m);
 void debug_glTranslated(GLdouble x, GLdouble y, GLdouble z);
 
 // Macro to replace OpenGL calls with debug versions
-// Only define these for native builds (not WebGL to avoid duplicate symbols)
-#ifndef WEB_BUILD
+// Define these for ALL builds (both native and WebGL)
 #define glMatrixMode debug_glMatrixMode
 #define glLoadIdentity debug_glLoadIdentity
 #define glOrtho debug_glOrtho
@@ -88,7 +87,6 @@ void debug_glTranslated(GLdouble x, GLdouble y, GLdouble z);
 #define gluLookAt debug_gluLookAt
 #define glMultMatrixd debug_glMultMatrixd
 #define glTranslated debug_glTranslated
-#endif // !WEB_BUILD
 
 #endif // MATRIX_DEBUG
 
