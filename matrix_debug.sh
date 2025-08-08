@@ -16,22 +16,23 @@ NC='\033[0m' # No Color
 
 # Function to show usage
 show_usage() {
-    echo -e "${BLUE}🔧 Matrix Debugging Framework${NC}"
+    echo -e "${BLUE}🔧 Matrix Debugging Framework with Validation${NC}"
     echo -e "${YELLOW}Usage: $0 [COMMAND]${NC}"
     echo ""
     echo -e "${CYAN}Available Commands:${NC}"
-    echo -e "  ${GREEN}compare${NC}       - Build both versions and compare matrix outputs"
-    echo -e "  ${GREEN}hextrail-web${NC}  - Build hextrail for WebGL with matrix debugging"
-    echo -e "  ${GREEN}hextrail-native${NC} - Build hextrail for native with matrix debugging"
+    echo -e "  ${GREEN}compare${NC}       - Build both versions and compare matrix outputs with validation"
+    echo -e "  ${GREEN}web${NC}           - Build hextrail for WebGL with matrix debugging & validation"
+    echo -e "  ${GREEN}native${NC}        - Build hextrail for native with matrix debugging & validation"
     echo -e "  ${GREEN}clean${NC}         - Clean all build files"
     echo -e "  ${GREEN}help${NC}          - Show this help message"
     echo ""
     echo -e "${CYAN}Examples:${NC}"
-    echo -e "  $0 compare       # Compare native vs WebGL matrix operations"
-    echo -e "  $0 hextrail-web  # Build WebGL hextrail with debugging"
-    echo -e "  $0 hextrail-native # Build native hextrail with debugging"
+    echo -e "  $0 compare       # Compare native vs WebGL with deterministic random & validation"
+    echo -e "  $0 web           # Build WebGL hextrail with matrix validation"
+    echo -e "  $0 native        # Build native hextrail with matrix validation"
     echo ""
-    echo -e "${YELLOW}💡 Tip: Run '$0 compare' to debug matrix differences between native and WebGL!${NC}"
+    echo -e "${PURPLE}🎯 Features: Deterministic random, matrix validation, before/after debugging${NC}"
+    echo -e "${PURPLE}💡 Tip: Run '$0 compare' for pixel-perfect native vs WebGL comparison!${NC}"
 }
 
 # Function to check dependencies
@@ -285,10 +286,10 @@ main() {
         "compare")
             compare_outputs
             ;;
-        "hextrail-web")
+        "web"|"hextrail-web")
             build_hextrail "web"
             ;;
-        "hextrail-native")
+        "native"|"hextrail-native")
             build_hextrail "native"
             ;;
         "clean")
