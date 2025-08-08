@@ -22,8 +22,8 @@ void debug_matrix(const char* label, const void* matrix);
 void debug_matrix_stack(const char* name, void* stack);
 #endif
 
-// Matrix utility functions (used internally by matrix_debug.c only)
-// These are not declared here to avoid conflicts with WebGL wrapper's own matrix functions
+// Matrix utility functions are handled by xscreensaver_web.c for WebGL builds
+// No additional matrix utilities needed in matrix_debug.c
 
 // Matrix state tracking
 #ifndef WEB_BUILD
