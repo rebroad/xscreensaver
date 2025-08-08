@@ -17,7 +17,7 @@ void matrix_debug_log(const char* format, ...);
 void matrix_debug_next_frame(void);
 
 // Matrix validation mode (define this to enable reference math validation)
-// #define MATRIX_DEBUG_VALIDATE
+#define MATRIX_DEBUG_VALIDATE
 
 // Deterministic random functions for reproducible comparisons
 long debug_random(void);
