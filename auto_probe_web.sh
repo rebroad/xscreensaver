@@ -1,7 +1,8 @@
 #!/bin/bash
 
 # Automated Web Probing Script for Matrix Debug Output
-# This script attempts to automatically extract debug output from the webpage
+# Usage: ./auto_probe_web.sh <port_number>
+# This script extracts debug output from a HexTrail webpage running on the specified port
 
 # Colors for output
 RED='\033[0;31m'
@@ -15,121 +16,44 @@ echo -e "${BLUE}🤖 Automated Web Debug Output Probe${NC}"
 echo -e "${BLUE}====================================${NC}"
 echo ""
 
-# Function to check if web server is running and start if needed
-check_and_start_web_server() {
-    echo -e "${YELLOW}🔍 Checking web server...${NC}"
+# Function to verify web server on specified port
+verify_web_server() {
+    local port=$1
+
+    if [ -z "$port" ]; then
+        echo -e "${RED}❌ No port specified${NC}"
+        echo -e "${YELLOW}💡 Usage: $0 <port_number>${NC}"
+        return 1
+    fi
+
+    echo -e "${YELLOW}🔍 Verifying HexTrail web server on port $port...${NC}"
 
     # Check if build_web directory exists
     if [ ! -d "build_web" ]; then
         echo -e "${RED}❌ build_web directory not found${NC}"
-        echo -e "${YELLOW}💡 Please build WebGL version first: ./matrix_debug.sh hextrail-web${NC}"
+        echo -e "${YELLOW}💡 Please build WebGL version first: ./matrix_debug.sh web${NC}"
         return 1
     fi
 
     # Check if index.html exists in build_web
     if [ ! -f "build_web/index.html" ]; then
         echo -e "${RED}❌ build_web/index.html not found${NC}"
-        echo -e "${YELLOW}💡 Please build WebGL version first: ./matrix_debug.sh hextrail-web${NC}"
+        echo -e "${YELLOW}💡 Please build WebGL version first: ./matrix_debug.sh web${NC}"
         return 1
     fi
 
-    # Check if there's already a server running on any port serving our files (quick check)
-    echo -e "${YELLOW}🔍 Checking for existing hextrail servers...${NC}"
-    for test_port in 8000 8001 8002 8003 8004 8005; do
-        if timeout 2 curl -s http://localhost:$test_port > /dev/null 2>&1; then
-            # Test if it's serving our hextrail page
-            if timeout 2 curl -s http://localhost:$test_port | grep -q "HexTrail"; then
-                echo -e "${YELLOW}🔍 Found server on port $test_port, verifying directory...${NC}"
-
-                # Use lsof to verify the server is serving from the correct directory
-                SERVER_PIDS=$(lsof -ti:$test_port 2>/dev/null)
-                if [ ! -z "$SERVER_PIDS" ]; then
-                    for pid in $SERVER_PIDS; do
-                        SERVER_CWD=$(lsof -p $pid 2>/dev/null | grep cwd | awk '{print $NF}')
-                        if [ "$SERVER_CWD" = "$(pwd)/build_web" ]; then
-                            echo -e "${GREEN}✅ Web server already running on localhost:$test_port (serving from correct directory)${NC}"
-                            PORT=$test_port
-                            echo $PORT > /tmp/hextrail_web_port.txt
-                            return 0
-                        else
-                            echo -e "${YELLOW}⚠️  Server on port $test_port serving from: $SERVER_CWD (not our build_web)${NC}"
-                        fi
-                    done
-                else
-                    echo -e "${YELLOW}⚠️  Could not determine server directory for port $test_port${NC}"
-                fi
-            fi
-        fi
-    done
-
-    # Clean up any stale python http servers that might be blocking ports
-    echo -e "${YELLOW}🧹 Checking for stale web servers...${NC}"
-    STALE_PIDS=$(ps aux | grep "python3 -m http.server" | grep -v grep | awk '{print $2}')
-    if [ ! -z "$STALE_PIDS" ]; then
-        echo -e "${YELLOW}🔍 Found stale web server processes: $STALE_PIDS${NC}"
-        for pid in $STALE_PIDS; do
-            # Check if this server is actually responding
-            if ! timeout 2 curl -s http://localhost:8000 > /dev/null 2>&1; then
-                echo -e "${YELLOW}💀 Killing stale server process $pid (not responding)${NC}"
-                kill $pid 2>/dev/null
-                sleep 1
-                # Force kill if still running
-                if kill -0 $pid 2>/dev/null; then
-                    echo -e "${YELLOW}💀 Force killing stubborn process $pid${NC}"
-                    kill -9 $pid 2>/dev/null
-                fi
-            else
-                echo -e "${YELLOW}⚠️  Server process $pid is responding, leaving it alone${NC}"
-            fi
-        done
-    fi
-
-    # Find an available port starting from 8000 (quick check)
-    echo -e "${YELLOW}🔍 Finding available port...${NC}"
-    PORT=8000
-    for test_port in 8000 8001 8002 8003 8004 8005 8006 8007 8008 8009 8010; do
-        if ! timeout 2 curl -s http://localhost:$test_port > /dev/null 2>&1; then
-            PORT=$test_port
-            break
-        fi
-    done
-
-    if [ $PORT -gt 8010 ]; then
-        echo -e "${RED}❌ Could not find available port between 8000-8010${NC}"
-        return 1
-    fi
-
-    # No server found, start one
-    echo -e "${YELLOW}🚀 Starting web server on port $PORT...${NC}"
-
-    if command -v python3 &> /dev/null; then
-        cd build_web && python3 -m http.server $PORT > /dev/null 2>&1 &
-        SERVER_PID=$!
-        sleep 2
-
-        # Check if server started successfully
-        if kill -0 $SERVER_PID 2>/dev/null && curl -s http://localhost:$PORT > /dev/null 2>&1; then
-            echo -e "${GREEN}✅ Web server started successfully (PID: $SERVER_PID, Port: $PORT)${NC}"
-
-            # Verify hextrail page is accessible
-            echo -e "${YELLOW}🔍 Verifying hextrail page is accessible...${NC}"
-            if curl -s http://localhost:$PORT | grep -q "HexTrail"; then
-                echo -e "${GREEN}✅ HexTrail page is accessible and contains expected content${NC}"
-                echo $PORT > /tmp/hextrail_web_port.txt
-                echo $SERVER_PID > /tmp/hextrail_web_pid.txt
-                return 0
-            else
-                echo -e "${RED}❌ HexTrail page not found or not accessible${NC}"
-                echo -e "${YELLOW}💡 Check that build_web/index.html exists and contains HexTrail content${NC}"
-                kill $SERVER_PID 2>/dev/null
-                return 1
-            fi
+    # Verify server is running and serving HexTrail
+    if timeout 2 curl -s http://localhost:$port > /dev/null 2>&1; then
+        if timeout 2 curl -s http://localhost:$port | grep -q "HexTrail"; then
+            echo -e "${GREEN}✅ Verified HexTrail server on localhost:$port${NC}"
+            echo $port > /tmp/hextrail_web_port.txt
+            return 0
         else
-            echo -e "${RED}❌ Failed to start web server${NC}"
+            echo -e "${RED}❌ Server on port $port is not serving HexTrail content${NC}"
             return 1
         fi
     else
-        echo -e "${RED}❌ python3 not found - cannot start web server${NC}"
+        echo -e "${RED}❌ No server responding on port $port${NC}"
         return 1
     fi
 }
@@ -409,31 +333,7 @@ EOF
     echo -e "${GREEN}✅ Browser automation page created: matrix_debug_outputs/automate_browser.html${NC}"
 }
 
-# Function to cleanup web servers
-cleanup_web_servers() {
-    echo -e "${YELLOW}🧹 Cleaning up web servers...${NC}"
 
-    # Kill any servers we started
-    if [ -f "/tmp/hextrail_web_pid.txt" ]; then
-        SERVER_PID=$(cat /tmp/hextrail_web_pid.txt)
-        if kill -0 $SERVER_PID 2>/dev/null; then
-            echo -e "${YELLOW}💀 Killing web server process $SERVER_PID${NC}"
-            kill $SERVER_PID 2>/dev/null
-            sleep 1
-            # Force kill if still running
-            if kill -0 $SERVER_PID 2>/dev/null; then
-                echo -e "${YELLOW}💀 Force killing stubborn process $SERVER_PID${NC}"
-                kill -9 $SERVER_PID 2>/dev/null
-            fi
-        fi
-        rm -f /tmp/hextrail_web_pid.txt
-    fi
-
-    # Clean up port file
-    rm -f /tmp/hextrail_web_port.txt
-
-    echo -e "${GREEN}✅ Web server cleanup complete${NC}"
-}
 
 # Function to run the automated extraction
 run_automated_extraction() {
@@ -496,17 +396,13 @@ run_automated_extraction() {
 
 # Main execution
 main() {
-    # Check for cleanup command
-    if [ "$1" = "cleanup" ]; then
-        cleanup_web_servers
-        exit 0
-    fi
+    local port=$1
 
     echo -e "${BLUE}🚀 Starting automated web debug output probe...${NC}"
     echo ""
 
-    # Check and start web server if needed
-    if ! check_and_start_web_server; then
+    # Verify web server on specified port
+    if ! verify_web_server "$port"; then
         exit 1
     fi
 
@@ -517,13 +413,8 @@ main() {
     echo -e "${GREEN}✅ Automated extraction setup complete!${NC}"
     echo -e "${CYAN}📁 Check matrix_debug_outputs/ for extraction tools and results${NC}"
     echo ""
-    echo -e "${YELLOW}💡 To cleanup web servers later, run: $0 cleanup${NC}"
+    echo -e "${YELLOW}💡 Web server management is now handled by build_web.sh${NC}"
 }
 
-# Set up cleanup trap (only if not running cleanup command)
-if [ "$1" != "cleanup" ]; then
-    trap cleanup_web_servers EXIT
-fi
-
-# Run main function
+# Run main function with port argument
 main "$@"

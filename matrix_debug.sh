@@ -91,7 +91,19 @@ compare_outputs() {
     # Build both versions first
     echo -e "${YELLOW}📦 Building both versions...${NC}"
     build_hextrail "native"
-    build_hextrail "web"
+
+    # Build web version and capture server port
+    echo -e "${YELLOW}📦 Building web version and capturing server port...${NC}"
+    WEB_BUILD_OUTPUT=$(build_hextrail "web" 2>&1)
+    echo "$WEB_BUILD_OUTPUT"  # Still show the output to user
+
+    # Extract port from build output
+    WEB_SERVER_PORT=$(echo "$WEB_BUILD_OUTPUT" | grep "WEBSERVER_PORT:" | cut -d: -f2)
+    if [ -z "$WEB_SERVER_PORT" ]; then
+        echo -e "${RED}❌ Failed to detect web server port${NC}"
+        return 1
+    fi
+    echo -e "${GREEN}🔍 Detected web server port: $WEB_SERVER_PORT${NC}"
 
     # Create output directory
     mkdir -p matrix_debug_outputs
@@ -114,8 +126,8 @@ compare_outputs() {
 
     # Use auto_probe_web.sh for web debugging if available
     if [ -f "auto_probe_web.sh" ]; then
-        echo -e "${YELLOW}🤖 Using auto_probe_web.sh for web debugging...${NC}"
-        ./auto_probe_web.sh
+        echo -e "${YELLOW}🤖 Using auto_probe_web.sh for web debugging on port $WEB_SERVER_PORT...${NC}"
+        ./auto_probe_web.sh $WEB_SERVER_PORT
     else
         echo -e "${RED}❌ auto_probe_web.sh not found - required for web debugging${NC}"
         echo -e "${YELLOW}💡 Please ensure auto_probe_web.sh is available for full comparison${NC}"
@@ -132,21 +144,21 @@ compare_outputs() {
 # Function to compare matrix operations intelligently (from enhanced_compare.sh)
 compare_matrix_operations_intelligently() {
     echo -e "${YELLOW}🔍 Comparing outputs intelligently...${NC}"
-    
+
     if [ ! -f "matrix_debug_outputs/native_output.txt" ] || [ ! -f "matrix_debug_outputs/webgl_output.txt" ]; then
         echo -e "${RED}❌ Missing output files for comparison${NC}"
         return 1
     fi
-    
+
     # Extract key matrix operations for comparison
     echo -e "${YELLOW}📊 Extracting key matrix operations...${NC}"
-    
+
     # Extract matrix operations from native output
     grep -E "(glMatrixMode|glLoadIdentity|gluPerspective|gluLookAt|glTranslatef|glRotatef|glScalef|glPushMatrix|glPopMatrix)" matrix_debug_outputs/native_output.txt > matrix_debug_outputs/native_matrix_ops.txt
-    
+
     # Extract matrix operations from WebGL output (assuming HTML format)
     grep -E "(glMatrixMode|glLoadIdentity|gluPerspective|gluLookAt|glTranslatef|glRotatef|glScalef|glPushMatrix|glPopMatrix)" matrix_debug_outputs/webgl_output.txt | sed 's/<[^>]*>//g' > matrix_debug_outputs/webgl_matrix_ops.txt
-    
+
     # Compare the matrix operations
     echo -e "${YELLOW}🔍 Comparing matrix operations...${NC}"
     if diff matrix_debug_outputs/native_matrix_ops.txt matrix_debug_outputs/webgl_matrix_ops.txt > matrix_debug_outputs/matrix_diff.txt; then
@@ -161,7 +173,7 @@ compare_matrix_operations_intelligently() {
         echo -e "   Native operations: $(wc -l < matrix_debug_outputs/native_matrix_ops.txt)"
         echo -e "   WebGL operations:  $(wc -l < matrix_debug_outputs/webgl_matrix_ops.txt)"
     fi
-    
+
     echo ""
     echo -e "${CYAN}📁 All output files saved in: matrix_debug_outputs/${NC}"
     echo -e "   - native_output.txt: Full native debug output"
