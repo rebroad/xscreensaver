@@ -848,7 +848,7 @@ draw_hextrail (ModeInfo *mi)
   hextrail_configuration *bp = &bps[MI_SCREEN(mi)];
 
   #ifdef MATRIX_DEBUG
-  matrix_debug_next_frame();
+  matrix_debug_next_frame(); // TODO - really needed for matrix debug?
   #endif
 
   if (!bp->glx_context) return;
