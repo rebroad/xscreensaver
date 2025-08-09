@@ -5,14 +5,6 @@
  */
 
 #include <emscripten.h>
-
-// Include matrix debug header first for unified debugging
-#ifdef MATRIX_DEBUG
-#include "../../matrix_debug.h"
-// Disable the WebGL wrapper's matrix debugging when using our unified system
-#define DISABLE_WEBGL_MATRIX_DEBUG
-#endif
-
 #include "../xscreensaver_web.c"
 
 // Include our web headers (WEB_BUILD already defined by build script)
