@@ -115,7 +115,7 @@ typedef double GLdouble;
 
 // Only provide gluProject if it's not working with the expected signature
 // We'll name it differently to avoid conflicts
-int gluProject_web(GLdouble objx, GLdouble objy, GLdouble objz,
+int gluProject(GLdouble objx, GLdouble objy, GLdouble objz,
                    const GLdouble modelMatrix[16], const GLdouble projMatrix[16],
                    const GLint viewport[4],
                    GLdouble *winx, GLdouble *winy, GLdouble *winz) {
@@ -246,7 +246,7 @@ static void check_gl_error_wrapper_internal(const char *location, int line) {
 #endif
 
 // Provide glGetDoublev since WebGL only has glGetFloatv
-void glGetDoublev_web(GLenum pname, GLdouble *params) {
+void glGetDoublev(GLenum pname, GLdouble *params) {
     // Handle matrix parameters specially to avoid GL_INVALID_ENUM
     if (pname == GL_MODELVIEW_MATRIX || pname == GL_PROJECTION_MATRIX) {
         // Return identity matrix for now - this avoids the GL_INVALID_ENUM error
@@ -269,10 +269,6 @@ void glGetDoublev_web(GLenum pname, GLdouble *params) {
         params[i] = (GLdouble)float_params[i];
     }
 }
-
-// Override the function names for hextrail.c when building for web
-#define gluProject gluProject_web
-#define glGetDoublev glGetDoublev_web
 
 // Matrix stack management
 #define MAX_MATRIX_STACK_DEPTH 32
