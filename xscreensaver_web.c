@@ -22,7 +22,7 @@ static unsigned int webgl_random() {
     return random_seed;
 }
 
-static double frand(double max) {
+static double frand_internal(double max) {
     return ((double)webgl_random() / (double)((unsigned int)~0)) * max;
 }
 
@@ -245,34 +245,31 @@ static void check_gl_error_wrapper_internal(const char *location, int line) {
 #define check_gl_error_wrapper(location) /* No-op when FINDBUG_MODE not defined */
 #endif
 
-// Provide glGetDoublev since WebGL only has glGetFloatv
-void glGetDoublev_web(GLenum pname, GLdouble *params) {
-    // Handle matrix parameters specially to avoid GL_INVALID_ENUM
-    if (pname == GL_MODELVIEW_MATRIX || pname == GL_PROJECTION_MATRIX) {
-        // Return identity matrix for now - this avoids the GL_INVALID_ENUM error
-        // TODO: Later we can implement proper matrix stack retrieval
-        for (int i = 0; i < 16; i++) {
-            params[i] = (i % 5 == 0) ? 1.0 : 0.0; // Identity matrix
-        }
-        return;
-    }
 
-    // For non-matrix parameters, use glGetFloatv as before
-    check_gl_error_wrapper("before glGetFloatv");
-    GLfloat float_params[16];
-    glGetFloatv(pname, float_params);
-    check_gl_error_wrapper("after glGetFloatv");
-
-    // Convert float to double
-    int count = 1; // Default to 1 parameter for non-matrix values
-    for (int i = 0; i < count; i++) {
-        params[i] = (GLdouble)float_params[i];
-    }
-}
 
 // Override the function names for hextrail.c when building for web
 #define gluProject gluProject_web
 #define glGetDoublev glGetDoublev_web
+#define glGetFloatv glGetFloatv_web
+
+// When MATRIX_DEBUG is not defined, redirect OpenGL calls to _web functions
+#ifndef MATRIX_DEBUG
+#define glMatrixMode glMatrixMode_web
+#define glLoadIdentity glLoadIdentity_web
+#define glOrtho glOrtho_web
+#define glFrustum glFrustum_web
+#define glTranslatef glTranslatef_web
+#define glRotatef glRotatef_web
+#define glScalef glScalef_web
+#define glPushMatrix glPushMatrix_web
+#define glPopMatrix glPopMatrix_web
+#define glMultMatrixf glMultMatrixf_web
+#define glMultMatrixd glMultMatrixd_web
+#define glViewport glViewport_web
+#define gluPerspective gluPerspective_web
+#define gluLookAt gluLookAt_web
+#define glTranslated glTranslated_web
+#endif
 
 // Matrix stack management
 #define MAX_MATRIX_STACK_DEPTH 32
@@ -411,6 +408,91 @@ static void matrix_scale(Matrix4f *m, GLfloat x, GLfloat y, GLfloat z) {
     scale.m[5] = y;
     scale.m[10] = z;
     matrix_multiply(m, m, &scale);
+}
+
+// Provide glGetDoublev since WebGL only has glGetFloatv
+void glGetDoublev_web(GLenum pname, GLdouble *params) {
+    // Handle matrix parameters specially to avoid GL_INVALID_ENUM
+    if (pname == GL_MODELVIEW_MATRIX || pname == GL_PROJECTION_MATRIX || pname == GL_TEXTURE_MATRIX) {
+        // Return actual matrix stack values for proper matrix debugging
+        Matrix4f* matrix_to_return = NULL;
+        
+        switch (pname) {
+            case GL_MODELVIEW_MATRIX:
+                matrix_to_return = &modelview_stack.stack[modelview_stack.top];
+                break;
+            case GL_PROJECTION_MATRIX:
+                matrix_to_return = &projection_stack.stack[projection_stack.top];
+                break;
+            case GL_TEXTURE_MATRIX:
+                matrix_to_return = &texture_stack.stack[texture_stack.top];
+                break;
+        }
+        
+        if (matrix_to_return) {
+            // Copy the actual matrix values
+            for (int i = 0; i < 16; i++) {
+                params[i] = matrix_to_return->m[i];
+            }
+        } else {
+            // Fallback to identity if something went wrong
+            for (int i = 0; i < 16; i++) {
+                params[i] = (i % 5 == 0) ? 1.0 : 0.0;
+            }
+        }
+        return;
+    }
+
+    // For non-matrix parameters, hextrail doesn't actually use glGetDoublev
+    // so we don't need to implement the full functionality here
+    // If needed in the future, this could be expanded to handle other OpenGL state
+    GLfloat float_params[16] = {0};  // Initialize to zero for unused parameters
+
+    // Convert float to double
+    int count = 1; // Default to 1 parameter for non-matrix values
+    for (int i = 0; i < count; i++) {
+        params[i] = (GLdouble)float_params[i];
+    }
+}
+
+// Override glGetFloatv to return actual matrix stack values for matrix debugging
+void glGetFloatv_web(GLenum pname, GLfloat *params) {
+    // Handle matrix parameters specially to return actual matrix stack values
+    if (pname == GL_MODELVIEW_MATRIX || pname == GL_PROJECTION_MATRIX || pname == GL_TEXTURE_MATRIX) {
+        Matrix4f* matrix_to_return = NULL;
+        
+        switch (pname) {
+            case GL_MODELVIEW_MATRIX:
+                matrix_to_return = &modelview_stack.stack[modelview_stack.top];
+                break;
+            case GL_PROJECTION_MATRIX:
+                matrix_to_return = &projection_stack.stack[projection_stack.top];
+                break;
+            case GL_TEXTURE_MATRIX:
+                matrix_to_return = &texture_stack.stack[texture_stack.top];
+                break;
+        }
+        
+        if (matrix_to_return) {
+            // Copy the actual matrix values
+            for (int i = 0; i < 16; i++) {
+                params[i] = matrix_to_return->m[i];
+            }
+        } else {
+            // Fallback to identity if something went wrong
+            for (int i = 0; i < 16; i++) {
+                params[i] = (i % 5 == 0) ? 1.0f : 0.0f;
+            }
+        }
+        return;
+    }
+    
+    // For non-matrix parameters, we can't easily call the real WebGL glGetFloatv
+    // since we're overriding it. For matrix debugging, we mainly need the matrices.
+    // Set to zero for unknown parameters (this could be expanded if needed)
+    if (params) {
+        *params = 0.0f;
+    }
 }
 
 // VBO pool function implementations
@@ -740,7 +822,7 @@ void main_loop(void) {
     }
 }
 
-void glMatrixMode(GLenum mode) {
+void glMatrixMode_web(GLenum mode) {
     check_gl_error_wrapper("before glMatrixMode");
 
     GLenum old_mode = current_matrix_mode;
@@ -749,7 +831,7 @@ void glMatrixMode(GLenum mode) {
     check_gl_error_wrapper("after glMatrixMode");
 }
 
-void glOrtho(GLdouble left, GLdouble right, GLdouble bottom, GLdouble top, GLdouble near_val, GLdouble far_val) {
+void glOrtho_web(GLdouble left, GLdouble right, GLdouble bottom, GLdouble top, GLdouble near_val, GLdouble far_val) {
     check_gl_error_wrapper("before glOrtho");
 
     MatrixStack *stack = get_current_matrix_stack();
@@ -776,7 +858,7 @@ void glOrtho(GLdouble left, GLdouble right, GLdouble bottom, GLdouble top, GLdou
     check_gl_error_wrapper("after glOrtho");
 }
 
-void glLoadIdentity(void) {
+void glLoadIdentity_web(void) {
     check_gl_error_wrapper("before glLoadIdentity");
 
     MatrixStack *stack;
@@ -1115,7 +1197,7 @@ int XLookupString(XKeyEvent *event_struct, char *buffer_return, int bytes_buffer
 }
 
 // Missing GLU functions for WebGL
-void gluPerspective(GLdouble fovy, GLdouble aspect, GLdouble zNear, GLdouble zFar) {
+void gluPerspective_web(GLdouble fovy, GLdouble aspect, GLdouble zNear, GLdouble zFar) {
     GLfloat xmin, xmax, ymin, ymax;
 
     ymax = (GLfloat)zNear * tan((GLfloat)fovy * M_PI / 360.0f);
@@ -1126,7 +1208,7 @@ void gluPerspective(GLdouble fovy, GLdouble aspect, GLdouble zNear, GLdouble zFa
     glFrustum(xmin, xmax, ymin, ymax, (GLfloat)zNear, (GLfloat)zFar);
 }
 
-void gluLookAt(GLdouble eyex, GLdouble eyey, GLdouble eyez,
+void gluLookAt_web(GLdouble eyex, GLdouble eyey, GLdouble eyez,
                GLdouble centerx, GLdouble centery, GLdouble centerz,
                GLdouble upx, GLdouble upy, GLdouble upz) {
     GLfloat m[16];
@@ -1367,7 +1449,7 @@ void glFrontFace(GLenum mode) {
     // The real glFrontFace function is not available in WebGL 2.0
 }
 
-void glPushMatrix(void) {
+void glPushMatrix_web(void) {
     check_gl_error_wrapper("before glPushMatrix");
 
     MatrixStack *stack;
@@ -1391,7 +1473,7 @@ void glPushMatrix(void) {
     }
 }
 
-void glPopMatrix(void) {
+void glPopMatrix_web(void) {
     MatrixStack *stack;
     switch (current_matrix_mode) {
         case GL_MODELVIEW:
@@ -1412,7 +1494,7 @@ void glPopMatrix(void) {
     }
 }
 
-void glTranslatef(GLfloat x, GLfloat y, GLfloat z) {
+void glTranslatef_web(GLfloat x, GLfloat y, GLfloat z) {
     MatrixStack *stack;
     switch (current_matrix_mode) {
         case GL_MODELVIEW:
@@ -1431,7 +1513,7 @@ void glTranslatef(GLfloat x, GLfloat y, GLfloat z) {
     matrix_translate(&stack->stack[stack->top], x, y, z);
 }
 
-void glRotatef(GLfloat angle, GLfloat x, GLfloat y, GLfloat z) {
+void glRotatef_web(GLfloat angle, GLfloat x, GLfloat y, GLfloat z) {
     MatrixStack *stack;
     switch (current_matrix_mode) {
         case GL_MODELVIEW:
@@ -1451,7 +1533,7 @@ void glRotatef(GLfloat angle, GLfloat x, GLfloat y, GLfloat z) {
     matrix_rotate(&stack->stack[stack->top], angle, x, y, z);
 }
 
-void glScalef(GLfloat x, GLfloat y, GLfloat z) {
+void glScalef_web(GLfloat x, GLfloat y, GLfloat z) {
     MatrixStack *stack;
     switch (current_matrix_mode) {
         case GL_MODELVIEW:
@@ -1889,7 +1971,7 @@ void glXMakeCurrent(Display *display, Window window, GLXContext context) {
 }
 
 // Missing OpenGL functions for WebGL compatibility
-void glFrustum(GLdouble left, GLdouble right, GLdouble bottom, GLdouble top, GLdouble near_val, GLdouble far_val) {
+void glFrustum_web(GLdouble left, GLdouble right, GLdouble bottom, GLdouble top, GLdouble near_val, GLdouble far_val) {
     check_gl_error_wrapper("before glFrustum");
 
     DL(1, "glFrustum: left=%.3f, right=%.3f, bottom=%.3f, top=%.3f, near=%.3f, far=%.3f\n",
@@ -1919,7 +2001,7 @@ void glFrustum(GLdouble left, GLdouble right, GLdouble bottom, GLdouble top, GLd
     check_gl_error_wrapper("after glFrustum");
 }
 
-void glMultMatrixd(const GLdouble *m) {
+void glMultMatrixd_web(const GLdouble *m) {
     Matrix4f matrix;
     for (int i = 0; i < 16; i++) {
         matrix.m[i] = (GLfloat)m[i];
@@ -1945,10 +2027,19 @@ void glMultMatrixd(const GLdouble *m) {
     check_gl_error_wrapper("after glMultMatrixd");
 }
 
-void glTranslated(GLdouble x, GLdouble y, GLdouble z) {
-    glTranslatef((GLfloat)x, (GLfloat)y, (GLfloat)z);
+void glTranslated_web(GLdouble x, GLdouble y, GLdouble z) {
+    glTranslatef_web((GLfloat)x, (GLfloat)y, (GLfloat)z);
 
     check_gl_error_wrapper("after glTranslated");
+}
+
+void glViewport_web(GLint x, GLint y, GLsizei width, GLsizei height) {
+    check_gl_error_wrapper("before glViewport");
+    
+    // Call the actual WebGL viewport function
+    glViewport(x, y, width, height);
+    
+    check_gl_error_wrapper("after glViewport");
 }
 
 // Real trackball functions from trackball.c
@@ -2132,7 +2223,7 @@ void build_rotmatrix(float m[4][4], float q[4]) {
     m[3][3] = 1.0f;
 }
 
-void glMultMatrixf(const float *m) {
+void glMultMatrixf_web(const float *m) {
     // Convert float matrix to GLfloat and multiply
     GLfloat gl_matrix[16];
     for (int i = 0; i < 16; i++) {
