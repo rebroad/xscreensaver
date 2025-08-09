@@ -8,7 +8,7 @@ set -e
 # Parse command line arguments
 DEBUG_MODE=false
 MEMORY_DEBUG=false
-MATRIX_DEBUG_MODE=false
+MATRIX_DEBUG=false
 while [[ $# -gt 0 ]]; do
     case $1 in
         -debug)
@@ -20,14 +20,13 @@ while [[ $# -gt 0 ]]; do
             shift
             ;;
         -matrix-debug)
-            MATRIX_DEBUG_MODE=true
+            MATRIX_DEBUG=true
             shift
             ;;
         *)
             echo "Usage: $0 [-debug] [-memory] [-matrix-debug]"
             echo "  -debug: Enable FINDBUG mode for GL error hunting"
             echo "  -memory: Enable memory debugging and leak detection"
-            echo "  -matrix-debug: Enable matrix debugging (for matrix_debug.sh)"
             exit 1
             ;;
     esac
@@ -129,7 +128,6 @@ EMCC_ARGS=(
     $GLX_DIR/gltrackball.c
     $GLX_DIR/normals.c
     $JWXYZ_DIR/jwxyz-timers.c
-    $REPO_ROOT/matrix_debug.c
     -o index.html
     --shell-file $REPO_ROOT/web/template.html
 )
@@ -155,7 +153,7 @@ if [ "$MEMORY_DEBUG" = true ]; then
 fi
 
 # Add matrix debugging flag if requested
-if [ "$MATRIX_DEBUG_MODE" = true ]; then
+if [ "$MATRIX_DEBUG" = true ]; then
     EMCC_ARGS=(-DMATRIX_DEBUG "${EMCC_ARGS[@]}")
 fi
 
