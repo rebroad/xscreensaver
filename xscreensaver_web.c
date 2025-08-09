@@ -26,9 +26,20 @@ static double frand_internal(double max) {
     return ((double)webgl_random() / (double)((unsigned int)~0)) * max;
 }
 
+// Provide a public frand() for hacks that don't include yarandom.h macro
+// In matrix-debug builds, calls are redirected by macros to debug_frand,
+// so we only define this function in non-debug builds.
+#ifndef MATRIX_DEBUG
+double frand(double max) { return frand_internal(max); }
+#endif
+
 // WebGL 2.0 function declarations (since we're using WebGL 2.0)
+#ifndef GLAPI
 #define GLAPI extern
+#endif
+#ifndef GLAPIENTRY
 #define GLAPIENTRY
+#endif
 
 // OpenGL constants that might be missing
 #ifndef GL_MODELVIEW
@@ -252,6 +263,42 @@ static void check_gl_error_wrapper_internal(const char *location, int line) {
 #define glGetDoublev glGetDoublev_web
 #define glGetFloatv glGetFloatv_web
 
+// Forward declare _web implementations so we can define non-suffixed
+// entry points that forward to them (needed by other translation units)
+GLAPI void GLAPIENTRY glMatrixMode_web(GLenum mode);
+GLAPI void GLAPIENTRY glLoadIdentity_web(void);
+GLAPI void GLAPIENTRY glOrtho_web(GLdouble left, GLdouble right, GLdouble bottom, GLdouble top, GLdouble near_val, GLdouble far_val);
+GLAPI void GLAPIENTRY glFrustum_web(GLdouble left, GLdouble right, GLdouble bottom, GLdouble top, GLdouble near_val, GLdouble far_val);
+GLAPI void GLAPIENTRY glTranslatef_web(GLfloat x, GLfloat y, GLfloat z);
+GLAPI void GLAPIENTRY glRotatef_web(GLfloat angle, GLfloat x, GLfloat y, GLfloat z);
+GLAPI void GLAPIENTRY glScalef_web(GLfloat x, GLfloat y, GLfloat z);
+GLAPI void GLAPIENTRY glPushMatrix_web(void);
+GLAPI void GLAPIENTRY glPopMatrix_web(void);
+GLAPI void GLAPIENTRY glMultMatrixf_web(const float *m);
+GLAPI void GLAPIENTRY glMultMatrixd_web(const GLdouble *m);
+GLAPI void GLAPIENTRY glViewport_web(GLint x, GLint y, GLsizei w, GLsizei h);
+GLAPI void GLAPIENTRY gluPerspective_web(GLdouble fovy, GLdouble aspect, GLdouble zNear, GLdouble zFar);
+GLAPI void GLAPIENTRY gluLookAt_web(GLdouble ex, GLdouble ey, GLdouble ez, GLdouble cx, GLdouble cy, GLdouble cz, GLdouble ux, GLdouble uy, GLdouble uz);
+GLAPI void GLAPIENTRY glTranslated_web(GLdouble x, GLdouble y, GLdouble z);
+
+// Always provide non-suffixed entry points so other objects (e.g. gltrackball.c)
+// that don't include matrix_debug.h can still link against these symbols.
+GLAPI void GLAPIENTRY glMultMatrixf(const float *m) { glMultMatrixf_web(m); }
+GLAPI void GLAPIENTRY glMatrixMode(GLenum mode) { glMatrixMode_web(mode); }
+GLAPI void GLAPIENTRY glLoadIdentity(void) { glLoadIdentity_web(); }
+GLAPI void GLAPIENTRY glOrtho(GLdouble l, GLdouble r, GLdouble b, GLdouble t, GLdouble n, GLdouble f) { glOrtho_web(l,r,b,t,n,f); }
+GLAPI void GLAPIENTRY glFrustum(GLdouble l, GLdouble r, GLdouble b, GLdouble t, GLdouble n, GLdouble f) { glFrustum_web(l,r,b,t,n,f); }
+GLAPI void GLAPIENTRY glTranslatef(GLfloat x, GLfloat y, GLfloat z) { glTranslatef_web(x,y,z); }
+GLAPI void GLAPIENTRY glRotatef(GLfloat a, GLfloat x, GLfloat y, GLfloat z) { glRotatef_web(a,x,y,z); }
+GLAPI void GLAPIENTRY glScalef(GLfloat x, GLfloat y, GLfloat z) { glScalef_web(x,y,z); }
+GLAPI void GLAPIENTRY glPushMatrix(void) { glPushMatrix_web(); }
+GLAPI void GLAPIENTRY glPopMatrix(void) { glPopMatrix_web(); }
+GLAPI void GLAPIENTRY glMultMatrixd(const GLdouble *m) { glMultMatrixd_web(m); }
+GLAPI void GLAPIENTRY glViewport(GLint x, GLint y, GLsizei w, GLsizei h) { glViewport_web(x,y,w,h); }
+GLAPI void GLAPIENTRY gluPerspective(GLdouble fovy, GLdouble aspect, GLdouble zNear, GLdouble zFar) { gluPerspective_web(fovy,aspect,zNear,zFar); }
+GLAPI void GLAPIENTRY gluLookAt(GLdouble ex, GLdouble ey, GLdouble ez, GLdouble cx, GLdouble cy, GLdouble cz, GLdouble ux, GLdouble uy, GLdouble uz) { gluLookAt_web(ex,ey,ez,cx,cy,cz,ux,uy,uz); }
+GLAPI void GLAPIENTRY glTranslated(GLdouble x, GLdouble y, GLdouble z) { glTranslated_web(x,y,z); }
+
 // When MATRIX_DEBUG is not defined, redirect OpenGL calls to _web functions
 #ifndef MATRIX_DEBUG
 #define glMatrixMode glMatrixMode_web
@@ -270,6 +317,8 @@ static void check_gl_error_wrapper_internal(const char *location, int line) {
 #define gluLookAt gluLookAt_web
 #define glTranslated glTranslated_web
 #endif
+
+// (Macros below still remap internal calls in this file when not debugging.)
 
 // Matrix stack management
 #define MAX_MATRIX_STACK_DEPTH 32
@@ -413,7 +462,7 @@ static void matrix_scale(Matrix4f *m, GLfloat x, GLfloat y, GLfloat z) {
 // Provide glGetDoublev since WebGL only has glGetFloatv
 void glGetDoublev_web(GLenum pname, GLdouble *params) {
     // Handle matrix parameters specially to avoid GL_INVALID_ENUM
-    if (pname == GL_MODELVIEW_MATRIX || pname == GL_PROJECTION_MATRIX || pname == GL_TEXTURE_MATRIX) {
+    if (pname == GL_MODELVIEW_MATRIX || pname == GL_PROJECTION_MATRIX) {
         // Return actual matrix stack values for proper matrix debugging
         Matrix4f* matrix_to_return = NULL;
         
@@ -424,9 +473,7 @@ void glGetDoublev_web(GLenum pname, GLdouble *params) {
             case GL_PROJECTION_MATRIX:
                 matrix_to_return = &projection_stack.stack[projection_stack.top];
                 break;
-            case GL_TEXTURE_MATRIX:
-                matrix_to_return = &texture_stack.stack[texture_stack.top];
-                break;
+
         }
         
         if (matrix_to_return) {
@@ -458,7 +505,7 @@ void glGetDoublev_web(GLenum pname, GLdouble *params) {
 // Override glGetFloatv to return actual matrix stack values for matrix debugging
 void glGetFloatv_web(GLenum pname, GLfloat *params) {
     // Handle matrix parameters specially to return actual matrix stack values
-    if (pname == GL_MODELVIEW_MATRIX || pname == GL_PROJECTION_MATRIX || pname == GL_TEXTURE_MATRIX) {
+    if (pname == GL_MODELVIEW_MATRIX || pname == GL_PROJECTION_MATRIX ) {
         Matrix4f* matrix_to_return = NULL;
         
         switch (pname) {
@@ -468,9 +515,7 @@ void glGetFloatv_web(GLenum pname, GLfloat *params) {
             case GL_PROJECTION_MATRIX:
                 matrix_to_return = &projection_stack.stack[projection_stack.top];
                 break;
-            case GL_TEXTURE_MATRIX:
-                matrix_to_return = &texture_stack.stack[texture_stack.top];
-                break;
+
         }
         
         if (matrix_to_return) {
@@ -1269,7 +1314,12 @@ void gluLookAt_web(GLdouble eyex, GLdouble eyey, GLdouble eyez,
 #undef M
 
     check_gl_error_wrapper("before glMultMatrixd in gluLookAt");
-    glMultMatrixd(m);
+    // Convert GLfloat array to GLdouble for glMultMatrixd
+    GLdouble m_double[16];
+    for (int i = 0; i < 16; i++) {
+        m_double[i] = (GLdouble)m[i];
+    }
+    glMultMatrixd(m_double);
     check_gl_error_wrapper("after glMultMatrixd in gluLookAt");
 
     /* Translate Eye to Origin */
@@ -2224,10 +2274,10 @@ void build_rotmatrix(float m[4][4], float q[4]) {
 }
 
 void glMultMatrixf_web(const float *m) {
-    // Convert float matrix to GLfloat and multiply
-    GLfloat gl_matrix[16];
+    // Convert float matrix to GLdouble and multiply
+    GLdouble gl_matrix[16];
     for (int i = 0; i < 16; i++) {
-        gl_matrix[i] = m[i];
+        gl_matrix[i] = (GLdouble)m[i];
     }
     glMultMatrixd(gl_matrix);
 
