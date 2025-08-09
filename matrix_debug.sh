@@ -112,7 +112,7 @@ compare_outputs() {
     echo -e "${YELLOW}📊 Capturing native debug output...${NC}"
     if [ -f "build_native_debug/hextrail_debug" ]; then
         echo -e "${YELLOW}⏳ Running native hextrail for 10 seconds...${NC}"
-        timeout 10s cd build_native_debug && ./hextrail_debug 2>&1 | head -50 > ../matrix_debug_outputs/native_output.txt
+        (cd build_native_debug && timeout 10s ./hextrail_debug -root 2>&1 | head -50 > ../matrix_debug_outputs/native_output.txt)
         if [ $? -eq 0 ]; then
             echo -e "${GREEN}✅ Native output captured: matrix_debug_outputs/native_output.txt${NC}"
         else
@@ -145,7 +145,7 @@ compare_outputs() {
 compare_matrix_operations_intelligently() {
     echo -e "${YELLOW}🔍 Comparing outputs intelligently...${NC}"
 
-    if [ ! -f "matrix_debug_outputs/native_output.txt" ] || [ ! -f "matrix_debug_outputs/webgl_output.txt" ]; then
+    if [ ! -f "matrix_debug_outputs/native_output.txt" ] || [ ! -f "matrix_debug_outputs/web_debug_output.txt" ]; then
         echo -e "${RED}❌ Missing output files for comparison${NC}"
         return 1
     fi
@@ -156,8 +156,8 @@ compare_matrix_operations_intelligently() {
     # Extract matrix operations from native output
     grep -E "(glMatrixMode|glLoadIdentity|gluPerspective|gluLookAt|glTranslatef|glRotatef|glScalef|glPushMatrix|glPopMatrix)" matrix_debug_outputs/native_output.txt > matrix_debug_outputs/native_matrix_ops.txt
 
-    # Extract matrix operations from WebGL output (assuming HTML format)
-    grep -E "(glMatrixMode|glLoadIdentity|gluPerspective|gluLookAt|glTranslatef|glRotatef|glScalef|glPushMatrix|glPopMatrix)" matrix_debug_outputs/webgl_output.txt | sed 's/<[^>]*>//g' > matrix_debug_outputs/webgl_matrix_ops.txt
+    # Extract matrix operations from WebGL output 
+    grep -E "(glMatrixMode|glLoadIdentity|gluPerspective|gluLookAt|glTranslatef|glRotatef|glScalef|glPushMatrix|glPopMatrix)" matrix_debug_outputs/web_debug_output.txt > matrix_debug_outputs/webgl_matrix_ops.txt
 
     # Compare the matrix operations
     echo -e "${YELLOW}🔍 Comparing matrix operations...${NC}"
@@ -177,7 +177,7 @@ compare_matrix_operations_intelligently() {
     echo ""
     echo -e "${CYAN}📁 All output files saved in: matrix_debug_outputs/${NC}"
     echo -e "   - native_output.txt: Full native debug output"
-    echo -e "   - webgl_output.txt: Full WebGL debug output"
+    echo -e "   - web_debug_output.txt: Full WebGL debug output"
     echo -e "   - native_matrix_ops.txt: Native matrix operations only"
     echo -e "   - webgl_matrix_ops.txt: WebGL matrix operations only"
     echo -e "   - matrix_diff.txt: Differences in matrix operations"

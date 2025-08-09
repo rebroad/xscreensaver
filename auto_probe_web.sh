@@ -393,9 +393,10 @@ const puppeteer = require('puppeteer');
       return debugLog ? debugLog.innerHTML : 'No debug output found';
     });
 
-    // Clean up HTML and save to file
+    // Clean up HTML and preserve formatting
     const cleanContent = debugContent
-      .replace(/<[^>]*>/g, '')  // Remove HTML tags
+      .replace(/<br\s*\/?>/gi, '\n')  // Convert <br> to newlines FIRST
+      .replace(/<[^>]*>/g, '')  // Then remove other HTML tags
       .replace(/&gt;/g, '>')   // Decode HTML entities
       .replace(/&lt;/g, '<')
       .replace(/&amp;/g, '&')
