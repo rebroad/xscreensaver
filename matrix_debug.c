@@ -148,13 +148,8 @@ double debug_frand(double f) {
 
 // Function to read current OpenGL matrix state
 void debug_current_opengl_matrix(const char* label) {
-    // Use the wrapper's glGetFloatv in web builds so we read from the
-    // xscreensaver_web matrix stacks rather than any emscripten stub.
     #ifdef WEB_BUILD
-    extern void glGetFloatv_web(GLenum pname, GLfloat *params);
-    #define MD_GLGETFLOATV glGetFloatv_web
-    #else
-    #define MD_GLGETFLOATV glGetFloatv
+    extern void glGetFloatv(GLenum pname, GLfloat *params);
     #endif
     GLfloat matrix[16];
     GLenum matrix_mode;
@@ -176,7 +171,7 @@ void debug_current_opengl_matrix(const char* label) {
     }
 
     // Read the actual OpenGL matrix
-    MD_GLGETFLOATV(matrix_mode, matrix);
+    glGetFloatv(matrix_mode, matrix);
 
     // Display the matrix
     matrix_debug_log("=== %s Matrix ===\n", label);
@@ -215,45 +210,45 @@ void debug_current_matrix_state(void) {
 // Initialize function pointers (call this once)
 void init_matrix_debug_functions(void) {
     #ifdef WEB_BUILD
-    // For WebGL builds, point the real_ function pointers to the _web functions
-    // This works because we have _web versions (e.g., glGetFloatv_web) and 
-    // #define redirects (e.g., #define glGetFloatv glGetFloatv_web)
+    // For WebGL builds, point the real_ function pointers directly to the 
+    // existing WebGL wrapper functions in xscreensaver_web.c
     
-    // Forward declarations for the actual _web wrapper functions
-    extern void glMatrixMode_web(GLenum mode);
-    extern void glLoadIdentity_web(void);
-    extern void glOrtho_web(GLdouble left, GLdouble right, GLdouble bottom, GLdouble top, GLdouble near_val, GLdouble far_val);
-    extern void glFrustum_web(GLdouble left, GLdouble right, GLdouble bottom, GLdouble top, GLdouble near_val, GLdouble far_val);
-    extern void glTranslatef_web(GLfloat x, GLfloat y, GLfloat z);
-    extern void glRotatef_web(GLfloat angle, GLfloat x, GLfloat y, GLfloat z);
-    extern void glScalef_web(GLfloat x, GLfloat y, GLfloat z);
-    extern void glPushMatrix_web(void);
-    extern void glPopMatrix_web(void);
-    extern void glMultMatrixf_web(const GLfloat* m);
-    extern void glMultMatrixd_web(const GLdouble* m);
-    extern void glViewport_web(GLint x, GLint y, GLsizei width, GLsizei height);
-    extern void gluPerspective_web(GLdouble fovy, GLdouble aspect, GLdouble zNear, GLdouble zFar);
-    extern void gluLookAt_web(GLdouble eyex, GLdouble eyey, GLdouble eyez, GLdouble centerx, GLdouble centery, GLdouble centerz, GLdouble upx, GLdouble upy, GLdouble upz);
-    extern void glTranslated_web(GLdouble x, GLdouble y, GLdouble z);
+    // Forward declarations for the actual WebGL wrapper functions
+    extern void glMatrixMode(GLenum mode);
+    extern void glLoadIdentity(void);
+    extern void glOrtho(GLdouble left, GLdouble right, GLdouble bottom, GLdouble top, GLdouble near_val, GLdouble far_val);
+    extern void glFrustum(GLdouble left, GLdouble right, GLdouble bottom, GLdouble top, GLdouble near_val, GLdouble far_val);
+    extern void glTranslatef(GLfloat x, GLfloat y, GLfloat z);
+    extern void glRotatef(GLfloat angle, GLfloat x, GLfloat y, GLfloat z);
+    extern void glScalef(GLfloat x, GLfloat y, GLfloat z);
+    extern void glPushMatrix(void);
+    extern void glPopMatrix(void);
+    extern void glMultMatrixf(const GLfloat* m);
+    extern void glMultMatrixd(const GLdouble* m);
+    extern void glViewport(GLint x, GLint y, GLsizei width, GLsizei height);
+    extern void gluPerspective(GLdouble fovy, GLdouble aspect, GLdouble zNear, GLdouble zFar);
+    extern void gluLookAt(GLdouble eyex, GLdouble eyey, GLdouble eyez, GLdouble centerx, GLdouble centery, GLdouble centerz, GLdouble upx, GLdouble upy, GLdouble upz);
+    extern void glTranslated(GLdouble x, GLdouble y, GLdouble z);
     
-    // Point real_ function pointers to the actual _web wrapper functions
-    real_glMatrixMode = glMatrixMode_web;
-    real_glLoadIdentity = glLoadIdentity_web;
-    real_glOrtho = glOrtho_web;
-    real_glFrustum = glFrustum_web;
-    real_glTranslatef = glTranslatef_web;
-    real_glRotatef = glRotatef_web;
-    real_glScalef = glScalef_web;
-    real_glPushMatrix = glPushMatrix_web;
-    real_glPopMatrix = glPopMatrix_web;
-    real_glMultMatrixf = glMultMatrixf_web;
-    real_glMultMatrixd = glMultMatrixd_web;
-    real_glViewport = glViewport_web;
-    real_gluPerspective = gluPerspective_web;
-    real_gluLookAt = gluLookAt_web;
-    real_glTranslated = glTranslated_web;
+    // Point real_ function pointers directly to the WebGL wrapper functions
+    // This avoids an unnecessary layer of _web functions
+    real_glMatrixMode = glMatrixMode;
+    real_glLoadIdentity = glLoadIdentity;
+    real_glOrtho = glOrtho;
+    real_glFrustum = glFrustum;
+    real_glTranslatef = glTranslatef;
+    real_glRotatef = glRotatef;
+    real_glScalef = glScalef;
+    real_glPushMatrix = glPushMatrix;
+    real_glPopMatrix = glPopMatrix;
+    real_glMultMatrixf = glMultMatrixf;
+    real_glMultMatrixd = glMultMatrixd;
+    real_glViewport = glViewport;
+    real_gluPerspective = gluPerspective;
+    real_gluLookAt = gluLookAt;
+    real_glTranslated = glTranslated;
 
-    matrix_debug_log("Matrix debug: WebGL build - real_ pointers set to _web functions\n");
+    matrix_debug_log("Matrix debug: WebGL build - real_ pointers set to WebGL wrapper functions\n");
     #else
     // For native builds, use dlsym to get the real OpenGL functions
     // This is the standard approach for function interception on Linux
