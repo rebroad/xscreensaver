@@ -94,6 +94,7 @@ start_web_server() {
                         if [ "$SERVER_CWD" = "$EXPECTED_DIR" ]; then
                             echo -e "${GREEN}✅ Web server already running on localhost:$test_port (serving from correct directory)${NC}"
                             echo -e "${CYAN}🌐 Open: http://localhost:$test_port${NC}"
+                            echo "WEBSERVER_PORT:$test_port"  # Parseable output for scripts
                             return 0
                         else
                             echo -e "${YELLOW}⚠️  Server on port $test_port serving from: $SERVER_CWD (not our build_web)${NC}"
@@ -136,6 +137,7 @@ start_web_server() {
             echo -e "${GREEN}✅ Web server started successfully (PID: $SERVER_PID, Port: $PORT)${NC}"
             echo -e "${CYAN}🌐 Open: http://localhost:$PORT${NC}"
             echo -e "${YELLOW}💡 Server will run in background. To stop: kill $SERVER_PID${NC}"
+            echo "WEBSERVER_PORT:$PORT"  # Parseable output for scripts
 
             # Store server info for potential cleanup
             echo $PORT > /tmp/hextrail_web_port.txt
