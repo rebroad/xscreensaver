@@ -245,30 +245,11 @@ static void check_gl_error_wrapper_internal(const char *location, int line) {
 #define check_gl_error_wrapper(location) /* No-op when FINDBUG_MODE not defined */
 #endif
 
-// Provide glGetDoublev since WebGL only has glGetFloatv
-void glGetDoublev(GLenum pname, GLdouble *params) {
-    // Handle matrix parameters specially to avoid GL_INVALID_ENUM
-    if (pname == GL_MODELVIEW_MATRIX || pname == GL_PROJECTION_MATRIX) {
-        // Return identity matrix for now - this avoids the GL_INVALID_ENUM error
-        // TODO: Later we can implement proper matrix stack retrieval
-        for (int i = 0; i < 16; i++) {
-            params[i] = (i % 5 == 0) ? 1.0 : 0.0; // Identity matrix
-        }
-        return;
-    }
-
-    // For non-matrix parameters, use glGetFloatv as before
-    check_gl_error_wrapper("before glGetFloatv");
-    GLfloat float_params[16];
-    glGetFloatv(pname, float_params);
-    check_gl_error_wrapper("after glGetFloatv");
-
-    // Convert float to double
-    int count = 1; // Default to 1 parameter for non-matrix values
-    for (int i = 0; i < count; i++) {
-        params[i] = (GLdouble)float_params[i];
-    }
-}
+// Function pointers to the real WebGL functions (declared early)
+void (*glEnable_real)(GLenum) = NULL;
+void (*glDisable_real)(GLenum) = NULL;
+void (*glClear_real)(GLbitfield) = NULL;
+void (*glViewport_real)(GLint, GLint, GLsizei, GLsizei) = NULL;
 
 // Matrix stack management
 #define MAX_MATRIX_STACK_DEPTH 32
@@ -327,29 +308,93 @@ static GLuint shader_program = 0;
 static GLuint vertex_shader = 0;
 static GLuint fragment_shader = 0;
 
-// Forward declarations
-static void init_opengl_state(void);
-static void matrix_identity(Matrix4f *m);
-static void matrix_multiply(Matrix4f *result, const Matrix4f *a, const Matrix4f *b);
-static void matrix_translate(Matrix4f *m, GLfloat x, GLfloat y, GLfloat z);
-static void matrix_rotate(Matrix4f *m, GLfloat angle, GLfloat x, GLfloat y, GLfloat z);
-static void matrix_scale(Matrix4f *m, GLfloat x, GLfloat y, GLfloat z);
-static GLuint compile_shader(const char *source, GLenum type);
-static void init_shaders(void);
-static void make_color_path_webgl(int npoints, int *h, double *s, double *v, XColor *colors, int *ncolorsP);
-static MatrixStack* get_current_matrix_stack(void);
-static void init_gl_function_pointers(void);
+// Provide glGetDoublev since WebGL only has glGetFloatv
+void glGetDoublev(GLenum pname, GLdouble *params) {
+    // Handle matrix parameters specially to avoid GL_INVALID_ENUM
+    if (pname == GL_MODELVIEW_MATRIX || pname == GL_PROJECTION_MATRIX) {
+/*
+        // Return actual matrix stack values for proper matrix debugging
+        Matrix4f* matrix_to_return = NULL;
 
-// VBO pool function declarations
-static void init_vbo_pool(void);
-static VBOPoolEntry* get_vbo_from_pool(size_t required_vertex_count);
-static void return_vbo_to_pool(VBOPoolEntry* entry);
-static void cleanup_vbo_pool(void);
+        switch (pname) {
+            case GL_MODELVIEW_MATRIX:
+                matrix_to_return = &modelview_stack.stack[modelview_stack.top];
+                break;
+            case GL_PROJECTION_MATRIX:
+                matrix_to_return = &projection_stack.stack[projection_stack.top];
+                break;
 
-// OpenGL function forward declarations
-void glFrustum(GLfloat left, GLfloat right, GLfloat bottom, GLfloat top, GLfloat near_val, GLfloat far_val);
-void glMultMatrixd(const GLfloat *m);
-void glTranslated(GLfloat x, GLfloat y, GLfloat z);
+        }
+
+        if (matrix_to_return) {
+            // Copy the actual matrix values
+            for (int i = 0; i < 16; i++) {
+                params[i] = matrix_to_return->m[i];
+            }
+        } else {
+            // Fallback to identity if something went wrong
+            for (int i = 0; i < 16; i++) {
+                params[i] = (i % 5 == 0) ? 1.0 : 0.0;
+            }
+*/
+        // Return identity matrix for now - this avoids the GL_INVALID_ENUM error
+        // TODO: Later we can implement proper matrix stack retrieval
+        for (int i = 0; i < 16; i++) {
+            params[i] = (i % 5 == 0) ? 1.0 : 0.0; // Identity matrix
+        }
+        return;
+    }
+
+    // For non-matrix parameters, use glGetFloatv as before
+    check_gl_error_wrapper("before glGetFloatv");
+    GLfloat float_params[16];
+    glGetFloatv(pname, float_params);
+    check_gl_error_wrapper("after glGetFloatv");
+
+    // Convert float to double
+    int count = 1; // Default to 1 parameter for non-matrix values
+    for (int i = 0; i < count; i++) {
+        params[i] = (GLdouble)float_params[i];
+    }
+}
+
+// Override glGetFloatv to return actual matrix stack values for matrix debugging
+void glGetFloatv(GLenum pname, GLfloat *params) {
+    // Handle matrix parameters specially to return actual matrix stack values
+    if (pname == GL_MODELVIEW_MATRIX || pname == GL_PROJECTION_MATRIX ) {
+        Matrix4f* matrix_to_return = NULL;
+
+        switch (pname) {
+            case GL_MODELVIEW_MATRIX:
+                matrix_to_return = &modelview_stack.stack[modelview_stack.top];
+                break;
+            case GL_PROJECTION_MATRIX:
+                matrix_to_return = &projection_stack.stack[projection_stack.top];
+                break;
+
+        }
+
+        if (matrix_to_return) {
+            // Copy the actual matrix values
+            for (int i = 0; i < 16; i++) {
+                params[i] = matrix_to_return->m[i];
+            }
+        } else {
+            // Fallback to identity if something went wrong
+            for (int i = 0; i < 16; i++) {
+                params[i] = (i % 5 == 0) ? 1.0f : 0.0f;
+            }
+        }
+        return;
+    }
+
+    // For non-matrix parameters, we can't easily call the real WebGL glGetFloatv
+    // since we're overriding it. For matrix debugging, we mainly need the matrices.
+    // Set to zero for unknown parameters (this could be expanded if needed)
+    if (params) {
+        *params = 0.0f;
+    }
+}
 
 // Matrix utility functions
 static void matrix_identity(Matrix4f *m) {
@@ -736,15 +781,25 @@ void glMatrixMode(GLenum mode) {
     check_gl_error_wrapper("before glMatrixMode");
 
     current_matrix_mode = mode;
-    DL(1, "glMatrixMode: %d\n", mode);
 
     check_gl_error_wrapper("after glMatrixMode");
 }
 
-void glOrtho(GLfloat left, GLfloat right, GLfloat bottom, GLfloat top, GLfloat near_val, GLfloat far_val) {
-    check_gl_error_wrapper("before glOrtho");
+static MatrixStack* get_current_matrix_stack() {
+    switch (current_matrix_mode) {
+        case GL_MODELVIEW:
+            return &modelview_stack;
+        case GL_PROJECTION:
+            return &projection_stack;
+        case GL_TEXTURE:
+            return &texture_stack;
+        default:
+            return &modelview_stack;
+    }
+}
 
-    DL(1, "glOrtho: %.3f, %.3f, %.3f, %.3f, %.3f, %.3f\n", left, right, bottom, top, near_val, far_val);
+void glOrtho(GLdouble left, GLdouble right, GLdouble bottom, GLdouble top, GLdouble near_val, GLdouble far_val) {
+    check_gl_error_wrapper("before glOrtho");
 
     MatrixStack *stack = get_current_matrix_stack();
     if (stack && stack->top >= 0) {
@@ -752,13 +807,13 @@ void glOrtho(GLfloat left, GLfloat right, GLfloat bottom, GLfloat top, GLfloat n
         Matrix4f ortho;
         matrix_identity(&ortho);
 
-        GLfloat tx = -(right + left) / (right - left);
-        GLfloat ty = -(top + bottom) / (top - bottom);
-        GLfloat tz = -(far_val + near_val) / (far_val - near_val);
+        GLfloat tx = -(GLfloat)(right + left) / (GLfloat)(right - left);
+        GLfloat ty = -(GLfloat)(top + bottom) / (GLfloat)(top - bottom);
+        GLfloat tz = -(GLfloat)(far_val + near_val) / (GLfloat)(far_val - near_val);
 
-        ortho.m[0] = 2.0f / (right - left);
-        ortho.m[5] = 2.0f / (top - bottom);
-        ortho.m[10] = -2.0f / (far_val - near_val);
+        ortho.m[0] = 2.0f / (GLfloat)(right - left);
+        ortho.m[5] = 2.0f / (GLfloat)(top - bottom);
+        ortho.m[10] = -2.0f / (GLfloat)(far_val - near_val);
         ortho.m[12] = tx;
         ortho.m[13] = ty;
         ortho.m[14] = tz;
@@ -802,6 +857,62 @@ void glLoadIdentity(void) {
     check_gl_error_wrapper("after glLoadIdentity");
 }
 
+static void init_opengl_state() {
+    check_gl_error_wrapper("start of init_opengl_state");
+
+    // Initialize matrix stacks
+    matrix_identity(&modelview_stack.stack[0]);
+    matrix_identity(&projection_stack.stack[0]);
+    matrix_identity(&texture_stack.stack[0]);
+    modelview_stack.top = 0;
+    projection_stack.top = 0;
+    texture_stack.top = 0;
+
+    // Initialize immediate mode
+    immediate.in_begin_end = False;
+    immediate.vertex_count = 0;
+
+    // Initialize VBO pool to prevent memory leaks
+    init_vbo_pool();
+
+    // Initialize shaders
+    init_shaders();
+
+    // Set up basic OpenGL state
+    glEnable(GL_DEPTH_TEST);
+
+    check_gl_error_wrapper("after glEnable(GL_DEPTH_TEST)");
+
+    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+    check_gl_error_wrapper("after glClearColor");
+
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    check_gl_error_wrapper("after glClear");
+}
+
+// Initialize function pointers to real WebGL functions
+static void init_gl_function_pointers(void) {
+    // Get function pointers to the real WebGL functions
+    glEnable_real = (void (*)(GLenum))emscripten_webgl_get_proc_address("glEnable");
+    glDisable_real = (void (*)(GLenum))emscripten_webgl_get_proc_address("glDisable");
+    glClear_real = (void (*)(GLbitfield))emscripten_webgl_get_proc_address("glClear");
+    glViewport_real = (void (*)(GLint, GLint, GLsizei, GLsizei))emscripten_webgl_get_proc_address("glViewport");
+    // Note: glShadeModel and glFrontFace don't exist in WebGL 2.0, so we don't try to get them
+
+    if (!glEnable_real) {
+        DL(1, "WARNING: Could not get glEnable function pointer\n");
+    }
+    if (!glDisable_real) {
+        DL(1, "WARNING: Could not get glDisable function pointer\n");
+    }
+    if (!glClear_real) {
+        DL(1, "WARNING: Could not get glClear function pointer\n");
+    }
+    if (!glViewport_real) {
+        DL(1, "WARNING: Could not get glViewport function pointer\n");
+    }
+}
+
 // Initialize WebGL context and OpenGL state
 static int init_webgl() {
     EmscriptenWebGLContextAttributes attrs;
@@ -839,52 +950,6 @@ static int init_webgl() {
     init_opengl_state();
 
     return 1;
-}
-
-static MatrixStack* get_current_matrix_stack() {
-    switch (current_matrix_mode) {
-        case GL_MODELVIEW:
-            return &modelview_stack;
-        case GL_PROJECTION:
-            return &projection_stack;
-        case GL_TEXTURE:
-            return &texture_stack;
-        default:
-            return &modelview_stack;
-    }
-}
-
-static void init_opengl_state() {
-    check_gl_error_wrapper("start of init_opengl_state");
-
-    // Initialize matrix stacks
-    matrix_identity(&modelview_stack.stack[0]);
-    matrix_identity(&projection_stack.stack[0]);
-    matrix_identity(&texture_stack.stack[0]);
-    modelview_stack.top = 0;
-    projection_stack.top = 0;
-    texture_stack.top = 0;
-
-    // Initialize immediate mode
-    immediate.in_begin_end = False;
-    immediate.vertex_count = 0;
-
-    // Initialize VBO pool to prevent memory leaks
-    init_vbo_pool();
-
-    // Initialize shaders
-    init_shaders();
-
-    // Set up basic OpenGL state
-    glEnable(GL_DEPTH_TEST);
-
-    check_gl_error_wrapper("after glEnable(GL_DEPTH_TEST)");
-
-    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-    check_gl_error_wrapper("after glClearColor");
-
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    check_gl_error_wrapper("after glClear");
 }
 
 // Generic web initialization
@@ -1096,7 +1161,6 @@ void jwxyz_abort(const char *fmt, ...) {
     exit(1);
 }
 
-// Missing X11 function for web builds
 int XLookupString(XKeyEvent *event_struct, char *buffer_return, int bytes_buffer, KeySym *keysym_return, XComposeStatus *status_in_out) {
     // Return the character stored by handle_keypress
     if (buffer_return && bytes_buffer > 0) {
@@ -1108,24 +1172,129 @@ int XLookupString(XKeyEvent *event_struct, char *buffer_return, int bytes_buffer
     return 0;
 }
 
-// Missing GLU functions for WebGL
-void gluPerspective(GLfloat fovy, GLfloat aspect, GLfloat zNear, GLfloat zFar) {
-    GLfloat xmin, xmax, ymin, ymax;
+void glFrustum(GLdouble left, GLdouble right, GLdouble bottom, GLdouble top, GLdouble near_val, GLdouble far_val) {
+    check_gl_error_wrapper("before glFrustum");
 
-    ymax = zNear * tan(fovy * M_PI / 360.0f);
-    ymin = -ymax;
-    xmin = ymin * aspect;
-    xmax = ymax * aspect;
+    // Create perspective projection matrix
+    Matrix4f frustum;
+    matrix_identity(&frustum);
 
-    glFrustum(xmin, xmax, ymin, ymax, zNear, zFar);
+    GLfloat a = (right + left) / (right - left);
+    GLfloat b = (top + bottom) / (top - bottom);
+    GLfloat c = -(far_val + near_val) / (far_val - near_val);
+    GLfloat d = -(2 * far_val * near_val) / (far_val - near_val);
+
+    frustum.m[0] = 2 * near_val / (right - left);
+    frustum.m[5] = 2 * near_val / (top - bottom);
+    frustum.m[8] = a;
+    frustum.m[9] = b;
+    frustum.m[10] = c;
+    frustum.m[11] = -1;
+    frustum.m[14] = d;
+    frustum.m[15] = 0;
+
+    matrix_multiply(&projection_stack.stack[projection_stack.top],
+                   &projection_stack.stack[projection_stack.top], &frustum);
+
+    check_gl_error_wrapper("after glFrustum");
 }
 
-void gluLookAt(GLfloat eyex, GLfloat eyey, GLfloat eyez,
-               GLfloat centerx, GLfloat centery, GLfloat centerz,
-               GLfloat upx, GLfloat upy, GLfloat upz) {
-    GLfloat m[16];
-    GLfloat x[3], y[3], z[3];
-    GLfloat mag;
+// Missing GLU functions for WebGL
+void gluPerspective(GLdouble fovy, GLdouble aspect, GLdouble zNear, GLdouble zFar) {
+    GLfloat xmin, xmax, ymin, ymax;
+
+    ymax = (GLfloat)zNear * tan((GLfloat)fovy * M_PI / 360.0f);
+    ymin = -ymax;
+    xmin = ymin * (GLfloat)aspect;
+    xmax = ymax * (GLfloat)aspect;
+
+    glFrustum(xmin, xmax, ymin, ymax, (GLfloat)zNear, (GLfloat)zFar);
+}
+
+void glMultMatrixd(const GLdouble *m) {
+    Matrix4f matrix;
+    for (int i = 0; i < 16; i++) {
+        matrix.m[i] = (GLfloat)m[i];  // Cast to GLfloat
+    }
+
+    MatrixStack *stack;
+    switch (current_matrix_mode) {
+        case GL_MODELVIEW:
+            stack = &modelview_stack;
+            break;
+        case GL_PROJECTION:
+            stack = &projection_stack;
+            break;
+        case GL_TEXTURE:
+            stack = &texture_stack;
+            break;
+        default:
+            return;
+    }
+
+    matrix_multiply(&stack->stack[stack->top], &stack->stack[stack->top], &matrix);
+
+    check_gl_error_wrapper("after glMultMatrixd");
+}
+
+// This is needed by gltrackball.c
+void glMultMatrixf(const GLfloat *m) {
+    Matrix4f matrix;
+    for (int i = 0; i < 16; i++) {
+        matrix.m[i] = m[i];
+    }
+
+    MatrixStack *stack;
+    switch (current_matrix_mode) {
+        case GL_MODELVIEW:
+            stack = &modelview_stack;
+            break;
+        case GL_PROJECTION:
+            stack = &projection_stack;
+            break;
+        case GL_TEXTURE:
+            stack = &texture_stack;
+            break;
+        default:
+            return;
+    }
+
+    matrix_multiply(&stack->stack[stack->top], &stack->stack[stack->top], &matrix);
+
+    check_gl_error_wrapper("after glMultMatrixf");
+}
+
+void glTranslatef(GLfloat x, GLfloat y, GLfloat z) {
+    MatrixStack *stack;
+    switch (current_matrix_mode) {
+        case GL_MODELVIEW:
+            stack = &modelview_stack;
+            break;
+        case GL_PROJECTION:
+            stack = &projection_stack;
+            break;
+        case GL_TEXTURE:
+            stack = &texture_stack;
+            break;
+        default:
+            return;
+    }
+
+    matrix_translate(&stack->stack[stack->top], x, y, z);
+}
+
+void glTranslated(GLdouble x, GLdouble y, GLdouble z) {
+    glTranslatef((GLfloat)x, (GLfloat)y, (GLfloat)z);
+
+    check_gl_error_wrapper("after glTranslated");
+}
+
+void gluLookAt(GLdouble eyex, GLdouble eyey, GLdouble eyez,
+               GLdouble centerx, GLdouble centery, GLdouble centerz,
+               GLdouble upx, GLdouble upy, GLdouble upz) {
+    GLdouble m[16];
+    GLdouble x[3], y[3], z[3];
+    GLdouble mag;
 
     /* Make rotation matrix */
 
@@ -1187,32 +1356,6 @@ void gluLookAt(GLfloat eyex, GLfloat eyey, GLfloat eyez,
     /* Translate Eye to Origin */
     glTranslated(-eyex, -eyey, -eyez);
     check_gl_error_wrapper("after glTranslated in gluLookAt");
-}
-
-
-// Function pointers to the real OpenGL functions
-void (*glEnable_real)(GLenum) = NULL;
-void (*glDisable_real)(GLenum) = NULL;
-void (*glClear_real)(GLbitfield) = NULL;
-// Note: glShadeModel and glFrontFace don't exist in WebGL 2.0, so no function pointers needed
-
-// Initialize function pointers to real WebGL functions
-static void init_gl_function_pointers(void) {
-    // Get function pointers to the real WebGL functions
-    glEnable_real = (void (*)(GLenum))emscripten_webgl_get_proc_address("glEnable");
-    glDisable_real = (void (*)(GLenum))emscripten_webgl_get_proc_address("glDisable");
-    glClear_real = (void (*)(GLbitfield))emscripten_webgl_get_proc_address("glClear");
-    // Note: glShadeModel and glFrontFace don't exist in WebGL 2.0, so we don't try to get them
-
-    if (!glEnable_real) {
-        DL(1, "WARNING: Could not get glEnable function pointer\n");
-    }
-    if (!glDisable_real) {
-        DL(1, "WARNING: Could not get glDisable function pointer\n");
-    }
-    if (!glClear_real) {
-        DL(1, "WARNING: Could not get glClear function pointer\n");
-    }
 }
 
 // OpenGL state tracking
@@ -1404,25 +1547,6 @@ void glPopMatrix(void) {
     if (stack->top > 0) {
         stack->top--;
     }
-}
-
-void glTranslatef(GLfloat x, GLfloat y, GLfloat z) {
-    MatrixStack *stack;
-    switch (current_matrix_mode) {
-        case GL_MODELVIEW:
-            stack = &modelview_stack;
-            break;
-        case GL_PROJECTION:
-            stack = &projection_stack;
-            break;
-        case GL_TEXTURE:
-            stack = &texture_stack;
-            break;
-        default:
-            return;
-    }
-
-    matrix_translate(&stack->stack[stack->top], x, y, z);
 }
 
 void glRotatef(GLfloat angle, GLfloat x, GLfloat y, GLfloat z) {
@@ -1880,64 +2004,13 @@ void glXMakeCurrent(Display *display, Window window, GLXContext context) {
     // No-op for web builds
 }
 
-// Missing OpenGL functions for WebGL compatibility
-void glFrustum(GLfloat left, GLfloat right, GLfloat bottom, GLfloat top, GLfloat near_val, GLfloat far_val) {
-    check_gl_error_wrapper("before glFrustum");
+void glViewport(GLint x, GLint y, GLsizei width, GLsizei height) {
+    check_gl_error_wrapper("before glViewport");
 
-    // Create perspective projection matrix
-    Matrix4f frustum;
-    matrix_identity(&frustum);
+    // Call the actual WebGL viewport function
+    glViewport_real(x, y, width, height);
 
-    GLfloat a = (right + left) / (right - left);
-    GLfloat b = (top + bottom) / (top - bottom);
-    GLfloat c = -(far_val + near_val) / (far_val - near_val);
-    GLfloat d = -(2 * far_val * near_val) / (far_val - near_val);
-
-    frustum.m[0] = 2 * near_val / (right - left);
-    frustum.m[5] = 2 * near_val / (top - bottom);
-    frustum.m[8] = a;
-    frustum.m[9] = b;
-    frustum.m[10] = c;
-    frustum.m[11] = -1;
-    frustum.m[14] = d;
-    frustum.m[15] = 0;
-
-    matrix_multiply(&projection_stack.stack[projection_stack.top],
-                   &projection_stack.stack[projection_stack.top], &frustum);
-
-    check_gl_error_wrapper("after glFrustum");
-}
-
-void glMultMatrixd(const GLfloat *m) {
-    Matrix4f matrix;
-    for (int i = 0; i < 16; i++) {
-        matrix.m[i] = m[i];
-    }
-
-    MatrixStack *stack;
-    switch (current_matrix_mode) {
-        case GL_MODELVIEW:
-            stack = &modelview_stack;
-            break;
-        case GL_PROJECTION:
-            stack = &projection_stack;
-            break;
-        case GL_TEXTURE:
-            stack = &texture_stack;
-            break;
-        default:
-            return;
-    }
-
-    matrix_multiply(&stack->stack[stack->top], &stack->stack[stack->top], &matrix);
-
-    check_gl_error_wrapper("after glMultMatrixd");
-}
-
-void glTranslated(GLfloat x, GLfloat y, GLfloat z) {
-    glTranslatef(x, y, z);
-
-    check_gl_error_wrapper("after glTranslated");
+    check_gl_error_wrapper("after glViewport");
 }
 
 // Real trackball functions from trackball.c
@@ -2119,17 +2192,6 @@ void build_rotmatrix(float m[4][4], float q[4]) {
     m[3][1] = 0.0f;
     m[3][2] = 0.0f;
     m[3][3] = 1.0f;
-}
-
-void glMultMatrixf(const float *m) {
-    // Convert float matrix to GLfloat and multiply
-    GLfloat gl_matrix[16];
-    for (int i = 0; i < 16; i++) {
-        gl_matrix[i] = m[i];
-    }
-    glMultMatrixd(gl_matrix);
-
-    check_gl_error_wrapper("after glMultMatrixf");
 }
 
 // Missing GLX function
