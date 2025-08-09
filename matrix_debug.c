@@ -148,6 +148,14 @@ double debug_frand(double f) {
 
 // Function to read current OpenGL matrix state
 void debug_current_opengl_matrix(const char* label) {
+    // Use the wrapper's glGetFloatv in web builds so we read from the
+    // xscreensaver_web matrix stacks rather than any emscripten stub.
+    #ifdef WEB_BUILD
+    extern void glGetFloatv_web(GLenum pname, GLfloat *params);
+    #define MD_GLGETFLOATV glGetFloatv_web
+    #else
+    #define MD_GLGETFLOATV glGetFloatv
+    #endif
     GLfloat matrix[16];
     GLenum matrix_mode;
 
@@ -168,7 +176,7 @@ void debug_current_opengl_matrix(const char* label) {
     }
 
     // Read the actual OpenGL matrix
-    glGetFloatv(matrix_mode, matrix);
+    MD_GLGETFLOATV(matrix_mode, matrix);
 
     // Display the matrix
     matrix_debug_log("=== %s Matrix ===\n", label);
@@ -305,6 +313,14 @@ void init_matrix_debug_functions(void) {
     matrix_debug_validate_init();
     #endif
 }
+
+// Ensure initialization happens even in WEB_BUILD, where AUTO_INIT_NATIVE is a no-op.
+#ifdef MATRIX_DEBUG
+__attribute__((constructor))
+static void matrix_debug_constructor(void) {
+    init_matrix_debug_functions();
+}
+#endif
 
 // Wrapper function implementations
 void debug_glMatrixMode(GLenum mode) {
