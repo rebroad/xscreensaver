@@ -335,12 +335,130 @@ EOF
 
 
 
+# Function to extract debug output using puppeteer (our proven method)
+extract_debug_with_puppeteer() {
+    local port=$1
+    echo -e "${YELLOW}🤖 Extracting debug output using headless browser...${NC}"
+
+    # Check if Node.js and puppeteer are available
+    if ! command -v node &> /dev/null; then
+        echo -e "${RED}❌ Node.js not found. Falling back to manual extraction tools.${NC}"
+        return 1
+    fi
+
+    if ! node -e "require('puppeteer')" &> /dev/null; then
+        echo -e "${YELLOW}⚠️ Puppeteer not installed. Installing...${NC}"
+        npm install puppeteer &> /dev/null
+        if [ $? -ne 0 ]; then
+            echo -e "${RED}❌ Failed to install puppeteer. Falling back to manual extraction tools.${NC}"
+            return 1
+        fi
+    fi
+
+    # Create extraction script
+    cat > matrix_debug_outputs/extract_debug.js << 'EOF'
+const puppeteer = require('puppeteer');
+
+(async () => {
+  console.log('🔍 Extracting HexTrail matrix debug output...');
+
+  const browser = await puppeteer.launch({
+    headless: true,
+    args: [
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--disable-dev-shm-usage',
+      '--disable-gpu',
+      '--enable-unsafe-swiftshader'
+    ]
+  });
+
+  const page = await browser.newPage();
+
+  try {
+    const port = process.argv[2] || '8000';
+    console.log(`📍 Loading http://localhost:${port}...`);
+
+    await page.goto(`http://localhost:${port}`, {
+      waitUntil: 'networkidle0',
+      timeout: 10000
+    });
+
+    // Wait for initialization
+    await new Promise(resolve => setTimeout(resolve, 3000));
+
+    // Extract debug panel content
+    const debugContent = await page.evaluate(() => {
+      const debugLog = document.getElementById('debug-log');
+      return debugLog ? debugLog.innerHTML : 'No debug output found';
+    });
+
+    // Clean up HTML and save to file
+    const cleanContent = debugContent
+      .replace(/<[^>]*>/g, '')  // Remove HTML tags
+      .replace(/&gt;/g, '>')   // Decode HTML entities
+      .replace(/&lt;/g, '<')
+      .replace(/&amp;/g, '&')
+      .replace(/\[[\d:\.]+\] /g, '') // Remove timestamps
+      .split('\n')
+      .filter(line => line.trim())  // Remove empty lines
+      .slice(0, 100);  // Limit to first 100 lines
+
+    console.log('✅ Debug output extracted successfully');
+    console.log('📋 Sample output (first 20 lines):');
+    console.log('=====================================');
+    cleanContent.slice(0, 20).forEach(line => console.log(line));
+    if (cleanContent.length > 20) {
+      console.log(`... and ${cleanContent.length - 20} more lines`);
+    }
+
+    // Save to file
+    require('fs').writeFileSync('web_debug_output.txt', cleanContent.join('\n'));
+    console.log('\n📁 Full output saved to: matrix_debug_outputs/web_debug_output.txt');
+
+  } catch (error) {
+    console.log(`❌ Error: ${error.message}`);
+  }
+
+  await browser.close();
+})();
+EOF
+
+    # Run the extraction
+    cd matrix_debug_outputs
+    node extract_debug.js $port
+    cd ..
+
+    if [ -f "matrix_debug_outputs/web_debug_output.txt" ]; then
+        echo -e "${GREEN}✅ Web debug output captured successfully!${NC}"
+        echo -e "${CYAN}📁 Output saved to: matrix_debug_outputs/web_debug_output.txt${NC}"
+        return 0
+    else
+        echo -e "${RED}❌ Failed to capture debug output${NC}"
+        return 1
+    fi
+}
+
 # Function to run the automated extraction
 run_automated_extraction() {
     echo -e "${YELLOW}🤖 Running automated extraction...${NC}"
 
     # Create output directory
     mkdir -p matrix_debug_outputs
+
+    # Get the port from the server
+    PORT=$(cat /tmp/hextrail_web_port.txt 2>/dev/null || echo "8000")
+
+    # Try our proven puppeteer method first
+    echo -e "${CYAN}🚀 Attempting advanced extraction with puppeteer...${NC}"
+    if extract_debug_with_puppeteer $PORT; then
+        # Success! No need for fallback tools
+        echo -e "${GREEN}✅ Debug output successfully extracted using proven method!${NC}"
+        return 0
+    fi
+
+    # Fallback to manual tools if puppeteer fails
+    echo -e "${YELLOW}⚠️ Puppeteer extraction failed, creating manual extraction tools...${NC}"
 
     # Create extraction tools
     create_injection_page
@@ -353,9 +471,6 @@ run_automated_extraction() {
     echo -e "   2. matrix_debug_outputs/curl_extract.sh - Curl-based extraction"
     echo -e "   3. matrix_debug_outputs/automate_browser.html - Browser automation page"
     echo ""
-
-    # Get the port from the server
-    PORT=$(cat /tmp/hextrail_web_port.txt 2>/dev/null || echo "8000")
 
     # Try curl extraction first
     echo -e "${YELLOW}🔍 Attempting curl-based extraction...${NC}"
