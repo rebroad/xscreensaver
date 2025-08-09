@@ -97,7 +97,13 @@ void matrix_debug_log(const char* format, ...) {
     if (frame_count < max_debug_frames) {
         va_list args;
         va_start(args, format);
+        #ifdef WEB_BUILD
+        // For web builds, use printf which goes to browser console
+        vprintf(format, args);
+        #else
+        // For native builds, use stderr
         vfprintf(stderr, format, args);
+        #endif
         va_end(args);
     }
     #endif
@@ -210,9 +216,10 @@ void debug_current_matrix_state(void) {
 // Initialize function pointers (call this once)
 void init_matrix_debug_functions(void) {
     #ifdef WEB_BUILD
-    // For WebGL builds, point the real_ function pointers directly to the 
+    printf("MATRIX_DEBUG: init_matrix_debug_functions() starting for WebGL\n");
+    // For WebGL builds, point the real_ function pointers directly to the
     // existing WebGL wrapper functions in xscreensaver_web.c
-    
+
     // Forward declarations for the actual WebGL wrapper functions
     extern void glMatrixMode(GLenum mode);
     extern void glLoadIdentity(void);
@@ -229,7 +236,7 @@ void init_matrix_debug_functions(void) {
     extern void gluPerspective(GLdouble fovy, GLdouble aspect, GLdouble zNear, GLdouble zFar);
     extern void gluLookAt(GLdouble eyex, GLdouble eyey, GLdouble eyez, GLdouble centerx, GLdouble centery, GLdouble centerz, GLdouble upx, GLdouble upy, GLdouble upz);
     extern void glTranslated(GLdouble x, GLdouble y, GLdouble z);
-    
+
     // Point real_ function pointers directly to the WebGL wrapper functions
     // This avoids an unnecessary layer of _web functions
     real_glMatrixMode = glMatrixMode;
@@ -307,18 +314,27 @@ void init_matrix_debug_functions(void) {
     #ifdef MATRIX_DEBUG_VALIDATE
     matrix_debug_validate_init();
     #endif
+
+    #ifdef WEB_BUILD
+    printf("MATRIX_DEBUG: init_matrix_debug_functions() completed for WebGL\n");
+    #endif
 }
 
 // Ensure initialization happens even in WEB_BUILD, where AUTO_INIT_NATIVE is a no-op.
 #ifdef MATRIX_DEBUG
-__attribute__((constructor))
-static void matrix_debug_constructor(void) {
-    init_matrix_debug_functions();
-}
+// TEMPORARILY DISABLED: constructor might be causing hanging
+// __attribute__((constructor))
+// static void matrix_debug_constructor(void) {
+//     init_matrix_debug_functions();
+// }
 #endif
 
 // Wrapper function implementations
 void debug_glMatrixMode(GLenum mode) {
+    #ifdef WEB_BUILD
+    printf("MATRIX_DEBUG: debug_glMatrixMode(%d) called\n", mode);
+    #endif
+
     AUTO_INIT_NATIVE(real_glMatrixMode);
 
     GLenum old_mode = current_matrix_mode;
