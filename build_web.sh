@@ -9,6 +9,7 @@ set -e
 DEBUG_MODE=false
 MEMORY_DEBUG=false
 MATRIX_DEBUG=false
+START_SERVER=true  # Start server by default
 while [[ $# -gt 0 ]]; do
     case $1 in
         -debug)
@@ -23,10 +24,15 @@ while [[ $# -gt 0 ]]; do
             MATRIX_DEBUG=true
             shift
             ;;
+        -noserver)
+            START_SERVER=false
+            shift
+            ;;
         *)
-            echo "Usage: $0 [-debug] [-memory] [-matrix-debug]"
+            echo "Usage: $0 [-debug] [-memory] [-noserver]"
             echo "  -debug: Enable FINDBUG mode for GL error hunting"
             echo "  -memory: Enable memory debugging and leak detection"
+            echo "  -noserver: Don't start web server automatically (default: start server)"
             exit 1
             ;;
     esac
@@ -65,6 +71,86 @@ GLX_DIR="$REPO_ROOT/hacks/glx"
 HACKS_DIR="$REPO_ROOT/hacks"
 JWXYZ_DIR="$REPO_ROOT/jwxyz"
 
+
+# Function to start web server
+start_web_server() {
+    echo -e "${YELLOW}🔍 Checking for existing web servers...${NC}"
+
+    # Get the absolute path of our build_web directory
+    EXPECTED_DIR="$(pwd)/build_web"
+
+    # Check if there's already a server running on any port serving our files
+    for test_port in 8000 8001 8002 8003 8004 8005; do
+        if timeout 2 curl -s http://localhost:$test_port > /dev/null 2>&1; then
+            # Test if it's serving our hextrail page
+            if timeout 2 curl -s http://localhost:$test_port | grep -q "HexTrail"; then
+                echo -e "${YELLOW}🔍 Found HexTrail server on port $test_port, verifying directory...${NC}"
+
+                # Check if the server is serving from our build_web directory
+                SERVER_PIDS=$(lsof -ti:$test_port 2>/dev/null)
+                if [ ! -z "$SERVER_PIDS" ]; then
+                    for pid in $SERVER_PIDS; do
+                        SERVER_CWD=$(lsof -p $pid 2>/dev/null | grep cwd | awk '{print $NF}')
+                        if [ "$SERVER_CWD" = "$EXPECTED_DIR" ]; then
+                            echo -e "${GREEN}✅ Web server already running on localhost:$test_port (serving from correct directory)${NC}"
+                            echo -e "${CYAN}🌐 Open: http://localhost:$test_port${NC}"
+                            return 0
+                        else
+                            echo -e "${YELLOW}⚠️  Server on port $test_port serving from: $SERVER_CWD (not our build_web)${NC}"
+                        fi
+                    done
+                else
+                    echo -e "${YELLOW}⚠️  Could not determine server directory for port $test_port${NC}"
+                fi
+            fi
+        fi
+    done
+
+    # Find an available port starting from 8000
+    echo -e "${YELLOW}🔍 Finding available port...${NC}"
+    PORT=8000
+    for test_port in 8000 8001 8002 8003 8004 8005 8006 8007 8008 8009 8010; do
+        if ! timeout 2 curl -s http://localhost:$test_port > /dev/null 2>&1; then
+            PORT=$test_port
+            break
+        fi
+    done
+
+    if [ $PORT -gt 8010 ]; then
+        echo -e "${RED}❌ Could not find available port between 8000-8010${NC}"
+        echo -e "${YELLOW}💡 Please manually start server: cd build_web && python3 -m http.server 8000${NC}"
+        return 1
+    fi
+
+    # Start web server
+    echo -e "${YELLOW}🚀 Starting web server on port $PORT...${NC}"
+
+    if command -v python3 &> /dev/null; then
+        cd build_web && python3 -m http.server $PORT > /dev/null 2>&1 &
+        SERVER_PID=$!
+        cd ..
+        sleep 2
+
+        # Check if server started successfully
+        if kill -0 $SERVER_PID 2>/dev/null && curl -s http://localhost:$PORT > /dev/null 2>&1; then
+            echo -e "${GREEN}✅ Web server started successfully (PID: $SERVER_PID, Port: $PORT)${NC}"
+            echo -e "${CYAN}🌐 Open: http://localhost:$PORT${NC}"
+            echo -e "${YELLOW}💡 Server will run in background. To stop: kill $SERVER_PID${NC}"
+
+            # Store server info for potential cleanup
+            echo $PORT > /tmp/hextrail_web_port.txt
+            echo $SERVER_PID > /tmp/hextrail_web_pid.txt
+        else
+            echo -e "${RED}❌ Failed to start web server${NC}"
+            echo -e "${YELLOW}💡 Please manually start server: cd build_web && python3 -m http.server 8000${NC}"
+            return 1
+        fi
+    else
+        echo -e "${RED}❌ python3 not found - cannot start web server${NC}"
+        echo -e "${YELLOW}💡 Please install python3 or manually serve the files${NC}"
+        return 1
+    fi
+}
 
 echo -e "${BLUE}🚀 Building HexTrail for Web with Emscripten${NC}"
 if [ "$DEBUG_MODE" = true ]; then
@@ -164,13 +250,19 @@ if [ $? -eq 0 ]; then
     echo -e "${GREEN}✅ Build successful!${NC}"
     echo -e "${BLUE}📁 Output files:${NC}"
     echo -e "   - index.html (main HTML file)"
-    echo -e "   - hextrail_web.js (JavaScript module)"
-    echo -e "   - hextrail_web.wasm (WebAssembly binary)"
+    echo -e "   - index.js (JavaScript module)"
+    echo -e "   - index.wasm (WebAssembly binary)"
 
-    echo -e "${YELLOW}🌐 To run locally:${NC}"
-    echo -e "   cd build_web"
-    echo -e "   python3 -m http.server 8000"
-    echo -e "   Then open http://localhost:8000"
+    # Start web server (unless disabled)
+    if [ "$START_SERVER" = true ]; then
+        start_web_server
+    else
+        echo -e "${YELLOW}🌐 To run locally:${NC}"
+        echo -e "   cd build_web"
+        echo -e "   python3 -m http.server 8000"
+        echo -e "   Then open http://localhost:8000"
+        echo -e "${CYAN}💡 Server start disabled with -noserver flag${NC}"
+    fi
 
     echo -e "${GREEN}📋 Files in build_web directory${NC}"
 
