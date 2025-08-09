@@ -62,35 +62,27 @@ matrix_debug.sh (Main Orchestrator)
 emcc [flags] hextrail_web_main.c matrix_debug.c xscreensaver_web.c [other files] -o index.html
 ```
 
-### 4. **auto_probe_web.sh** - Web Debugging Automation 🤖
-**Purpose**: Advanced web server management and debug output capture
+### 4. **auto_probe_web.sh** - Web Debug Output Extraction 🤖
+**Purpose**: Automated debug output capture and extraction tools
 
 **Dependencies**:
 - ✅ **curl** - For web page probing
-- ✅ **lsof** - For server process verification
-- ✅ **python3** - For web server management
+- ✅ **build_web.sh** - For web server management (must be run first)
 
 **Key Features**:
-- **Smart Server Management**:
-  - Automatic port detection (8000-8010)
-  - Directory verification using `lsof`
-  - Stale server cleanup
-  - Process tracking with PID files
-
-- **Advanced Web Probing**:
+- **Debug Output Extraction**:
   - Curl-based content extraction
   - JavaScript injection capabilities
   - Browser automation tools
-  - Dynamic port handling
+  - Multiple extraction methods
 
-- **Robust Error Handling**:
-  - Graceful dependency checking
-  - Port conflict resolution
-  - Automatic cleanup on exit
+- **Tool Generation**:
+  - Creates extraction scripts
+  - Generates browser automation pages
+  - Provides manual extraction options
 
 **Commands**:
-- `./auto_probe_web.sh` - Full automation setup
-- `./auto_probe_web.sh cleanup` - Clean up web servers
+- `./auto_probe_web.sh` - Run debug output extraction (requires existing web server)
 
 ## 🔄 Data Flow & Interactions
 
@@ -233,11 +225,11 @@ Each script can also run independently!
 
 ### Advanced Web Debugging:
 ```bash
-# Full web debugging automation
-./auto_probe_web.sh
+# Build WebGL version with auto-start server
+./build_web.sh -matrix-debug
 
-# Clean up web servers
-./auto_probe_web.sh cleanup
+# Extract debug output (after server is running)
+./auto_probe_web.sh
 ```
 
 ### Direct Script Usage:
@@ -245,8 +237,8 @@ Each script can also run independently!
 # Build WebGL with memory debugging
 ./build_web.sh -memory
 
-# Enhanced comparison with custom parameters
-./enhanced_compare.sh
+# Build WebGL without server (manual server start)
+./build_web.sh -matrix-debug -noserver
 ```
 
 ## 🔧 Configuration & Customization
