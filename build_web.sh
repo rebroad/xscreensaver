@@ -77,13 +77,21 @@ start_web_server() {
     echo -e "${YELLOW}🔍 Checking for existing web servers...${NC}"
 
     # Get the absolute path of our build_web directory
-    EXPECTED_DIR="$(pwd)/build_web"
+    # Note: We might already be in build_web from compilation, so handle both cases
+    if [[ $(basename "$(pwd)") == "build_web" ]]; then
+        EXPECTED_DIR="$(pwd)"
+    else
+        EXPECTED_DIR="$(pwd)/build_web"
+    fi
 
-    # Check if there's already a server running on any port serving our files
+    # Check ports 8000-8005 for existing HexTrail server or find first available port
+    PORT=8006  # Initialize to value > 8005 to detect if no port was found
     for test_port in 8000 8001 8002 8003 8004 8005; do
-        if timeout 2 curl -s http://localhost:$test_port > /dev/null 2>&1; then
-            # Test if it's serving our hextrail page
-            if timeout 2 curl -s http://localhost:$test_port | grep -q "HexTrail"; then
+        # Single curl call to check if port is responsive AND serving HexTrail
+        CURL_OUTPUT=$(timeout 1 curl -s http://localhost:$test_port 2>/dev/null)
+        if [ $? -eq 0 ]; then
+            # Port is responsive (regardless of content) - check if it's serving HexTrail
+            if [ ! -z "$CURL_OUTPUT" ] && echo "$CURL_OUTPUT" | grep -q "HexTrail"; then
                 echo -e "${YELLOW}🔍 Found HexTrail server on port $test_port, verifying directory...${NC}"
 
                 # Check if the server is serving from our build_web directory
@@ -103,23 +111,21 @@ start_web_server() {
                 else
                     echo -e "${YELLOW}⚠️  Could not determine server directory for port $test_port${NC}"
                 fi
+            else
+                # Port is responsive but not serving HexTrail content - continue checking next port
+                echo -e "${YELLOW}⚠️  Port $test_port is busy (not serving HexTrail)${NC}"
             fi
-        fi
-    done
-
-    # Find an available port starting from 8000
-    echo -e "${YELLOW}🔍 Finding available port...${NC}"
-    PORT=8000
-    for test_port in 8000 8001 8002 8003 8004 8005 8006 8007 8008 8009 8010; do
-        if ! timeout 2 curl -s http://localhost:$test_port > /dev/null 2>&1; then
+        else
+            # Port is not responsive (curl failed) - port is available
             PORT=$test_port
+            echo -e "${YELLOW}🔍 Found available port: $PORT${NC}"
             break
         fi
     done
 
-    if [ $PORT -gt 8010 ]; then
-        echo -e "${RED}❌ Could not find available port between 8000-8010${NC}"
-        echo -e "${YELLOW}💡 Please manually start server: cd build_web && python3 -m http.server 8000${NC}"
+    if [ $PORT -gt 8005 ]; then
+        echo -e "${RED}❌ Could not find available port between 8000-8005${NC}"
+        echo -e "${YELLOW}💡 Please manually start server: python3 -m http.server 8000${NC}"
         return 1
     fi
 
@@ -127,7 +133,7 @@ start_web_server() {
     echo -e "${YELLOW}🚀 Starting web server on port $PORT...${NC}"
 
     if command -v python3 &> /dev/null; then
-        cd build_web && python3 -m http.server $PORT > /dev/null 2>&1 &
+        python3 -m http.server $PORT > /dev/null 2>&1 &
         SERVER_PID=$!
         cd ..
         sleep 2
