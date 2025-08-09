@@ -19,7 +19,6 @@ extern void gluLookAt(GLdouble eyex, GLdouble eyey, GLdouble eyez,
 #endif
 #ifdef WEB_BUILD
 #include <emscripten.h>
-#include <emscripten/webgl.h>
 #endif
 
 #if !defined(WEB_BUILD) && defined(__linux__)
@@ -208,29 +207,45 @@ void debug_current_matrix_state(void) {
 // Initialize function pointers (call this once)
 void init_matrix_debug_functions(void) {
     #ifdef WEB_BUILD
-    // For WebGL builds, we need to get function pointers to the actual xscreensaver_web functions
-    // We'll use Emscripten's function pointer mechanism to get the actual functions
-    // from xscreensaver_web.c, avoiding the macro redirection
+    // For WebGL builds, point the real_ function pointers to the _web functions
+    // This works because we have _web versions (e.g., glGetFloatv_web) and 
+    // #define redirects (e.g., #define glGetFloatv glGetFloatv_web)
+    
+    // Forward declarations for the actual _web wrapper functions
+    extern void glMatrixMode_web(GLenum mode);
+    extern void glLoadIdentity_web(void);
+    extern void glOrtho_web(GLdouble left, GLdouble right, GLdouble bottom, GLdouble top, GLdouble near_val, GLdouble far_val);
+    extern void glFrustum_web(GLdouble left, GLdouble right, GLdouble bottom, GLdouble top, GLdouble near_val, GLdouble far_val);
+    extern void glTranslatef_web(GLfloat x, GLfloat y, GLfloat z);
+    extern void glRotatef_web(GLfloat angle, GLfloat x, GLfloat y, GLfloat z);
+    extern void glScalef_web(GLfloat x, GLfloat y, GLfloat z);
+    extern void glPushMatrix_web(void);
+    extern void glPopMatrix_web(void);
+    extern void glMultMatrixf_web(const GLfloat* m);
+    extern void glMultMatrixd_web(const GLdouble* m);
+    extern void glViewport_web(GLint x, GLint y, GLsizei width, GLsizei height);
+    extern void gluPerspective_web(GLdouble fovy, GLdouble aspect, GLdouble zNear, GLdouble zFar);
+    extern void gluLookAt_web(GLdouble eyex, GLdouble eyey, GLdouble eyez, GLdouble centerx, GLdouble centery, GLdouble centerz, GLdouble upx, GLdouble upy, GLdouble upz);
+    extern void glTranslated_web(GLdouble x, GLdouble y, GLdouble z);
+    
+    // Point real_ function pointers to the actual _web wrapper functions
+    real_glMatrixMode = glMatrixMode_web;
+    real_glLoadIdentity = glLoadIdentity_web;
+    real_glOrtho = glOrtho_web;
+    real_glFrustum = glFrustum_web;
+    real_glTranslatef = glTranslatef_web;
+    real_glRotatef = glRotatef_web;
+    real_glScalef = glScalef_web;
+    real_glPushMatrix = glPushMatrix_web;
+    real_glPopMatrix = glPopMatrix_web;
+    real_glMultMatrixf = glMultMatrixf_web;
+    real_glMultMatrixd = glMultMatrixd_web;
+    real_glViewport = glViewport_web;
+    real_gluPerspective = gluPerspective_web;
+    real_gluLookAt = gluLookAt_web;
+    real_glTranslated = glTranslated_web;
 
-    // Get function pointers to the actual xscreensaver_web functions
-    // These are the real implementations, not our debug wrappers
-    real_glMatrixMode = (typeof(real_glMatrixMode))emscripten_webgl_get_proc_address("glMatrixMode");
-    real_glLoadIdentity = (typeof(real_glLoadIdentity))emscripten_webgl_get_proc_address("glLoadIdentity");
-    real_glOrtho = (typeof(real_glOrtho))emscripten_webgl_get_proc_address("glOrtho");
-    real_glFrustum = (typeof(real_glFrustum))emscripten_webgl_get_proc_address("glFrustum");
-    real_glTranslatef = (typeof(real_glTranslatef))emscripten_webgl_get_proc_address("glTranslatef");
-    real_glRotatef = (typeof(real_glRotatef))emscripten_webgl_get_proc_address("glRotatef");
-    real_glScalef = (typeof(real_glScalef))emscripten_webgl_get_proc_address("glScalef");
-    real_glPushMatrix = (typeof(real_glPushMatrix))emscripten_webgl_get_proc_address("glPushMatrix");
-    real_glPopMatrix = (typeof(real_glPopMatrix))emscripten_webgl_get_proc_address("glPopMatrix");
-    real_glMultMatrixf = (typeof(real_glMultMatrixf))emscripten_webgl_get_proc_address("glMultMatrixf");
-    real_glMultMatrixd = (typeof(real_glMultMatrixd))emscripten_webgl_get_proc_address("glMultMatrixd");
-    real_glViewport = (typeof(real_glViewport))emscripten_webgl_get_proc_address("glViewport");
-    real_gluPerspective = (typeof(real_gluPerspective))emscripten_webgl_get_proc_address("gluPerspective");
-    real_gluLookAt = (typeof(real_gluLookAt))emscripten_webgl_get_proc_address("gluLookAt");
-    real_glTranslated = (typeof(real_glTranslated))emscripten_webgl_get_proc_address("glTranslated");
-
-    matrix_debug_log("Matrix debug: WebGL build - initialized function pointers to xscreensaver_web functions\n");
+    matrix_debug_log("Matrix debug: WebGL build - real_ pointers set to _web functions\n");
     #else
     // For native builds, use dlsym to get the real OpenGL functions
     // This is the standard approach for function interception on Linux
