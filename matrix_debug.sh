@@ -112,7 +112,20 @@ compare_outputs() {
     echo -e "${YELLOW}📊 Capturing native debug output to file...${NC}"
     if [ -f "build_native_debug/hextrail_debug" ]; then
         echo -e "${YELLOW}⏳ Running native hextrail for 4 seconds...${NC}"
-        (cd build_native_debug && timeout 4s ./hextrail_debug --window > ../matrix_debug_outputs/native_output.txt 2>&1) # TODO use geom to position the window (if we can also position the web browser window too)
+        # Get screen dimensions for positioning
+        local screen_width=$(xrandr --current | grep '*' | uniq | awk '{print $1}' | cut -d 'x' -f1 | head -1)
+        if [ -z "$screen_width" ]; then
+            screen_width=1920  # Fallback
+        fi
+
+        # Position native window on the left side
+        local window_width=800
+        local left_x=50
+        local y_pos=50
+        local geom="${window_width}x600+${left_x}+${y_pos}"
+
+        echo -e "${GREEN}📍 Positioning native window at: ${geom}${NC}"
+        (cd build_native_debug && timeout 4s ./hextrail_debug --window -geom $geom > ../matrix_debug_outputs/native_output.txt 2>&1)
         if [ $? -eq 0 ]; then
             echo -e "${GREEN}✅ Native output captured: matrix_debug_outputs/native_output.txt${NC}"
         else
