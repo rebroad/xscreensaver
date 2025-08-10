@@ -5,10 +5,6 @@
 
 set -e
 
-# Parse command line arguments
-DEBUG_MODE=false
-MEMORY_DEBUG=false
-MATRIX_DEBUG=false
 START_SERVER=true  # Start server by default
 while [[ $# -gt 0 ]]; do
     case $1 in

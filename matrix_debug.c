@@ -316,7 +316,7 @@ void init_matrix_debug_functions(void) {
     matrix_debug_validate_init();
 
     // Initialize consistency settings (viewport size, random seed)
-    init_matrix_debug_consistency();
+    // TEMPORARILY DISABLED: init_matrix_debug_consistency();
 
     #ifdef WEB_BUILD
     printf("MATRIX_DEBUG: init_matrix_debug_functions() completed for WebGL\n");
