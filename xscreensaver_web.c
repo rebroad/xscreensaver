@@ -15,16 +15,11 @@
 #include <stdarg.h>
 #include <emscripten/emscripten.h>
 
-// Random number generation for color functions
-static unsigned int random_seed = 1;
-static unsigned int webgl_random() {
-    random_seed = random_seed * 1103515245 + 12345;
-    return random_seed;
-}
 
-static double frand(double max) {
-    return ((double)webgl_random() / (double)((unsigned int)~0)) * max;
-}
+// Random number generation using yarandom for consistency
+#include "../utils/yarandom.h"
+
+// Use yarandom's random() and frand() macros for consistency
 
 // WebGL 2.0 function declarations (since we're using WebGL 2.0)
 #define GLAPI extern
@@ -958,9 +953,8 @@ int xscreensaver_web_init(init_func init, draw_func draw, reshape_func reshape, 
     DL(1, "xscreensaver_web_init called\n");
 
     // Initialize random seed for consistent but varied colors
-    extern void ya_rand_init(unsigned int seed);
     ya_rand_init(0);
-    DL(1, "Random seed initialized\n");
+    DL(1, "Random seed initialized (using yarandom)\n");
 
     hack_init = init;
     hack_draw = draw;

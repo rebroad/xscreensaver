@@ -2,6 +2,7 @@
 #include "matrix_debug.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include "../utils/yarandom.h"
 
 // Forward declarations for WebGL functions (needed because xscreensaver_web.c is included later)
 #ifdef WEB_BUILD
@@ -134,22 +135,20 @@ void debug_matrix_stack(const char* name, void* stack) {
 }
 #endif
 
-// Deterministic random number generator for reproducible comparisons
-static unsigned long debug_random_seed_value = 1;
-
 void debug_random_seed(unsigned int seed) {
-    debug_random_seed_value = seed;
-    matrix_debug_log("Debug random seed set to: %u\n", seed);
+    // Use yarandom for consistent random number generation
+    ya_rand_init(seed);
+    matrix_debug_log("Debug random seed set to: %u (using yarandom)\n", seed);
 }
 
 long debug_random(void) {
-    // Simple linear congruential generator (same as many standard implementations)
-    debug_random_seed_value = debug_random_seed_value * 1103515245 + 12345;
-    return (debug_random_seed_value / 65536) % 32768;
+    // Use yarandom for consistent random number generation
+    return (long)ya_random();
 }
 
 double debug_frand(double f) {
-    return f * (debug_random() / 32768.0);
+    // Use yarandom's frand macro for consistent floating point random numbers
+    return frand(f);
 }
 
 // Function to read current OpenGL matrix state
@@ -311,9 +310,10 @@ void init_matrix_debug_functions(void) {
     #endif // else WEB_BUILD
 
     // Initialize matrix validation for both native and WebGL builds
-    #ifdef MATRIX_DEBUG_VALIDATE
     matrix_debug_validate_init();
-    #endif
+
+    // Initialize consistency settings (viewport size, random seed)
+    init_matrix_debug_consistency();
 
     #ifdef WEB_BUILD
     printf("MATRIX_DEBUG: init_matrix_debug_functions() completed for WebGL\n");
@@ -331,10 +331,6 @@ void init_matrix_debug_functions(void) {
 
 // Wrapper function implementations
 void debug_glMatrixMode(GLenum mode) {
-    #ifdef WEB_BUILD
-    printf("MATRIX_DEBUG: debug_glMatrixMode(%d) called\n", mode);
-    #endif
-
     AUTO_INIT_NATIVE(real_glMatrixMode);
 
     GLenum old_mode = current_matrix_mode;
@@ -550,7 +546,6 @@ void debug_glTranslated(GLdouble x, GLdouble y, GLdouble z) {
     }
 }
 
-#ifdef MATRIX_DEBUG_VALIDATE
 // Reference matrix state for validation
 static float reference_modelview[16];
 static float reference_projection[16];
@@ -658,11 +653,25 @@ void matrix_debug_validate_init(void) {
     reference_matrix_identity(reference_texture);
     reference_matrix_mode = GL_MODELVIEW;
 
-    // Set deterministic seed for reproducible comparisons
-    debug_random_seed(12345);
-
-    matrix_debug_log("Matrix validation initialized with deterministic random seed\n");
+    matrix_debug_log("Matrix validation initialized\n");
 }
-#endif // MATRIX_DEBUG_VALIDATE
+
+// Wrapper functions for hextrail.c random functions
+long matrix_debug_random(void) {
+    return debug_random();
+}
+
+double matrix_debug_frand(double max) {
+    return debug_frand(max);
+}
+
+// Centralized random seed initialization for both native and WebGL
+void init_matrix_debug_consistency(void) {
+    // Set deterministic random seed for matrix debug functions using yarandom
+    debug_random_seed(MATRIX_DEBUG_SEED);
+    
+    matrix_debug_log("Matrix debug consistency initialized - window: 800x600, seed: %d (using yarandom)\n", MATRIX_DEBUG_SEED);
+    matrix_debug_log("Random functions wrapped: random() -> matrix_debug_random() -> ya_random(), frand() -> matrix_debug_frand() -> frand()\n");
+}
 
 #endif // MATRIX_DEBUG

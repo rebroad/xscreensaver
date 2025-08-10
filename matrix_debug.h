@@ -1,6 +1,14 @@
 #ifndef MATRIX_DEBUG_H
 #define MATRIX_DEBUG_H
 
+// Centralized random seed value for consistent debugging
+#define MATRIX_DEBUG_SEED 12345
+
+// Function declarations
+void init_matrix_debug_consistency(void);
+long matrix_debug_random(void);
+double matrix_debug_frand(double max);
+
 #include <GL/gl.h>
 #ifndef WEB_BUILD
 #include <GL/glu.h>
@@ -98,8 +106,8 @@ void debug_glTranslated(GLdouble x, GLdouble y, GLdouble z);
 #define glTranslated debug_glTranslated
 
 // Deterministic random function macros for reproducible comparisons
-#define random debug_random
-#define frand debug_frand
+#define random matrix_debug_random
+#define frand matrix_debug_frand
 
 #ifdef MATRIX_DEBUG_VALIDATE
 // Reference matrix math functions for validation
