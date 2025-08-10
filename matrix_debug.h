@@ -106,8 +106,15 @@ void debug_glTranslated(GLdouble x, GLdouble y, GLdouble z);
 #define glTranslated debug_glTranslated
 
 // Deterministic random function macros for reproducible comparisons
+// Note: These macros redirect to yarandom functions for consistency
+// We use different names to avoid conflicts with yarandom.h macros
+// Only define these if they haven't been defined by yarandom.h
+#ifndef random
 #define random matrix_debug_random
+#endif
+#ifndef frand
 #define frand matrix_debug_frand
+#endif
 
 #ifdef MATRIX_DEBUG_VALIDATE
 // Reference matrix math functions for validation

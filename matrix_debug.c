@@ -2,7 +2,9 @@
 #include "matrix_debug.h"
 #include <stdio.h>
 #include <stdlib.h>
-#include "../utils/yarandom.h"
+// Include yarandom functions directly for matrix debugging
+extern unsigned int ya_random(void);
+extern void ya_rand_init(unsigned int);
 
 // Forward declarations for WebGL functions (needed because xscreensaver_web.c is included later)
 #ifdef WEB_BUILD
@@ -147,8 +149,9 @@ long debug_random(void) {
 }
 
 double debug_frand(double f) {
-    // Use yarandom's frand macro for consistent floating point random numbers
-    return frand(f);
+    // Use yarandom's frand calculation for consistent floating point random numbers
+    double tmp = ((((double) ya_random()) * ((double) (f))) / ((double) ((unsigned int)~0)));
+    return tmp < 0 ? (-tmp) : tmp;
 }
 
 // Function to read current OpenGL matrix state
