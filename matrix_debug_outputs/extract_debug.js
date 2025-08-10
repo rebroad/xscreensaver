@@ -77,15 +77,34 @@ const puppeteer = require('puppeteer');
           const debugLog = document.getElementById('debug-log');
           const loadingElement = document.getElementById('loading');
 
+          // Check if matrix debug functions exist
+          const hasMatrixDebug = typeof Module !== 'undefined' && Module._init_matrix_debug_functions;
+          const hasMatrixDebugRandom = typeof Module !== 'undefined' && Module._matrix_debug_random;
+
+          // Check if any console output has been generated
+          const consoleOutput = [];
+          if (window.lastConsoleOutput) {
+            consoleOutput.push(...window.lastConsoleOutput);
+          }
+
           return {
             debugLogExists: !!debugLog,
             debugLogContent: debugLog ? debugLog.innerHTML : '',
             loadingVisible: loadingElement ? loadingElement.style.display !== 'none' : false,
-            moduleInitialized: typeof Module !== 'undefined' && Module.onRuntimeInitialized
+            moduleInitialized: typeof Module !== 'undefined' && Module.onRuntimeInitialized,
+            hasMatrixDebug: hasMatrixDebug,
+            hasMatrixDebugRandom: hasMatrixDebugRandom,
+            consoleOutput: consoleOutput
           };
         });
 
         console.log(`⏳ Attempt ${attempts}/${maxAttempts}: debug content length = ${status.debugLogContent.length}`);
+        console.log(`   Matrix debug functions: ${status.hasMatrixDebug ? 'YES' : 'NO'}`);
+        console.log(`   Matrix debug random: ${status.hasMatrixDebugRandom ? 'YES' : 'NO'}`);
+
+        if (status.consoleOutput.length > 0) {
+          console.log(`   Console output: ${status.consoleOutput.join(', ')}`);
+        }
 
         if (status.debugLogContent.length > 0) {
           debugOutput = status.debugLogContent;
