@@ -10,6 +10,9 @@
 // Include our web headers (WEB_BUILD already defined by build script)
 #include "../xlockmore_web.h"
 
+// Always include yarandom for WebGL builds to ensure frand() is available
+#include "../utils/yarandom.h"
+
 #ifdef MATRIX_DEBUG
 // Include matrix debug headers for deterministic random functions
 #include "../matrix_debug.h"
@@ -21,12 +24,6 @@
 // Web-specific main function
 EMSCRIPTEN_KEEPALIVE
 int main() {
-#ifdef MATRIX_DEBUG
-    // Initialize matrix debug functions for deterministic random numbers
-    extern void init_matrix_debug_functions(void);
-    init_matrix_debug_functions();
-#endif
-
     // Initialize the web wrapper with hextrail's functions
     return xscreensaver_web_init(
         init_hextrail,         // init function
