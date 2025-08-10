@@ -311,9 +311,7 @@ void init_matrix_debug_functions(void) {
     #endif // else WEB_BUILD
 
     // Initialize matrix validation for both native and WebGL builds
-    #ifdef MATRIX_DEBUG_VALIDATE
     matrix_debug_validate_init();
-    #endif
 
     #ifdef WEB_BUILD
     printf("MATRIX_DEBUG: init_matrix_debug_functions() completed for WebGL\n");
@@ -331,10 +329,6 @@ void init_matrix_debug_functions(void) {
 
 // Wrapper function implementations
 void debug_glMatrixMode(GLenum mode) {
-    #ifdef WEB_BUILD
-    printf("MATRIX_DEBUG: debug_glMatrixMode(%d) called\n", mode);
-    #endif
-
     AUTO_INIT_NATIVE(real_glMatrixMode);
 
     GLenum old_mode = current_matrix_mode;
@@ -550,7 +544,6 @@ void debug_glTranslated(GLdouble x, GLdouble y, GLdouble z) {
     }
 }
 
-#ifdef MATRIX_DEBUG_VALIDATE
 // Reference matrix state for validation
 static float reference_modelview[16];
 static float reference_projection[16];
@@ -663,6 +656,5 @@ void matrix_debug_validate_init(void) {
 
     matrix_debug_log("Matrix validation initialized with deterministic random seed\n");
 }
-#endif // MATRIX_DEBUG_VALIDATE
 
 #endif // MATRIX_DEBUG

@@ -16,9 +16,6 @@ void matrix_debug_log(const char* format, ...);
 // Frame counter function
 void matrix_debug_next_frame(void);
 
-// Matrix validation mode (define this to enable reference math validation)
-#define MATRIX_DEBUG_VALIDATE
-
 // Deterministic random functions for reproducible comparisons
 long debug_random(void);
 double debug_frand(double f);
@@ -101,7 +98,6 @@ void debug_glTranslated(GLdouble x, GLdouble y, GLdouble z);
 #define random debug_random
 #define frand debug_frand
 
-#ifdef MATRIX_DEBUG_VALIDATE
 // Reference matrix math functions for validation
 void reference_matrix_identity(float* m);
 void reference_matrix_translate(float* m, float x, float y, float z);
@@ -115,8 +111,7 @@ void reference_matrix_lookat(float* m, double eyex, double eyey, double eyez, do
 // Matrix comparison functions
 int compare_matrices(const char* operation, const float* reference, const float* actual);
 void matrix_debug_validate_init(void);
-#endif // MATRIX_DEBUG_VALIDATE
 
 #endif // MATRIX_DEBUG
 
-#endif // MATRIX_DEBUG_H 
+#endif // MATRIX_DEBUG_H
