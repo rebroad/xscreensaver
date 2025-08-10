@@ -428,14 +428,18 @@ EOF
     # Run the extraction
     cd matrix_debug_outputs
     node extract_debug.js $port
+    node_exit_code=$?
     cd ..
 
-    if [ -f "matrix_debug_outputs/web_debug_output.txt" ]; then
+    if [ $node_exit_code -eq 0 ] && [ -f "matrix_debug_outputs/web_debug_output.txt" ]; then
         echo -e "${GREEN}✅ Web debug output captured successfully!${NC}"
         echo -e "${CYAN}📁 Output saved to: matrix_debug_outputs/web_debug_output.txt${NC}"
         return 0
     else
-        echo -e "${RED}❌ Failed to capture debug output${NC}"
+        echo -e "${RED}❌ Failed to capture debug output (Node.js exit code: $node_exit_code)${NC}"
+        if [ -f "matrix_debug_outputs/web_debug_output.txt" ]; then
+            echo -e "${YELLOW}⚠️ Debug file exists but may contain incomplete data due to timeout${NC}"
+        fi
         return 1
     fi
 }
@@ -446,6 +450,11 @@ run_automated_extraction() {
 
     # Create output directory
     mkdir -p matrix_debug_outputs
+
+    # Clean up old WebGL debug output files to avoid confusion
+    echo -e "${YELLOW}🧹 Cleaning up old WebGL debug output files...${NC}"
+    rm -f matrix_debug_outputs/web_debug_output.txt
+    rm -f matrix_debug_outputs/webgl_matrix_ops.txt
 
     # Get the port from the server
     PORT=$(cat /tmp/hextrail_web_port.txt 2>/dev/null || echo "8000")
