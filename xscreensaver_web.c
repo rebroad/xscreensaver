@@ -17,9 +17,11 @@
 
 
 // Random number generation using yarandom for consistency
-#include "../utils/yarandom.h"
+// Include yarandom functions directly to avoid header restrictions
+extern unsigned int ya_random(void);
+extern void ya_rand_init(unsigned int);
 
-// Use yarandom's random() and frand() macros for consistency
+// Use yarandom functions directly for consistency
 
 // WebGL 2.0 function declarations (since we're using WebGL 2.0)
 #define GLAPI extern
