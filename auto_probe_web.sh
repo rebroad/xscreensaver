@@ -486,6 +486,14 @@ run_automated_extraction() {
     echo -e "${YELLOW}🔍 Attempting curl-based extraction...${NC}"
     ./matrix_debug_outputs/curl_extract.sh
 
+    # If we still don't have web_debug_output.txt, warn clearly
+    if [ ! -f "matrix_debug_outputs/web_debug_output.txt" ]; then
+        echo -e "${YELLOW}⚠️  Web debug output not captured yet. You can:
+ - Ensure Node.js is installed for headless extraction
+ - Manually open matrix_debug_outputs/automate_browser.html to drive extraction
+ - Check the page at http://localhost:$PORT and the presence of #debug-log${NC}"
+    fi
+
     echo ""
     echo -e "${CYAN}🚀 Opening hextrail page directly to verify it works...${NC}"
     echo -e "${YELLOW}💡 This will open the actual hextrail page in your browser${NC}"

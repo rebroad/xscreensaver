@@ -112,8 +112,15 @@ compare_outputs() {
     echo -e "${YELLOW}📊 Capturing native debug output...${NC}"
     if [ -f "build_native_debug/hextrail_debug" ]; then
         echo -e "${YELLOW}⏳ Running native hextrail for 10 seconds...${NC}"
-        (cd build_native_debug && timeout 10s ./hextrail_debug -root 2>&1 | head -50 > ../matrix_debug_outputs/native_output.txt)
-        if [ $? -eq 0 ]; then
+        # Keep it simple: run windowed with timeout and capture all output
+        set +e
+        (cd build_native_debug && timeout 10s ./hextrail_debug -window > ../matrix_debug_outputs/native_output.txt 2>&1)
+        native_status=$?
+        set -e
+        if [ $native_status -eq 124 ]; then
+            # timeout exit code 124 means it timed out as expected; still treat as success
+            echo -e "${GREEN}✅ Native output captured (timed): matrix_debug_outputs/native_output.txt${NC}"
+        elif [ $native_status -eq 0 ]; then
             echo -e "${GREEN}✅ Native output captured: matrix_debug_outputs/native_output.txt${NC}"
         else
             echo -e "${RED}❌ Failed to capture native output${NC}"
@@ -124,14 +131,98 @@ compare_outputs() {
         return 1
     fi
 
-    # Use auto_probe_web.sh for web debugging if available
+    # Position and auto-close the browser window that build_web.sh just opened
+    echo -e "${BLUE}🌐 Positioning WebGL browser (right side) and scheduling auto-close...${NC}"
+
+    # Try to move/resize the browser window to the right side
+    (
+        # Screen geometry
+        screen_width=$(xrandr --current | grep '*' | uniq | awk '{print $1}' | cut -d 'x' -f1 | head -1)
+        screen_height=$(xrandr --current | grep '*' | uniq | awk '{print $1}' | cut -d 'x' -f2 | head -1)
+        [ -z "$screen_width" ] && screen_width=1920
+        [ -z "$screen_height" ] && screen_height=1080
+        window_width=$((screen_width / 2))
+        window_height=$((screen_height - 100))
+        right_x=$((screen_width / 2))
+        y_pos=50
+
+        title_pattern="localhost:$WEB_SERVER_PORT|HexTrail"
+        echo -e "${CYAN}🔎 Searching for browser window by title pattern: $title_pattern${NC}"
+
+        # Capture current window list for debugging
+        mkdir -p matrix_debug_outputs
+        {
+            echo "=== wmctrl -lx ===";
+            wmctrl -lx 2>/dev/null || echo "(wmctrl not available)";
+            echo "\n=== wmctrl -l ===";
+            wmctrl -l 2>/dev/null || true;
+        } > matrix_debug_outputs/window_list.txt
+        echo -e "${CYAN}📝 Saved window list to: matrix_debug_outputs/window_list.txt${NC}"
+        # Also print likely candidates to console
+        if command -v wmctrl >/dev/null 2>&1; then
+            echo -e "${CYAN}🔎 Candidate windows (wmctrl -l filtered):${NC}"
+            wmctrl -l | grep -Ei "HexTrail|localhost|Chrome|Chromium|Firefox" | head -n 10 || true
+        fi
+
+        if ! command -v xdotool >/dev/null 2>&1 && ! command -v wmctrl >/dev/null 2>&1; then
+            echo -e "${YELLOW}⚠️  xdotool/wmctrl not found; cannot reposition browser automatically${NC}"
+            exit 0
+        fi
+
+        for i in $(seq 1 40); do
+            if command -v xdotool >/dev/null 2>&1; then
+                echo -e "${CYAN}🔎 xdotool search --name \"$title_pattern\"${NC}"
+                bid=$(xdotool search --name "$title_pattern" | head -n1 || true)
+                if [ -n "$bid" ]; then
+                    echo -e "${GREEN}✅ Found window id via xdotool: $bid${NC}"
+                    xdotool windowmove "$bid" "$right_x" "$y_pos" 2>/dev/null || true
+                    xdotool windowsize "$bid" "$window_width" "$window_height" 2>/dev/null || true
+                    break
+                fi
+            fi
+            if command -v wmctrl >/dev/null 2>&1; then
+                echo -e "${CYAN}🔎 wmctrl -l | grep -iE \"$title_pattern\"${NC}"
+                if wmctrl -l | grep -qiE "$title_pattern"; then
+                    wline=$(wmctrl -l | grep -iE "$title_pattern" | head -n1)
+                    echo -e "${GREEN}✅ Found window line via wmctrl: $wline${NC}"
+                    wid=$(echo "$wline" | awk '{print $1}')
+                    if [ -n "$wid" ]; then
+                        wmctrl -i -r "$wid" -e 0,$right_x,$y_pos,$window_width,$window_height 2>/dev/null || true
+                        break
+                    fi
+                fi
+            fi
+            sleep 0.25
+        done
+
+        if [ "$i" = "40" ]; then
+            echo -e "${YELLOW}⚠️  Did not find a matching browser window. See matrix_debug_outputs/window_list.txt for titles/classes.${NC}"
+            if [ "${XDG_SESSION_TYPE:-}" = "wayland" ]; then
+                echo -e "${YELLOW}⚠️  Wayland session detected; window movement may not be supported by xdotool/wmctrl.${NC}"
+            fi
+        fi
+
+        # Auto-close browser after 10s unless overridden
+        close_secs=${AUTO_CLOSE_BROWSER_SECONDS:-10}
+        if [ "$close_secs" != "0" ]; then
+            sleep "$close_secs"
+            if command -v xdotool >/dev/null 2>&1; then
+                cid=$(xdotool search --name "$title_pattern" | head -n1 || true)
+                [ -n "$cid" ] && xdotool windowclose "$cid" 2>/dev/null || true
+            elif command -v wmctrl >/dev/null 2>&1; then
+                wline=$(wmctrl -l | grep -iE "$title_pattern" | head -n1)
+                wid=$(echo "$wline" | awk '{print $1}')
+                [ -n "$wid" ] && wmctrl -i -c "$wid" 2>/dev/null || true
+            fi
+        fi
+    ) &
+
+    # Use auto_probe_web.sh for web debugging if available to capture output
     if [ -f "auto_probe_web.sh" ]; then
         echo -e "${YELLOW}🤖 Using auto_probe_web.sh for web debugging on port $WEB_SERVER_PORT...${NC}"
         ./auto_probe_web.sh $WEB_SERVER_PORT
     else
-        echo -e "${RED}❌ auto_probe_web.sh not found - required for web debugging${NC}"
-        echo -e "${YELLOW}💡 Please ensure auto_probe_web.sh is available for full comparison${NC}"
-        return 1
+        echo -e "${YELLOW}⚠️  auto_probe_web.sh not found; skipping automated web capture${NC}"
     fi
 
     # Perform intelligent comparison of matrix operations
@@ -172,6 +263,15 @@ compare_matrix_operations_intelligently() {
         echo -e "${CYAN}📊 Summary of differences:${NC}"
         echo -e "   Native operations: $(wc -l < matrix_debug_outputs/native_matrix_ops.txt)"
         echo -e "   WebGL operations:  $(wc -l < matrix_debug_outputs/webgl_matrix_ops.txt)"
+
+        # Open meld to show differences
+        if command -v meld &> /dev/null; then
+            echo -e "${BLUE}🔍 Opening meld to show differences...${NC}"
+            meld matrix_debug_outputs/native_matrix_ops.txt matrix_debug_outputs/webgl_matrix_ops.txt &
+        else
+            echo -e "${YELLOW}⚠️  meld not found. Install it to view differences graphically${NC}"
+            echo -e "${CYAN}💡 Differences saved to: matrix_debug_outputs/matrix_diff.txt${NC}"
+        fi
     fi
 
     echo ""
