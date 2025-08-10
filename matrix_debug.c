@@ -139,19 +139,56 @@ void debug_matrix_stack(const char* name, void* stack) {
 
 void debug_random_seed(unsigned int seed) {
     // Use yarandom for consistent random number generation
+    #ifdef WEB_BUILD
+    // In WebGL builds, use a simple fallback if yarandom is not available
+    if (ya_rand_init) {
+        ya_rand_init(seed);
+        matrix_debug_log("Debug random seed set to: %u (using yarandom)\n", seed);
+    } else {
+        // Fallback: just log the seed without initializing yarandom
+        matrix_debug_log("Debug random seed set to: %u (yarandom not available, using fallback)\n", seed);
+    }
+    #else
+    // In native builds, use yarandom as before
     ya_rand_init(seed);
     matrix_debug_log("Debug random seed set to: %u (using yarandom)\n", seed);
+    #endif
 }
 
 long debug_random(void) {
     // Use yarandom for consistent random number generation
+    #ifdef WEB_BUILD
+    // In WebGL builds, use a simple fallback if yarandom is not available
+    if (ya_random) {
+        return (long)ya_random();
+    } else {
+        // Fallback: simple linear congruential generator
+        static unsigned long seed = 1;
+        seed = seed * 1103515245 + 12345;
+        return (long)((seed / 65536) % 32768);
+    }
+    #else
+    // In native builds, use yarandom as before
     return (long)ya_random();
+    #endif
 }
 
 double debug_frand(double f) {
     // Use yarandom's frand calculation for consistent floating point random numbers
+    #ifdef WEB_BUILD
+    // In WebGL builds, use a simple fallback if yarandom is not available
+    if (ya_random) {
+        double tmp = ((((double) ya_random()) * ((double) (f))) / ((double) ((unsigned int)~0)));
+        return tmp < 0 ? (-tmp) : tmp;
+    } else {
+        // Fallback: simple floating point random
+        return f * (debug_random() / 32768.0);
+    }
+    #else
+    // In native builds, use yarandom as before
     double tmp = ((((double) ya_random()) * ((double) (f))) / ((double) ((unsigned int)~0)));
     return tmp < 0 ? (-tmp) : tmp;
+    #endif
 }
 
 // Function to read current OpenGL matrix state
@@ -316,7 +353,7 @@ void init_matrix_debug_functions(void) {
     matrix_debug_validate_init();
 
     // Initialize consistency settings (viewport size, random seed)
-    // TEMPORARILY DISABLED: init_matrix_debug_consistency();
+    init_matrix_debug_consistency();
 
     #ifdef WEB_BUILD
     printf("MATRIX_DEBUG: init_matrix_debug_functions() completed for WebGL\n");
