@@ -308,8 +308,26 @@ fi
 
 # Add matrix debug source file after other source files if requested
 if [ "$MATRIX_DEBUG" = true ]; then
-    # Insert matrix_debug.c after the other source files but before -o
-    EMCC_ARGS=("${EMCC_ARGS[@]:0:${#EMCC_ARGS[@]}-2}" "$REPO_ROOT/matrix_debug.c" "${EMCC_ARGS[@]: -2}")
+    echo -e "${YELLOW}🔧 Adding matrix debug source file: $REPO_ROOT/matrix_debug.c${NC}"
+    # Insert matrix_debug.c after xscreensaver_web.c but before -o
+    # Find the position of xscreensaver_web.c in the array
+    xscreensaver_pos=-1
+    for i in "${!EMCC_ARGS[@]}"; do
+        if [[ "${EMCC_ARGS[$i]}" == *"xscreensaver_web.c" ]]; then
+            xscreensaver_pos=$i
+            break
+        fi
+    done
+
+    if [ $xscreensaver_pos -eq -1 ]; then
+        # If xscreensaver_web.c not found, add matrix_debug.c at the end before -o
+        EMCC_ARGS=("${EMCC_ARGS[@]:0:${#EMCC_ARGS[@]}-2}" "$REPO_ROOT/matrix_debug.c" "${EMCC_ARGS[@]: -2}")
+    else
+        # Insert matrix_debug.c after xscreensaver_web.c
+        insert_pos=$((xscreensaver_pos + 1))
+        EMCC_ARGS=("${EMCC_ARGS[@]:0:$insert_pos}" "$REPO_ROOT/matrix_debug.c" "${EMCC_ARGS[@]:$insert_pos}")
+    fi
+    echo -e "${YELLOW}🔧 Matrix debug flag added: -DMATRIX_DEBUG${NC}"
 fi
 
 # Compile with emscripten using custom HTML template
