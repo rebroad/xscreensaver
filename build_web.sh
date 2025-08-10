@@ -5,10 +5,6 @@
 
 set -e
 
-# Parse command line arguments
-DEBUG_MODE=false
-MEMORY_DEBUG=false
-MATRIX_DEBUG=false
 START_SERVER=true  # Start server by default
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -72,6 +68,55 @@ HACKS_DIR="$REPO_ROOT/hacks"
 JWXYZ_DIR="$REPO_ROOT/jwxyz"
 
 
+# Function to open browser
+open_browser() {
+    local port=$1
+    local url="http://localhost:$port"
+    local browser_cmd=""
+
+    if [ "$MATRIX_DEBUG" = true ]; then
+        # For matrix debug comparison, position browser on the right side
+        echo -e "${BLUE}🌐 Opening browser for matrix debug comparison (positioned on right)...${NC}"
+
+        # Get screen dimensions for positioning
+        local screen_width=$(xrandr --current | grep '*' | uniq | awk '{print $1}' | cut -d 'x' -f1 | head -1)
+        local screen_height=$(xrandr --current | grep '*' | uniq | awk '{print $1}' | cut -d 'x' -f2 | head -1)
+        [ -z "$screen_width" ] && screen_width=1920
+        [ -z "$screen_height" ] && screen_height=1080
+
+        # Make browser window fill the right half of the screen
+        local window_width=$((screen_width / 2))
+        local window_height=$((screen_height - 100))  # Leave some margin
+        local right_x=$((screen_width / 2))
+        local y_pos=50
+
+        echo -e "${GREEN}📍 Positioning WebGL browser at: (${right_x}, ${y_pos}) size: ${window_width}x${window_height}${NC}"
+
+        if command -v google-chrome &> /dev/null; then
+            browser_cmd="google-chrome --new-window --window-position=$right_x,$y_pos --window-size=$window_width,$window_height \"$url\""
+        elif command -v firefox &> /dev/null; then
+            browser_cmd="firefox --new-window --width=$window_width --height=$window_height \"$url\""
+        fi
+    else
+        echo -e "${BLUE}🌐 Opening browser...${NC}"
+    fi
+
+    # Use positioned command or fall back to standard browser opening
+    if [ -n "$browser_cmd" ]; then
+        eval "$browser_cmd" > /dev/null 2>&1 &
+    elif command -v xdg-open &> /dev/null; then
+        xdg-open "$url" > /dev/null 2>&1 &
+    elif command -v open &> /dev/null; then
+        open "$url" > /dev/null 2>&1 &
+    elif command -v google-chrome &> /dev/null; then
+        google-chrome "$url" > /dev/null 2>&1 &
+    elif command -v firefox &> /dev/null; then
+        firefox "$url" > /dev/null 2>&1 &
+    else
+        echo -e "${YELLOW}⚠️  No browser launcher found. Please manually open: $url${NC}"
+    fi
+}
+
 # Function to start web server
 start_web_server() {
     echo -e "${YELLOW}🔍 Checking for existing web servers...${NC}"
@@ -103,6 +148,9 @@ start_web_server() {
                             echo -e "${GREEN}✅ Web server already running on localhost:$test_port (serving from correct directory)${NC}"
                             echo -e "${CYAN}🌐 Open: http://localhost:$test_port${NC}"
                             echo "WEBSERVER_PORT:$test_port"  # Parseable output for scripts
+
+                            # Open browser automatically for existing server
+                            open_browser $test_port
                             return 0
                         else
                             echo -e "${YELLOW}⚠️  Server on port $test_port serving from: $SERVER_CWD (not our build_web)${NC}"
@@ -148,6 +196,9 @@ start_web_server() {
             # Store server info for potential cleanup
             echo $PORT > /tmp/hextrail_web_port.txt
             echo $SERVER_PID > /tmp/hextrail_web_pid.txt
+
+            # Open browser automatically
+            open_browser $PORT
         else
             echo -e "${RED}❌ Failed to start web server${NC}"
             echo -e "${YELLOW}💡 Please manually start server: cd build_web && python3 -m http.server 8000${NC}"
