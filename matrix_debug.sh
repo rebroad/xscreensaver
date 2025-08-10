@@ -108,11 +108,11 @@ compare_outputs() {
     # Create output directory
     mkdir -p matrix_debug_outputs
 
-    # Capture native debug output
-    echo -e "${YELLOW}📊 Capturing native debug output...${NC}"
+    # Capture native debug output to file (not stdout)
+    echo -e "${YELLOW}📊 Capturing native debug output to file...${NC}"
     if [ -f "build_native_debug/hextrail_debug" ]; then
-        echo -e "${YELLOW}⏳ Running native hextrail for 10 seconds...${NC}"
-        (cd build_native_debug && timeout 10s ./hextrail_debug --window 2>&1 | head -50 > ../matrix_debug_outputs/native_output.txt)
+        echo -e "${YELLOW}⏳ Running native hextrail for 4 seconds...${NC}"
+        (cd build_native_debug && timeout 4s ./hextrail_debug --window > ../matrix_debug_outputs/native_output.txt 2>&1) # TODO use geom to position the window (if we can also position the web browser window too)
         if [ $? -eq 0 ]; then
             echo -e "${GREEN}✅ Native output captured: matrix_debug_outputs/native_output.txt${NC}"
         else
@@ -166,12 +166,19 @@ compare_matrix_operations_intelligently() {
         echo -e "${CYAN}📋 Both versions perform the same matrix operations in the same order${NC}"
     else
         echo -e "${RED}❌ Matrix operations differ!${NC}"
-        echo -e "${YELLOW}📋 Differences found:${NC}"
-        cat matrix_debug_outputs/matrix_diff.txt
-        echo ""
+        echo -e "${YELLOW}📋 Differences found and saved to matrix_debug_outputs/matrix_diff.txt${NC}"
         echo -e "${CYAN}📊 Summary of differences:${NC}"
         echo -e "   Native operations: $(wc -l < matrix_debug_outputs/native_matrix_ops.txt)"
         echo -e "   WebGL operations:  $(wc -l < matrix_debug_outputs/webgl_matrix_ops.txt)"
+
+        # Open meld to show differences
+        if command -v meld &> /dev/null; then
+            echo -e "${BLUE}🔍 Opening meld to show differences...${NC}"
+            meld matrix_debug_outputs/native_matrix_ops.txt matrix_debug_outputs/webgl_matrix_ops.txt &
+        else
+            echo -e "${YELLOW}⚠️  meld not found. Install it to view differences graphically${NC}"
+            echo -e "${CYAN}💡 Differences saved to: matrix_debug_outputs/matrix_diff.txt${NC}"
+        fi
     fi
 
     echo ""
@@ -181,10 +188,6 @@ compare_matrix_operations_intelligently() {
     echo -e "   - native_matrix_ops.txt: Native matrix operations only"
     echo -e "   - webgl_matrix_ops.txt: WebGL matrix operations only"
     echo -e "   - matrix_diff.txt: Differences in matrix operations"
-
-    # Offer to open both versions side by side
-    echo -e "${YELLOW}🖥️  Opening both versions side by side...${NC}"
-    open_side_by_side "$WEB_SERVER_PORT"
 }
 
 # Function to build hextrail with matrix debugging
@@ -263,61 +266,6 @@ build_native_hextrail() {
     mv Makefile.backup Makefile
 
     cd ../..
-}
-
-# Function to open both versions side by side
-open_side_by_side() {
-    local web_port="$1"
-
-    echo -e "${CYAN}🖥️  Opening native and WebGL versions side by side...${NC}"
-
-    # Get screen dimensions for positioning
-    local screen_width=$(xrandr --current | grep '*' | uniq | awk '{print $1}' | cut -d 'x' -f1 | head -1)
-    local screen_height=$(xrandr --current | grep '*' | uniq | awk '{print $1}' | cut -d 'x' -f2 | head -1)
-
-    if [ -z "$screen_width" ] || [ -z "$screen_height" ]; then
-        # Fallback if xrandr doesn't work
-        screen_width=1920
-        screen_height=1080
-    fi
-
-    # Calculate window positions (native on left, WebGL on right)
-    local window_width=800
-    local window_height=600
-    local left_x=50
-    local right_x=$((screen_width - window_width - 50))
-    local y_pos=50
-
-    echo -e "${GREEN}📐 Screen: ${screen_width}x${screen_height}, Windows: ${window_width}x${window_height}${NC}"
-    echo -e "${GREEN}📍 Native: (${left_x}, ${y_pos}), WebGL: (${right_x}, ${y_pos})${NC}"
-
-    # Start native version in background with window mode (not fullscreen)
-    echo -e "${BLUE}🖥️  Starting native version...${NC}"
-    cd build_native_debug
-    ./hextrail_debug --window &
-    local native_pid=$!
-    cd ..
-
-    # Position native window on the left
-    sleep 1  # Give window time to appear
-    if command -v wmctrl &> /dev/null; then
-        wmctrl -r "hextrail" -e 0,$left_x,$y_pos,$window_width,$window_height 2>/dev/null || true
-    fi
-
-    # Open WebGL version in browser on the right
-    echo -e "${BLUE}🌐 Opening WebGL version in browser...${NC}"
-    if command -v google-chrome &> /dev/null; then
-        google-chrome --new-window --window-position=$right_x,$y_pos --window-size=$window_width,$window_height "http://localhost:$web_port" &
-    elif command -v firefox &> /dev/null; then
-        firefox --new-window --width=$window_width --height=$window_height "http://localhost:$web_port" &
-    else
-        echo -e "${YELLOW}⚠️  No supported browser found. Please open http://localhost:$web_port manually${NC}"
-    fi
-
-    echo -e "${GREEN}✅ Both versions started!${NC}"
-    echo -e "${CYAN}💡 Native PID: $native_pid (use 'kill $native_pid' to stop)${NC}"
-    echo -e "${CYAN}💡 WebGL: http://localhost:$web_port${NC}"
-    echo -e "${YELLOW}🔄 Both versions should now be running with identical window size (800x600) and random seed (12345)${NC}"
 }
 
 # Function to clean all build files
