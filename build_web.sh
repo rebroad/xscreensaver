@@ -301,9 +301,15 @@ if [ "$MEMORY_DEBUG" = true ]; then
     )
 fi
 
-# Add matrix debugging flag and source file if requested
+# Add matrix debugging flag if requested
 if [ "$MATRIX_DEBUG" = true ]; then
-    EMCC_ARGS=(-DMATRIX_DEBUG "$REPO_ROOT/matrix_debug.c" "${EMCC_ARGS[@]}")
+    EMCC_ARGS=(-DMATRIX_DEBUG "${EMCC_ARGS[@]}")
+fi
+
+# Add matrix debug source file after other source files if requested
+if [ "$MATRIX_DEBUG" = true ]; then
+    # Insert matrix_debug.c after the other source files but before -o
+    EMCC_ARGS=("${EMCC_ARGS[@]:0:${#EMCC_ARGS[@]}-2}" "$REPO_ROOT/matrix_debug.c" "${EMCC_ARGS[@]: -2}")
 fi
 
 # Compile with emscripten using custom HTML template
