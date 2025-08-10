@@ -20,10 +20,10 @@ const puppeteer = require('puppeteer');
     const port = process.argv[2] || '8000';
     console.log(`📍 Loading http://localhost:${port}...`);
 
-    // Increase timeout to 30 seconds for WebGL initialization
+    // Increase timeout to 10 seconds for WebGL initialization
     await page.goto(`http://localhost:${port}`, {
       waitUntil: 'domcontentloaded',
-      timeout: 30000
+      timeout: 10000
     });
 
     console.log('✅ Page loaded successfully');
