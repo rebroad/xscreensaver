@@ -19,6 +19,7 @@
 
 #ifdef MATRIX_DEBUG
 #include "../../matrix_debug.h"
+// Matrix debug macros are already defined in matrix_debug.h
 #endif
 #ifndef WEB_BUILD
 #include "xlockmore.h"
@@ -811,6 +812,7 @@ static rotator* create_hextrail_rotator(void) {
 ENTRYPOINT void
 init_hextrail (ModeInfo *mi)
 {
+  printf("DEBUG: init_hextrail() called\n");
   hextrail_configuration *bp;
 
   MI_INIT (mi, bps);
@@ -820,6 +822,15 @@ init_hextrail (ModeInfo *mi)
   bp->glx_context = init_GL(mi);
 
   reshape_hextrail (mi, MI_WIDTH(mi), MI_HEIGHT(mi));
+
+#ifdef MATRIX_DEBUG
+  printf("DEBUG: About to initialize matrix debug functions...\n");
+  // Initialize matrix debug functions after OpenGL context is established
+  extern void init_matrix_debug_functions(void);
+  printf("DEBUG: Calling init_matrix_debug_functions()...\n");
+  init_matrix_debug_functions();
+  printf("DEBUG: init_matrix_debug_functions() completed successfully\n");
+#endif
 
   /* Initialize speed from resource */
   speed = get_float_resource (MI_DISPLAY(mi), "speed", "Float");

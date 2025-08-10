@@ -72,6 +72,23 @@ HACKS_DIR="$REPO_ROOT/hacks"
 JWXYZ_DIR="$REPO_ROOT/jwxyz"
 
 
+# Function to open browser
+open_browser() {
+    local port=$1
+    echo -e "${BLUE}🌐 Opening browser...${NC}"
+    if command -v xdg-open &> /dev/null; then
+        xdg-open "http://localhost:$port" > /dev/null 2>&1 &
+    elif command -v open &> /dev/null; then
+        open "http://localhost:$port" > /dev/null 2>&1 &
+    elif command -v google-chrome &> /dev/null; then
+        google-chrome "http://localhost:$port" > /dev/null 2>&1 &
+    elif command -v firefox &> /dev/null; then
+        firefox "http://localhost:$port" > /dev/null 2>&1 &
+    else
+        echo -e "${YELLOW}⚠️  No browser launcher found. Please manually open: http://localhost:$port${NC}"
+    fi
+}
+
 # Function to start web server
 start_web_server() {
     echo -e "${YELLOW}🔍 Checking for existing web servers...${NC}"
@@ -103,6 +120,9 @@ start_web_server() {
                             echo -e "${GREEN}✅ Web server already running on localhost:$test_port (serving from correct directory)${NC}"
                             echo -e "${CYAN}🌐 Open: http://localhost:$test_port${NC}"
                             echo "WEBSERVER_PORT:$test_port"  # Parseable output for scripts
+
+                            # Open browser automatically for existing server
+                            open_browser $test_port
                             return 0
                         else
                             echo -e "${YELLOW}⚠️  Server on port $test_port serving from: $SERVER_CWD (not our build_web)${NC}"
@@ -148,6 +168,9 @@ start_web_server() {
             # Store server info for potential cleanup
             echo $PORT > /tmp/hextrail_web_port.txt
             echo $SERVER_PID > /tmp/hextrail_web_pid.txt
+
+            # Open browser automatically
+            open_browser $PORT
         else
             echo -e "${RED}❌ Failed to start web server${NC}"
             echo -e "${YELLOW}💡 Please manually start server: cd build_web && python3 -m http.server 8000${NC}"
