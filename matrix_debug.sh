@@ -149,17 +149,31 @@ compare_outputs() {
 
     # Perform intelligent comparison of matrix operations
     echo -e "${YELLOW}🔍 Performing intelligent matrix operation comparison...${NC}"
-    compare_matrix_operations_intelligently
-
-    echo -e "${GREEN}✅ Comparison complete! Check matrix_debug_outputs/ for results${NC}"
+    if compare_matrix_operations_intelligently; then
+        echo -e "${GREEN}✅ Comparison complete! Check matrix_debug_outputs/ for results${NC}"
+    else
+        echo -e "${RED}❌ Comparison failed! Check the output above for errors${NC}"
+        echo -e "${YELLOW}💡 Common issues:${NC}"
+        echo -e "   - WebGL page not loading properly"
+        echo -e "   - Matrix debug not initialized in WebGL build"
+        echo -e "   - Debug output not being captured"
+        echo -e "   - Check browser console for WebGL errors"
+        return 1
+    fi
 }
 
 # Function to compare matrix operations intelligently (from enhanced_compare.sh)
 compare_matrix_operations_intelligently() {
     echo -e "${YELLOW}🔍 Comparing outputs intelligently...${NC}"
 
-    if [ ! -f "matrix_debug_outputs/native_output.txt" ] || [ ! -f "matrix_debug_outputs/web_debug_output.txt" ]; then
-        echo -e "${RED}❌ Missing output files for comparison${NC}"
+    if [ ! -f "matrix_debug_outputs/native_output.txt" ]; then
+        echo -e "${RED}❌ Missing native output file: matrix_debug_outputs/native_output.txt${NC}"
+        return 1
+    fi
+
+    if [ ! -f "matrix_debug_outputs/web_debug_output.txt" ]; then
+        echo -e "${RED}❌ Missing WebGL output file: matrix_debug_outputs/web_debug_output.txt${NC}"
+        echo -e "${YELLOW}💡 This usually means the WebGL debug capture failed${NC}"
         return 1
     fi
 
