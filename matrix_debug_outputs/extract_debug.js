@@ -33,7 +33,6 @@ const puppeteer = require('puppeteer');
     const port = process.argv[2] || '8000';
     console.log(`📍 Loading http://localhost:${port}...`);
 
-    // Increase timeout to 10 seconds for WebGL initialization
     await page.goto(`http://localhost:${port}`, {
       waitUntil: 'domcontentloaded',
       timeout: 10000
@@ -62,79 +61,64 @@ const puppeteer = require('puppeteer');
 
     console.log('🔍 WebGL status:', webglStatus);
 
-    // Check if the WebAssembly module is loading
-    const moduleStatus = await page.evaluate(() => {
-      if (typeof Module === 'undefined') {
-        return { error: 'Module not defined' };
-      }
+    // Wait a shorter time and check for debug output
+    console.log('⏳ Waiting for matrix debug output (5 seconds)...');
 
-      if (!Module.onRuntimeInitialized) {
-        return { error: 'Module.onRuntimeInitialized not available' };
-      }
-
-      return { success: true, moduleExists: true };
-    });
-
-    console.log('🔍 Module status:', moduleStatus);
-
-    // Wait for WebGL initialization and matrix debug output
-    console.log('⏳ Waiting for WebGL initialization and matrix debug output...');
-
-    // Wait with timeout and check status periodically
+    let debugOutput = '';
     let attempts = 0;
-    const maxAttempts = 10;
+    const maxAttempts = 5;
 
     while (attempts < maxAttempts) {
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      attempts++;
+      try {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        attempts++;
 
-      const status = await page.evaluate(() => {
-        const debugLog = document.getElementById('debug-log');
-        const loadingElement = document.getElementById('loading');
+        const status = await page.evaluate(() => {
+          const debugLog = document.getElementById('debug-log');
+          const loadingElement = document.getElementById('loading');
 
-        return {
-          debugLogExists: !!debugLog,
-          debugLogContent: debugLog ? debugLog.innerHTML.length : 0,
-          loadingVisible: loadingElement ? loadingElement.style.display !== 'none' : false,
-          moduleInitialized: typeof Module !== 'undefined' && Module.onRuntimeInitialized
-        };
-      });
+          return {
+            debugLogExists: !!debugLog,
+            debugLogContent: debugLog ? debugLog.innerHTML : '',
+            loadingVisible: loadingElement ? loadingElement.style.display !== 'none' : false,
+            moduleInitialized: typeof Module !== 'undefined' && Module.onRuntimeInitialized
+          };
+        });
 
-      console.log(`⏳ Attempt ${attempts}/${maxAttempts}:`, status);
+        console.log(`⏳ Attempt ${attempts}/${maxAttempts}: debug content length = ${status.debugLogContent.length}`);
 
-      if (status.debugLogContent > 0) {
-        console.log('✅ Debug output detected!');
-        break;
+        if (status.debugLogContent.length > 0) {
+          debugOutput = status.debugLogContent;
+          console.log('✅ Debug output detected!');
+          break;
+        }
+      } catch (e) {
+        console.log(`⚠️ Attempt ${attempts} failed:`, e.message);
+        // Continue trying
       }
     }
 
-    // Check if debug panel exists
-    const debugPanelExists = await page.evaluate(() => {
-      const debugPanel = document.getElementById('debug-panel');
-      const debugLog = document.getElementById('debug-log');
-      return {
-        panelExists: !!debugPanel,
-        logExists: !!debugLog,
-        panelVisible: debugPanel ? debugPanel.style.display !== 'none' : false
-      };
-    });
-
-    console.log('🔍 Debug panel status:', debugPanelExists);
-
     // Extract debug panel content
-    const debugContent = await page.evaluate(() => {
-      const debugLog = document.getElementById('debug-log');
-      if (!debugLog) {
-        return 'No debug log element found';
-      }
+    let debugContent = debugOutput;
+    if (!debugContent) {
+      try {
+        debugContent = await page.evaluate(() => {
+          const debugLog = document.getElementById('debug-log');
+          if (!debugLog) {
+            return 'No debug log element found';
+          }
 
-      const content = debugLog.innerHTML;
-      if (!content || content.trim() === '') {
-        return 'Debug log is empty - no matrix debug output captured';
-      }
+          const content = debugLog.innerHTML;
+          if (!content || content.trim() === '') {
+            return 'Debug log is empty - no matrix debug output captured';
+          }
 
-      return content;
-    });
+          return content;
+        });
+      } catch (e) {
+        debugContent = `Error extracting debug content: ${e.message}`;
+      }
+    }
 
     console.log('📋 Raw debug content length:', debugContent.length);
 
