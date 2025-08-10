@@ -16,6 +16,19 @@ const puppeteer = require('puppeteer');
 
   const page = await browser.newPage();
 
+  // Listen for console messages and errors
+  page.on('console', msg => {
+    console.log('📱 Browser console:', msg.text());
+  });
+
+  page.on('pageerror', error => {
+    console.log('❌ Browser page error:', error.message);
+  });
+
+  page.on('error', error => {
+    console.log('❌ Browser error:', error.message);
+  });
+
   try {
     const port = process.argv[2] || '8000';
     console.log(`📍 Loading http://localhost:${port}...`);
@@ -28,9 +41,72 @@ const puppeteer = require('puppeteer');
 
     console.log('✅ Page loaded successfully');
 
+    // Check if WebGL is available
+    const webglStatus = await page.evaluate(() => {
+      const canvas = document.getElementById('canvas');
+      if (!canvas) {
+        return { error: 'Canvas element not found' };
+      }
+
+      const gl = canvas.getContext('webgl2') || canvas.getContext('webgl');
+      if (!gl) {
+        return { error: 'WebGL context not available' };
+      }
+
+      return {
+        success: true,
+        webglVersion: gl.getParameter(gl.VERSION),
+        renderer: gl.getParameter(gl.RENDERER)
+      };
+    });
+
+    console.log('🔍 WebGL status:', webglStatus);
+
+    // Check if the WebAssembly module is loading
+    const moduleStatus = await page.evaluate(() => {
+      if (typeof Module === 'undefined') {
+        return { error: 'Module not defined' };
+      }
+
+      if (!Module.onRuntimeInitialized) {
+        return { error: 'Module.onRuntimeInitialized not available' };
+      }
+
+      return { success: true, moduleExists: true };
+    });
+
+    console.log('🔍 Module status:', moduleStatus);
+
     // Wait for WebGL initialization and matrix debug output
     console.log('⏳ Waiting for WebGL initialization and matrix debug output...');
-    await new Promise(resolve => setTimeout(resolve, 5000));
+
+    // Wait with timeout and check status periodically
+    let attempts = 0;
+    const maxAttempts = 10;
+
+    while (attempts < maxAttempts) {
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      attempts++;
+
+      const status = await page.evaluate(() => {
+        const debugLog = document.getElementById('debug-log');
+        const loadingElement = document.getElementById('loading');
+
+        return {
+          debugLogExists: !!debugLog,
+          debugLogContent: debugLog ? debugLog.innerHTML.length : 0,
+          loadingVisible: loadingElement ? loadingElement.style.display !== 'none' : false,
+          moduleInitialized: typeof Module !== 'undefined' && Module.onRuntimeInitialized
+        };
+      });
+
+      console.log(`⏳ Attempt ${attempts}/${maxAttempts}:`, status);
+
+      if (status.debugLogContent > 0) {
+        console.log('✅ Debug output detected!');
+        break;
+      }
+    }
 
     // Check if debug panel exists
     const debugPanelExists = await page.evaluate(() => {
@@ -51,12 +127,12 @@ const puppeteer = require('puppeteer');
       if (!debugLog) {
         return 'No debug log element found';
       }
-      
+
       const content = debugLog.innerHTML;
       if (!content || content.trim() === '') {
         return 'Debug log is empty - no matrix debug output captured';
       }
-      
+
       return content;
     });
 
