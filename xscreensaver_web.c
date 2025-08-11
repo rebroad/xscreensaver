@@ -30,6 +30,11 @@ static double webgl_frand(double max) {
     return ((double)webgl_random() / (double)((unsigned int)~0)) * max;
 }
 
+// Global frand function for hextrail.c to use
+double frand(double max) {
+    return webgl_frand(max);
+}
+
 // WebGL 2.0 function declarations (since we're using WebGL 2.0)
 #define GLAPI extern
 #define GLAPIENTRY
