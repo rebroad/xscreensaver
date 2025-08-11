@@ -114,7 +114,17 @@ compare_outputs() {
         echo -e "${YELLOW}⏳ Running native hextrail for 10 seconds...${NC}"
         # Keep it simple: run windowed with timeout and capture all output
         set +e
-        (cd build_native_debug && timeout 10s ./hextrail_debug -window > ../matrix_debug_outputs/native_output.txt 2>&1)
+        # Calculate screen geometry for native window positioning (right side)
+        screen_width=$(xrandr --current | grep '*' | uniq | awk '{print $1}' | cut -d 'x' -f1 | head -1)
+        screen_height=$(xrandr --current | grep '*' | uniq | awk '{print $1}' | cut -d 'x' -f2 | head -1)
+        [ -z "$screen_width" ] && screen_width=1920
+        [ -z "$screen_height" ] && screen_height=1080
+        window_width=$((screen_width / 2))
+        window_height=$((screen_height - 100))
+        right_x=$((screen_width / 2))  # Position on right side
+        y_pos=50
+
+        (cd build_native_debug && timeout 10s ./hextrail_debug -window -xrm "*geometry:${window_width}x${window_height}+${right_x}+${y_pos}" > ../matrix_debug_outputs/native_output.txt 2>&1)
         native_status=$?
         set -e
         if [ $native_status -eq 124 ]; then
@@ -132,9 +142,9 @@ compare_outputs() {
     fi
 
     # Position and auto-close the browser window that build_web.sh just opened
-    echo -e "${BLUE}🌐 Positioning WebGL browser (right side) and scheduling auto-close...${NC}"
+    echo -e "${BLUE}🌐 Positioning WebGL browser (left side) and scheduling auto-close...${NC}"
 
-    # Try to move/resize the browser window to the right side
+    # Try to move/resize the browser window to the left side
     (
         # Screen geometry
         screen_width=$(xrandr --current | grep '*' | uniq | awk '{print $1}' | cut -d 'x' -f1 | head -1)
@@ -143,7 +153,7 @@ compare_outputs() {
         [ -z "$screen_height" ] && screen_height=1080
         window_width=$((screen_width / 2))
         window_height=$((screen_height - 100))
-        right_x=$((screen_width / 2))
+        left_x=0
         y_pos=50
 
         title_pattern="localhost:$WEB_SERVER_PORT|HexTrail"
@@ -169,13 +179,13 @@ compare_outputs() {
             exit 0
         fi
 
-        for i in $(seq 1 40); do
+        for i in $(seq 1 120); do
             if command -v xdotool >/dev/null 2>&1; then
                 echo -e "${CYAN}🔎 xdotool search --name \"$title_pattern\"${NC}"
                 bid=$(xdotool search --name "$title_pattern" | head -n1 || true)
                 if [ -n "$bid" ]; then
                     echo -e "${GREEN}✅ Found window id via xdotool: $bid${NC}"
-                    xdotool windowmove "$bid" "$right_x" "$y_pos" 2>/dev/null || true
+                    xdotool windowmove "$bid" "$left_x" "$y_pos" 2>/dev/null || true
                     xdotool windowsize "$bid" "$window_width" "$window_height" 2>/dev/null || true
                     break
                 fi
@@ -187,7 +197,7 @@ compare_outputs() {
                     echo -e "${GREEN}✅ Found window line via wmctrl: $wline${NC}"
                     wid=$(echo "$wline" | awk '{print $1}')
                     if [ -n "$wid" ]; then
-                        wmctrl -i -r "$wid" -e 0,$right_x,$y_pos,$window_width,$window_height 2>/dev/null || true
+                        wmctrl -i -r "$wid" -e 0,$left_x,$y_pos,$window_width,$window_height 2>/dev/null || true
                         break
                     fi
                 fi
@@ -195,7 +205,7 @@ compare_outputs() {
             sleep 0.25
         done
 
-        if [ "$i" = "40" ]; then
+        if [ "$i" = "120" ]; then
             echo -e "${YELLOW}⚠️  Did not find a matching browser window. See matrix_debug_outputs/window_list.txt for titles/classes.${NC}"
             if [ "${XDG_SESSION_TYPE:-}" = "wayland" ]; then
                 echo -e "${YELLOW}⚠️  Wayland session detected; window movement may not be supported by xdotool/wmctrl.${NC}"
@@ -247,7 +257,7 @@ compare_matrix_operations_intelligently() {
     # Extract matrix operations from native output
     grep -E "(glMatrixMode|glLoadIdentity|gluPerspective|gluLookAt|glTranslatef|glRotatef|glScalef|glPushMatrix|glPopMatrix)" matrix_debug_outputs/native_output.txt > matrix_debug_outputs/native_matrix_ops.txt
 
-    # Extract matrix operations from WebGL output 
+    # Extract matrix operations from WebGL output
     grep -E "(glMatrixMode|glLoadIdentity|gluPerspective|gluLookAt|glTranslatef|glRotatef|glScalef|glPushMatrix|glPopMatrix)" matrix_debug_outputs/web_debug_output.txt > matrix_debug_outputs/webgl_matrix_ops.txt
 
     # Compare the matrix operations
