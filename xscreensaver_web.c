@@ -11,6 +11,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#ifdef MATRIX_DEBUG
+#include "matrix_debug.h"
+#endif
 #include <math.h>
 #include <stdarg.h>
 #include <emscripten/emscripten.h>
@@ -22,7 +26,7 @@ static unsigned int webgl_random() {
     return random_seed;
 }
 
-static double frand(double max) {
+static double webgl_frand(double max) {
     return ((double)webgl_random() / (double)((unsigned int)~0)) * max;
 }
 
@@ -957,10 +961,16 @@ EMSCRIPTEN_KEEPALIVE
 int xscreensaver_web_init(init_func init, draw_func draw, reshape_func reshape, free_func free, handle_event_func handle_event) {
     DL(1, "xscreensaver_web_init called\n");
 
+#ifdef MATRIX_DEBUG
+    // Initialize deterministic settings for matrix debugging
+    init_matrix_debug_deterministic();
+    DL(1, "Matrix debug mode - using deterministic defaults\n");
+#else
     // Initialize random seed for consistent but varied colors
     extern void ya_rand_init(unsigned int seed);
     ya_rand_init(0);
     DL(1, "Random seed initialized\n");
+#endif
 
     hack_init = init;
     hack_draw = draw;
@@ -1030,13 +1040,22 @@ int xscreensaver_web_init(init_func init, draw_func draw, reshape_func reshape, 
 // Web-specific function exports for UI controls
 EMSCRIPTEN_KEEPALIVE
 void set_speed(GLfloat new_speed) {
+#ifdef MATRIX_DEBUG
+    DL(1, "Matrix debug mode: Ignoring set_speed call (UI disabled)\n");
+    return;
+#else
     extern GLfloat speed;
     speed = new_speed;
     DL(1, "Animation speed set to: %f\n", speed);
+#endif
 }
 
 EMSCRIPTEN_KEEPALIVE
 void set_thickness(GLfloat new_thickness) {
+#ifdef MATRIX_DEBUG
+    DL(1, "Matrix debug mode: Ignoring set_thickness call (UI disabled)\n");
+    return;
+#else
     extern GLfloat thickness;
     thickness = new_thickness;
     DL(1, "Thickness set to: %f\n", thickness);
@@ -1047,26 +1066,37 @@ void set_thickness(GLfloat new_thickness) {
         // The hack can check if thickness changed and call scale_corners()
         hack_handle_event(&web_mi, NULL);  // NULL event means "parameter changed"
     }
+#endif
 }
 
 EMSCRIPTEN_KEEPALIVE
 void set_spin(int new_spin_enabled) {
+#ifdef MATRIX_DEBUG
+    DL(1, "Matrix debug mode: Ignoring set_spin call (UI disabled)\n");
+    return;
+#else
     extern Bool do_spin;
     extern void update_hextrail_rotator(void);
     DL(2, "DEBUG: set_spin called with %d, current do_spin=%d\n", new_spin_enabled, do_spin);
     do_spin = new_spin_enabled;
     DL(1, "Spin %s (do_spin now=%d)\n", do_spin ? "enabled" : "disabled", do_spin);
     update_hextrail_rotator();
+#endif
 }
 
 EMSCRIPTEN_KEEPALIVE
 void set_wander(int new_wander_enabled) {
+#ifdef MATRIX_DEBUG
+    DL(1, "Matrix debug mode: Ignoring set_wander call (UI disabled)\n");
+    return;
+#else
     extern Bool do_wander;
     extern void update_hextrail_rotator(void);
     DL(2, "DEBUG: set_wander called with %d, current do_wander=%d\n", new_wander_enabled, do_wander);
     do_wander = new_wander_enabled;
     DL(1, "Wander %s (do_wander now=%d)\n", do_wander ? "enabled" : "disabled", do_wander);
     update_hextrail_rotator();
+#endif
 }
 
 EMSCRIPTEN_KEEPALIVE
