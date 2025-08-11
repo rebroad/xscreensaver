@@ -126,7 +126,7 @@ compare_outputs() {
 
         # Start browser positioning in background
         (
-            title_pattern="localhost:$WEB_SERVER_PORT"
+            title_pattern="HexTrail.*Chromium\|HexTrail.*Chrome\|HexTrail.*Firefox"
             echo -e "${CYAN}🔎 Searching for browser window by title pattern: $title_pattern${NC}"
 
             # Capture current window list for debugging
