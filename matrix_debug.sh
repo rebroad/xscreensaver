@@ -179,9 +179,14 @@ compare_outputs() {
             exit 0
         fi
 
+        # Add a longer initial delay to allow browser window to appear
+        echo -e "${CYAN}⏳ Waiting for browser window to appear...${NC}"
+        sleep 1
+
+        # Use a more aggressive detection loop - very short delays initially
         for i in $(seq 1 120); do
             if command -v xdotool >/dev/null 2>&1; then
-                echo -e "${CYAN}🔎 xdotool search --name \"$title_pattern\"${NC}"
+                echo -e "${CYAN}🔎 xdotool search --name \"$title_pattern\" (attempt $i)${NC}"
                 bid=$(xdotool search --name "$title_pattern" | head -n1 || true)
                 if [ -n "$bid" ]; then
                     echo -e "${GREEN}✅ Found window id via xdotool: $bid${NC}"
@@ -191,7 +196,7 @@ compare_outputs() {
                 fi
             fi
             if command -v wmctrl >/dev/null 2>&1; then
-                echo -e "${CYAN}🔎 wmctrl -l | grep -iE \"$title_pattern\"${NC}"
+                echo -e "${CYAN}🔎 wmctrl -l | grep -iE \"$title_pattern\" (attempt $i)${NC}"
                 if wmctrl -l | grep -qiE "$title_pattern"; then
                     wline=$(wmctrl -l | grep -iE "$title_pattern" | head -n1)
                     echo -e "${GREEN}✅ Found window line via wmctrl: $wline${NC}"
@@ -202,7 +207,15 @@ compare_outputs() {
                     fi
                 fi
             fi
-            sleep 0.25
+
+            # Use very short delays for the first 20 iterations, then longer delays
+            if [ $i -lt 20 ]; then
+                sleep 0.05  # 50ms delay for first 20 attempts
+            elif [ $i -lt 40 ]; then
+                sleep 0.1   # 100ms delay for next 20 attempts
+            else
+                sleep 0.25  # 250ms delay for remaining attempts
+            fi
         done
 
         if [ "$i" = "120" ]; then
@@ -230,6 +243,8 @@ compare_outputs() {
     # Use auto_probe_web.sh for web debugging if available to capture output
     if [ -f "auto_probe_web.sh" ]; then
         echo -e "${YELLOW}🤖 Using auto_probe_web.sh for web debugging on port $WEB_SERVER_PORT...${NC}"
+        # Add a small delay to ensure window positioning has completed
+        sleep 2
         ./auto_probe_web.sh $WEB_SERVER_PORT
     else
         echo -e "${YELLOW}⚠️  auto_probe_web.sh not found; skipping automated web capture${NC}"
