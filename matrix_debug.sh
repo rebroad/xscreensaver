@@ -124,8 +124,108 @@ compare_outputs() {
         right_x=$((screen_width / 2))  # Position on right side
         y_pos=50
 
+        # Start browser positioning in background
+        (
+            title_pattern="localhost:$WEB_SERVER_PORT|HexTrail"
+            echo -e "${CYAN}🔎 Searching for browser window by title pattern: $title_pattern${NC}"
+
+            # Capture current window list for debugging
+            mkdir -p matrix_debug_outputs
+            {
+                echo "=== wmctrl -lx ===";
+                wmctrl -lx 2>/dev/null || echo "(wmctrl not available)";
+                echo "\n=== wmctrl -l ===";
+                wmctrl -l 2>/dev/null || true;
+            } > matrix_debug_outputs/window_list.txt
+            echo -e "${CYAN}📝 Saved window list to: matrix_debug_outputs/window_list.txt${NC}"
+            # Also print likely candidates to console
+            if command -v wmctrl >/dev/null 2>&1; then
+                echo -e "${CYAN}🔎 Candidate windows (wmctrl -l filtered):${NC}"
+                wmctrl -l | grep -Ei "HexTrail|localhost|Chrome|Chromium|Firefox" | head -n 10 || true
+            fi
+
+            if ! command -v xdotool >/dev/null 2>&1 && ! command -v wmctrl >/dev/null 2>&1; then
+                echo -e "${YELLOW}⚠️  xdotool/wmctrl not found; cannot reposition browser automatically${NC}"
+                exit 0
+            fi
+
+            # Add a longer initial delay to allow browser window to appear
+            echo -e "${CYAN}⏳ Waiting for browser window to appear...${NC}"
+            sleep 1
+
+            # Use a more aggressive detection loop - very short delays initially
+            for i in $(seq 1 120); do
+                if command -v xdotool >/dev/null 2>&1; then
+                    echo -e "${CYAN}🔎 xdotool search --name \"$title_pattern\" (attempt $i)${NC}"
+                    bid=$(xdotool search --name "$title_pattern" | head -n1 || true)
+                    if [ -n "$bid" ]; then
+                        echo -e "${GREEN}✅ Found window id via xdotool: $bid${NC}"
+                        xdotool windowmove "$bid" "$left_x" "$y_pos" 2>/dev/null || true
+                        xdotool windowsize "$bid" "$window_width" "$window_height" 2>/dev/null || true
+                        break
+                    fi
+                fi
+                if command -v wmctrl >/dev/null 2>&1; then
+                    echo -e "${CYAN}🔎 wmctrl -l | grep -iE \"$title_pattern\" (attempt $i)${NC}"
+                    if wmctrl -l | grep -qiE "$title_pattern"; then
+                        wline=$(wmctrl -l | grep -iE "$title_pattern" | head -n1)
+                        echo -e "${GREEN}✅ Found window line via wmctrl: $wline${NC}"
+                        wid=$(echo "$wline" | awk '{print $1}')
+                        if [ -n "$wid" ]; then
+                            wmctrl -i -r "$wid" -e 0,$left_x,$y_pos,$window_width,$window_height 2>/dev/null || true
+                            break
+                        fi
+                    fi
+                fi
+
+                # Use very short delays for the first 20 iterations, then longer delays
+                if [ $i -lt 20 ]; then
+                    sleep 0.05  # 50ms delay for first 20 attempts
+                elif [ $i -lt 40 ]; then
+                    sleep 0.1   # 100ms delay for next 20 attempts
+                else
+                    sleep 0.25  # 250ms delay for remaining attempts
+                fi
+            done
+
+            if [ "$i" = "120" ]; then
+                echo -e "${YELLOW}⚠️  Did not find a matching browser window. See matrix_debug_outputs/window_list.txt for titles/classes.${NC}"
+                if [ "${XDG_SESSION_TYPE:-}" = "wayland" ]; then
+                    echo -e "${YELLOW}⚠️  Wayland session detected; window movement may not be supported by xdotool/wmctrl.${NC}"
+                fi
+            fi
+
+            # Store browser window ID for later closing
+            if command -v xdotool >/dev/null 2>&1; then
+                BROWSER_WINDOW_ID=$(xdotool search --name "$title_pattern" | head -n1 || true)
+            elif command -v wmctrl >/dev/null 2>&1; then
+                BROWSER_WINDOW_LINE=$(wmctrl -l | grep -iE "$title_pattern" | head -n1)
+                BROWSER_WINDOW_ID=$(echo "$BROWSER_WINDOW_LINE" | awk '{print $1}')
+            fi
+
+            # Export browser window ID for parent shell
+            if [ -n "$BROWSER_WINDOW_ID" ]; then
+                echo "export BROWSER_WINDOW_ID=$BROWSER_WINDOW_ID" > /tmp/matrix_debug_browser_id.sh
+            fi
+        ) &
+
+        # Run native hextrail and capture output
         (cd build_native_debug && timeout 10s ./hextrail_debug -window -xrm "*geometry:${window_width}x${window_height}+${right_x}+${y_pos}" > ../matrix_debug_outputs/native_output.txt 2>&1)
         native_status=$?
+
+        # Close browser window when native hextrail ends
+        if [ -f /tmp/matrix_debug_browser_id.sh ]; then
+            source /tmp/matrix_debug_browser_id.sh
+            if [ -n "$BROWSER_WINDOW_ID" ]; then
+                if command -v xdotool >/dev/null 2>&1; then
+                    xdotool windowclose "$BROWSER_WINDOW_ID" 2>/dev/null || true
+                elif command -v wmctrl >/dev/null 2>&1; then
+                    wmctrl -i -c "$BROWSER_WINDOW_ID" 2>/dev/null || true
+                fi
+            fi
+            rm -f /tmp/matrix_debug_browser_id.sh
+        fi
+
         set -e
         if [ $native_status -eq 124 ]; then
             # timeout exit code 124 means it timed out as expected; still treat as success
@@ -140,105 +240,6 @@ compare_outputs() {
         echo -e "${RED}❌ Native hextrail not found: build_native_debug/hextrail_debug${NC}"
         return 1
     fi
-
-    # Position and auto-close the browser window that build_web.sh just opened
-    echo -e "${BLUE}🌐 Positioning WebGL browser (left side) and scheduling auto-close...${NC}"
-
-    # Try to move/resize the browser window to the left side
-    (
-        # Screen geometry
-        screen_width=$(xrandr --current | grep '*' | uniq | awk '{print $1}' | cut -d 'x' -f1 | head -1)
-        screen_height=$(xrandr --current | grep '*' | uniq | awk '{print $1}' | cut -d 'x' -f2 | head -1)
-        [ -z "$screen_width" ] && screen_width=1920
-        [ -z "$screen_height" ] && screen_height=1080
-        window_width=$((screen_width / 2))
-        window_height=$((screen_height - 100))
-        left_x=0
-        y_pos=50
-
-        title_pattern="localhost:$WEB_SERVER_PORT|HexTrail"
-        echo -e "${CYAN}🔎 Searching for browser window by title pattern: $title_pattern${NC}"
-
-        # Capture current window list for debugging
-        mkdir -p matrix_debug_outputs
-        {
-            echo "=== wmctrl -lx ===";
-            wmctrl -lx 2>/dev/null || echo "(wmctrl not available)";
-            echo "\n=== wmctrl -l ===";
-            wmctrl -l 2>/dev/null || true;
-        } > matrix_debug_outputs/window_list.txt
-        echo -e "${CYAN}📝 Saved window list to: matrix_debug_outputs/window_list.txt${NC}"
-        # Also print likely candidates to console
-        if command -v wmctrl >/dev/null 2>&1; then
-            echo -e "${CYAN}🔎 Candidate windows (wmctrl -l filtered):${NC}"
-            wmctrl -l | grep -Ei "HexTrail|localhost|Chrome|Chromium|Firefox" | head -n 10 || true
-        fi
-
-        if ! command -v xdotool >/dev/null 2>&1 && ! command -v wmctrl >/dev/null 2>&1; then
-            echo -e "${YELLOW}⚠️  xdotool/wmctrl not found; cannot reposition browser automatically${NC}"
-            exit 0
-        fi
-
-        # Add a longer initial delay to allow browser window to appear
-        echo -e "${CYAN}⏳ Waiting for browser window to appear...${NC}"
-        sleep 1
-
-        # Use a more aggressive detection loop - very short delays initially
-        for i in $(seq 1 120); do
-            if command -v xdotool >/dev/null 2>&1; then
-                echo -e "${CYAN}🔎 xdotool search --name \"$title_pattern\" (attempt $i)${NC}"
-                bid=$(xdotool search --name "$title_pattern" | head -n1 || true)
-                if [ -n "$bid" ]; then
-                    echo -e "${GREEN}✅ Found window id via xdotool: $bid${NC}"
-                    xdotool windowmove "$bid" "$left_x" "$y_pos" 2>/dev/null || true
-                    xdotool windowsize "$bid" "$window_width" "$window_height" 2>/dev/null || true
-                    break
-                fi
-            fi
-            if command -v wmctrl >/dev/null 2>&1; then
-                echo -e "${CYAN}🔎 wmctrl -l | grep -iE \"$title_pattern\" (attempt $i)${NC}"
-                if wmctrl -l | grep -qiE "$title_pattern"; then
-                    wline=$(wmctrl -l | grep -iE "$title_pattern" | head -n1)
-                    echo -e "${GREEN}✅ Found window line via wmctrl: $wline${NC}"
-                    wid=$(echo "$wline" | awk '{print $1}')
-                    if [ -n "$wid" ]; then
-                        wmctrl -i -r "$wid" -e 0,$left_x,$y_pos,$window_width,$window_height 2>/dev/null || true
-                        break
-                    fi
-                fi
-            fi
-
-            # Use very short delays for the first 20 iterations, then longer delays
-            if [ $i -lt 20 ]; then
-                sleep 0.05  # 50ms delay for first 20 attempts
-            elif [ $i -lt 40 ]; then
-                sleep 0.1   # 100ms delay for next 20 attempts
-            else
-                sleep 0.25  # 250ms delay for remaining attempts
-            fi
-        done
-
-        if [ "$i" = "120" ]; then
-            echo -e "${YELLOW}⚠️  Did not find a matching browser window. See matrix_debug_outputs/window_list.txt for titles/classes.${NC}"
-            if [ "${XDG_SESSION_TYPE:-}" = "wayland" ]; then
-                echo -e "${YELLOW}⚠️  Wayland session detected; window movement may not be supported by xdotool/wmctrl.${NC}"
-            fi
-        fi
-
-        # Auto-close browser after 10s unless overridden
-        close_secs=${AUTO_CLOSE_BROWSER_SECONDS:-10}
-        if [ "$close_secs" != "0" ]; then
-            sleep "$close_secs"
-            if command -v xdotool >/dev/null 2>&1; then
-                cid=$(xdotool search --name "$title_pattern" | head -n1 || true)
-                [ -n "$cid" ] && xdotool windowclose "$cid" 2>/dev/null || true
-            elif command -v wmctrl >/dev/null 2>&1; then
-                wline=$(wmctrl -l | grep -iE "$title_pattern" | head -n1)
-                wid=$(echo "$wline" | awk '{print $1}')
-                [ -n "$wid" ] && wmctrl -i -c "$wid" 2>/dev/null || true
-            fi
-        fi
-    ) &
 
     # Use auto_probe_web.sh for web debugging if available to capture output
     if [ -f "auto_probe_web.sh" ]; then
