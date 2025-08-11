@@ -1826,74 +1826,22 @@ void glEnd(void) {
     // Set up modelview matrix - apply transformations directly
     GLint modelview_loc = glGetUniformLocation(shader_program, "modelview");
     if (modelview_loc != -1) {
-        // Start with identity matrix
-        GLfloat modelview[16] = {
-            1.0f, 0.0f, 0.0f, 0.0f,
-            0.0f, 1.0f, 0.0f, 0.0f,
-            0.0f, 0.0f, 1.0f, 0.0f,
-            0.0f, 0.0f, 0.0f, 1.0f
-        };
-
-        // Apply scale factor of 3 (native version uses 18)
-        GLfloat scale = 2.0f;
-        modelview[0] = scale;
-        modelview[5] = scale;
-        modelview[10] = scale;
-
-        // Apply current frame's transformations from the rotator
-        // We'll get these values from the debug output in hextrail.c
-        // Note: We can't access hextrail internals from here due to circular dependencies
-        // For now, use a simple approach without direct rotator access
-
-        // Try to use the matrix stack, but fall back to hardcoded if it's broken
+        // Use the matrix stack directly without scaling down translations
         GLfloat stack_matrix[16];
         memcpy(stack_matrix, modelview_stack.stack[modelview_stack.top].m, 16 * sizeof(GLfloat));
 
+        // Apply the matrix stack to the shader
+        glUniformMatrix4fv(modelview_loc, 1, GL_FALSE, stack_matrix);
+
+        check_gl_error_wrapper("after modelview matrix");
+
         // Debug: Print raw matrix values to see what's in the stack
         static int raw_matrix_debug_count = 0;
-        if (raw_matrix_debug_count < 2) {
+        if (raw_matrix_debug_count < 5) {
             DL(2, "DEBUG: Raw matrix stack (frame %d): trans=(%.3f,%.3f,%.3f), scale=(%.3f,%.3f,%.3f)\n",
                    raw_matrix_debug_count, stack_matrix[12], stack_matrix[13], stack_matrix[14],
                    stack_matrix[0], stack_matrix[5], stack_matrix[10]);
             raw_matrix_debug_count++;
-        }
-
-        // Scale down massive translations while keeping rotations and scales
-        float translation_scale = 0.1f;
-        stack_matrix[12] *= translation_scale;  // X translation
-        stack_matrix[13] *= translation_scale;  // Y translation
-        stack_matrix[14] *= translation_scale;  // Z translation
-
-        // Check if the scaled matrix has reasonable values
-        if (fabs(stack_matrix[12]) < 10.0f && fabs(stack_matrix[13]) < 10.0f && fabs(stack_matrix[14]) < 10.0f) {
-            // Use the scaled matrix stack (real transformations)
-            glUniformMatrix4fv(modelview_loc, 1, GL_FALSE, stack_matrix);
-
-            static int stack_debug_count = 0;
-            if (stack_debug_count < 3) {
-                DL(2, "DEBUG: Using scaled matrix stack (frame %d): trans=(%.3f,%.3f,%.3f)\n",
-                       stack_debug_count, stack_matrix[12], stack_matrix[13], stack_matrix[14]);
-                stack_debug_count++;
-            }
-        } else {
-            // Fall back to hardcoded matrix (safety net)
-            glUniformMatrix4fv(modelview_loc, 1, GL_FALSE, modelview);
-
-            static int fallback_debug_count = 0;
-            if (fallback_debug_count < 3) {
-                DL(2, "DEBUG: Using fallback matrix (frame %d): scale=%.1f\n", fallback_debug_count, scale);
-                fallback_debug_count++;
-            }
-        }
-
-        check_gl_error_wrapper("after modelview matrix");
-
-        // Debug: Print the applied transformations
-        static int transform_debug_count = 0;
-        if (transform_debug_count < 3) {
-            DL(2, "DEBUG: Direct Transformations (frame %d): scale=%.1f\n",
-                   transform_debug_count, scale);
-            transform_debug_count++;
         }
     }
 
