@@ -657,28 +657,4 @@ void matrix_debug_validate_init(void) {
     matrix_debug_log("Matrix validation initialized with deterministic random seed\n");
 }
 
-// Matrix debug deterministic initialization
-void init_matrix_debug_deterministic(void) {
-    // Set deterministic random seed for reproducible comparisons
-    extern void ya_rand_init(unsigned int seed);
-    ya_rand_init(12345);  // Fixed seed for matrix debugging
-
-    matrix_debug_log("Matrix debug: Set deterministic random seed (12345)\n");
-}
-
-// Web-specific matrix debug functions
-#ifdef WEB_BUILD
-// Deterministic random functions for web builds
-long debug_random(void) {
-    // Use a simple deterministic random for web builds
-    static unsigned int seed = 12345;
-    seed = seed * 1103515245 + 12345;
-    return (long)(seed / 65536) % 32768;
-}
-
-double debug_frand(double f) {
-    return ((double)debug_random() / 32768.0) * f;
-}
-#endif // WEB_BUILD
-
 #endif // MATRIX_DEBUG

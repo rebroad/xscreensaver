@@ -821,15 +821,9 @@ init_hextrail (ModeInfo *mi)
 
   reshape_hextrail (mi, MI_WIDTH(mi), MI_HEIGHT(mi));
 
-#ifdef MATRIX_DEBUG
-  // Initialize deterministic settings for matrix debugging
-  init_matrix_debug_deterministic();
-  printf("DEBUG: Matrix debug mode - using deterministic defaults\n");
-#else
   /* Initialize speed from resource */
   speed = get_float_resource (MI_DISPLAY(mi), "speed", "Float");
   if (speed <= 0) speed = 1.0;
-#endif
 
   bp->rot = create_hextrail_rotator();
   bp->trackball = gltrackball_init (True);
