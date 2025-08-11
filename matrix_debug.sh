@@ -154,7 +154,7 @@ compare_outputs() {
             sleep 1
 
             # Use a more aggressive detection loop - very short delays initially
-            for i in $(seq 1 120); do
+            for i in $(seq 1 30); do
                 if command -v xdotool >/dev/null 2>&1; then
                     echo -e "${CYAN}🔎 xdotool search --name \"$title_pattern\" (attempt $i)${NC}"
                     bid=$(xdotool search --name "$title_pattern" | head -n1 || true)
