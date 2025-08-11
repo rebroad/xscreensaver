@@ -112,6 +112,9 @@ void reference_matrix_lookat(float* m, double eyex, double eyey, double eyez, do
 int compare_matrices(const char* operation, const float* reference, const float* actual);
 void matrix_debug_validate_init(void);
 
+// Matrix debug initialization function
+void init_matrix_debug_deterministic(void);
+
 #endif // MATRIX_DEBUG
 
 #endif // MATRIX_DEBUG_H
