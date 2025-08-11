@@ -210,7 +210,7 @@ compare_outputs() {
         ) &
 
         # Run native hextrail and capture output
-        (cd build_native_debug && timeout 10s ./hextrail_debug -window -xrm "*geometry:${window_width}x${window_height}+${right_x}+${y_pos}" > ../matrix_debug_outputs/native_output.txt 2>&1)
+        (cd build_native_debug && timeout 10s ./hextrail_debug -window -xrm "*geometry:800x600+${right_x}+${y_pos}" > ../matrix_debug_outputs/native_output.txt 2>&1)
         native_status=$?
 
         # Close browser window when native hextrail ends
