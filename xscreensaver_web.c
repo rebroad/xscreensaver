@@ -957,16 +957,10 @@ EMSCRIPTEN_KEEPALIVE
 int xscreensaver_web_init(init_func init, draw_func draw, reshape_func reshape, free_func free, handle_event_func handle_event) {
     DL(1, "xscreensaver_web_init called\n");
 
-#ifdef MATRIX_DEBUG
-    // Initialize deterministic settings for matrix debugging
-    init_matrix_debug_deterministic();
-    DL(1, "Matrix debug mode - using deterministic defaults\n");
-#else
     // Initialize random seed for consistent but varied colors
     extern void ya_rand_init(unsigned int seed);
     ya_rand_init(0);
     DL(1, "Random seed initialized\n");
-#endif
 
     hack_init = init;
     hack_draw = draw;
