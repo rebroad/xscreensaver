@@ -103,10 +103,10 @@ start_web_server() {
     # Check ports 8000-8005 for existing HexTrail server or find first available port
     PORT=8006  # Initialize to value > 8005 to detect if no port was found
     for test_port in 8000 8001 8002 8003 8004 8005; do
-        # Single curl call to check if port is responsive AND serving HexTrail
-        CURL_OUTPUT=$(timeout 1 curl -s http://localhost:$test_port 2>/dev/null)
-        if [ $? -eq 0 ]; then
-            # Port is responsive (regardless of content) - check if it's serving HexTrail
+        # Use nc to check if port is in use (much faster than curl)
+        if nc -z localhost $test_port 2>/dev/null; then
+            # Port is in use - check if it's serving HexTrail
+            CURL_OUTPUT=$(curl -s http://localhost:$test_port 2>/dev/null)
             if [ ! -z "$CURL_OUTPUT" ] && echo "$CURL_OUTPUT" | grep -q "HexTrail"; then
                 echo -e "${YELLOW}🔍 Found HexTrail server on port $test_port, verifying directory...${NC}"
 
@@ -131,11 +131,11 @@ start_web_server() {
                     echo -e "${YELLOW}⚠️  Could not determine server directory for port $test_port${NC}"
                 fi
             else
-                # Port is responsive but not serving HexTrail content - continue checking next port
+                # Port is in use but not serving HexTrail content - continue checking next port
                 echo -e "${YELLOW}⚠️  Port $test_port is busy (not serving HexTrail)${NC}"
             fi
         else
-            # Port is not responsive (curl failed) - port is available
+            # Port is not in use - port is available
             PORT=$test_port
             echo -e "${YELLOW}🔍 Found available port: $PORT${NC}"
             break
