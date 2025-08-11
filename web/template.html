@@ -554,6 +554,9 @@
                 // Log to debug panel
                 addDebugLog('Module runtime initialized', 'stdout');
 
+                // Set window title to ensure it matches what our positioning script expects
+                document.title = "HexTrail - XScreenSaver Web Version";
+
                 // Set up controls
                 setupControls();
                 setupFullscreenHandling();
