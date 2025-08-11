@@ -115,18 +115,18 @@ compare_outputs() {
         # Keep it simple: run windowed with timeout and capture all output
         set +e
         # Calculate screen geometry for native window positioning (right side)
-        screen_width=$(xrandr --current | grep '*' | uniq | awk '{print $1}' | cut -d 'x' -f1 | head -1)
-        screen_height=$(xrandr --current | grep '*' | uniq | awk '{print $1}' | cut -d 'x' -f2 | head -1)
+        export screen_width=$(xrandr --current | grep '*' | uniq | awk '{print $1}' | cut -d 'x' -f1 | head -1)
+        export screen_height=$(xrandr --current | grep '*' | uniq | awk '{print $1}' | cut -d 'x' -f2 | head -1)
         [ -z "$screen_width" ] && screen_width=1920
         [ -z "$screen_height" ] && screen_height=1080
-        window_width=$((screen_width / 2))
-        window_height=$((screen_height - 100))
-        right_x=$((screen_width / 2))  # Position on right side
-        y_pos=50
+        export window_width=$((screen_width / 2))
+        export indow_height=$((screen_height - 100))
+        export right_x=$((screen_width / 2))  # Position on right side
+        export y_pos=50
 
         # Start browser positioning in background
         (
-            title_pattern="localhost:$WEB_SERVER_PORT|HexTrail"
+            title_pattern="localhost:$WEB_SERVER_PORT"
             echo -e "${CYAN}🔎 Searching for browser window by title pattern: $title_pattern${NC}"
 
             # Capture current window list for debugging
