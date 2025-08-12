@@ -1,8 +1,9 @@
 #!/bin/bash
 
 # Automated Web Probing Script for Matrix Debug Output
-# Usage: ./auto_probe_web.sh <port_number>
+# Usage: ./auto_probe_web.sh <port_number> [output_directory]
 # This script extracts debug output from a HexTrail webpage running on the specified port
+# If output_directory is specified, debug output will be saved there instead of matrix_debug_outputs/
 
 # Colors for output
 RED='\033[0;31m'
@@ -16,13 +17,20 @@ echo -e "${BLUE}🤖 Automated Web Debug Output Probe${NC}"
 echo -e "${BLUE}====================================${NC}"
 echo ""
 
+# Parse command line arguments
+PORT=$1
+OUTPUT_DIR=${2:-matrix_debug_outputs}
+
+echo -e "${CYAN}📁 Output directory: $OUTPUT_DIR${NC}"
+echo ""
+
 # Function to verify web server on specified port
 verify_web_server() {
     local port=$1
 
     if [ -z "$port" ]; then
         echo -e "${RED}❌ No port specified${NC}"
-        echo -e "${YELLOW}💡 Usage: $0 <port_number>${NC}"
+        echo -e "${YELLOW}💡 Usage: $0 <port_number> [output_directory]${NC}"
         return 1
     fi
 
@@ -62,7 +70,8 @@ verify_web_server() {
 create_injection_page() {
     echo -e "${YELLOW}🔧 Creating JavaScript injection page...${NC}"
 
-    cat > matrix_debug_outputs/inject_debug.js << 'EOF'
+    mkdir -p "$OUTPUT_DIR"
+    cat > "$OUTPUT_DIR/inject_debug.js" << 'EOF'
 // JavaScript injection to extract debug output
 (function() {
     console.log('🔍 Debug extraction script injected');
@@ -108,7 +117,7 @@ create_injection_page() {
 })();
 EOF
 
-    echo -e "${GREEN}✅ Injection script created: matrix_debug_outputs/inject_debug.js${NC}"
+    echo -e "${GREEN}✅ Injection script created: $OUTPUT_DIR/inject_debug.js${NC}"
 }
 
 # Function to create a curl-based extraction script
@@ -121,7 +130,7 @@ create_curl_extractor() {
         PORT=$(cat /tmp/hextrail_web_port.txt)
     fi
 
-    cat > matrix_debug_outputs/curl_extract.sh << EOF
+    cat > "$OUTPUT_DIR/curl_extract.sh" << EOF
 #!/bin/bash
 
 # Curl-based debug output extraction
@@ -156,184 +165,9 @@ grep -o 'debug[^;]*' /tmp/hextrail_page.html | head -10
 rm -f /tmp/hextrail_page.html
 EOF
 
-    chmod +x matrix_debug_outputs/curl_extract.sh
-    echo -e "${GREEN}✅ Curl extractor created: matrix_debug_outputs/curl_extract.sh${NC}"
+    chmod +x "$OUTPUT_DIR/curl_extract.sh"
+    echo -e "${GREEN}✅ Curl extractor created: $OUTPUT_DIR/curl_extract.sh${NC}"
 }
-
-# Function to create a browser automation script
-create_browser_automation() {
-    echo -e "${YELLOW}🔧 Creating browser automation script...${NC}"
-
-    # Get the port from the temp file or default to 8000
-    PORT=8000
-    if [ -f "/tmp/hextrail_web_port.txt" ]; then
-        PORT=$(cat /tmp/hextrail_web_port.txt)
-    fi
-
-    cat > matrix_debug_outputs/automate_browser.html << EOF
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Browser Automation for Debug Extraction</title>
-    <style>
-        body { font-family: Arial, sans-serif; margin: 20px; }
-        .status { padding: 10px; margin: 10px 0; border-radius: 5px; }
-        .success { background: #d4edda; color: #155724; }
-        .error { background: #f8d7da; color: #721c24; }
-        .info { background: #d1ecf1; color: #0c5460; }
-        #output { background: #f8f9fa; padding: 15px; border: 1px solid #dee2e6; border-radius: 5px; white-space: pre-wrap; font-family: monospace; }
-        button { padding: 10px 20px; margin: 5px; cursor: pointer; }
-    </style>
-</head>
-<body>
-    <h1>🤖 Browser Automation for Debug Extraction</h1>
-
-    <div id="status" class="status info">Ready to extract debug output...</div>
-
-    <div>
-        <button onclick="startExtraction()">🚀 Start Extraction</button>
-        <button onclick="clearOutput()">🧹 Clear Output</button>
-        <button onclick="copyToClipboard()">📋 Copy to Clipboard</button>
-    </div>
-
-    <div id="output">Click "Start Extraction" to begin...</div>
-
-    <script>
-        let extractionInterval;
-        let debugOutput = '';
-
-        function updateStatus(message, type = 'info') {
-            const status = document.getElementById('status');
-            status.textContent = message;
-            status.className = `status ${type}`;
-        }
-
-        function addOutput(text) {
-            const output = document.getElementById('output');
-            output.textContent += text + '\n';
-            output.scrollTop = output.scrollHeight;
-        }
-
-        function clearOutput() {
-            document.getElementById('output').textContent = '';
-            debugOutput = '';
-        }
-
-        function copyToClipboard() {
-            const output = document.getElementById('output').textContent;
-            navigator.clipboard.writeText(output).then(() => {
-                updateStatus('✅ Output copied to clipboard!', 'success');
-            }).catch(() => {
-                updateStatus('❌ Failed to copy to clipboard', 'error');
-            });
-        }
-
-        function startExtraction() {
-            updateStatus('🚀 Starting debug extraction...', 'info');
-            addOutput('=== DEBUG EXTRACTION STARTED ===');
-            addOutput('Timestamp: ' + new Date().toISOString());
-            addOutput('');
-
-            // Step 1: Open hextrail page in new window
-            addOutput('Step 1: Opening hextrail page...');
-            const hextrailWindow = window.open('http://localhost:$PORT', 'hextrail', 'width=1200,height=800');
-
-            if (!hextrailWindow) {
-                updateStatus('❌ Failed to open hextrail page (popup blocked?)', 'error');
-                addOutput('ERROR: Popup blocked or failed to open hextrail page');
-                return;
-            }
-
-            // Step 2: Wait for page to load and inject our script
-            setTimeout(() => {
-                addOutput('Step 2: Injecting debug extraction script...');
-
-                try {
-                    // Inject our extraction script
-                    const script = hextrailWindow.document.createElement('script');
-                    script.textContent = \`
-                        console.log('🔍 Debug extraction script injected');
-
-                        // Function to extract debug output
-                        function extractDebugOutput() {
-                            const debugPanel = document.getElementById('debug-panel');
-                            const debugLog = document.getElementById('debug-log');
-                            const debugToggle = document.getElementById('debug-toggle');
-
-                            if (debugPanel && debugLog) {
-                                console.log('✅ Debug panel found');
-
-                                // Show debug panel if hidden
-                                if (debugPanel.style.display === 'none') {
-                                    debugToggle.click();
-                                    console.log('🔘 Debug panel opened');
-                                }
-
-                                // Extract content
-                                const content = debugLog.innerHTML;
-                                console.log('📊 Debug content extracted:', content);
-
-                                // Send to parent window
-                                window.opener.postMessage({
-                                    type: 'debug_output',
-                                    content: content
-                                }, '*');
-
-                                return content;
-                            } else {
-                                console.log('❌ Debug panel not found');
-                                return null;
-                            }
-                        }
-
-                        // Auto-extract every 2 seconds
-                        setInterval(extractDebugOutput, 2000);
-
-                        // Initial extraction
-                        setTimeout(extractDebugOutput, 1000);
-                    `;
-
-                    hextrailWindow.document.head.appendChild(script);
-                    addOutput('✅ Script injected successfully');
-
-                } catch (error) {
-                    addOutput('ERROR: Failed to inject script: ' + error.message);
-                    updateStatus('❌ Script injection failed', 'error');
-                }
-
-            }, 3000);
-
-            // Step 3: Listen for messages from hextrail page
-            window.addEventListener('message', (event) => {
-                if (event.data.type === 'debug_output') {
-                    const content = event.data.content;
-                    if (content && content !== debugOutput) {
-                        debugOutput = content;
-                        addOutput('📊 New debug output received:');
-                        addOutput(content);
-                        addOutput('---');
-                    }
-                }
-            });
-
-            // Step 4: Auto-stop after 30 seconds
-            setTimeout(() => {
-                addOutput('⏰ Auto-stopping extraction after 30 seconds...');
-                if (hextrailWindow && !hextrailWindow.closed) {
-                    hextrailWindow.close();
-                }
-                updateStatus('✅ Extraction complete! Check output above.', 'success');
-            }, 30000);
-        }
-    </script>
-</body>
-</html>
-EOF
-
-    echo -e "${GREEN}✅ Browser automation page created: matrix_debug_outputs/automate_browser.html${NC}"
-}
-
-
 
 # Function to extract debug output using puppeteer (our proven method)
 extract_debug_with_puppeteer() {
@@ -356,7 +190,7 @@ extract_debug_with_puppeteer() {
     fi
 
     # Create extraction script
-    cat > matrix_debug_outputs/extract_debug.js << 'EOF'
+    cat > "$OUTPUT_DIR/extract_debug.js" << 'EOF'
 const puppeteer = require('puppeteer');
 
 (async () => {
@@ -415,7 +249,7 @@ const puppeteer = require('puppeteer');
 
     // Save to file
     require('fs').writeFileSync('web_debug_output.txt', cleanContent.join('\n'));
-    console.log('\n📁 Full output saved to: matrix_debug_outputs/web_debug_output.txt');
+    console.log('\n📁 Full output saved to: web_debug_output.txt');
 
   } catch (error) {
     console.log(`❌ Error: ${error.message}`);
@@ -426,18 +260,18 @@ const puppeteer = require('puppeteer');
 EOF
 
     # Run the extraction
-    cd matrix_debug_outputs
+    cd "$OUTPUT_DIR"
     node extract_debug.js $port
     node_exit_code=$?
     cd ..
 
-    if [ $node_exit_code -eq 0 ] && [ -f "matrix_debug_outputs/web_debug_output.txt" ]; then
+    if [ $node_exit_code -eq 0 ] && [ -f "$OUTPUT_DIR/web_debug_output.txt" ]; then
         echo -e "${GREEN}✅ Web debug output captured successfully!${NC}"
-        echo -e "${CYAN}📁 Output saved to: matrix_debug_outputs/web_debug_output.txt${NC}"
+        echo -e "${CYAN}📁 Output saved to: $OUTPUT_DIR/web_debug_output.txt${NC}"
         return 0
     else
         echo -e "${RED}❌ Failed to capture debug output (Node.js exit code: $node_exit_code)${NC}"
-        if [ -f "matrix_debug_outputs/web_debug_output.txt" ]; then
+        if [ -f "$OUTPUT_DIR/web_debug_output.txt" ]; then
             echo -e "${YELLOW}⚠️ Debug file exists but may contain incomplete data due to timeout${NC}"
         fi
         return 1
@@ -449,12 +283,12 @@ run_automated_extraction() {
     echo -e "${YELLOW}🤖 Running automated extraction...${NC}"
 
     # Create output directory
-    mkdir -p matrix_debug_outputs
+    mkdir -p "$OUTPUT_DIR"
 
     # Clean up old WebGL debug output files to avoid confusion
     echo -e "${YELLOW}🧹 Cleaning up old WebGL debug output files...${NC}"
-    rm -f matrix_debug_outputs/web_debug_output.txt
-    rm -f matrix_debug_outputs/webgl_matrix_ops.txt
+    rm -f "$OUTPUT_DIR/web_debug_output.txt"
+    rm -f "$OUTPUT_DIR/webgl_matrix_ops.txt"
 
     # Get the port from the server
     PORT=$(cat /tmp/hextrail_web_port.txt 2>/dev/null || echo "8000")
@@ -473,24 +307,21 @@ run_automated_extraction() {
     # Create extraction tools
     create_injection_page
     create_curl_extractor
-    create_browser_automation
 
     echo ""
     echo -e "${CYAN}📋 Automated extraction tools created:${NC}"
-    echo -e "   1. matrix_debug_outputs/inject_debug.js - JavaScript injection script"
-    echo -e "   2. matrix_debug_outputs/curl_extract.sh - Curl-based extraction"
-    echo -e "   3. matrix_debug_outputs/automate_browser.html - Browser automation page"
+    echo -e "   1. $OUTPUT_DIR/inject_debug.js - JavaScript injection script"
+    echo -e "   2. $OUTPUT_DIR/curl_extract.sh - Curl-based extraction"
     echo ""
 
     # Try curl extraction first
     echo -e "${YELLOW}🔍 Attempting curl-based extraction...${NC}"
-    ./matrix_debug_outputs/curl_extract.sh
+    ./"$OUTPUT_DIR/curl_extract.sh"
 
     # If we still don't have web_debug_output.txt, warn clearly
-    if [ ! -f "matrix_debug_outputs/web_debug_output.txt" ]; then
+    if [ ! -f "$OUTPUT_DIR/web_debug_output.txt" ]; then
         echo -e "${YELLOW}⚠️  Web debug output not captured yet. You can:
  - Ensure Node.js is installed for headless extraction
- - Manually open matrix_debug_outputs/automate_browser.html to drive extraction
  - Check the page at http://localhost:$PORT and the presence of #debug-log${NC}"
     fi
 
@@ -510,32 +341,16 @@ run_automated_extraction() {
         echo -e "${YELLOW}💡 Please manually open: http://localhost:$PORT${NC}"
     fi
 
-    echo ""
-    echo -e "${CYAN}🚀 For full automation, open: matrix_debug_outputs/automate_browser.html${NC}"
-    echo -e "${YELLOW}💡 This will open the hextrail page and automatically extract debug output${NC}"
-    echo ""
 
-    # Check if we can open the automation page
-    if command -v xdg-open &> /dev/null; then
-        echo -e "${YELLOW}🔧 Opening browser automation page...${NC}"
-        xdg-open matrix_debug_outputs/automate_browser.html
-    elif command -v open &> /dev/null; then
-        echo -e "${YELLOW}🔧 Opening browser automation page...${NC}"
-        open matrix_debug_outputs/automate_browser.html
-    else
-        echo -e "${YELLOW}💡 Please manually open: matrix_debug_outputs/automate_browser.html${NC}"
-    fi
 }
 
 # Main execution
 main() {
-    local port=$1
-
     echo -e "${BLUE}🚀 Starting automated web debug output probe...${NC}"
     echo ""
 
     # Verify web server on specified port
-    if ! verify_web_server "$port"; then
+    if ! verify_web_server "$PORT"; then
         exit 1
     fi
 
@@ -544,10 +359,10 @@ main() {
 
     echo ""
     echo -e "${GREEN}✅ Automated extraction setup complete!${NC}"
-    echo -e "${CYAN}📁 Check matrix_debug_outputs/ for extraction tools and results${NC}"
+    echo -e "${CYAN}📁 Check $OUTPUT_DIR/ for extraction tools and results${NC}"
     echo ""
     echo -e "${YELLOW}💡 Web server management is now handled by build_web.sh${NC}"
 }
 
-# Run main function with port argument
-main "$@"
+# Run main function
+main
