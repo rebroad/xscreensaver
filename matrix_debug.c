@@ -37,18 +37,13 @@ extern void gluLookAt(GLdouble eyex, GLdouble eyey, GLdouble eyez,
 #endif
 
 // Macro to handle auto-initialization for native builds
-#ifdef WEB_BUILD
-    // WebGL version: no-op (no function pointers needed)
-    #define AUTO_INIT_NATIVE(func_ptr) /* No-op when WEB_BUILD is defined */
-#else
-    // Native version: check and initialize function pointers
-    #define AUTO_INIT_NATIVE(func_ptr) \
-        do { \
-            if (!func_ptr) { \
-                init_matrix_debug_functions(); \
-            } \
-        } while(0)
-#endif
+// Both native and web builds use lazy initialization
+#define AUTO_INIT_NATIVE(func_ptr) \
+    do { \
+        if (!func_ptr) { \
+            init_matrix_debug_functions(); \
+        } \
+    } while(0)
 
 // Global variables for matrix state tracking (matching header declarations)
 GLenum current_matrix_mode = GL_MODELVIEW;
@@ -220,6 +215,24 @@ void init_matrix_debug_functions(void) {
     // For WebGL builds, point the real_ function pointers directly to the
     // existing WebGL wrapper functions in xscreensaver_web.c
 
+    // Temporarily undefine the debug macros to get the real function pointers
+    // This prevents circular references where real_* would point to debug_* functions
+    #undef glMatrixMode
+    #undef glLoadIdentity
+    #undef glOrtho
+    #undef glFrustum
+    #undef glTranslatef
+    #undef glRotatef
+    #undef glScalef
+    #undef glPushMatrix
+    #undef glPopMatrix
+    #undef glMultMatrixf
+    #undef glMultMatrixd
+    #undef glViewport
+    #undef gluPerspective
+    #undef gluLookAt
+    #undef glTranslated
+
     // Forward declarations for the actual WebGL wrapper functions
     extern void glMatrixMode(GLenum mode);
     extern void glLoadIdentity(void);
@@ -254,6 +267,23 @@ void init_matrix_debug_functions(void) {
     real_gluPerspective = gluPerspective;
     real_gluLookAt = gluLookAt;
     real_glTranslated = glTranslated;
+
+    // Redefine the debug macros
+    #define glMatrixMode debug_glMatrixMode
+    #define glLoadIdentity debug_glLoadIdentity
+    #define glOrtho debug_glOrtho
+    #define glFrustum debug_glFrustum
+    #define glTranslatef debug_glTranslatef
+    #define glRotatef debug_glRotatef
+    #define glScalef debug_glScalef
+    #define glPushMatrix debug_glPushMatrix
+    #define glPopMatrix debug_glPopMatrix
+    #define glMultMatrixf debug_glMultMatrixf
+    #define glMultMatrixd debug_glMultMatrixd
+    #define glViewport debug_glViewport
+    #define gluPerspective debug_gluPerspective
+    #define gluLookAt debug_gluLookAt
+    #define glTranslated debug_glTranslated
 
     // Log the assignments
     matrix_debug_log("[MDBG] Function pointers assigned:\n");
