@@ -395,7 +395,7 @@
             <canvas id="canvas" width="800" height="600"></canvas>
             <div id="loading">Loading HexTrail...</div>
             <!-- Debug Toggle Button -->
-            <button id="debug-toggle" onclick="document.getElementById('debug-panel').style.display='block'; this.style.display='none';" style="position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.8); color: white; border: 1px solid #666; padding: 5px 10px; border-radius: 5px; cursor: pointer; z-index: 1000;">Debug</button>
+            <button id="debug-toggle" onclick="document.getElementById('debug-panel').style.display='block'; this.style.display='none';" style="position: fixed; background: rgba(0,0,0,0.8); color: white; border: 1px solid #666; padding: 5px 10px; border-radius: 5px; cursor: pointer; z-index: 1000;">Debug</button>
         </div>
 
         <div id="controls">
@@ -1017,6 +1017,21 @@
         // Initialize debug panel resizing when the page loads
         document.addEventListener('DOMContentLoaded', function() {
             setupDebugPanelResizing();
+
+            // Position debug button relative to canvas
+            function positionDebugButton() {
+                var canvas = document.getElementById('canvas');
+                var debugButton = document.getElementById('debug-toggle');
+                if (canvas && debugButton) {
+                    var canvasRect = canvas.getBoundingClientRect();
+                    debugButton.style.top = (canvasRect.top + 10) + 'px';
+                    debugButton.style.right = (window.innerWidth - canvasRect.right + 10) + 'px';
+                }
+            }
+
+            // Position initially and on window resize
+            positionDebugButton();
+            window.addEventListener('resize', positionDebugButton);
         });
     </script>
 
