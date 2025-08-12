@@ -1030,14 +1030,9 @@ int xscreensaver_web_init(init_func init, draw_func draw, reshape_func reshape, 
 // Web-specific function exports for UI controls
 EMSCRIPTEN_KEEPALIVE
 void set_speed(GLfloat new_speed) {
-#ifdef MATRIX_DEBUG
-    DL(1, "Matrix debug mode: Ignoring set_speed call (UI disabled)\n");
-    return;
-#else
     extern GLfloat speed;
     speed = new_speed;
     DL(1, "Animation speed set to: %f\n", speed);
-#endif
 }
 
 EMSCRIPTEN_KEEPALIVE
