@@ -2303,7 +2303,7 @@ float get_float_resource(Display *dpy, char *res_name, char *res_class) {
         return 1.0; // Default speed
     }
     if (strcmp(res_name, "thickness") == 0) {
-        return 0.1; // Default thickness
+        return 0.15; // Default thickness (matches DEF_THICKNESS in hextrail.c)
     }
     if (strcmp(res_name, "spin") == 0) {
         return 1.0; // Default spin
