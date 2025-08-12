@@ -255,6 +255,23 @@ void init_matrix_debug_functions(void) {
     real_gluLookAt = gluLookAt;
     real_glTranslated = glTranslated;
 
+    // Log the assignments
+    matrix_debug_log("[MDBG] Function pointers assigned:\n");
+    matrix_debug_log("[MDBG]   real_glMatrixMode=%p\n", (void*) real_glMatrixMode);
+    matrix_debug_log("[MDBG]   real_glLoadIdentity=%p\n", (void*) real_glLoadIdentity);
+    matrix_debug_log("[MDBG]   real_glOrtho=%p\n", (void*) real_glOrtho);
+    matrix_debug_log("[MDBG]   real_glFrustum=%p\n", (void*) real_glFrustum);
+    matrix_debug_log("[MDBG]   real_glTranslatef=%p\n", (void*) real_glTranslatef);
+    matrix_debug_log("[MDBG]   real_glRotatef=%p\n", (void*) real_glRotatef);
+    matrix_debug_log("[MDBG]   real_glScalef=%p\n", (void*) real_glScalef);
+    matrix_debug_log("[MDBG]   real_glPushMatrix=%p\n", (void*) real_glPushMatrix);
+    matrix_debug_log("[MDBG]   real_glPopMatrix=%p\n", (void*) real_glPopMatrix);
+    matrix_debug_log("[MDBG]   real_glMultMatrixf=%p\n", (void*) real_glMultMatrixf);
+    matrix_debug_log("[MDBG]   real_glMultMatrixd=%p\n", (void*) real_glMultMatrixd);
+    matrix_debug_log("[MDBG]   real_glViewport=%p\n", (void*) real_glViewport);
+    matrix_debug_log("[MDBG]   real_gluPerspective=%p\n", (void*) real_gluPerspective);
+    matrix_debug_log("[MDBG]   real_gluLookAt=%p\n", (void*) real_gluLookAt);
+    matrix_debug_log("[MDBG]   real_glTranslated=%p\n", (void*) real_glTranslated);
     matrix_debug_log("Matrix debug: WebGL build - real_ pointers set to WebGL wrapper functions\n");
     #else
     // For native builds, use dlsym to get the real OpenGL functions
