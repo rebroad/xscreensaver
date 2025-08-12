@@ -154,15 +154,13 @@
             opacity: 0.8;
         }
 
-        .control-group:has(button) {
+        .button-group {
             flex-direction: row;
             justify-content: center;
             gap: 10px;
             padding: 0 20px;
-        }
-
-        .control-group:has(button) button {
-            min-width: 120px;
+            flex-wrap: wrap;
+            flex: 1;
         }
 
         button {
@@ -175,6 +173,42 @@
             font-weight: 600;
             transition: all 0.3s ease;
             box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+
+        /* Override button styles for button-group */
+        .button-group button {
+            min-width: 0;
+            flex: 1 1 auto;
+            white-space: normal;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+
+        /* Responsive button padding - shrink horizontal padding as page gets narrower */
+        @media (max-width: 800px) {
+            .button-group button {
+                padding: 12px 16px;
+                font-size: 14px;
+            }
+        }
+
+        @media (max-width: 600px) {
+            .button-group button {
+                padding: 12px 12px;
+                font-size: 12px;
+            }
+        }
+
+        @media (max-width: 500px) {
+            .button-group button {
+                padding: 12px 8px;
+            }
+        }
+
+        @media (max-width: 400px) {
+            .button-group button {
+                padding: 12px 4px;
+            }
         }
 
         button:hover {
@@ -363,7 +397,7 @@
                 </label>
             </div>
 
-            <div class="control-group">
+            <div class="control-group button-group">
                 <button id="reset">Reset</button>
                 <button id="render-toggle">Stop Rendering</button>
                 <button id="debug-toggle-btn">Disable Debug</button>
