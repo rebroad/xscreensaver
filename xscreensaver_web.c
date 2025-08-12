@@ -1042,10 +1042,6 @@ void set_speed(GLfloat new_speed) {
 
 EMSCRIPTEN_KEEPALIVE
 void set_thickness(GLfloat new_thickness) {
-#ifdef MATRIX_DEBUG
-    DL(1, "Matrix debug mode: Ignoring set_thickness call (UI disabled)\n");
-    return;
-#else
     extern GLfloat thickness;
     thickness = new_thickness;
     DL(1, "Thickness set to: %f\n", thickness);
@@ -1056,37 +1052,26 @@ void set_thickness(GLfloat new_thickness) {
         // The hack can check if thickness changed and call scale_corners()
         hack_handle_event(&web_mi, NULL);  // NULL event means "parameter changed"
     }
-#endif
 }
 
 EMSCRIPTEN_KEEPALIVE
 void set_spin(int new_spin_enabled) {
-#ifdef MATRIX_DEBUG
-    DL(1, "Matrix debug mode: Ignoring set_spin call (UI disabled)\n");
-    return;
-#else
     extern Bool do_spin;
     extern void update_hextrail_rotator(void);
     DL(2, "DEBUG: set_spin called with %d, current do_spin=%d\n", new_spin_enabled, do_spin);
     do_spin = new_spin_enabled;
     DL(1, "Spin %s (do_spin now=%d)\n", do_spin ? "enabled" : "disabled", do_spin);
     update_hextrail_rotator();
-#endif
 }
 
 EMSCRIPTEN_KEEPALIVE
 void set_wander(int new_wander_enabled) {
-#ifdef MATRIX_DEBUG
-    DL(1, "Matrix debug mode: Ignoring set_wander call (UI disabled)\n");
-    return;
-#else
     extern Bool do_wander;
     extern void update_hextrail_rotator(void);
     DL(2, "DEBUG: set_wander called with %d, current do_wander=%d\n", new_wander_enabled, do_wander);
     do_wander = new_wander_enabled;
     DL(1, "Wander %s (do_wander now=%d)\n", do_wander ? "enabled" : "disabled", do_wander);
     update_hextrail_rotator();
-#endif
 }
 
 EMSCRIPTEN_KEEPALIVE
@@ -2299,17 +2284,18 @@ float get_float_resource(Display *dpy, char *res_name, char *res_class) {
     (void)dpy;
     (void)res_class;
 
+    // Use the actual default values from hextrail.c DEF_* constants
     if (strcmp(res_name, "speed") == 0) {
-        return 1.0; // Default speed
+        return 1.0; // DEF_SPEED "1.0"
     }
     if (strcmp(res_name, "thickness") == 0) {
-        return 0.15; // Default thickness (matches DEF_THICKNESS in hextrail.c)
+        return 0.15; // DEF_THICKNESS "0.15"
     }
     if (strcmp(res_name, "spin") == 0) {
-        return 1.0; // Default spin
+        return 1.0; // DEF_SPIN "True" -> 1.0
     }
     if (strcmp(res_name, "wander") == 0) {
-        return 1.0; // Default wander
+        return 1.0; // DEF_WANDER "True" -> 1.0
     }
     return 1.0; // Default for unknown resources
 }
