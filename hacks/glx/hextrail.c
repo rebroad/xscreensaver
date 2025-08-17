@@ -428,7 +428,7 @@ static void handle_arm_in(config *bp, hexagon *h0, arm *a0, int j) {
   if (a0->ratio >= 1) {
 	/* Just finished growing from edge to center.  Look for any available exits. */
 	h0->doing = 0;
-	if (add_arms(bp, h0)) {
+	if (add_arms(bp, h0, a0->speed)) {
 	  a0->state = DONE;
 	  a0->ratio = 1;
 	} else { // nub grow
@@ -621,7 +621,7 @@ static void tick_hexagons (ModeInfo *mi) {
 				new_hex, doinga, ignorea, doingb, ignoreb, fails);
 		debug = bp->now;
 	  }
-	} else if (h0->state == EMPTY && add_arms(bp, h0)) {
+	} else if (h0->state == EMPTY && add_arms(bp, h0, 0.0)) {
 	  DL(2, "hex created. Arms. doing=%d iters=%d fails=%d pos=%d,%d\n",
 		h0->doing, iters, fails, h0->x, h0->y);
 	  fails = 0;
