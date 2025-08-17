@@ -794,7 +794,7 @@ static MatrixStack* get_current_matrix_stack() {
         case GL_TEXTURE:
             return &texture_stack;
         default:
-            return &modelview_stack;
+            return NULL;
     }
 }
 
@@ -804,7 +804,7 @@ void glOrtho(GLdouble left, GLdouble right, GLdouble bottom, GLdouble top, GLdou
     MatrixStack *stack = get_current_matrix_stack();
     if (stack && stack->top >= 0) {
         // Create orthographic projection matrix
-        Matrix4f ortho;
+        Matrix4f ortho; // TODO why float not double?
         matrix_identity(&ortho);
 
         GLfloat tx = -(GLfloat)(right + left) / (GLfloat)(right - left);
@@ -828,19 +828,9 @@ void glOrtho(GLdouble left, GLdouble right, GLdouble bottom, GLdouble top, GLdou
 void glLoadIdentity(void) {
     check_gl_error_wrapper("before glLoadIdentity");
 
-    MatrixStack *stack;
-    switch (current_matrix_mode) {
-        case GL_MODELVIEW:
-            stack = &modelview_stack;
-            break;
-        case GL_PROJECTION:
-            stack = &projection_stack;
-            break;
-        case GL_TEXTURE:
-            stack = &texture_stack;
-            break;
-        default:
-            return;
+    MatrixStack *stack = get_current_matrix_stack();
+    if (!stack) {
+        return;
     }
 
     matrix_identity(&stack->stack[stack->top]);
@@ -1211,32 +1201,6 @@ void gluPerspective(GLdouble fovy, GLdouble aspect, GLdouble zNear, GLdouble zFa
     glFrustum(xmin, xmax, ymin, ymax, (GLfloat)zNear, (GLfloat)zFar);
 }
 
-void glMultMatrixd(const GLdouble *m) {
-    Matrix4f matrix;
-    for (int i = 0; i < 16; i++) {
-        matrix.m[i] = (GLfloat)m[i];
-    }
-
-    MatrixStack *stack;
-    switch (current_matrix_mode) {
-        case GL_MODELVIEW:
-            stack = &modelview_stack;
-            break;
-        case GL_PROJECTION:
-            stack = &projection_stack;
-            break;
-        case GL_TEXTURE:
-            stack = &texture_stack;
-            break;
-        default:
-            return;
-    }
-
-    matrix_multiply(&stack->stack[stack->top], &stack->stack[stack->top], &matrix);
-
-    check_gl_error_wrapper("after glMultMatrixd");
-}
-
 // This is needed by gltrackball.c
 void glMultMatrixf(const GLfloat *m) {
     Matrix4f matrix;
@@ -1244,19 +1208,9 @@ void glMultMatrixf(const GLfloat *m) {
         matrix.m[i] = m[i];
     }
 
-    MatrixStack *stack;
-    switch (current_matrix_mode) {
-        case GL_MODELVIEW:
-            stack = &modelview_stack;
-            break;
-        case GL_PROJECTION:
-            stack = &projection_stack;
-            break;
-        case GL_TEXTURE:
-            stack = &texture_stack;
-            break;
-        default:
-            return;
+    MatrixStack *stack = get_current_matrix_stack();
+    if (!stack) {
+        return;
     }
 
     matrix_multiply(&stack->stack[stack->top], &stack->stack[stack->top], &matrix);
@@ -1265,19 +1219,9 @@ void glMultMatrixf(const GLfloat *m) {
 }
 
 void glTranslatef(GLfloat x, GLfloat y, GLfloat z) {
-    MatrixStack *stack;
-    switch (current_matrix_mode) {
-        case GL_MODELVIEW:
-            stack = &modelview_stack;
-            break;
-        case GL_PROJECTION:
-            stack = &projection_stack;
-            break;
-        case GL_TEXTURE:
-            stack = &texture_stack;
-            break;
-        default:
-            return;
+    MatrixStack *stack = get_current_matrix_stack();
+    if (!stack) {
+        return;
     }
 
     matrix_translate(&stack->stack[stack->top], x, y, z);
@@ -1349,9 +1293,15 @@ void gluLookAt(GLdouble eyex, GLdouble eyey, GLdouble eyez,
     M(3,0) = 0.0;   M(3,1) = 0.0;   M(3,2) = 0.0;   M(3,3) = 1.0;
 #undef M
 
-    check_gl_error_wrapper("before glMultMatrixd in gluLookAt");
-    glMultMatrixd(m);
-    check_gl_error_wrapper("after glMultMatrixd in gluLookAt");
+    // Convert double matrix to float and use glMultMatrixf
+    GLfloat mf[16];
+    for (int i = 0; i < 16; i++) {
+        mf[i] = (GLfloat)m[i];
+    }
+
+    check_gl_error_wrapper("before glMultMatrixf in gluLookAt");
+    glMultMatrixf(mf);
+    check_gl_error_wrapper("after glMultMatrixf in gluLookAt");
 
     /* Translate Eye to Origin */
     glTranslated(-eyex, -eyey, -eyez);
@@ -1507,19 +1457,9 @@ void glFrontFace(GLenum mode) {
 void glPushMatrix(void) {
     check_gl_error_wrapper("before glPushMatrix");
 
-    MatrixStack *stack;
-    switch (current_matrix_mode) {
-        case GL_MODELVIEW:
-            stack = &modelview_stack;
-            break;
-        case GL_PROJECTION:
-            stack = &projection_stack;
-            break;
-        case GL_TEXTURE:
-            stack = &texture_stack;
-            break;
-        default:
-            return;
+    MatrixStack *stack = get_current_matrix_stack();
+    if (!stack) {
+        return;
     }
 
     if (stack->top < MAX_MATRIX_STACK_DEPTH - 1) {
@@ -1529,19 +1469,9 @@ void glPushMatrix(void) {
 }
 
 void glPopMatrix(void) {
-    MatrixStack *stack;
-    switch (current_matrix_mode) {
-        case GL_MODELVIEW:
-            stack = &modelview_stack;
-            break;
-        case GL_PROJECTION:
-            stack = &projection_stack;
-            break;
-        case GL_TEXTURE:
-            stack = &texture_stack;
-            break;
-        default:
-            return;
+    MatrixStack *stack = get_current_matrix_stack();
+    if (!stack) {
+        return;
     }
 
     if (stack->top > 0) {
@@ -1550,38 +1480,18 @@ void glPopMatrix(void) {
 }
 
 void glRotatef(GLfloat angle, GLfloat x, GLfloat y, GLfloat z) {
-    MatrixStack *stack;
-    switch (current_matrix_mode) {
-        case GL_MODELVIEW:
-            stack = &modelview_stack;
-            break;
-        case GL_PROJECTION:
-            stack = &projection_stack;
-            break;
-        case GL_TEXTURE:
-            stack = &texture_stack;
-            break;
-        default:
-            return;
+    MatrixStack *stack = get_current_matrix_stack();
+    if (!stack) {
+        return;
     }
 
     matrix_rotate(&stack->stack[stack->top], angle, x, y, z);
 }
 
 void glScalef(GLfloat x, GLfloat y, GLfloat z) {
-    MatrixStack *stack;
-    switch (current_matrix_mode) {
-        case GL_MODELVIEW:
-            stack = &modelview_stack;
-            break;
-        case GL_PROJECTION:
-            stack = &projection_stack;
-            break;
-        case GL_TEXTURE:
-            stack = &texture_stack;
-            break;
-        default:
-            return;
+    MatrixStack *stack = get_current_matrix_stack();
+    if (!stack) {
+        return;
     }
 
     matrix_scale(&stack->stack[stack->top], x, y, z);
