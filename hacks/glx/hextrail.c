@@ -263,6 +263,7 @@ static int8_t add_arms(config *bp, hexagon *h0, GLfloat incoming_speed) {
 	  bp->pause_until = bp->now + 3;
 	  continue;
 	}
+	a0->state = OUT;
     GLfloat random_speed = 0.05 * (0.8 + frand(1.0));
     a0->speed = incoming_speed > 0 ?
         (0.8 * incoming_speed + 0.2 * random_speed) : random_speed;
