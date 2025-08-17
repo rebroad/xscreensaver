@@ -232,13 +232,10 @@ add_arms (ModeInfo *mi, hexagon *h0, GLfloat incoming_speed)
       a0->state = OUT;
       a0->ratio = 0;
       a1->ratio = 0;
-      /* Use incoming speed as influence, with randomness to increase or decrease */
-      GLfloat base_speed = incoming_speed > 0 ? incoming_speed : 0.05 * (0.8 + frand(1.0));
-      /* Add randomness: 0.5 to 1.5x the incoming speed, so arms can be faster or slower */
-      a0->speed = base_speed * (0.5 + frand(1.0));
-      /* Ensure speed stays within the original bounds: 0.05 * 0.8 to 0.05 * 1.8 */
-      if (a0->speed < 0.04) a0->speed = 0.04;
-      if (a0->speed > 0.09) a0->speed = 0.09;
+      /* Blend speeds: 80% incoming speed, 20% original random algorithm */
+      GLfloat random_speed = 0.05 * (0.8 + frand(1.0));
+      a0->speed = incoming_speed > 0 ?
+        (0.8 * incoming_speed + 0.2 * random_speed) : random_speed;
 
       h1->border_state = IN;
 
