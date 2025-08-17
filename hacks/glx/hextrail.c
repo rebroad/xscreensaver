@@ -10,24 +10,23 @@
  */
 
 #define DEFAULTS	"*delay:	30000       \n" \
-			"*showFPS:      False       \n" \
-			"*wireframe:    False       \n" \
-			"*count:        20          \n" \
-			"*suppressRotationAnimation: True\n" \
+            "*showFPS:      False       \n" \
+            "*wireframe:    False       \n" \
+            "*count:        20          \n" \
+            "*suppressRotationAnimation: True\n" \
 
 # define release_hextrail 0
 
+#ifdef MATRIX_DEBUG
+#include "../../matrix_debug.h"
+#endif
 #ifndef WEB_BUILD
 #include "xlockmore.h"
 #endif
 #include "colors.h"
 #include "normals.h"
 #include "rotator.h"
-#ifdef WEB_BUILD
-// Trackball functions are provided by xscreensaver_web.c
-#else
 #include "gltrackball.h"
-#endif
 #include <ctype.h>
 
 // Rotator constants
@@ -73,11 +72,7 @@ typedef struct {
   GLdouble model[16], proj[16];
   GLint viewport[4];
   rotator *rot;
-#ifdef WEB_BUILD
-  web_trackball_state *trackball;
-#else
   trackball_state *trackball;
-#endif
   Bool button_down_p;
   time_t now, pause_until, debug;
 
@@ -236,7 +231,7 @@ static int8_t exits(config *bp, hexagon *h0) {
   return exits;
 }
 
-static int8_t add_arms(config *bp, hexagon *h0) {
+static int8_t add_arms(config *bp, hexagon *h0, GLfloat incoming_speed) {
   int8_t added = 0, target = 1 + (random() % 4); /* Aim for 1-4 arms */
   int8_t idx[6] = {0, 1, 2, 3, 4, 5};
   for (int8_t i = 0; i < 6; i++) {
@@ -268,8 +263,9 @@ static int8_t add_arms(config *bp, hexagon *h0) {
 	  bp->pause_until = bp->now + 3;
 	  continue;
 	}
-	a0->state = OUT;
-	a0->speed = 0.05 * (0.8 + frand(1.0));
+    GLfloat random_speed = 0.05 * (0.8 + frand(1.0));
+    a0->speed = incoming_speed > 0 ?
+        (0.8 * incoming_speed + 0.2 * random_speed) : random_speed;
 
 	if (h1->state == EMPTY) {
 	  h1->state = IN;
@@ -361,16 +357,17 @@ static void scale_corners(ModeInfo *mi) {
   size2 = size * (1 - margin * 3);
   thick2 = thickness * bp->fade_ratio;
   size3 = size * thick2 * 0.8;
-  size4 = size3 * 2; // When total_arms == 1
-  for (int j = 0; j < 6; j++) {
-	scaled_corners[j][0].x = corners[j].x * size1;
-	scaled_corners[j][0].y = corners[j].y * size1;
-	scaled_corners[j][1].x = corners[j].x * size2;
-	scaled_corners[j][1].y = corners[j].y * size2;
-	scaled_corners[j][2].x = corners[j].x * size3;
-	scaled_corners[j][2].y = corners[j].y * size3;
-	scaled_corners[j][3].x = corners[j].x * size4;
-	scaled_corners[j][3].y = corners[j].y * size4;
+  size4 = size3 * 2; // when total_arms == 1
+  int i;
+  for (i = 0; i < 6; i++) {
+    scaled_corners[i][0].x = corners[i].x * size1;
+    scaled_corners[i][0].y = corners[i].y * size1;
+    scaled_corners[i][1].x = corners[i].x * size2;
+    scaled_corners[i][1].y = corners[i].y * size2;
+    scaled_corners[i][2].x = corners[i].x * size3;
+    scaled_corners[i][2].y = corners[i].y * size3;
+    scaled_corners[i][3].x = corners[i].x * size4;
+    scaled_corners[i][3].y = corners[i].y * size4;
   }
 }
 
@@ -848,36 +845,47 @@ draw_hexagons (ModeInfo *mi)
 }
 
 /* Window management, etc */
-ENTRYPOINT void reshape_hextrail(ModeInfo *mi, int width, int height) {
+ENTRYPOINT void
+reshape_hextrail (ModeInfo *mi, int width, int height)
+{
   config *bp = &bps[MI_SCREEN(mi)];
-  GLfloat h = (GLfloat)height / (GLfloat)width;
+  GLfloat h = (GLfloat) height / (GLfloat) width;
   int y = 0;
 
   if (width > height * 3) {   /* tiny window: show middle */
-	height = width * 9 / 16;
-	y = -height / 2;
-	h = height / (GLfloat)width;
+    height = width * 9/16;
+    y = -height/2;
+    h = height / (GLfloat) width;
   }
 
-  glViewport(0, y, (GLint)width, (GLint)height);
+  glViewport (0, y, (GLint) width, (GLint) height);
   DL(2, "%s: width=%d height=%d\n", __func__, width, height);
   bp->viewport[0] = 0;
   bp->viewport[1] = y;
   bp->viewport[2] = width;
   bp->viewport[3] = height;
+
   glMatrixMode(GL_PROJECTION);
   glLoadIdentity();
   gluPerspective (30.0, 1/h, 1.0, 100.0);
+
   glMatrixMode(GL_MODELVIEW);
   glLoadIdentity();
   gluLookAt( 0.0, 0.0, 30.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0);
 
-  GLfloat s = (MI_WIDTH(mi) < MI_HEIGHT(mi) ? (MI_WIDTH(mi) / (GLfloat)MI_HEIGHT(mi)) : 1);
-  glScalef (s, s, s); // TODO - what does this do?
+  {
+    GLfloat s = (MI_WIDTH(mi) < MI_HEIGHT(mi)
+                 ? (MI_WIDTH(mi) / (GLfloat) MI_HEIGHT(mi))
+                 : 1);
+    glScalef (s, s, s);
+  }
+
   glClear(GL_COLOR_BUFFER_BIT);
 }
 
-ENTRYPOINT Bool hextrail_handle_event (ModeInfo *mi, XEvent *event) {
+ENTRYPOINT Bool
+hextrail_handle_event (ModeInfo *mi, XEvent *event)
+{
   config *bp = &bps[MI_SCREEN(mi)];
 
   if (gltrackball_event_handler (event, bp->trackball,
@@ -953,29 +961,35 @@ ENTRYPOINT Bool hextrail_handle_event (ModeInfo *mi, XEvent *event) {
 
 // Function to create rotator with current spin/wander settings
 static rotator* create_hextrail_rotator(void) {
-	return make_rotator(do_spin ? SPIN_SPEED : 0,
-					   do_spin ? SPIN_SPEED : 0,
-					   do_spin ? SPIN_SPEED : 0,
-					   SPIN_ACCEL,
-					   do_wander ? WANDER_SPEED : 0,
-					   False);
+#ifdef WEB_BUILD
+    printf("DEBUG: Creating rotator - do_spin=%d, do_wander=%d\n", do_spin, do_wander);
+#endif
+
+    return make_rotator(do_spin ? SPIN_SPEED : 0,
+                       do_spin ? SPIN_SPEED : 0,
+                       do_spin ? SPIN_SPEED : 0,
+                       SPIN_ACCEL,
+                       do_wander ? WANDER_SPEED : 0,
+                       False);
 }
 
-ENTRYPOINT void init_hextrail(ModeInfo *mi) {
+ENTRYPOINT void
+init_hextrail(ModeInfo *mi)
+{
   MI_INIT (mi, bps);
   config *bp = &bps[MI_SCREEN(mi)];
 
   bp->glx_context = init_GL(mi);
 
-  reshape_hextrail(mi, MI_WIDTH(mi), MI_HEIGHT(mi));
+  reshape_hextrail (mi, MI_WIDTH(mi), MI_HEIGHT(mi));
 
   bp->rot = create_hextrail_rotator();
-  bp->trackball = gltrackball_init(True);
+  bp->trackball = gltrackball_init (True);
 
   /* Let's tilt the scene a little. */
-  gltrackball_reset(bp->trackball,
-					-0.4 + frand(0.8),
-					-0.4 + frand(0.8));
+  gltrackball_reset (bp->trackball,
+                     -0.4 + frand(0.8),
+                     -0.4 + frand(0.8));
 
   if (thickness < 0.05) thickness = 0.05;
   if (thickness > 0.5) thickness = 0.5;
@@ -995,7 +1009,9 @@ ENTRYPOINT void init_hextrail(ModeInfo *mi) {
 }
 
 
-ENTRYPOINT void draw_hextrail (ModeInfo *mi) {
+ENTRYPOINT void
+draw_hextrail (ModeInfo *mi)
+{
   config *bp = &bps[MI_SCREEN(mi)];
 
   if (!bp->glx_context) return;
@@ -1014,26 +1030,28 @@ ENTRYPOINT void draw_hextrail (ModeInfo *mi) {
 
   glPushMatrix();
   {
-	double x, y, z;
-	get_position (bp->rot, &x, &y, &z, !bp->button_down_p);
-	glTranslatef((x - 0.5) * 6, (y - 0.5) * 6, (z - 0.5) * 12);
-	gltrackball_rotate (bp->trackball);
-	get_rotation (bp->rot, &x, &y, &z, !bp->button_down_p);
-	glRotatef (z * 360, 0.0, 0.0, 1.0);
+    double x, y, z;
+    get_position (bp->rot, &x, &y, &z, !bp->button_down_p);
+    glTranslatef((x - 0.5) * 6,
+                 (y - 0.5) * 6,
+                 (z - 0.5) * 12);
+    gltrackball_rotate (bp->trackball);
+    get_rotation (bp->rot, &x, &y, &z, !bp->button_down_p);
+    glRotatef (z * 360, 0.0, 0.0, 1.0);
   }
 
   mi->polygon_count = 0;
 
   {
-	GLfloat s = 18;
-	glScalef (s, s, s);
+    GLfloat s = 18;
+    glScalef (s, s, s);
   }
 
   bp->now = time(NULL);
   if (bp->pause_until < bp->now && !pausing) {
-	glGetDoublev(GL_MODELVIEW_MATRIX, bp->model);
-	glGetDoublev(GL_PROJECTION_MATRIX, bp->proj);
-	tick_hexagons(mi);
+    glGetDoublev(GL_MODELVIEW_MATRIX, bp->model);
+    glGetDoublev(GL_PROJECTION_MATRIX, bp->proj);
+    tick_hexagons (mi);
   }
   draw_hexagons (mi);
 
@@ -1067,6 +1085,24 @@ free_hextrail (ModeInfo *mi)
 	free(bp->chunks);
   }
 }
+
+#ifdef WEB_BUILD
+// Function to update rotator when spin/wander settings change
+void update_hextrail_rotator(void) {
+    extern hextrail_configuration *bps;
+    extern ModeInfo web_mi;
+
+    hextrail_configuration *bp = &bps[web_mi.screen];
+    if (!bp->rot) return;
+
+    // Free old rotator and create new one with updated settings
+    if (bp->rot) {
+        free_rotator(bp->rot);
+    }
+
+    bp->rot = create_hextrail_rotator();
+}
+#endif
 
 XSCREENSAVER_MODULE ("HexTrail", hextrail)
 

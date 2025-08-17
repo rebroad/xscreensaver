@@ -31,19 +31,25 @@
         }
 
         #header {
-            text-align: center;
-            margin-bottom: 30px;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: space-between !important;
+            margin-bottom: 15px;
+            gap: 20px;
+            flex-direction: row !important;
         }
 
         #header h1 {
             font-size: 3rem;
-            margin-bottom: 10px;
+            margin: 0 !important;
             text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
             background: linear-gradient(45deg, #ff6b6b, #4ecdc4, #45b7d1);
             background-size: 200% 200%;
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             animation: gradient 3s ease infinite;
+            flex-shrink: 0 !important;
+            display: block !important;
         }
 
         @keyframes gradient {
@@ -55,6 +61,22 @@
         #header p {
             font-size: 1.2rem;
             opacity: 0.9;
+            margin: 0 !important;
+            text-align: right !important;
+            display: block !important;
+        }
+
+        /* Responsive header for smaller screens */
+        @media (max-width: 768px) {
+            #header {
+                flex-direction: column;
+                text-align: center;
+                gap: 10px;
+            }
+
+            #header p {
+                text-align: center;
+            }
         }
 
         #canvas-container {
@@ -98,7 +120,7 @@
             margin-bottom: 20px;
             display: flex;
             flex-wrap: wrap;
-            gap: 10px;
+            gap: 0px;
             align-items: flex-start;
             border: 1px solid rgba(255,255,255,0.2);
         }
@@ -154,15 +176,14 @@
             opacity: 0.8;
         }
 
-        .control-group:has(button) {
+        .button-group {
             flex-direction: row;
             justify-content: center;
             gap: 10px;
-            padding: 0 20px;
-        }
-
-        .control-group:has(button) button {
-            min-width: 120px;
+            padding: 0;
+            flex-wrap: wrap;
+            flex: 1;
+            margin-left: 20px;
         }
 
         button {
@@ -175,6 +196,42 @@
             font-weight: 600;
             transition: all 0.3s ease;
             box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+
+        /* Override button styles for button-group */
+        .button-group button {
+            min-width: 0;
+            flex: 1 1 auto;
+            white-space: normal;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+
+        /* Responsive button padding - shrink horizontal padding as page gets narrower */
+        @media (max-width: 800px) {
+            .button-group button {
+                padding: 12px 16px;
+                font-size: 14px;
+            }
+        }
+
+        @media (max-width: 600px) {
+            .button-group button {
+                padding: 12px 12px;
+                font-size: 12px;
+            }
+        }
+
+        @media (max-width: 500px) {
+            .button-group button {
+                padding: 12px 8px;
+            }
+        }
+
+        @media (max-width: 400px) {
+            .button-group button {
+                padding: 12px 4px;
+            }
         }
 
         button:hover {
@@ -203,7 +260,7 @@
 
         #debug-panel {
             position: fixed;
-            top: 10px;
+            top: 50px;
             right: 10px;
             width: 400px;
             height: 300px;
@@ -216,6 +273,30 @@
             overflow-y: auto;
             z-index: 1000;
             display: none;
+            resize: horizontal;
+        }
+
+        #debug-panel::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 8px; /* Wider invisible clickable area */
+            background: transparent;
+            cursor: ew-resize;
+            z-index: 1002;
+        }
+
+        #debug-panel::after {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 1px; /* Thin visual line */
+            background: rgba(128, 128, 128, 0.3);
+            z-index: 1002;
         }
 
         /* Make the close button sticky */
@@ -228,8 +309,19 @@
         }
 
         #debug-log {
-            /* Remove height constraint and overflow - let the panel handle scrolling */
-            overflow: visible;
+            /* Let the panel handle scrolling, but ensure content flows properly */
+            word-wrap: break-word;
+            white-space: pre-wrap;
+        }
+
+        /* Styling for different output types */
+        .debug-stdout {
+            color: #4ecdc4; /* Teal for stdout */
+        }
+
+        .debug-stderr {
+            color: #ff6b6b; /* Red for stderr */
+            font-weight: bold;
         }
 
         #debug-toggle {
@@ -302,6 +394,8 @@
         <div id="canvas-container">
             <canvas id="canvas" width="800" height="600"></canvas>
             <div id="loading">Loading HexTrail...</div>
+            <!-- Debug Toggle Button -->
+            <button id="debug-toggle" onclick="document.getElementById('debug-panel').style.display='block'; this.style.display='none';" style="position: fixed; background: rgba(0,0,0,0.8); color: white; border: 1px solid #666; padding: 5px 10px; border-radius: 5px; cursor: pointer; z-index: 1000;">Debug</button>
         </div>
 
         <div id="controls">
@@ -328,7 +422,7 @@
                 </label>
             </div>
 
-            <div class="control-group">
+            <div class="control-group button-group">
                 <button id="reset">Reset</button>
                 <button id="render-toggle">Stop Rendering</button>
                 <button id="debug-toggle-btn">Disable Debug</button>
@@ -344,7 +438,13 @@
         <!-- Debug Panel -->
         <div id="debug-panel">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                <h3 style="margin: 0;">Debug Output</h3>
+                <div>
+                    <h3 style="margin: 0;">Debug Output</h3>
+                    <small style="color: #888; font-size: 0.8em;">
+                        <span style="color: #4ecdc4;">●</span> stdout |
+                        <span style="color: #ff6b6b;">●</span> stderr
+                    </small>
+                </div>
                 <div>
                     <button onclick="document.getElementById('debug-panel').style.display='none'; document.getElementById('debug-toggle').style.display='block';" style="background: #333; color: white; border: 1px solid #666; padding: 2px 8px; cursor: pointer;">×</button>
                 </div>
@@ -352,8 +452,10 @@
             <div id="debug-log"></div>
         </div>
 
-        <!-- Debug Toggle Button -->
-        <button id="debug-toggle" onclick="document.getElementById('debug-panel').style.display='block'; this.style.display='none';">Debug</button>
+        <!-- Memory Display (only shown in debug builds) -->
+        <div id="memory-display" style="position: fixed; top: 10px; right: 10px; background: rgba(0,0,0,0.8); color: white; padding: 5px 10px; border-radius: 5px; font-family: monospace; font-size: 12px; z-index: 1000; display: none;">
+            Memory: --MB / --MB
+        </div>
     </div>
 
     <script>
@@ -380,6 +482,14 @@
 
         // Make it available globally for C code to call
         window.setGlobalDebugEnabled = setGlobalDebugEnabled;
+
+        // Function to test stderr output from C code
+        function testStderrOutput(message) {
+            addDebugLog('C code stderr test: ' + message, 'stderr');
+        }
+
+        // Make test function available globally
+        window.testStderrOutput = testStderrOutput;
 
         // Debug pause functionality
         var debugPaused = false;
@@ -414,12 +524,8 @@
         }
 
         // Helper function to add debug log with smart scrolling
-        function addDebugLog(message) {
-            // ALWAYS log to console first for debugging
-            console.log('DEBUG LOG:', message);
-
+        function addDebugLog(message, type) {
             if (debugPaused) {
-                console.log('DEBUG: Paused, not adding to panel');
                 return;
             }
 
@@ -433,9 +539,7 @@
             // Check scroll position BEFORE adding content (use the panel, not the log)
             var wasAtBottom = (debugPanel.scrollHeight - debugPanel.scrollTop - debugPanel.clientHeight) < 5;
 
-            console.log('DEBUG: Scroll check - wasAtBottom:', wasAtBottom, 'panel scrollHeight:', debugPanel.scrollHeight, 'scrollTop:', debugPanel.scrollTop, 'clientHeight:', debugPanel.clientHeight);
-
-            // Add the message
+            // Add the message with appropriate styling
             var now = new Date();
             var timestamp = now.toLocaleTimeString('en-US', {
                 hour12: false,
@@ -443,67 +547,32 @@
                 minute: '2-digit',
                 second: '2-digit'
             }) + '.' + now.getMilliseconds().toString().padStart(3, '0');
-            debugLog.innerHTML += '[' + timestamp + '] ' + message + '<br>';
+
+            var cssClass = '';
+            if (type === 'stderr') {
+                cssClass = 'debug-stderr';
+            } else if (type === 'stdout') {
+                cssClass = 'debug-stdout';
+            }
+
+            var styledMessage = cssClass ?
+                '<span class="' + cssClass + '">' + message + '</span>' :
+                message;
+
+            debugLog.innerHTML += '[' + timestamp + '] ' + styledMessage + '<br>';
 
             // Only scroll if user was already at the bottom
             if (wasAtBottom) {
-                var oldScrollTop = debugPanel.scrollTop;
-                var targetScrollTop = debugPanel.scrollHeight;
-                debugPanel.scrollTop = targetScrollTop;
-                console.log('DEBUG: Auto-scroll attempt - old scrollTop:', oldScrollTop, 'target:', targetScrollTop, 'new scrollTop:', debugPanel.scrollTop);
-
-                // Check if the scroll actually worked
-                if (debugPanel.scrollTop !== targetScrollTop) {
-                    console.log('DEBUG: WARNING - Scroll did not work! Expected:', targetScrollTop, 'Got:', debugPanel.scrollTop);
-
-                    // Try to understand why it's not scrolling
-                    console.log('DEBUG: Panel properties - scrollTop:', debugPanel.scrollTop, 'scrollHeight:', debugPanel.scrollHeight, 'clientHeight:', debugPanel.clientHeight, 'offsetHeight:', debugPanel.offsetHeight);
-                    console.log('DEBUG: Computed styles - overflow:', window.getComputedStyle(debugPanel).overflow, 'overflowY:', window.getComputedStyle(debugPanel).overflowY);
-                } else {
-                    console.log('DEBUG: Auto-scroll successful');
-                }
-
-                // Check again after a short delay to see if something changed it back
-                setTimeout(function() {
-                    console.log('DEBUG: Delayed scroll check - scrollTop:', debugPanel.scrollTop, 'scrollHeight:', debugPanel.scrollHeight);
-                    if (debugPanel.scrollTop !== targetScrollTop) {
-                        console.log('DEBUG: WARNING - Scroll position was changed after we set it!');
-                    }
-                }, 100);
-            } else {
-                console.log('DEBUG: Did not auto-scroll - user was not at bottom');
+                // Use requestAnimationFrame to ensure DOM has updated
+                requestAnimationFrame(function() {
+                    debugPanel.scrollTop = debugPanel.scrollHeight;
+                });
             }
         }
 
-        // Test our debug system immediately
-        setTimeout(function() {
-            console.log('DEBUG: Testing debug system...');
-            addDebugLog('Debug system test - if you see this, it works!');
-
-            // Test manual scrolling and panel properties
-            var debugLog = document.getElementById('debug-log');
-            var debugPanel = document.getElementById('debug-panel');
-            if (debugLog && debugPanel) {
-                console.log('DEBUG: Testing manual scroll...');
-                console.log('DEBUG: Panel properties - height:', debugPanel.offsetHeight, 'scrollHeight:', debugPanel.scrollHeight);
-                console.log('DEBUG: Log properties - height:', debugLog.offsetHeight, 'scrollHeight:', debugLog.scrollHeight);
-
-                // Try scrolling the panel instead of the log
-                debugPanel.scrollTop = 9999;
-                console.log('DEBUG: Panel scroll result - scrollTop:', debugPanel.scrollTop);
-
-                // Try scrolling the log
-                debugLog.scrollTop = 9999;
-                console.log('DEBUG: Log scroll result - scrollTop:', debugLog.scrollTop);
-
-                // Check if content overflows
-                console.log('DEBUG: Content overflow check - scrollHeight > clientHeight:', debugLog.scrollHeight > debugLog.clientHeight);
-            }
-        }, 1000);
-
         // Global error handler
         window.onerror = function(msg, url, line, col, error) {
-            addDebugLog('ERROR: ' + msg + ' at ' + url + ':' + line);
+            addDebugLog('ERROR: ' + msg + ' at ' + url + ':' + line, 'stderr');
         };
 
         // Configure Module before loading the generated JS
@@ -516,15 +585,17 @@
                 }
 
                 // Log to debug panel
-                addDebugLog('Status: ' + text);
+                addDebugLog('Status: ' + text, 'stdout');
             },
             print: function(...args) {
-                console.log(...args);
-
                 // Only log to debug panel if global debug is enabled
                 if (globalDebugEnabled) {
-                    addDebugLog(args.join(' '));
+                    addDebugLog(args.join(' '), 'stdout');
                 }
+            },
+            printErr: function(...args) {
+                // Always log stderr to debug panel (errors are important!)
+                addDebugLog(args.join(' '), 'stderr');
             },
             onRuntimeInitialized: function() {
                 console.log('Module runtime initialized');
@@ -536,7 +607,10 @@
                 }
 
                 // Log to debug panel
-                addDebugLog('Module runtime initialized');
+                addDebugLog('Module runtime initialized', 'stdout');
+
+                // Set window title to ensure it matches what our positioning script expects
+                document.title = "HexTrail - XScreenSaver Web Version";
 
                 // Set up controls
                 setupControls();
@@ -559,9 +633,77 @@
                                    ", speed=" + speedSlider.value +
                                    ", thickness=" + thicknessSlider.value);
                     }
+
+                    // Memory monitoring is disabled by default
+                    // Call enableMemoryMonitoring() from C code if needed
                 }, 100); // Small delay to ensure hack_init has completed
             }
         };
+
+        // Memory monitoring (disabled by default)
+        var memoryMonitorInterval;
+        var memoryMonitoringEnabled = false;
+
+        function enableMemoryMonitoring() {
+            memoryMonitoringEnabled = true;
+            var memoryDisplay = document.getElementById('memory-display');
+            if (memoryDisplay) {
+                memoryDisplay.style.display = 'block';
+            }
+            startMemoryMonitoring();
+        }
+
+        function startMemoryMonitoring() {
+            if (!memoryMonitoringEnabled) return;
+
+            if (memoryMonitorInterval) {
+                clearInterval(memoryMonitorInterval);
+            }
+
+            memoryMonitorInterval = setInterval(function() {
+                try {
+                    if (Module && Module.HEAPU8) {
+                        var totalMemory = Module.HEAPU8.length;
+                        var usedMemory = totalMemory;
+
+                        // Try to get more detailed memory info if available
+                        if (Module._emscripten_get_heap_size) {
+                            usedMemory = Module._emscripten_get_heap_size();
+                        }
+
+                        var memoryMB = (usedMemory / (1024 * 1024)).toFixed(2);
+                        var totalMB = (totalMemory / (1024 * 1024)).toFixed(2);
+
+                        // Update memory display if it exists
+                        var memoryDisplay = document.getElementById('memory-display');
+                        if (memoryDisplay) {
+                            memoryDisplay.textContent = `Memory: ${memoryMB}MB / ${totalMB}MB`;
+                        }
+
+                        // Check for potential memory leak (if memory usage is growing rapidly)
+                        if (window.lastMemoryUsage && usedMemory > window.lastMemoryUsage * 1.1) {
+                            addDebugLog(`WARNING: Memory usage increased by ${((usedMemory - window.lastMemoryUsage) / (1024 * 1024)).toFixed(2)}MB`, 'stderr');
+                        }
+                        window.lastMemoryUsage = usedMemory;
+                    } else {
+                        // Fallback if HEAPU8 is not available
+                        var memoryDisplay = document.getElementById('memory-display');
+                        if (memoryDisplay) {
+                            memoryDisplay.textContent = `Memory: Monitoring unavailable`;
+                        }
+                    }
+                } catch (error) {
+                    console.log('Memory monitoring error:', error);
+                    var memoryDisplay = document.getElementById('memory-display');
+                    if (memoryDisplay) {
+                        memoryDisplay.textContent = `Memory: Error`;
+                    }
+                }
+            }, 1000); // Check every second
+        }
+
+        // Make memory monitoring enable function available globally for C code
+        window.enableMemoryMonitoring = enableMemoryMonitoring;
 
         // Set up control event listeners
         function setupControls() {
@@ -806,6 +948,90 @@
 
         // Fullscreen button
         document.getElementById('fullscreen').addEventListener('click', toggleFullscreen);
+
+        // Debug panel resizing functionality
+        function setupDebugPanelResizing() {
+            var debugPanel = document.getElementById('debug-panel');
+            if (!debugPanel) return;
+
+            var isResizing = false;
+            var startX = 0;
+            var startWidth = 0;
+
+            // Mouse down on the left edge
+            debugPanel.addEventListener('mousedown', function(e) {
+                // Check if click is on the left edge (first 8px)
+                if (e.offsetX <= 8) {
+                    isResizing = true;
+                    startX = e.clientX;
+                    startWidth = debugPanel.offsetWidth;
+
+                    // Prevent text selection during resize
+                    e.preventDefault();
+
+                    // Add resizing class for visual feedback
+                    debugPanel.style.cursor = 'ew-resize';
+                    debugPanel.style.userSelect = 'none';
+                }
+            });
+
+            // Mouse move for resizing
+            document.addEventListener('mousemove', function(e) {
+                if (!isResizing) return;
+
+                var deltaX = startX - e.clientX;
+                var newWidth = startWidth + deltaX;
+
+                // Constrain width between 200px and 800px
+                newWidth = Math.max(200, Math.min(800, newWidth));
+
+                debugPanel.style.width = newWidth + 'px';
+
+                // Prevent text selection during resize
+                e.preventDefault();
+            });
+
+            // Mouse up to stop resizing
+            document.addEventListener('mouseup', function() {
+                if (isResizing) {
+                    isResizing = false;
+                    debugPanel.style.cursor = '';
+                    debugPanel.style.userSelect = '';
+
+                    // Save the width to localStorage for persistence
+                    localStorage.setItem('debugPanelWidth', debugPanel.offsetWidth);
+                }
+            });
+
+            // Restore saved width on page load
+            var savedWidth = localStorage.getItem('debugPanelWidth');
+            if (savedWidth) {
+                var width = parseInt(savedWidth);
+                if (width >= 200 && width <= 800) {
+                    debugPanel.style.width = width + 'px';
+                }
+            }
+        }
+
+        // Initialize debug panel resizing when the page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            setupDebugPanelResizing();
+
+            // Position debug button relative to canvas
+            function positionDebugButton() {
+                var canvas = document.getElementById('canvas');
+                var debugButton = document.getElementById('debug-toggle');
+                if (canvas && debugButton) {
+                    var canvasRect = canvas.getBoundingClientRect();
+                    debugButton.style.top = (canvasRect.top + 10) + 'px';
+                    debugButton.style.right = (window.innerWidth - canvasRect.right + 10) + 'px';
+                }
+            }
+
+            // Position initially and on window resize
+            positionDebugButton();
+            window.addEventListener('resize', positionDebugButton);
+        });
     </script>
 
     <!-- This will be replaced by the generated script tag -->

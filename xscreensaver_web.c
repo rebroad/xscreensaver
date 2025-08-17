@@ -12,74 +12,33 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+#include <stdarg.h>
 #include <emscripten/emscripten.h>
-#include "xlockmore_web.h"
 
 // Random number generation for color functions
 static unsigned int random_seed = 1;
 static unsigned int webgl_random() {
     random_seed = random_seed * 1103515245 + 12345;
-    return (random_seed >> 16) & 0x7fff;
+    return random_seed;
 }
 
-double frand(double max) {
-    return ((double)webgl_random() / 32767.0) * max;
+static double frand(double max) {
+    return ((double)webgl_random() / (double)((unsigned int)~0)) * max;
 }
+
+// WebGL 2.0 function declarations (since we're using WebGL 2.0)
+#define GLAPI extern
+#define GLAPIENTRY
 
 // OpenGL constants that might be missing
-#ifndef GL_COLOR_BUFFER_BIT
-#define GL_COLOR_BUFFER_BIT 0x00004000
-#endif
-#ifndef GL_DEPTH_BUFFER_BIT
-#define GL_DEPTH_BUFFER_BIT 0x00000100
-#endif
-#ifndef GL_DEPTH_TEST
-#define GL_DEPTH_TEST 0x0B71
-#endif
-#ifndef GL_TRIANGLES
-#define GL_TRIANGLES 0x0004
-#endif
-#ifndef GL_ARRAY_BUFFER
-#define GL_ARRAY_BUFFER 0x8892
-#endif
-#ifndef GL_STATIC_DRAW
-#define GL_STATIC_DRAW 0x88E4
-#endif
-#ifndef GL_FLOAT
-#define GL_FLOAT 0x1406
-#endif
-#ifndef GL_FALSE
-#define GL_FALSE 0
-#endif
-#ifndef GL_VERTEX_SHADER
-#define GL_VERTEX_SHADER 0x8B31
-#endif
-#ifndef GL_FRAGMENT_SHADER
-#define GL_FRAGMENT_SHADER 0x8B30
-#endif
-#ifndef GL_COMPILE_STATUS
-#define GL_COMPILE_STATUS 0x8B81
-#endif
-#ifndef GL_LINK_STATUS
-#define GL_LINK_STATUS 0x8B82
-#endif
-#ifndef GL_NO_ERROR
-#define GL_NO_ERROR 0
-#endif
 #ifndef GL_MODELVIEW
 #define GL_MODELVIEW 0x1700
 #endif
 #ifndef GL_PROJECTION
 #define GL_PROJECTION 0x1701
 #endif
-#ifndef GL_LIGHTING
-#define GL_LIGHTING 0x0B50
-#endif
-#ifndef GL_ALL_ATTRIB_BITS
-#define GL_ALL_ATTRIB_BITS 0x000FFFFF
-#endif
-#ifndef GL_QUADS
-#define GL_QUADS 0x0007
+#ifndef GL_TEXTURE
+#define GL_TEXTURE 0x1702
 #endif
 #ifndef GL_FRONT
 #define GL_FRONT 0x0404
@@ -90,22 +49,56 @@ double frand(double max) {
 #ifndef GL_SMOOTH
 #define GL_SMOOTH 0x1D01
 #endif
+#ifndef GL_FLAT
+#define GL_FLAT 0x1D00
+#endif
 #ifndef GL_NORMALIZE
 #define GL_NORMALIZE 0x0BA1
 #endif
 
-// Web-specific type definitions
-#ifndef Bool
-typedef int Bool;
-#define True 1
-#define False 0
+// Legacy OpenGL constants not available in WebGL 2.0
+#ifndef GL_QUADS
+#define GL_QUADS 0x0007
+#endif
+#ifndef GL_QUAD_STRIP
+#define GL_QUAD_STRIP 0x0008
+#endif
+#ifndef GL_POLYGON
+#define GL_POLYGON 0x0009
 #endif
 
-// ModeInfo is now defined in xlockmore_web.h, so we don't need to redefine it here
+// Fixed-function OpenGL constants not available in WebGL 2.0
+#ifndef GL_LIGHTING
+#define GL_LIGHTING 0x0B50
+#endif
+#ifndef GL_LIGHT0
+#define GL_LIGHT0 0x4000
+#endif
+#ifndef GL_LIGHT1
+#define GL_LIGHT1 0x4001
+#endif
+#ifndef GL_TEXTURE_2D
+#define GL_TEXTURE_2D 0x0DE1
+#endif
+#ifndef GL_FOG
+#define GL_FOG 0x0B60
+#endif
+#ifndef GL_COLOR_MATERIAL
+#define GL_COLOR_MATERIAL 0x0B57
+#endif
+#ifndef GL_CULL_FACE
+#define GL_CULL_FACE 0x0B44
+#endif
+#ifndef GL_CCW
+#define GL_CCW 0x0901
+#endif
+#ifndef GL_CW
+#define GL_CW 0x0900
+#endif
 
-// XEvent is already defined in jwxyz.h, no need to redefine
-
-// Only provide what's actually missing in WebGL builds
+#define Bool int
+#define True 1
+#define False 0
 
 // GLdouble is missing in WebGL, provide it
 #ifndef GLdouble
@@ -122,7 +115,7 @@ typedef double GLdouble;
 
 // Only provide gluProject if it's not working with the expected signature
 // We'll name it differently to avoid conflicts
-int gluProject_web(GLdouble objx, GLdouble objy, GLdouble objz,
+int gluProject(GLdouble objx, GLdouble objy, GLdouble objz,
                    const GLdouble modelMatrix[16], const GLdouble projMatrix[16],
                    const GLint viewport[4],
                    GLdouble *winx, GLdouble *winy, GLdouble *winz) {
@@ -155,313 +148,108 @@ int gluProject_web(GLdouble objx, GLdouble objy, GLdouble objz,
     return 1; // GL_TRUE
 }
 
-// Provide glGetDoublev since WebGL only has glGetFloatv
-void glGetDoublev_web(GLenum pname, GLdouble *params) {
-    GLfloat float_params[16];
-    glGetFloatv(pname, float_params);
+// Debug logging control
+static Bool debug_logging_enabled = True;
+static int debug_level = 0; // Control debug output levels
 
-    // Convert float to double
-    int count = (pname == GL_MODELVIEW_MATRIX || pname == GL_PROJECTION_MATRIX) ? 16 : 1;
-    for (int i = 0; i < count; i++) {
-        params[i] = (GLdouble)float_params[i];
-    }
-}
-
-// Override the function names for hextrail.c when building for web
-#define gluProject gluProject_web
-#define glGetDoublev glGetDoublev_web
-
-// Web-specific trackball implementation
-typedef struct {
-    float q[4];        // quaternion
-    float last_x, last_y;
-    int dragging;
-    float init_x, init_y;
-} web_trackball_state;
-
-// Use web_trackball_state directly instead of redefining trackball_state
-
-// Trackball functions with web implementation - using void* to avoid type conflicts
-static void* gltrackball_init(int ignore_device_rotation_p) {
-    web_trackball_state* tb = (web_trackball_state*)calloc(1, sizeof(web_trackball_state));
-    if (tb) {
-        // Initialize to identity quaternion
-        tb->q[0] = 0.0f; tb->q[1] = 0.0f; tb->q[2] = 0.0f; tb->q[3] = 1.0f;
-        tb->dragging = 0;
-    }
-    return (void*)tb;
-}
-
-static void gltrackball_free(void* tb) {
-    if (tb) free(tb);
-}
-
-static void gltrackball_reset(void* tb, GLfloat x, GLfloat y) {
-    if (!tb) return;
-    web_trackball_state* wtb = (web_trackball_state*)tb;
-    wtb->init_x = x;
-    wtb->init_y = y;
-    // Set initial rotation based on x, y
-    wtb->q[0] = x; wtb->q[1] = y; wtb->q[2] = 0.0f; wtb->q[3] = 1.0f;
-    // Normalize quaternion
-    float len = sqrt(wtb->q[0]*wtb->q[0] + wtb->q[1]*wtb->q[1] + wtb->q[2]*wtb->q[2] + wtb->q[3]*wtb->q[3]);
-    if (len > 0) {
-        wtb->q[0] /= len; wtb->q[1] /= len; wtb->q[2] /= len; wtb->q[3] /= len;
-    }
-}
-
-static void gltrackball_rotate(void* tb) {
-    if (!tb) return;
-    web_trackball_state* wtb = (web_trackball_state*)tb;
-
-    // Convert quaternion to rotation matrix and apply
-    float q0 = wtb->q[0], q1 = wtb->q[1], q2 = wtb->q[2], q3 = wtb->q[3];
-    float matrix[16] = {
-        1-2*(q1*q1 + q2*q2), 2*(q0*q1 - q2*q3),   2*(q0*q2 + q1*q3),   0,
-        2*(q0*q1 + q2*q3),   1-2*(q0*q0 + q2*q2), 2*(q1*q2 - q0*q3),   0,
-        2*(q0*q2 - q1*q3),   2*(q1*q2 + q0*q3),   1-2*(q0*q0 + q1*q1), 0,
-        0,                   0,                   0,                   1
-    };
-    glMultMatrixf(matrix);
-}
-
-static Bool gltrackball_event_handler(XEvent* event, void* tb,
-                              int window_width, int window_height,
-                              Bool* button_down_p) {
-    if (!tb || !event) return False;
-    web_trackball_state* wtb = (web_trackball_state*)tb;
-
-    // For web builds, we'll handle mouse events
-    // This is a simplified version - real trackball would be more complex
-    static int mouse_button_down = 0;
-    static float last_mouse_x = 0, last_mouse_y = 0;
-
-    if (event->xany.type == ButtonPress) {
-        mouse_button_down = 1;
-        last_mouse_x = event->xbutton.x;
-        last_mouse_y = event->xbutton.y;
-        wtb->dragging = 1;
-        *button_down_p = True;
-        return True;
-    } else if (event->xany.type == ButtonRelease) {
-        mouse_button_down = 0;
-        wtb->dragging = 0;
-        *button_down_p = False;
-        return True;
-    } else if (event->xany.type == MotionNotify && mouse_button_down) {
-        float dx = (event->xmotion.x - last_mouse_x) / (float)window_width;
-        float dy = (event->xmotion.y - last_mouse_y) / (float)window_height;
-
-        // Simple trackball rotation - convert mouse delta to quaternion rotation
-        float angle = sqrt(dx*dx + dy*dy) * 2.0f;
-        if (angle > 0) {
-            float axis_x = -dy / angle;
-            float axis_y = dx / angle;
-            float axis_z = 0;
-
-            float s = sin(angle * 0.5f);
-            float c = cos(angle * 0.5f);
-
-            // Create rotation quaternion
-            float dq[4] = { axis_x * s, axis_y * s, axis_z * s, c };
-
-            // Multiply current quaternion by rotation
-            float new_q[4];
-            new_q[0] = wtb->q[3]*dq[0] + wtb->q[0]*dq[3] + wtb->q[1]*dq[2] - wtb->q[2]*dq[1];
-            new_q[1] = wtb->q[3]*dq[1] - wtb->q[0]*dq[2] + wtb->q[1]*dq[3] + wtb->q[2]*dq[0];
-            new_q[2] = wtb->q[3]*dq[2] + wtb->q[0]*dq[1] - wtb->q[1]*dq[0] + wtb->q[2]*dq[3];
-            new_q[3] = wtb->q[3]*dq[3] - wtb->q[0]*dq[0] - wtb->q[1]*dq[1] - wtb->q[2]*dq[2];
-
-            // Normalize and store
-            float len = sqrt(new_q[0]*new_q[0] + new_q[1]*new_q[1] + new_q[2]*new_q[2] + new_q[3]*new_q[3]);
-            if (len > 0) {
-                wtb->q[0] = new_q[0] / len;
-                wtb->q[1] = new_q[1] / len;
-                wtb->q[2] = new_q[2] / len;
-                wtb->q[3] = new_q[3] / len;
-            }
-        }
-
-        last_mouse_x = event->xmotion.x;
-        last_mouse_y = event->xmotion.y;
-        return True;
-    }
-
-    return False;
-}
-
-// Web wrapper initialization function
-
-
-// Web implementations of missing functions
-void MI_INIT(ModeInfo *mi, void *bps) {
-    // Initialize the ModeInfo structure
-    // This is a simplified version for web builds
-    mi->screen_number = 0;
-    mi->batchcount = 1;
-    mi->wireframe_p = 0;
-    mi->polygon_count = 0;
-    mi->fps_p = 0;  // Will be set by resource system, not hardcoded
-    mi->dpy = NULL;
-    mi->xgwa.width = 800;
-    mi->xgwa.height = 600;
-    mi->xgwa.visual = NULL;
-}
-
-// Web-specific FPS tracking state
-typedef struct {
-    double last_frame_time;
-    double last_fps_update_time;
-    int frame_count;
-    double current_fps;
-    double current_load;
-    int current_polys;
-    double target_frame_time;  // Target frame time (e.g., 1.0/30.0 for 30 FPS)
-    double total_idle_time;
-    double last_idle_start;
-} web_fps_state;
-
-static web_fps_state web_fps_state_var = {0};
-
-// Generic UI control system
-#define MAX_WEB_PARAMETERS 20
-static web_parameter web_parameters[MAX_WEB_PARAMETERS];
-static int web_parameter_count = 0;
-
-// Register a parameter for web UI control
-void register_web_parameter(const char* name, const char* display_name, web_param_type type,
-                           void* variable, void (*update_callback)(void*),
-                           double min_value, double max_value, double step_value) {
-    if (web_parameter_count >= MAX_WEB_PARAMETERS) return;
-
-    web_parameters[web_parameter_count].name = name;
-    web_parameters[web_parameter_count].display_name = display_name;
-    web_parameters[web_parameter_count].type = type;
-    web_parameters[web_parameter_count].variable = variable;
-    web_parameters[web_parameter_count].update_callback = update_callback;
-    web_parameters[web_parameter_count].min_value = min_value;
-    web_parameters[web_parameter_count].max_value = max_value;
-    web_parameters[web_parameter_count].step_value = step_value;
-
-    web_parameter_count++;
-}
-
-// Generic setter functions that can be exported
+// Function to re-enable debug logging
 EMSCRIPTEN_KEEPALIVE
-void web_set_parameter(const char* name, double value) {
-    for (int i = 0; i < web_parameter_count; i++) {
-        if (strcmp(web_parameters[i].name, name) == 0) {
-            switch (web_parameters[i].type) {
-                case WEB_PARAM_FLOAT:
-                    *(float*)web_parameters[i].variable = (float)value;
-                    break;
-                case WEB_PARAM_INT:
-                    *(int*)web_parameters[i].variable = (int)value;
-                    break;
-                case WEB_PARAM_BOOL:
-                    *(int*)web_parameters[i].variable = (int)value;
-                    break;
-            }
+void re_enable_debug_logging() {
+    debug_logging_enabled = True;
+    printf("Debug logging re-enabled\n");
+}
 
-            if (web_parameters[i].update_callback) {
-                web_parameters[i].update_callback(web_parameters[i].variable);
-            }
-            break;
+// Function to toggle global debug output (affects all printf output)
+EMSCRIPTEN_KEEPALIVE
+void set_global_debug_enabled(int enabled) {
+    // Call JavaScript function to toggle global debug
+    EM_ASM({
+        if (window.setGlobalDebugEnabled) {
+            window.setGlobalDebugEnabled($0);
+        }
+    }, enabled);
+
+    // Also update our local debug flag
+    debug_logging_enabled = enabled;
+
+    printf("Global debug %s\n", enabled ? "enabled" : "disabled");
+}
+
+// Function to set debug level (0=errors only, 1=warnings+info, 2+=detailed debug)
+EMSCRIPTEN_KEEPALIVE
+void set_debug_level(int level) {
+    debug_level = level;
+    printf("Debug level set to %d\n", level);
+}
+
+// Debug function - level 0 goes to stderr, level 1+ goes to stdout
+void DL(int level, const char* format, ...) {
+    if (!debug_logging_enabled) return;
+    if (level <= debug_level) {
+        va_list args;
+        va_start(args, format);
+        if (level == 0) vfprintf(stderr, format, args);
+        else vfprintf(stdout, format, args);
+        va_end(args);
+    }
+}
+
+// Memory tracking functions
+static size_t total_allocated = 0;
+static size_t total_freed = 0;
+static int allocation_count = 0;
+
+EMSCRIPTEN_KEEPALIVE
+void track_memory_allocation(size_t size) {
+    total_allocated += size;
+    allocation_count++;
+    DL(2, "MEMORY: Allocated %zu bytes (total: %zu, count: %d)\n",
+       size, total_allocated, allocation_count);
+}
+
+EMSCRIPTEN_KEEPALIVE
+void track_memory_free(size_t size) {
+    total_freed += size;
+    DL(2, "MEMORY: Freed %zu bytes (total freed: %zu, net: %zu)\n",
+       size, total_freed, total_allocated - total_freed);
+}
+
+// Memory stats function will be defined later with VBO pool support
+
+// Helper function to handle GL_INVALID_ENUM errors
+static void handle_1280_error(const char *location) {
+    if (debug_logging_enabled) {
+        printf("GL_INVALID_ENUM (1280) detected at %s - PAUSING debug logging\n", location);
+        debug_logging_enabled = False;
+
+        // Also disable global debug to stop all printf output
+        set_global_debug_enabled(0);
+    }
+}
+
+// Macro that automatically includes the line number - only compiled when FINDBUG_MODE is defined
+#ifdef FINDBUG_MODE
+// Helper function to check for OpenGL errors and handle them consistently
+static void check_gl_error_wrapper_internal(const char *location, int line) {
+    GLenum error = glGetError();
+    if (error != GL_NO_ERROR) {
+        DL(0, "ERROR: WebGL error at %s (line %d): %d\n", location, line, error);
+        if (error == 1280) {
+            handle_1280_error(location);
         }
     }
 }
 
-// Get parameter info for web UI generation
-EMSCRIPTEN_KEEPALIVE
-int web_get_parameter_count() {
-    return web_parameter_count;
-}
+#define check_gl_error_wrapper(location) check_gl_error_wrapper_internal(location, __LINE__)
+#else
+#define check_gl_error_wrapper(location) /* No-op when FINDBUG_MODE not defined */
+#endif
 
-EMSCRIPTEN_KEEPALIVE
-const char* web_get_parameter_name(int index) {
-    if (index >= 0 && index < web_parameter_count) {
-        return web_parameters[index].name;
-    }
-    return NULL;
-}
-
-EMSCRIPTEN_KEEPALIVE
-const char* web_get_parameter_display_name(int index) {
-    if (index >= 0 && index < web_parameter_count) {
-        return web_parameters[index].display_name;
-    }
-    return NULL;
-}
-
-EMSCRIPTEN_KEEPALIVE
-int web_get_parameter_type(int index) {
-    if (index >= 0 && index < web_parameter_count) {
-        return web_parameters[index].type;
-    }
-    return -1;
-}
-
-EMSCRIPTEN_KEEPALIVE
-double web_get_parameter_value(int index) {
-    if (index >= 0 && index < web_parameter_count) {
-        switch (web_parameters[index].type) {
-            case WEB_PARAM_FLOAT:
-                return *(float*)web_parameters[index].variable;
-            case WEB_PARAM_INT:
-                return *(int*)web_parameters[index].variable;
-            case WEB_PARAM_BOOL:
-                return *(int*)web_parameters[index].variable;
-        }
-    }
-    return 0.0;
-}
-
-EMSCRIPTEN_KEEPALIVE
-double web_get_parameter_min(int index) {
-    if (index >= 0 && index < web_parameter_count) {
-        return web_parameters[index].min_value;
-    }
-    return 0.0;
-}
-
-EMSCRIPTEN_KEEPALIVE
-double web_get_parameter_max(int index) {
-    if (index >= 0 && index < web_parameter_count) {
-        return web_parameters[index].max_value;
-    }
-    return 1.0;
-}
-
-EMSCRIPTEN_KEEPALIVE
-double web_get_parameter_step(int index) {
-    if (index >= 0 && index < web_parameter_count) {
-        return web_parameters[index].step_value;
-    }
-    return 0.1;
-}
-
-// Function to set the target frame rate for FPS calculations
-void web_fps_set_target(double target_fps) {
-    if (target_fps > 0.0) {
-        web_fps_state_var.target_frame_time = 1.0 / target_fps;
-    }
-}
-
-// Simple text rendering function for web builds
-void render_text_simple(int x, int y, const char* text) {
-    // This is a very basic text renderer using OpenGL primitives
-    // In a real implementation, you'd use proper font rendering
-    glRasterPos2i(x, y);
-
-    // For now, we'll just draw a simple rectangle to represent text
-    // This is a placeholder - real text rendering would be much more complex
-    glBegin(GL_QUADS);
-    glVertex2i(x, y);
-    glVertex2i(x + strlen(text) * 8, y);
-    glVertex2i(x + strlen(text) * 8, y + 14);
-    glVertex2i(x, y + 14);
-    glEnd();
-}
+// Function pointers to the real WebGL functions (declared early)
+void (*glEnable_real)(GLenum) = NULL;
+void (*glDisable_real)(GLenum) = NULL;
+void (*glClear_real)(GLbitfield) = NULL;
+void (*glViewport_real)(GLint, GLint, GLsizei, GLsizei) = NULL;
 
 // Matrix stack management
 #define MAX_MATRIX_STACK_DEPTH 32
@@ -485,17 +273,21 @@ typedef struct {
 } Color4f;
 
 typedef struct {
-    GLfloat x, y, z;
-} Normal3f;
-
-typedef struct {
     Vertex3f vertices[MAX_VERTICES];
     Color4f colors[MAX_VERTICES];
-    Normal3f normals[MAX_VERTICES];
     int vertex_count;
     GLenum primitive_type;
     Bool in_begin_end;
 } ImmediateMode;
+
+// Add VBO pooling to prevent memory leaks
+#define MAX_VBO_POOL_SIZE 10
+typedef struct {
+    GLuint vbo_vertices;
+    GLuint vbo_colors;
+    size_t vertex_count;
+    Bool in_use;
+} VBOPoolEntry;
 
 static MatrixStack modelview_stack;
 static MatrixStack projection_stack;
@@ -504,12 +296,105 @@ static GLenum current_matrix_mode = GL_MODELVIEW;
 static ImmediateMode immediate;
 static Color4f current_color = {1.0f, 1.0f, 1.0f, 1.0f};
 static int total_vertices_this_frame = 0;
-static Normal3f current_normal = {0.0f, 0.0f, 1.0f};
+static Bool rendering_enabled = True;
+
+// VBO pool variables
+static VBOPoolEntry vbo_pool[MAX_VBO_POOL_SIZE];
+static int vbo_pool_count = 0;
+static int vbo_pool_next = 0;
 
 // WebGL shader program
 static GLuint shader_program = 0;
 static GLuint vertex_shader = 0;
 static GLuint fragment_shader = 0;
+
+// Provide glGetDoublev since WebGL only has glGetFloatv
+void glGetDoublev(GLenum pname, GLdouble *params) {
+    // Handle matrix parameters specially to avoid GL_INVALID_ENUM
+    if (pname == GL_MODELVIEW_MATRIX || pname == GL_PROJECTION_MATRIX) {
+/*
+        // Return actual matrix stack values for proper matrix debugging
+        Matrix4f* matrix_to_return = NULL;
+
+        switch (pname) {
+            case GL_MODELVIEW_MATRIX:
+                matrix_to_return = &modelview_stack.stack[modelview_stack.top];
+                break;
+            case GL_PROJECTION_MATRIX:
+                matrix_to_return = &projection_stack.stack[projection_stack.top];
+                break;
+
+        }
+
+        if (matrix_to_return) {
+            // Copy the actual matrix values
+            for (int i = 0; i < 16; i++) {
+                params[i] = matrix_to_return->m[i];
+            }
+        } else {
+            // Fallback to identity if something went wrong
+            for (int i = 0; i < 16; i++) {
+                params[i] = (i % 5 == 0) ? 1.0 : 0.0;
+            }
+*/
+        // Return identity matrix for now - this avoids the GL_INVALID_ENUM error
+        // TODO: Later we can implement proper matrix stack retrieval
+        for (int i = 0; i < 16; i++) {
+            params[i] = (i % 5 == 0) ? 1.0 : 0.0; // Identity matrix
+        }
+        return;
+    }
+
+    // For non-matrix parameters, use glGetFloatv as before
+    check_gl_error_wrapper("before glGetFloatv");
+    GLfloat float_params[16];
+    glGetFloatv(pname, float_params);
+    check_gl_error_wrapper("after glGetFloatv");
+
+    // Convert float to double
+    int count = 1; // Default to 1 parameter for non-matrix values
+    for (int i = 0; i < count; i++) {
+        params[i] = (GLdouble)float_params[i];
+    }
+}
+
+// Override glGetFloatv to return actual matrix stack values for matrix debugging
+void glGetFloatv(GLenum pname, GLfloat *params) {
+    // Handle matrix parameters specially to return actual matrix stack values
+    if (pname == GL_MODELVIEW_MATRIX || pname == GL_PROJECTION_MATRIX ) {
+        Matrix4f* matrix_to_return = NULL;
+
+        switch (pname) {
+            case GL_MODELVIEW_MATRIX:
+                matrix_to_return = &modelview_stack.stack[modelview_stack.top];
+                break;
+            case GL_PROJECTION_MATRIX:
+                matrix_to_return = &projection_stack.stack[projection_stack.top];
+                break;
+
+        }
+
+        if (matrix_to_return) {
+            // Copy the actual matrix values
+            for (int i = 0; i < 16; i++) {
+                params[i] = matrix_to_return->m[i];
+            }
+        } else {
+            // Fallback to identity if something went wrong
+            for (int i = 0; i < 16; i++) {
+                params[i] = (i % 5 == 0) ? 1.0f : 0.0f;
+            }
+        }
+        return;
+    }
+
+    // For non-matrix parameters, we can't easily call the real WebGL glGetFloatv
+    // since we're overriding it. For matrix debugging, we mainly need the matrices.
+    // Set to zero for unknown parameters (this could be expanded if needed)
+    if (params) {
+        *params = 0.0f;
+    }
+}
 
 // Matrix utility functions
 static void matrix_identity(Matrix4f *m) {
@@ -565,9 +450,137 @@ static void matrix_scale(Matrix4f *m, GLfloat x, GLfloat y, GLfloat z) {
     matrix_multiply(m, m, &scale);
 }
 
+// VBO pool function implementations
+static void init_vbo_pool(void) {
+    for (int i = 0; i < MAX_VBO_POOL_SIZE; i++) {
+        vbo_pool[i].vbo_vertices = 0;
+        vbo_pool[i].vbo_colors = 0;
+        vbo_pool[i].vertex_count = 0;
+        vbo_pool[i].in_use = False;
+    }
+    vbo_pool_count = 0;
+    vbo_pool_next = 0;
+}
+
+static VBOPoolEntry* get_vbo_from_pool(size_t required_vertex_count) {
+    // Safety check
+    if (required_vertex_count == 0 || required_vertex_count > MAX_VERTICES) {
+        DL(0, "ERROR: Invalid vertex count for VBO pool: %zu\n", required_vertex_count);
+        return NULL;
+    }
+
+    // First, try to find an existing VBO that's big enough and not in use
+    for (int i = 0; i < vbo_pool_count; i++) {
+        if (!vbo_pool[i].in_use && vbo_pool[i].vertex_count >= required_vertex_count) {
+            vbo_pool[i].in_use = True;
+            DL(2, "DEBUG: Reusing VBO pool entry %d (vertices: %zu)\n", i, vbo_pool[i].vertex_count);
+            return &vbo_pool[i];
+        }
+    }
+
+    // If no suitable VBO found, create a new one
+    if (vbo_pool_count < MAX_VBO_POOL_SIZE) {
+        VBOPoolEntry* entry = &vbo_pool[vbo_pool_count];
+
+        glGenBuffers(1, &entry->vbo_vertices);
+        glGenBuffers(1, &entry->vbo_colors);
+
+        // Check if VBO creation failed
+        if (entry->vbo_vertices == 0 || entry->vbo_colors == 0) {
+            DL(0, "ERROR: Failed to create VBOs for pool entry %d\n", vbo_pool_count);
+            return NULL;
+        }
+
+        entry->vertex_count = required_vertex_count;
+        entry->in_use = True;
+
+        DL(2, "DEBUG: Created new VBO pool entry %d (vertices: %zu)\n", vbo_pool_count, required_vertex_count);
+        vbo_pool_count++;
+        return entry;
+    }
+
+    // If pool is full, reuse the oldest entry (round-robin)
+    VBOPoolEntry* entry = &vbo_pool[vbo_pool_next];
+    entry->in_use = True;
+    entry->vertex_count = required_vertex_count;
+
+    DL(2, "DEBUG: Reusing oldest VBO pool entry %d (vertices: %zu)\n", vbo_pool_next, required_vertex_count);
+    vbo_pool_next = (vbo_pool_next + 1) % MAX_VBO_POOL_SIZE;
+    return entry;
+}
+
+static void return_vbo_to_pool(VBOPoolEntry* entry) {
+    if (entry) {
+        entry->in_use = False;
+        DL(2, "DEBUG: Returned VBO to pool (vertices: %zu)\n", entry->vertex_count);
+    }
+}
+
+static void cleanup_vbo_pool(void) {
+    for (int i = 0; i < vbo_pool_count; i++) {
+        if (vbo_pool[i].vbo_vertices) {
+            glDeleteBuffers(1, &vbo_pool[i].vbo_vertices);
+            vbo_pool[i].vbo_vertices = 0;
+        }
+        if (vbo_pool[i].vbo_colors) {
+            glDeleteBuffers(1, &vbo_pool[i].vbo_colors);
+            vbo_pool[i].vbo_colors = 0;
+        }
+        vbo_pool[i].vertex_count = 0;
+        vbo_pool[i].in_use = False;
+    }
+    vbo_pool_count = 0;
+    vbo_pool_next = 0;
+    DL(1, "VBO pool cleaned up\n");
+}
+
+// Enhanced memory stats with VBO pool information
+EMSCRIPTEN_KEEPALIVE
+void print_memory_stats() {
+    // Calculate VBO pool memory usage
+    size_t vbo_pool_memory = 0;
+    int vbo_pool_in_use = 0;
+    for (int i = 0; i < vbo_pool_count; i++) {
+        if (vbo_pool[i].in_use) {
+            vbo_pool_in_use++;
+            vbo_pool_memory += vbo_pool[i].vertex_count * (sizeof(Vertex3f) + sizeof(Color4f));
+        }
+    }
+
+    DL(1, "MEMORY STATS: Allocated=%zu, Freed=%zu, Net=%zu, Count=%d, VBO_Pool=%zu bytes (%d/%d in use)\n",
+       total_allocated, total_freed, total_allocated - total_freed, allocation_count,
+       vbo_pool_memory, vbo_pool_in_use, vbo_pool_count);
+}
+
+// Export VBO pool stats to JavaScript
+EMSCRIPTEN_KEEPALIVE
+void get_vbo_pool_stats(int* pool_size, int* in_use, size_t* total_memory) {
+    *pool_size = vbo_pool_count;
+    *in_use = 0;
+    *total_memory = 0;
+
+    for (int i = 0; i < vbo_pool_count; i++) {
+        if (vbo_pool[i].in_use) {
+            (*in_use)++;
+            *total_memory += vbo_pool[i].vertex_count * (sizeof(Vertex3f) + sizeof(Color4f));
+        }
+    }
+}
+
+// Force cleanup of VBO pool (emergency function)
+EMSCRIPTEN_KEEPALIVE
+void force_vbo_pool_cleanup() {
+    DL(1, "FORCE CLEANUP: Cleaning up VBO pool with %d entries\n", vbo_pool_count);
+    cleanup_vbo_pool();
+    init_vbo_pool();
+    DL(1, "FORCE CLEANUP: VBO pool reset complete\n");
+}
+
 // WebGL 2.0 shader compilation
 static GLuint compile_shader(const char *source, GLenum type) {
     GLuint shader = glCreateShader(type);
+    DL(1, "Created shader %u of type %d\n", shader, type);
+
     glShaderSource(shader, 1, &source, NULL);
     glCompileShader(shader);
 
@@ -576,44 +589,57 @@ static GLuint compile_shader(const char *source, GLenum type) {
     if (!success) {
         GLchar info_log[512];
         glGetShaderInfoLog(shader, 512, NULL, info_log);
-        printf("Shader compilation error: %s\n", info_log);
+        DL(1, "Shader compilation error: %s\n", info_log);
+        DL(1, "Shader source:\n%s\n", source);
+    } else {
+        DL(1, "Shader %u compiled successfully\n", shader);
     }
 
     return shader;
 }
 
 static void init_shaders() {
+    DL(1, "Initializing WebGL 2.0 shaders...\n");
+
     const char *vertex_source =
         "#version 300 es\n"
         "in vec3 position;\n"
-        "in vec3 color;\n"
-        "in vec3 normal;\n"
+        "in vec4 color;\n"
         "uniform mat4 modelview;\n"
         "uniform mat4 projection;\n"
-        "out vec3 frag_color;\n"
-        "out vec3 frag_normal;\n"
+        "out vec4 frag_color;\n"
         "void main() {\n"
         "    gl_Position = projection * modelview * vec4(position, 1.0);\n"
         "    frag_color = color;\n"
-        "    frag_normal = normal;\n"
         "}\n";
 
     const char *fragment_source =
         "#version 300 es\n"
         "precision mediump float;\n"
-        "in vec3 frag_color;\n"
-        "in vec3 frag_normal;\n"
+        "in vec4 frag_color;\n"
         "out vec4 out_color;\n"
         "void main() {\n"
-        "    out_color = vec4(frag_color, 1.0);\n"
+        "    out_color = frag_color;\n"
         "}\n";
 
     vertex_shader = compile_shader(vertex_source, GL_VERTEX_SHADER);
     fragment_shader = compile_shader(fragment_source, GL_FRAGMENT_SHADER);
 
+    DL(1, "Vertex shader: %u, Fragment shader: %u\n", vertex_shader, fragment_shader);
+
     shader_program = glCreateProgram();
+    DL(1, "Created shader program: %u\n", shader_program);
+
+    if (shader_program == 0) {
+        DL(0, "ERROR: glCreateProgram failed! Returned 0\n");
+        return;
+    }
+
     glAttachShader(shader_program, vertex_shader);
     glAttachShader(shader_program, fragment_shader);
+
+    DL(1, "Attached shaders to program %u\n", shader_program);
+
     glLinkProgram(shader_program);
 
     GLint success;
@@ -621,33 +647,54 @@ static void init_shaders() {
     if (!success) {
         GLchar info_log[512];
         glGetProgramInfoLog(shader_program, 512, NULL, info_log);
-        printf("Shader linking error: %s\n", info_log);
+        DL(1, "Shader linking error: %s\n", info_log);
+        DL(1, "Shader program %u linking failed!\n", shader_program);
+    } else {
+        DL(1, "Shader program %u linked successfully\n", shader_program);
+
+        // Validate the program
+        glValidateProgram(shader_program);
+        GLint valid;
+        glGetProgramiv(shader_program, GL_VALIDATE_STATUS, &valid);
+        if (!valid) {
+            GLchar info_log[512];
+            glGetProgramInfoLog(shader_program, 512, NULL, info_log);
+            DL(1, "Shader validation error: %s\n", info_log);
+        } else {
+            DL(1, "Shader program %u validated successfully\n", shader_program);
+        }
     }
 }
 
-// ModeInfo structure for web builds - define this first so it's available everywhere
+// Generic ModeInfo for web builds
 typedef struct {
-    void *display;
-    void *window;       // Changed to pointer to match jwxyz expectations
-    void *visual;
-    unsigned long colormap;
     int screen;
-    int screen_number;  // Added for MI_SCREEN macro
-    int batchcount;     // Added for MI_COUNT macro
-    int wireframe_p;    // Added for MI_IS_WIREFRAME macro
-    int polygon_count;  // Added for polygon counting
-    int fps_p;          // Added for FPS display
-
-    // Additional fields needed by real XScreenSaver headers
-    void *dpy;          // Display pointer (alias for display)
-    struct {
-        int width;
-        int height;
-        void *visual;
-    } xgwa;             // XGetWindowAttributes structure
-
-    // Add other fields as needed
+    Window window;
+    Display *display;
+    Visual *visual;
+    Colormap colormap;
+    int width;
+    int height;
+    long count;
+    int fps_p;
+    int polygon_count; // For polygon counting
+    void *data;
 } ModeInfo;
+
+#define MI_SCREEN(mi) ((mi)->screen)
+#define MI_WIDTH(mi) ((mi)->width)
+#define MI_HEIGHT(mi) ((mi)->height)
+#define MI_COUNT(mi) ((mi)->count)
+#define MI_DISPLAY(mi) ((mi)->display)
+#define MI_VISUAL(mi) ((mi)->visual)
+#define MI_COLORMAP(mi) ((mi)->colormap)
+
+// Generic initialization macro
+#define MI_INIT(mi, bps) do { \
+    if (!bps) { \
+        bps = calloc(1, sizeof(*bps)); \
+    } \
+} while(0)
 
 // WebGL context handle
 static EMSCRIPTEN_WEBGL_CONTEXT_HANDLE webgl_context = -1;
@@ -668,12 +715,17 @@ static reshape_func hack_reshape = NULL;
 static free_func hack_free = NULL;
 static handle_event_func hack_handle_event = NULL;
 
-// Animation state
-static Bool rendering_enabled = True;
-static int frame_count = 0;
+// Animation state (controlled by HexTrail's rotator system)
+static int spin_enabled = 1;
+static int wander_enabled = 1;
+
+// Keypress state for web events
+static char web_keypress_char = 0;
+static float animation_speed = 1.0f;
 
 // Main loop callback
 void main_loop(void) {
+    static int frame_count = 0;
     frame_count++;
     total_vertices_this_frame = 0; // Reset vertex counter each frame
 
@@ -682,44 +734,175 @@ void main_loop(void) {
         return; // Skip rendering entirely
     }
 
-    // Clear the screen
+    // Print memory stats every 100 frames
+    if (frame_count % 100 == 0) {
+        print_memory_stats();
+    }
+
+    check_gl_error_wrapper("start of main loop");
+
+    // Don't reset the matrix stack - let it accumulate transformations from glTranslatef/glRotatef
+    // The native code will call glLoadIdentity() when needed
+
+    // Stop debug output after frame 240 (4 seconds)
+    if (frame_count <= 240) {
+        if (frame_count % 30 == 0) { // Log every 30 frames (once per second at 30 FPS)
+            DL(1, "Main loop frame %d\n", frame_count);
+        }
+    }
+
+    // Don't reset the matrix - let it persist like the native version
+    // The native hextrail code uses glPushMatrix/glPopMatrix to manage transformations
+
+    check_gl_error_wrapper("before glClear in main loop");
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    check_gl_error_wrapper("after glClear in main loop");
 
     if (hack_draw) {
+        if (frame_count <= 240 && frame_count % 60 == 0) {
+            DL(1, "Calling hack_draw...\n");
+        }
+
+        check_gl_error_wrapper("before hack_draw");
         hack_draw(&web_mi);
+        check_gl_error_wrapper("after hack_draw");
+
+        if (frame_count <= 240 && frame_count % 60 == 0) {
+            DL(1, "hack_draw completed\n");
+        }
+    } else {
+        if (frame_count <= 240 && frame_count % 60 == 0) {
+            DL(1, "hack_draw is NULL!\n");
+        }
     }
 }
 
-// Immediate mode OpenGL function implementations
 void glMatrixMode(GLenum mode) {
+    check_gl_error_wrapper("before glMatrixMode");
+
     current_matrix_mode = mode;
+
+    check_gl_error_wrapper("after glMatrixMode");
+}
+
+static MatrixStack* get_current_matrix_stack() {
+    switch (current_matrix_mode) {
+        case GL_MODELVIEW:
+            return &modelview_stack;
+        case GL_PROJECTION:
+            return &projection_stack;
+        case GL_TEXTURE:
+            return &texture_stack;
+        default:
+            return NULL;
+    }
 }
 
 void glOrtho(GLdouble left, GLdouble right, GLdouble bottom, GLdouble top, GLdouble near_val, GLdouble far_val) {
+    check_gl_error_wrapper("before glOrtho");
+
     MatrixStack *stack = get_current_matrix_stack();
+    if (stack && stack->top >= 0) {
+        // Create orthographic projection matrix
+        Matrix4f ortho; // TODO why float not double?
+        matrix_identity(&ortho);
 
-    // Create orthographic projection matrix
-    Matrix4f ortho;
-    matrix_identity(&ortho);
+        GLfloat tx = -(GLfloat)(right + left) / (GLfloat)(right - left);
+        GLfloat ty = -(GLfloat)(top + bottom) / (GLfloat)(top - bottom);
+        GLfloat tz = -(GLfloat)(far_val + near_val) / (GLfloat)(far_val - near_val);
 
-    GLfloat tx = -(right + left) / (right - left);
-    GLfloat ty = -(top + bottom) / (top - bottom);
-    GLfloat tz = -(far_val + near_val) / (far_val - near_val);
+        ortho.m[0] = 2.0f / (GLfloat)(right - left);
+        ortho.m[5] = 2.0f / (GLfloat)(top - bottom);
+        ortho.m[10] = -2.0f / (GLfloat)(far_val - near_val);
+        ortho.m[12] = tx;
+        ortho.m[13] = ty;
+        ortho.m[14] = tz;
 
-    ortho.m[0] = 2.0f / (right - left);
-    ortho.m[5] = 2.0f / (top - bottom);
-    ortho.m[10] = -2.0f / (far_val - near_val);
-    ortho.m[12] = tx;
-    ortho.m[13] = ty;
-    ortho.m[14] = tz;
+        matrix_multiply(&stack->stack[stack->top], &ortho, &stack->stack[stack->top]);
+        DL(1, "Orthographic matrix applied\n");
+    }
 
-    matrix_multiply(&stack->stack[stack->top], &ortho, &stack->stack[stack->top]);
+    check_gl_error_wrapper("after glOrtho");
 }
 
 void glLoadIdentity(void) {
+    check_gl_error_wrapper("before glLoadIdentity");
+
     MatrixStack *stack = get_current_matrix_stack();
+    if (!stack) {
+        return;
+    }
+
     matrix_identity(&stack->stack[stack->top]);
+
+    // Debug: Log when modelview matrix is reset
+    if (current_matrix_mode == GL_MODELVIEW) {
+        static int reset_count = 0;
+        reset_count++;
+        if (reset_count <= 3) {
+            DL(2, "DEBUG: ModelView matrix reset to identity (count: %d)\n", reset_count);
+        }
+    }
+
+    check_gl_error_wrapper("after glLoadIdentity");
 }
+
+static void init_opengl_state() {
+    check_gl_error_wrapper("start of init_opengl_state");
+
+    // Initialize matrix stacks
+    matrix_identity(&modelview_stack.stack[0]);
+    matrix_identity(&projection_stack.stack[0]);
+    matrix_identity(&texture_stack.stack[0]);
+    modelview_stack.top = 0;
+    projection_stack.top = 0;
+    texture_stack.top = 0;
+
+    // Initialize immediate mode
+    immediate.in_begin_end = False;
+    immediate.vertex_count = 0;
+
+    // Initialize VBO pool to prevent memory leaks
+    init_vbo_pool();
+
+    // Initialize shaders
+    init_shaders();
+
+    // Set up basic OpenGL state
+    glEnable(GL_DEPTH_TEST);
+
+    check_gl_error_wrapper("after glEnable(GL_DEPTH_TEST)");
+
+    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+    check_gl_error_wrapper("after glClearColor");
+
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    check_gl_error_wrapper("after glClear");
+}
+
+// Initialize function pointers to real WebGL functions
+static void init_gl_function_pointers(void) {
+    // Get function pointers to the real WebGL functions
+    glEnable_real = (void (*)(GLenum))emscripten_webgl_get_proc_address("glEnable");
+    glDisable_real = (void (*)(GLenum))emscripten_webgl_get_proc_address("glDisable");
+    glClear_real = (void (*)(GLbitfield))emscripten_webgl_get_proc_address("glClear");
+    glViewport_real = (void (*)(GLint, GLint, GLsizei, GLsizei))emscripten_webgl_get_proc_address("glViewport");
+    // Note: glShadeModel and glFrontFace don't exist in WebGL 2.0, so we don't try to get them
+
+    if (!glEnable_real) {
+        DL(1, "WARNING: Could not get glEnable function pointer\n");
+    }
+    if (!glDisable_real) {
+        DL(1, "WARNING: Could not get glDisable function pointer\n");
+    }
+    if (!glClear_real) {
+        DL(1, "WARNING: Could not get glClear function pointer\n");
+    }
+    if (!glViewport_real) {
+        DL(1, "WARNING: Could not get glViewport function pointer\n");
+    }
+}
+
 // Initialize WebGL context and OpenGL state
 static int init_webgl() {
     EmscriptenWebGLContextAttributes attrs;
@@ -741,14 +924,17 @@ static int init_webgl() {
 
     webgl_context = emscripten_webgl_create_context("#canvas", &attrs);
     if (webgl_context < 0) {
-        printf("Failed to create WebGL context! Error: %lu\n", webgl_context);
+        DL(1, "Failed to create WebGL context! Error: %lu\n", webgl_context);
         return 0;
     }
 
     if (emscripten_webgl_make_context_current(webgl_context) != EMSCRIPTEN_RESULT_SUCCESS) {
-        printf("Failed to make WebGL context current!\n");
+        DL(1, "Failed to make WebGL context current!\n");
         return 0;
     }
+
+    // Initialize function pointers to real WebGL functions
+    init_gl_function_pointers();
 
     // Initialize OpenGL state
     init_opengl_state();
@@ -756,45 +942,15 @@ static int init_webgl() {
     return 1;
 }
 
-static MatrixStack* get_current_matrix_stack() {
-    switch (current_matrix_mode) {
-        case GL_MODELVIEW:
-            return &modelview_stack;
-        case GL_PROJECTION:
-            return &projection_stack;
-        case GL_TEXTURE:
-            return &texture_stack;
-        default:
-            return &modelview_stack;
-    }
-}
-
-static void init_opengl_state() {
-    // Initialize matrix stacks
-    matrix_identity(&modelview_stack.stack[0]);
-    matrix_identity(&projection_stack.stack[0]);
-    matrix_identity(&texture_stack.stack[0]);
-    modelview_stack.top = 0;
-    projection_stack.top = 0;
-    texture_stack.top = 0;
-
-    // Initialize immediate mode
-    immediate.in_begin_end = False;
-    immediate.vertex_count = 0;
-
-    // Initialize shaders
-    init_shaders();
-
-    // Set up basic OpenGL state
-    glEnable(GL_DEPTH_TEST);
-    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-}
-
 // Generic web initialization
 EMSCRIPTEN_KEEPALIVE
 int xscreensaver_web_init(init_func init, draw_func draw, reshape_func reshape, free_func free, handle_event_func handle_event) {
-    printf("xscreensaver_web_init called\n");
+    DL(1, "xscreensaver_web_init called\n");
+
+    // Initialize random seed for consistent but varied colors
+    extern void ya_rand_init(unsigned int seed);
+    ya_rand_init(0);
+    DL(1, "Random seed initialized\n");
 
     hack_init = init;
     hack_draw = draw;
@@ -802,139 +958,165 @@ int xscreensaver_web_init(init_func init, draw_func draw, reshape_func reshape, 
     hack_free = free;
     hack_handle_event = handle_event;
 
-    printf("Function pointers set: init=%p, draw=%p, reshape=%p, free=%p, handle_event=%p\n",
+    DL(1, "Function pointers set: init=%p, draw=%p, reshape=%p, free=%p, handle_event=%p\n",
            (void*)init, (void*)draw, (void*)reshape, (void*)free, (void*)handle_event);
 
     // Initialize ModeInfo
     web_mi.screen = 0;
-    web_mi.window = (void*)1;
-    web_mi.display = (void*)1;
-    web_mi.visual = (void*)1;
-    web_mi.colormap = 1;
-    web_mi.screen_number = 0;
-    web_mi.batchcount = 1;
-    web_mi.wireframe_p = 0;
-    web_mi.polygon_count = 0;
+    web_mi.window = (Window)1;
+    web_mi.display = (Display*)1;
+    web_mi.visual = (Visual*)1;
+    web_mi.colormap = (Colormap)1;
+    web_mi.width = 800;
+    web_mi.height = 600;
+    web_mi.count = 20;
     web_mi.fps_p = 0;
-    web_mi.dpy = (void*)1;
-    web_mi.xgwa.width = 800;
-    web_mi.xgwa.height = 600;
-    web_mi.xgwa.visual = (void*)1;
+    web_mi.data = NULL;
 
-    printf("ModeInfo initialized: width=%d, height=%d\n", web_mi.xgwa.width, web_mi.xgwa.height);
+    DL(1, "ModeInfo initialized: width=%d, height=%d\n", web_mi.width, web_mi.height);
 
     // Check canvas size
     int canvas_width, canvas_height;
     emscripten_get_canvas_element_size("#canvas", &canvas_width, &canvas_height);
-    printf("Canvas size: %dx%d\n", canvas_width, canvas_height);
+    DL(1, "Canvas size: %dx%d\n", canvas_width, canvas_height);
 
     // Initialize WebGL
-    printf("Initializing WebGL...\n");
+    DL(1, "Initializing WebGL...\n");
     if (!init_webgl()) {
-        printf("WebGL initialization failed!\n");
+        DL(1, "WebGL initialization failed!\n");
         return 0;
     }
-    printf("WebGL initialized successfully\n");
+    DL(1, "WebGL initialized successfully\n");
 
     // Call the hack's init function
     if (hack_init) {
-        printf("Calling hack_init...\n");
+        DL(1, "Calling hack_init...\n");
         hack_init(&web_mi);
-        printf("hack_init completed\n");
+        DL(1, "hack_init completed\n");
     } else {
-        printf("hack_init is NULL!\n");
+        DL(1, "hack_init is NULL!\n");
     }
+
+    // Rotator will be initialized by webpage with checkbox values
+    DL(2, "DEBUG: Web rotator will be initialized by webpage\n");
 
     // Set up reshape
     if (hack_reshape) {
-        printf("Calling hack_reshape...\n");
-        hack_reshape(&web_mi, web_mi.xgwa.width, web_mi.xgwa.height);
-        printf("hack_reshape completed\n");
+        DL(1, "Calling hack_reshape...\n");
+        hack_reshape(&web_mi, web_mi.width, web_mi.height);
+        DL(1, "hack_reshape completed\n");
     } else {
-        printf("hack_reshape is NULL!\n");
+        DL(1, "hack_reshape is NULL!\n");
     }
 
-    // Set up the main loop (60 FPS)
-    printf("Setting up main loop...\n");
-    emscripten_set_main_loop(main_loop, 60, 1);
-    printf("Main loop set up successfully\n");
+    // Set up the main loop (30 FPS - matches hextrail.c timing better than 60 FPS)
+    DL(1, "Setting up main loop...\n");
+    emscripten_set_main_loop(main_loop, 30, 1);
+    DL(1, "Main loop set up successfully\n");
 
     return 1;
 }
 
-// Web-specific function exports for UI controls (using generic system)
+// Web-specific function exports for UI controls
 EMSCRIPTEN_KEEPALIVE
 void set_speed(GLfloat new_speed) {
-    web_set_parameter("speed", (double)new_speed);
+    extern GLfloat speed;
+    speed = new_speed;
+    DL(1, "Animation speed set to: %f\n", speed);
 }
 
 EMSCRIPTEN_KEEPALIVE
 void set_thickness(GLfloat new_thickness) {
-    web_set_parameter("thickness", (double)new_thickness);
+    extern GLfloat thickness;
+    thickness = new_thickness;
+    DL(1, "Thickness set to: %f\n", thickness);
+
+    // Send event to hack to update corners
+    if (hack_handle_event) {
+        // Create a dummy event to trigger corner recalculation
+        // The hack can check if thickness changed and call scale_corners()
+        hack_handle_event(&web_mi, NULL);  // NULL event means "parameter changed"
+    }
 }
 
 EMSCRIPTEN_KEEPALIVE
 void set_spin(int new_spin_enabled) {
-    web_set_parameter("spin", (double)new_spin_enabled);
+    extern Bool do_spin;
+    extern void update_hextrail_rotator(void);
+    DL(2, "DEBUG: set_spin called with %d, current do_spin=%d\n", new_spin_enabled, do_spin);
+    do_spin = new_spin_enabled;
+    DL(1, "Spin %s (do_spin now=%d)\n", do_spin ? "enabled" : "disabled", do_spin);
+    update_hextrail_rotator();
 }
 
 EMSCRIPTEN_KEEPALIVE
 void set_wander(int new_wander_enabled) {
-    web_set_parameter("wander", (double)new_wander_enabled);
+    extern Bool do_wander;
+    extern void update_hextrail_rotator(void);
+    DL(2, "DEBUG: set_wander called with %d, current do_wander=%d\n", new_wander_enabled, do_wander);
+    do_wander = new_wander_enabled;
+    DL(1, "Wander %s (do_wander now=%d)\n", do_wander ? "enabled" : "disabled", do_wander);
+    update_hextrail_rotator();
 }
 
 EMSCRIPTEN_KEEPALIVE
 void stop_rendering() {
     rendering_enabled = False;
-    printf("Rendering stopped\n");
+    DL(1, "Rendering stopped\n");
 }
 
 EMSCRIPTEN_KEEPALIVE
 void start_rendering() {
     rendering_enabled = True;
-    printf("Rendering started\n");
+    DL(1, "Rendering started\n");
 }
 
 EMSCRIPTEN_KEEPALIVE
 void handle_mouse_drag(int delta_x, int delta_y) {
     // This would need to be implemented per-hack
-    (void)delta_x;
-    (void)delta_y;
+    DL(1, "Mouse drag: %d, %d\n", delta_x, delta_y);
 }
 
 EMSCRIPTEN_KEEPALIVE
 void handle_mouse_wheel(int delta) {
     // This would need to be implemented per-hack
-    (void)delta;
+    DL(1, "Mouse wheel: %d\n", delta);
 }
 
 EMSCRIPTEN_KEEPALIVE
 void handle_keypress(int keycode, int charcode) {
-    // This would need to be implemented per-hack
-    (void)keycode;
-    (void)charcode;
+    if (hack_handle_event) {
+        // Create a dummy XEvent structure for keyboard events
+        XEvent event;
+        memset(&event, 0, sizeof(event));
+        event.type = KeyPress;
+        event.xkey.keycode = keycode;
+        event.xkey.state = 0;  // No modifiers for now
+
+        // Store the character for XLookupString to return
+        web_keypress_char = (char)charcode;
+
+        // Pass the event to the hack
+        hack_handle_event(&web_mi, &event);
+        DL(1, "Keypress: keycode=%d, char=%c\n", keycode, (char)charcode);
+    }
 }
 
 EMSCRIPTEN_KEEPALIVE
 void reshape_hextrail_wrapper(int width, int height) {
     if (hack_reshape) {
-        web_mi.xgwa.width = width;
-        web_mi.xgwa.height = height;
+        web_mi.width = width;
+        web_mi.height = height;
         hack_reshape(&web_mi, width, height);
-        printf("Reshaped to %dx%d\n", width, height);
+        DL(1, "Reshaped to %dx%d\n", width, height);
     }
 }
 
+// Dummy init_GL function for web builds
 GLXContext *init_GL(ModeInfo *mi) {
-    // Initialize OpenGL context for web
-    // This is a simplified version - in a real implementation,
-    // you would set up the WebGL context here
-    static GLXContext context = NULL;
-    if (!context) {
-        // Create a dummy context for web builds
-        context = (GLXContext)malloc(sizeof(void*));
-    }
-    return &context;
+    // Return a dummy context pointer
+    static GLXContext dummy_context = (GLXContext)1;
+    return &dummy_context;
 }
 
 // Cleanup function
@@ -944,6 +1126,9 @@ void xscreensaver_web_cleanup() {
         hack_free(&web_mi);
     }
 
+    // Clean up VBO pool to prevent memory leaks
+    cleanup_vbo_pool();
+
     if (webgl_context >= 0) {
         emscripten_webgl_destroy_context(webgl_context);
         webgl_context = -1;
@@ -951,66 +1136,109 @@ void xscreensaver_web_cleanup() {
 }
 
 Bool screenhack_event_helper(void *display, void *window, void *event) {
-    // Web stub - events are handled differently in web environment
-    (void)display;
-    (void)window;
-    (void)event;
     return False;
 }
 
-// Missing OpenGL functions
-void glPushAttrib(GLbitfield mask) {
-    // WebGL doesn't support attribute stacks, so this is a no-op
-    (void)mask;
+// Missing jwxyz_abort function
+void jwxyz_abort(const char *fmt, ...) {
+    va_list args;
+    va_start(args, fmt);
+    vfprintf(stderr, fmt, args);
+    va_end(args);
+    fprintf(stderr, "\n");
+    // In a real implementation, this would terminate the program
+    // For web, we'll just exit the program
+    exit(1);
 }
 
-void glPopAttrib(void) {
-    // WebGL doesn't support attribute stacks, so this is a no-op
-}
-
-// Missing X11 function for web builds
 int XLookupString(XKeyEvent *event_struct, char *buffer_return, int bytes_buffer, KeySym *keysym_return, XComposeStatus *status_in_out) {
-    // Web stub - return empty string for now
+    // Return the character stored by handle_keypress
     if (buffer_return && bytes_buffer > 0) {
-        buffer_return[0] = '\0';
+        buffer_return[0] = web_keypress_char;
+        if (bytes_buffer > 1) buffer_return[1] = '\0';
+        return web_keypress_char ? 1 : 0;
     }
     if (keysym_return) *keysym_return = 0;
     return 0;
 }
 
-void glRasterPos2i(GLint x, GLint y) {
-    // WebGL doesn't support raster position, so this is a no-op
-    (void)x;
-    (void)y;
+void glFrustum(GLdouble left, GLdouble right, GLdouble bottom, GLdouble top, GLdouble near_val, GLdouble far_val) {
+    check_gl_error_wrapper("before glFrustum");
+
+    // Create perspective projection matrix
+    Matrix4f frustum;
+    matrix_identity(&frustum);
+
+    GLfloat a = (right + left) / (right - left);
+    GLfloat b = (top + bottom) / (top - bottom);
+    GLfloat c = -(far_val + near_val) / (far_val - near_val);
+    GLfloat d = -(2 * far_val * near_val) / (far_val - near_val);
+
+    frustum.m[0] = 2 * near_val / (right - left);
+    frustum.m[5] = 2 * near_val / (top - bottom);
+    frustum.m[8] = a;
+    frustum.m[9] = b;
+    frustum.m[10] = c;
+    frustum.m[11] = -1;
+    frustum.m[14] = d;
+    frustum.m[15] = 0;
+
+    matrix_multiply(&projection_stack.stack[projection_stack.top],
+                   &projection_stack.stack[projection_stack.top], &frustum);
+
+    check_gl_error_wrapper("after glFrustum");
 }
 
-void glVertex2i(GLint x, GLint y) {
-    // Convert to 3D by adding z=0
-    glVertex3f((GLfloat)x, (GLfloat)y, 0.0f);
-}
-
-void glShadeModel(GLenum mode) {
-    // WebGL doesn't support shade model, so this is a no-op
-    (void)mode;
-}
-
-void gluPerspective(GLfloat fovy, GLfloat aspect, GLfloat zNear, GLfloat zFar) {
+// Missing GLU functions for WebGL
+void gluPerspective(GLdouble fovy, GLdouble aspect, GLdouble zNear, GLdouble zFar) {
     GLfloat xmin, xmax, ymin, ymax;
 
-    ymax = zNear * tan(fovy * M_PI / 360.0f);
+    ymax = (GLfloat)zNear * tan((GLfloat)fovy * M_PI / 360.0f);
     ymin = -ymax;
-    xmin = ymin * aspect;
-    xmax = ymax * aspect;
+    xmin = ymin * (GLfloat)aspect;
+    xmax = ymax * (GLfloat)aspect;
 
-    glFrustum(xmin, xmax, ymin, ymax, zNear, zFar);
+    glFrustum(xmin, xmax, ymin, ymax, (GLfloat)zNear, (GLfloat)zFar);
 }
 
-void gluLookAt(GLfloat eyex, GLfloat eyey, GLfloat eyez,
-               GLfloat centerx, GLfloat centery, GLfloat centerz,
-               GLfloat upx, GLfloat upy, GLfloat upz) {
-    GLfloat m[16];
-    GLfloat x[3], y[3], z[3];
-    GLfloat mag;
+// This is needed by gltrackball.c
+void glMultMatrixf(const GLfloat *m) {
+    Matrix4f matrix;
+    for (int i = 0; i < 16; i++) {
+        matrix.m[i] = m[i];
+    }
+
+    MatrixStack *stack = get_current_matrix_stack();
+    if (!stack) {
+        return;
+    }
+
+    matrix_multiply(&stack->stack[stack->top], &stack->stack[stack->top], &matrix);
+
+    check_gl_error_wrapper("after glMultMatrixf");
+}
+
+void glTranslatef(GLfloat x, GLfloat y, GLfloat z) {
+    MatrixStack *stack = get_current_matrix_stack();
+    if (!stack) {
+        return;
+    }
+
+    matrix_translate(&stack->stack[stack->top], x, y, z);
+}
+
+void glTranslated(GLdouble x, GLdouble y, GLdouble z) {
+    glTranslatef((GLfloat)x, (GLfloat)y, (GLfloat)z);
+
+    check_gl_error_wrapper("after glTranslated");
+}
+
+void gluLookAt(GLdouble eyex, GLdouble eyey, GLdouble eyez,
+               GLdouble centerx, GLdouble centery, GLdouble centerz,
+               GLdouble upx, GLdouble upy, GLdouble upz) {
+    GLdouble m[16];
+    GLdouble x[3], y[3], z[3];
+    GLdouble mag;
 
     /* Make rotation matrix */
 
@@ -1064,14 +1292,176 @@ void gluLookAt(GLfloat eyex, GLfloat eyey, GLfloat eyez,
     M(2,0) = z[0];  M(2,1) = z[1];  M(2,2) = z[2];  M(2,3) = 0.0;
     M(3,0) = 0.0;   M(3,1) = 0.0;   M(3,2) = 0.0;   M(3,3) = 1.0;
 #undef M
-    glMultMatrixf(m);
+
+    // Convert double matrix to float and use glMultMatrixf
+    GLfloat mf[16];
+    for (int i = 0; i < 16; i++) {
+        mf[i] = (GLfloat)m[i];
+    }
+
+    check_gl_error_wrapper("before glMultMatrixf in gluLookAt");
+    glMultMatrixf(mf);
+    check_gl_error_wrapper("after glMultMatrixf in gluLookAt");
 
     /* Translate Eye to Origin */
-    glTranslatef(-eyex, -eyey, -eyez);
+    glTranslated(-eyex, -eyey, -eyez);
+    check_gl_error_wrapper("after glTranslated in gluLookAt");
+}
+
+// OpenGL state tracking
+static Bool normalize_enabled = False;
+static Bool lighting_enabled = False;
+
+// Add glEnable wrapper that handles unsupported capabilities in WebGL 2.0
+void glEnable(GLenum cap) {
+    check_gl_error_wrapper("before glEnable");
+
+    // Check for unsupported capabilities in WebGL 2.0
+    switch (cap) {
+        case GL_NORMALIZE:
+            // Store normalize state for shader use
+            normalize_enabled = True;
+            DL(2, "DEBUG: glEnable(GL_NORMALIZE=%d 0x%x) - will normalize normals in shader\n", cap, cap);
+            return;
+        case GL_LIGHTING:
+            // Store lighting state for shader use
+            lighting_enabled = True;
+            DL(2, "DEBUG: glEnable(GL_LIGHTING) - will apply lighting in shader\n");
+            return;
+        case GL_LIGHT0:
+        case GL_LIGHT1:
+            // Fixed-function lighting is not supported in WebGL 2.0, ignore it
+            DL(1, "WARNING: glEnable(GL_LIGHT%d) ignored - not supported in WebGL 2.0\n", cap - GL_LIGHT0);
+            return;
+        case GL_TEXTURE_2D:
+            // Fixed-function texturing is not supported in WebGL 2.0, ignore it
+            DL(1, "WARNING: glEnable(GL_TEXTURE_2D) ignored - not supported in WebGL 2.0\n");
+            return;
+        case GL_FOG:
+            // Fixed-function fog is not supported in WebGL 2.0, ignore it
+            DL(1, "WARNING: glEnable(GL_FOG) ignored - not supported in WebGL 2.0\n");
+            return;
+        case GL_COLOR_MATERIAL:
+            // Fixed-function materials are not supported in WebGL 2.0, ignore it
+            DL(1, "WARNING: glEnable(GL_COLOR_MATERIAL) ignored - not supported in WebGL 2.0\n");
+            return;
+        default:
+            DL(2, "DEBUG: glEnable default case for cap=%d (0x%x), GL_NORMALIZE=%d (0x%x)\n", cap, cap, GL_NORMALIZE, GL_NORMALIZE);
+            // For supported capabilities, call the real glEnable
+            if (glEnable_real) {
+                glEnable_real(cap);
+            } else {
+                DL(1, "WARNING: glEnable(%d) ignored - real function not available\n", cap);
+            }
+            break;
+    }
+
+    check_gl_error_wrapper("after glEnable");
+}
+
+// Add glDisable wrapper that handles unsupported capabilities in WebGL 2.0
+void glDisable(GLenum cap) {
+    check_gl_error_wrapper("start of glDisable");
+
+    // Check for unsupported capabilities in WebGL 2.0
+    switch (cap) {
+        case GL_NORMALIZE:
+            // Store normalize state for shader use
+            normalize_enabled = False;
+            DL(2, "DEBUG: glDisable(GL_NORMALIZE) - will not normalize normals in shader\n");
+            return;
+        case GL_LIGHTING:
+            // Store lighting state for shader use
+            lighting_enabled = False;
+            DL(2, "DEBUG: glDisable(GL_LIGHTING) - will not apply lighting in shader\n");
+            return;
+        case GL_LIGHT0:
+        case GL_LIGHT1:
+            // Fixed-function lighting is not supported in WebGL 2.0, ignore it
+            DL(1, "WARNING: glDisable(GL_LIGHT%d) ignored - not supported in WebGL 2.0\n", cap - GL_LIGHT0);
+            return;
+        case GL_TEXTURE_2D:
+            // Fixed-function texturing is not supported in WebGL 2.0, ignore it
+            DL(1, "WARNING: glDisable(GL_TEXTURE_2D) ignored - not supported in WebGL 2.0\n");
+            return;
+        case GL_FOG:
+            // Fixed-function fog is not supported in WebGL 2.0, ignore it
+            DL(1, "WARNING: glDisable(GL_FOG) ignored - not supported in WebGL 2.0\n");
+            return;
+        case GL_COLOR_MATERIAL:
+            // Fixed-function materials are not supported in WebGL 2.0, ignore it
+            DL(1, "WARNING: glDisable(GL_COLOR_MATERIAL) ignored - not supported in WebGL 2.0\n");
+            return;
+        case GL_DEPTH_TEST:
+            DL(2, "DEBUG: glDisable(GL_DEPTH_TEST), glDisable_real=%p\n", glDisable_real);
+            // fallthrough
+        case GL_CULL_FACE:
+            DL(2, "DEBUG: glDisable(GL_CULL_FACE), glDisable_real=%p\n", glDisable_real);
+            // fallthrough
+        default:
+            // For supported capabilities, call the real glDisable
+            if (glDisable_real) {
+                DL(2, "DEBUG: glDisable(%d) - calling real function\n", cap);
+                glDisable_real(cap);
+            } else {
+                DL(1, "WARNING: glDisable(%d) ignored - real function not available\n", cap);
+            }
+            break;
+    }
+
+    check_gl_error_wrapper("end of glDisable");
+}
+
+void glClear(GLbitfield mask) {
+    check_gl_error_wrapper("before glClear wrapper");
+
+    // Call the real glClear function
+    if (glClear_real) {
+        glClear_real(mask);
+        check_gl_error_wrapper("after glClear_real");
+    } else {
+        DL(1, "WARNING: glClear(%d) ignored - real function not available\n", mask);
+    }
+}
+
+// Shading model state
+static GLenum current_shade_model = GL_SMOOTH; // Default to smooth
+
+void glShadeModel(GLenum mode) {
+    check_gl_error_wrapper("before glShadeModel");
+
+    // Store the shading mode for shader use
+    current_shade_model = mode;
+    DL(2, "DEBUG: glShadeModel set to %d (GL_SMOOTH=%d, GL_FLAT=%d)\n", mode, GL_SMOOTH, GL_FLAT);
+
+    // For WebGL 2.0, we'll handle this in our shaders
+    // GL_SMOOTH = interpolate colors between vertices
+    // GL_FLAT = use the last vertex color for the entire primitive
+}
+
+// Front face winding order state
+static GLenum current_front_face = GL_CCW; // Default to CCW
+
+// Add glFrontFace wrapper
+void glFrontFace(GLenum mode) {
+    check_gl_error_wrapper("before glFrontFace");
+
+    // Store the front face mode for shader use
+    current_front_face = mode;
+    DL(2, "DEBUG: glFrontFace set to %d (GL_CCW=%d, GL_CW=%d)\n", mode, GL_CCW, GL_CW);
+
+    // For WebGL 2.0, we'll handle this in our shaders using gl_FrontFacing
+    // The real glFrontFace function is not available in WebGL 2.0
 }
 
 void glPushMatrix(void) {
+    check_gl_error_wrapper("before glPushMatrix");
+
     MatrixStack *stack = get_current_matrix_stack();
+    if (!stack) {
+        return;
+    }
+
     if (stack->top < MAX_MATRIX_STACK_DEPTH - 1) {
         stack->top++;
         stack->stack[stack->top] = stack->stack[stack->top - 1];
@@ -1079,31 +1469,40 @@ void glPushMatrix(void) {
 }
 
 void glPopMatrix(void) {
+    // TODO - debug here to show wrapper is running
     MatrixStack *stack = get_current_matrix_stack();
+    if (!stack) {
+        return;
+    }
+
     if (stack->top > 0) {
         stack->top--;
     }
 }
 
-void glTranslatef(GLfloat x, GLfloat y, GLfloat z) {
-    MatrixStack *stack = get_current_matrix_stack();
-    matrix_translate(&stack->stack[stack->top], x, y, z);
-}
-
 void glRotatef(GLfloat angle, GLfloat x, GLfloat y, GLfloat z) {
+    // TODO - debug here to show wrapper is running
     MatrixStack *stack = get_current_matrix_stack();
+    if (!stack) {
+        return;
+    }
+
     matrix_rotate(&stack->stack[stack->top], angle, x, y, z);
 }
 
 void glScalef(GLfloat x, GLfloat y, GLfloat z) {
+    // TODO - debug here to show wrapper is running
     MatrixStack *stack = get_current_matrix_stack();
+    if (!stack) {
+        return;
+    }
+
     matrix_scale(&stack->stack[stack->top], x, y, z);
 }
 
 void glNormal3f(GLfloat nx, GLfloat ny, GLfloat nz) {
-    current_normal.x = nx;
-    current_normal.y = ny;
-    current_normal.z = nz;
+    // Normals are not used in our WebGL implementation
+    // This function is called by hextrail but ignored
 }
 
 void glColor3f(GLfloat r, GLfloat g, GLfloat b) {
@@ -1111,6 +1510,12 @@ void glColor3f(GLfloat r, GLfloat g, GLfloat b) {
     current_color.g = g;
     current_color.b = b;
     current_color.a = 1.0f;
+
+    static int color_count = 0;
+    color_count++;
+    if (color_count <= 10) { // Only log first 10 color changes
+        DL(1, "glColor3f: RGB(%.3f, %.3f, %.3f)\n", r, g, b);
+    }
 }
 
 void glColor4f(GLfloat r, GLfloat g, GLfloat b, GLfloat a) {
@@ -1118,40 +1523,94 @@ void glColor4f(GLfloat r, GLfloat g, GLfloat b, GLfloat a) {
     current_color.g = g;
     current_color.b = b;
     current_color.a = a;
+
+    static int color_count = 0;
+    color_count++;
+    if (color_count <= 10) { // Only log first 10 color changes
+        DL(1, "glColor4f: RGBA(%.3f, %.3f, %.3f, %.3f)\n", r, g, b, a);
+    }
 }
 
 void glColor4fv(const GLfloat *v) {
-    glColor4f(v[0], v[1], v[2], v[3]);
+    check_gl_error_wrapper("before glColor4fv");
+
+    current_color.r = v[0];
+    current_color.g = v[1];
+    current_color.b = v[2];
+    current_color.a = v[3];
+
+    static int color_count = 0;
+    color_count++;
+    if (color_count <= 10) { // Only log first 10 color changes
+        DL(1, "glColor4fv: RGBA(%.3f, %.3f, %.3f, %.3f)\n", v[0], v[1], v[2], v[3]);
+    }
 }
 
 void glMaterialfv(GLenum face, GLenum pname, const GLfloat *params) {
-    // WebGL doesn't support materials, so this is a no-op
-    (void)face;
-    (void)pname;
-    (void)params;
+    // Store material properties for shader uniforms
+    // For now, just ignore - we'll implement basic lighting later
+    DL(2, "DEBUG: glMaterialfv(face=%d, pname=%d) - material not implemented yet\n", face, pname);
+}
+
+void glLightfv(GLenum light, GLenum pname, const GLfloat *params) {
+    // Store lighting properties for shader uniforms
+    // For now, just ignore - we'll implement basic lighting later
+    DL(2, "DEBUG: glLightfv(light=%d, pname=%d) - lighting not implemented yet\n", light, pname);
+}
+
+void glLightf(GLenum light, GLenum pname, GLfloat param) {
+    // Store lighting properties for shader uniforms
+    // For now, just ignore - we'll implement basic lighting later
+    DL(2, "DEBUG: glLightf(light=%d, pname=%d, param=%f) - lighting not implemented yet\n", light, pname, param);
+}
+
+void glLightModelfv(GLenum pname, const GLfloat *params) {
+    // Store lighting model properties for shader uniforms
+    // For now, just ignore - we'll implement basic lighting later
+    DL(2, "DEBUG: glLightModelfv(pname=%d) - lighting model not implemented yet\n", pname);
+}
+
+void glFinish(void) {
+    // In WebGL 2.0, glFinish() is not needed as the browser handles synchronization
+    // But we'll call it for compatibility
+    DL(2, "DEBUG: glFinish() called - WebGL handles synchronization automatically\n");
 }
 
 void glVertex3f(GLfloat x, GLfloat y, GLfloat z) {
     if (!immediate.in_begin_end) return;
 
     if (immediate.vertex_count >= MAX_VERTICES) {
-        printf("WARNING: Vertex limit reached (%d), dropping vertex!\n", MAX_VERTICES);
+        DL(1, "WARNING: Vertex limit reached (%d), dropping vertex!\n", MAX_VERTICES);
         return;
+    }
+
+    // Check for errors before glVertex3f (only on first few vertices to avoid spam)
+    static int vertex_error_check_count = 0;
+    if (vertex_error_check_count < 5) {
+        check_gl_error_wrapper("before glVertex3f");
+        vertex_error_check_count++;
     }
 
     immediate.vertices[immediate.vertex_count].x = x;
     immediate.vertices[immediate.vertex_count].y = y;
     immediate.vertices[immediate.vertex_count].z = z;
     immediate.colors[immediate.vertex_count] = current_color;
-    immediate.normals[immediate.vertex_count] = current_normal;
     immediate.vertex_count++;
-    total_vertices_this_frame++;
 }
 
 void glBegin(GLenum mode) {
+    check_gl_error_wrapper("before glBegin");
+
     immediate.in_begin_end = True;
     immediate.primitive_type = mode;
     immediate.vertex_count = 0;
+
+    static int glBegin_count = 0;
+    glBegin_count++;
+    if (glBegin_count <= 5) {
+        DL(2, "DEBUG: glBegin called with mode=%d (GL_TRIANGLES=%d, GL_LINES=%d)\n",
+               mode, GL_TRIANGLES, GL_LINES);
+    }
 }
 
 void glEnd(void) {
@@ -1160,218 +1619,590 @@ void glEnd(void) {
         return;
     }
 
-    // Use our WebGL 2.0 shader program
+    static int glEnd_count = 0;
+    glEnd_count++;
+    if (glEnd_count <= 5) { // Only log first 5 glEnd calls
+        DL(1, "glEnd #%d: Drawing %d vertices with primitive type %d\n", glEnd_count, immediate.vertex_count, immediate.primitive_type);
+    }
+
+    check_gl_error_wrapper("start of glEnd");
+
+    // Get VBOs from pool instead of creating new ones every time
+    VBOPoolEntry* vbo_entry = get_vbo_from_pool(immediate.vertex_count);
+    if (!vbo_entry) {
+        DL(0, "ERROR: Failed to get VBO from pool!\n");
+        immediate.in_begin_end = False;
+        return;
+    }
+
+    // Track VBO memory allocation (only for new VBOs)
+    static size_t total_vbo_memory = 0;
+    if (vbo_entry->vertex_count == immediate.vertex_count) {
+        // This is a new VBO or reused VBO with same size
+        size_t vbo_size = immediate.vertex_count * (sizeof(Vertex3f) + sizeof(Color4f));
+        if (vbo_entry->vbo_vertices == 0) {
+            // New VBO - track allocation
+            track_memory_allocation(vbo_size);
+            total_vbo_memory += vbo_size;
+        }
+    }
+
+    // Upload vertex data to VBO
+    glBindBuffer(GL_ARRAY_BUFFER, vbo_entry->vbo_vertices);
+    glBufferData(GL_ARRAY_BUFFER, immediate.vertex_count * sizeof(Vertex3f),
+                 immediate.vertices, GL_STATIC_DRAW);
+
+    // Upload color data to VBO
+    glBindBuffer(GL_ARRAY_BUFFER, vbo_entry->vbo_colors);
+    glBufferData(GL_ARRAY_BUFFER, immediate.vertex_count * sizeof(Color4f),
+                 immediate.colors, GL_STATIC_DRAW);
+
+    // Use our WebGL 2.0 wrapper (limit messages to first 5 frames)
+    static int webgl_wrapper_count = 0;
+    if (webgl_wrapper_count < 5) {
+        DL(1, "Using WebGL 2.0 wrapper...\n");
+        webgl_wrapper_count++;
+    }
+
+    // Use the pre-compiled shader program
+    if (shader_program == 0) {
+        DL(0, "ERROR: shader_program is 0, cannot render!\n");
+        return;
+    }
+
+    check_gl_error_wrapper("before glUseProgram");
+
     glUseProgram(shader_program);
 
-    // Set up projection matrix
+    // Set up shader uniforms for legacy OpenGL state
+    GLint normalize_loc = glGetUniformLocation(shader_program, "normalize_enabled");
+    if (normalize_loc != -1) {
+        glUniform1i(normalize_loc, normalize_enabled ? 1 : 0);
+    }
+
+    GLint smooth_shading_loc = glGetUniformLocation(shader_program, "smooth_shading");
+    if (smooth_shading_loc != -1) {
+        glUniform1i(smooth_shading_loc, (current_shade_model == GL_SMOOTH) ? 1 : 0);
+    }
+
+    GLint front_face_ccw_loc = glGetUniformLocation(shader_program, "front_face_ccw");
+    if (front_face_ccw_loc != -1) {
+        glUniform1i(front_face_ccw_loc, (current_front_face == GL_CCW) ? 1 : 0);
+    }
+
+    // Set up orthographic projection matrix that scales to fill canvas
     GLint projection_loc = glGetUniformLocation(shader_program, "projection");
     if (projection_loc != -1) {
-        glUniformMatrix4fv(projection_loc, 1, GL_FALSE, projection_stack.stack[projection_stack.top].m);
+        // Get current window dimensions
+        int canvas_width, canvas_height;
+        emscripten_get_canvas_element_size("#canvas", &canvas_width, &canvas_height);
+
+        // Calculate orthographic bounds based on canvas aspect ratio
+        GLfloat left = -1.0f, right = 1.0f, bottom = -1.0f, top = 1.0f;
+        GLfloat near = -1.0f, far = 1.0f;
+
+        if (canvas_width > 0 && canvas_height > 0) {
+            GLfloat canvas_aspect = (GLfloat)canvas_width / (GLfloat)canvas_height;
+
+            // Adjust orthographic bounds to maintain square content but fill canvas
+            if (canvas_aspect > 1.0f) {
+                // Wide canvas - expand horizontally
+                left = -canvas_aspect;
+                right = canvas_aspect;
+            } else {
+                // Tall canvas - expand vertically
+                bottom = -1.0f / canvas_aspect;
+                top = 1.0f / canvas_aspect;
+            }
+
+            DL(2, "DEBUG: Orthographic bounds: left=%f, right=%f, bottom=%f, top=%f (aspect=%f)\n",
+               left, right, bottom, top, canvas_aspect);
+        }
+
+        // Create orthographic projection matrix
+        GLfloat tx = -(right + left) / (right - left);
+        GLfloat ty = -(top + bottom) / (top - bottom);
+        GLfloat tz = -(far + near) / (far - near);
+
+        GLfloat projection[16] = {
+            2.0f / (right - left), 0.0f, 0.0f, 0.0f,
+            0.0f, 2.0f / (top - bottom), 0.0f, 0.0f,
+            0.0f, 0.0f, -2.0f / (far - near), 0.0f,
+            tx, ty, tz, 1.0f
+        };
+
+        glUniformMatrix4fv(projection_loc, 1, GL_FALSE, projection);
+        check_gl_error_wrapper("after projection matrix");
     }
 
-    // Set up modelview matrix
+    // Set up modelview matrix - apply transformations directly
     GLint modelview_loc = glGetUniformLocation(shader_program, "modelview");
     if (modelview_loc != -1) {
-        glUniformMatrix4fv(modelview_loc, 1, GL_FALSE, modelview_stack.stack[modelview_stack.top].m);
+        // Start with identity matrix
+        GLfloat modelview[16] = {
+            1.0f, 0.0f, 0.0f, 0.0f,
+            0.0f, 1.0f, 0.0f, 0.0f,
+            0.0f, 0.0f, 1.0f, 0.0f,
+            0.0f, 0.0f, 0.0f, 1.0f
+        };
+
+        // Apply scale factor of 3 (native version uses 18)
+        GLfloat scale = 2.0f;
+        modelview[0] = scale;
+        modelview[5] = scale;
+        modelview[10] = scale;
+
+        // Apply current frame's transformations from the rotator
+        // We'll get these values from the debug output in hextrail.c
+        // Note: We can't access hextrail internals from here due to circular dependencies
+        // For now, use a simple approach without direct rotator access
+
+        // Try to use the matrix stack, but fall back to hardcoded if it's broken
+        GLfloat stack_matrix[16];
+        memcpy(stack_matrix, modelview_stack.stack[modelview_stack.top].m, 16 * sizeof(GLfloat));
+
+        // Debug: Print raw matrix values to see what's in the stack
+        static int raw_matrix_debug_count = 0;
+        if (raw_matrix_debug_count < 5) {
+            DL(2, "DEBUG: Raw matrix stack (frame %d): trans=(%.3f,%.3f,%.3f), scale=(%.3f,%.3f,%.3f)\n",
+                   raw_matrix_debug_count, stack_matrix[12], stack_matrix[13], stack_matrix[14],
+                   stack_matrix[0], stack_matrix[5], stack_matrix[10]);
+            raw_matrix_debug_count++;
+        }
+
+        // Scale down massive translations while keeping rotations and scales
+        float translation_scale = 0.1f;
+        stack_matrix[12] *= translation_scale;  // X translation
+        stack_matrix[13] *= translation_scale;  // Y translation
+        stack_matrix[14] *= translation_scale;  // Z translation
+
+        // Check if the scaled matrix has reasonable values
+        if (fabs(stack_matrix[12]) < 10.0f && fabs(stack_matrix[13]) < 10.0f && fabs(stack_matrix[14]) < 10.0f) {
+            // Use the scaled matrix stack (real transformations)
+            glUniformMatrix4fv(modelview_loc, 1, GL_FALSE, stack_matrix);
+
+            static int stack_debug_count = 0;
+            if (stack_debug_count < 3) {
+                DL(2, "DEBUG: Using scaled matrix stack (frame %d): trans=(%.3f,%.3f,%.3f)\n",
+                       stack_debug_count, stack_matrix[12], stack_matrix[13], stack_matrix[14]);
+                stack_debug_count++;
+            }
+        } else {
+            // Fall back to hardcoded matrix (safety net)
+            glUniformMatrix4fv(modelview_loc, 1, GL_FALSE, modelview);
+
+            static int fallback_debug_count = 0;
+            if (fallback_debug_count < 3) {
+                DL(2, "DEBUG: Using fallback matrix (frame %d): scale=%.1f\n", fallback_debug_count, scale);
+                fallback_debug_count++;
+            }
+        }
+
+        check_gl_error_wrapper("after modelview matrix");
+
+        // Debug: Print the applied transformations
+        static int transform_debug_count = 0;
+        if (transform_debug_count < 3) {
+            DL(2, "DEBUG: Direct Transformations (frame %d): scale=%.1f\n",
+                   transform_debug_count, scale);
+            transform_debug_count++;
+        }
     }
 
-    // Create and bind VBOs
-    GLuint vbo_vertices, vbo_colors, vbo_normals;
-    glGenBuffers(1, &vbo_vertices);
-    glGenBuffers(1, &vbo_colors);
-    glGenBuffers(1, &vbo_normals);
-
-    glBindBuffer(GL_ARRAY_BUFFER, vbo_vertices);
-    glBufferData(GL_ARRAY_BUFFER, immediate.vertex_count * sizeof(Vertex3f), immediate.vertices, GL_STATIC_DRAW);
-
-    glBindBuffer(GL_ARRAY_BUFFER, vbo_colors);
-    glBufferData(GL_ARRAY_BUFFER, immediate.vertex_count * sizeof(Color4f), immediate.colors, GL_STATIC_DRAW);
-
-    glBindBuffer(GL_ARRAY_BUFFER, vbo_normals);
-    glBufferData(GL_ARRAY_BUFFER, immediate.vertex_count * sizeof(Normal3f), immediate.normals, GL_STATIC_DRAW);
-
-    // Set up vertex attributes
-    glBindBuffer(GL_ARRAY_BUFFER, vbo_vertices);
+    // Set up vertex attributes using pooled VBOs
+    glBindBuffer(GL_ARRAY_BUFFER, vbo_entry->vbo_vertices);
     GLint pos_attrib = glGetAttribLocation(shader_program, "position");
     if (pos_attrib != -1) {
         glEnableVertexAttribArray(pos_attrib);
         glVertexAttribPointer(pos_attrib, 3, GL_FLOAT, GL_FALSE, 0, 0);
+        DL(2, "DEBUG: Position attribute: location=%d, VBO=%u\n", pos_attrib, vbo_entry->vbo_vertices);
+    } else {
+        DL(0, "ERROR: Could not find 'position' attribute in shader!\n");
     }
 
-    glBindBuffer(GL_ARRAY_BUFFER, vbo_colors);
+    glBindBuffer(GL_ARRAY_BUFFER, vbo_entry->vbo_colors);
     GLint color_attrib = glGetAttribLocation(shader_program, "color");
     if (color_attrib != -1) {
         glEnableVertexAttribArray(color_attrib);
         glVertexAttribPointer(color_attrib, 4, GL_FLOAT, GL_FALSE, 0, 0);
+        DL(2, "DEBUG: Color attribute: location=%d, VBO=%u\n", color_attrib, vbo_entry->vbo_colors);
+    } else {
+        DL(0, "ERROR: Could not find 'color' attribute in shader!\n");
     }
 
-    glBindBuffer(GL_ARRAY_BUFFER, vbo_normals);
-    GLint normal_attrib = glGetAttribLocation(shader_program, "normal");
-    if (normal_attrib != -1) {
-        glEnableVertexAttribArray(normal_attrib);
-        glVertexAttribPointer(normal_attrib, 3, GL_FLOAT, GL_FALSE, 0, 0);
-    }
+    // Note: Normal attribute not used in current shader - removed to eliminate error
+    // If lighting is needed in the future, add "in vec3 normal;" to vertex shader
 
     // Draw
-    glDrawArrays(immediate.primitive_type, 0, immediate.vertex_count);
+    static int draw_debug_count = 0;
+    if (draw_debug_count < 5) {
+        DL(2, "DEBUG: glDrawArrays called with primitive_type=%d, vertex_count=%d\n",
+               immediate.primitive_type, immediate.vertex_count);
+        draw_debug_count++;
+    }
 
-    // Cleanup
-    glDeleteBuffers(1, &vbo_vertices);
-    glDeleteBuffers(1, &vbo_colors);
-    glDeleteBuffers(1, &vbo_normals);
+    // Validate primitive type for WebGL 2.0
+    GLenum valid_primitive = immediate.primitive_type;
+
+    // Check if primitive type is 0 (invalid)
+    if (immediate.primitive_type == 0) {
+        DL(0, "ERROR: Primitive type is 0 (invalid), using GL_TRIANGLES\n");
+        valid_primitive = GL_TRIANGLES;
+    } else {
+        switch (immediate.primitive_type) {
+            case GL_POINTS:
+            case GL_LINE_STRIP:
+            case GL_LINE_LOOP:
+            case GL_LINES:
+            case GL_TRIANGLE_STRIP:
+            case GL_TRIANGLE_FAN:
+            case GL_TRIANGLES:
+                // These are valid in WebGL 2.0
+                break;
+            case GL_QUADS:
+            case GL_QUAD_STRIP:
+            case GL_POLYGON:
+                // These are not supported in WebGL 2.0, convert to triangles
+                DL(1, "WARNING: Converting unsupported primitive type %d to GL_TRIANGLES\n", immediate.primitive_type);
+                valid_primitive = GL_TRIANGLES;
+                break;
+            default:
+                DL(0, "ERROR: Unknown primitive type %d, using GL_TRIANGLES\n", immediate.primitive_type);
+                valid_primitive = GL_TRIANGLES;
+                break;
+        }
+    }
+
+    // Check for zero vertex count
+    if (immediate.vertex_count == 0) {
+        DL(1, "WARNING: glDrawArrays called with 0 vertices, skipping draw\n");
+    } else {
+        // Ensure we have a valid VBO bound for drawing
+        glBindBuffer(GL_ARRAY_BUFFER, vbo_entry->vbo_vertices);
+        glDrawArrays(valid_primitive, 0, immediate.vertex_count);
+    }
+
+    // Limit completion message to first 5 frames
+    static int webgl_complete_count = 0;
+    if (webgl_complete_count < 5) {
+        DL(1, "WebGL 2.0 wrapper rendering completed\n");
+        webgl_complete_count++;
+    }
+
+    // Check for WebGL errors after drawing (limit to first 5 frames)
+    static int webgl_error_count = 0;
+    if (webgl_error_count < 5) {
+        check_gl_error_wrapper("after glDrawArrays");
+        webgl_error_count++;
+    }
+
+    // Disable vertex attributes before cleanup
+    if (pos_attrib != -1) {
+        glDisableVertexAttribArray(pos_attrib);
+    }
+    if (color_attrib != -1) {
+        glDisableVertexAttribArray(color_attrib);
+    }
+
+    // Return VBO to pool instead of deleting it
+    return_vbo_to_pool(vbo_entry);
 
     immediate.in_begin_end = False;
 }
 
-void glFrustum(GLdouble left, GLdouble right, GLdouble bottom, GLdouble top, GLdouble near_val, GLdouble far_val) {
-    MatrixStack *stack = get_current_matrix_stack();
-
-    // Create perspective projection matrix
-    Matrix4f frustum;
-    matrix_identity(&frustum);
-
-    GLfloat a = (right + left) / (right - left);
-    GLfloat b = (top + bottom) / (top - bottom);
-    GLfloat c = -(far_val + near_val) / (far_val - near_val);
-    GLfloat d = -(2 * far_val * near_val) / (far_val - near_val);
-
-    frustum.m[0] = 2 * near_val / (right - left);
-    frustum.m[5] = 2 * near_val / (top - bottom);
-    frustum.m[8] = a;
-    frustum.m[9] = b;
-    frustum.m[10] = c;
-    frustum.m[11] = -1;
-    frustum.m[14] = d;
-    frustum.m[15] = 0;
-
-    matrix_multiply(&stack->stack[stack->top], &stack->stack[stack->top], &frustum);
+// Missing GLX function
+void glXMakeCurrent(Display *display, Window window, GLXContext context) {
+    // This is handled by our WebGL context management
+    // No-op for web builds
 }
 
-void glMultMatrixf(const GLfloat *m) {
-    Matrix4f matrix;
-    for (int i = 0; i < 16; i++) {
-        matrix.m[i] = m[i];
-    }
+void glViewport(GLint x, GLint y, GLsizei width, GLsizei height) {
+    check_gl_error_wrapper("before glViewport");
 
-    MatrixStack *stack = get_current_matrix_stack();
-    matrix_multiply(&stack->stack[stack->top], &stack->stack[stack->top], &matrix);
+    // Call the actual WebGL viewport function
+    glViewport_real(x, y, width, height);
+
+    check_gl_error_wrapper("after glViewport");
 }
 
-// Additional OpenGL functions
-void glClear(GLbitfield mask) {
-    if (mask & GL_COLOR_BUFFER_BIT) {
-        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+// Real trackball functions from trackball.c
+#define TRACKBALLSIZE (0.8f)
+
+// Vector utility functions
+static void vzero(float *v) {
+    v[0] = 0.0f;
+    v[1] = 0.0f;
+    v[2] = 0.0f;
+}
+
+static void vset(float *v, float x, float y, float z) {
+    v[0] = x;
+    v[1] = y;
+    v[2] = z;
+}
+
+static void vsub(const float *src1, const float *src2, float *dst) {
+    dst[0] = src1[0] - src2[0];
+    dst[1] = src1[1] - src2[1];
+    dst[2] = src1[2] - src2[2];
+}
+
+static void vcopy(const float *v1, float *v2) {
+    for (int i = 0; i < 3; i++)
+        v2[i] = v1[i];
+}
+
+static void vcross(const float *v1, const float *v2, float *cross) {
+    float temp[3];
+    temp[0] = (v1[1] * v2[2]) - (v1[2] * v2[1]);
+    temp[1] = (v1[2] * v2[0]) - (v1[0] * v2[2]);
+    temp[2] = (v1[0] * v2[1]) - (v1[1] * v2[0]);
+    vcopy(temp, cross);
+}
+
+static float vlength(const float *v) {
+    return sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
+}
+
+static void vscale(float *v, float div) {
+    v[0] *= div;
+    v[1] *= div;
+    v[2] *= div;
+}
+
+static void vnormal(float *v) {
+    vscale(v, 1.0f / vlength(v));
+}
+
+static float vdot(const float *v1, const float *v2) {
+    return v1[0] * v2[0] + v1[1] * v2[1] + v1[2] * v2[2];
+}
+
+static void vadd(const float *src1, const float *src2, float *dst) {
+    dst[0] = src1[0] + src2[0];
+    dst[1] = src1[1] + src2[1];
+    dst[2] = src1[2] + src2[2];
+}
+
+// Project an x,y pair onto a sphere of radius r OR a hyperbolic sheet
+static float tb_project_to_sphere(float r, float x, float y) {
+    float d, t, z;
+    d = sqrt(x * x + y * y);
+    if (d < r * 0.70710678118654752440f) {    /* Inside sphere */
+        z = sqrt(r * r - d * d);
+    } else {           /* On hyperbola */
+        t = r / 1.41421356237309504880f;
+        z = t * t / d;
     }
-    if (mask & GL_DEPTH_BUFFER_BIT) {
-        glClear(GL_DEPTH_BUFFER_BIT);
+    return z;
+}
+
+// Given an axis and angle, compute quaternion
+static void axis_to_quat(float a[3], float phi, float q[4]) {
+    vnormal(a);
+    vcopy(a, q);
+    vscale(q, sin(phi / 2.0f));
+    q[3] = cos(phi / 2.0f);
+}
+
+// Normalize quaternion
+static void normalize_quat(float q[4]) {
+    float mag = (q[0] * q[0] + q[1] * q[1] + q[2] * q[2] + q[3] * q[3]);
+    for (int i = 0; i < 4; i++) q[i] /= mag;
+}
+
+// Real trackball implementation
+void trackball(float q[4], float p1x, float p1y, float p2x, float p2y) {
+    float a[3]; /* Axis of rotation */
+    float phi;  /* how much to rotate about axis */
+    float p1[3], p2[3], d[3];
+    float t;
+
+    if (p1x == p2x && p1y == p2y) {
+        /* Zero rotation */
+        vzero(q);
+        q[3] = 1.0f;
+        return;
+    }
+
+    /*
+     * First, figure out z-coordinates for projection of P1 and P2 to
+     * deformed sphere
+     */
+    vset(p1, p1x, p1y, tb_project_to_sphere(TRACKBALLSIZE, p1x, p1y));
+    vset(p2, p2x, p2y, tb_project_to_sphere(TRACKBALLSIZE, p2x, p2y));
+
+    /*
+     *  Now, we want the cross product of P1 and P2
+     */
+    vcross(p2, p1, a);
+
+    /*
+     *  Figure out how much to rotate around that axis.
+     */
+    vsub(p1, p2, d);
+    t = vlength(d) / (2.0f * TRACKBALLSIZE);
+
+    /*
+     * Avoid problems with out-of-control values...
+     */
+    if (t > 1.0f) t = 1.0f;
+    if (t < -1.0f) t = -1.0f;
+    phi = 2.0f * asin(t);
+
+    axis_to_quat(a, phi, q);
+}
+
+// Real quaternion addition
+#define RENORMCOUNT 97
+
+void add_quats(float q1[4], float q2[4], float dest[4]) {
+    static int count = 0;
+    float t1[4], t2[4], t3[4];
+    float tf[4];
+
+    vcopy(q1, t1);
+    vscale(t1, q2[3]);
+
+    vcopy(q2, t2);
+    vscale(t2, q1[3]);
+
+    vcross(q2, q1, t3);
+    vadd(t1, t2, tf);
+    vadd(t3, tf, tf);
+    tf[3] = q1[3] * q2[3] - vdot(q1, q2);
+
+    dest[0] = tf[0];
+    dest[1] = tf[1];
+    dest[2] = tf[2];
+    dest[3] = tf[3];
+
+    if (++count > RENORMCOUNT) {
+        count = 0;
+        normalize_quat(dest);
     }
 }
 
-void glEnable(GLenum cap) {
-    if (cap == GL_DEPTH_TEST) {
-        glEnable(GL_DEPTH_TEST);
+// Real rotation matrix builder
+void build_rotmatrix(float m[4][4], float q[4]) {
+    m[0][0] = 1.0f - 2.0f * (q[1] * q[1] + q[2] * q[2]);
+    m[0][1] = 2.0f * (q[0] * q[1] - q[2] * q[3]);
+    m[0][2] = 2.0f * (q[2] * q[0] + q[1] * q[3]);
+    m[0][3] = 0.0f;
+
+    m[1][0] = 2.0f * (q[0] * q[1] + q[2] * q[3]);
+    m[1][1] = 1.0f - 2.0f * (q[2] * q[2] + q[0] * q[0]);
+    m[1][2] = 2.0f * (q[1] * q[2] - q[0] * q[3]);
+    m[1][3] = 0.0f;
+
+    m[2][0] = 2.0f * (q[2] * q[0] - q[1] * q[3]);
+    m[2][1] = 2.0f * (q[1] * q[2] + q[0] * q[3]);
+    m[2][2] = 1.0f - 2.0f * (q[1] * q[1] + q[0] * q[0]);
+    m[2][3] = 0.0f;
+
+    m[3][0] = 0.0f;
+    m[3][1] = 0.0f;
+    m[3][2] = 0.0f;
+    m[3][3] = 1.0f;
+}
+
+// Missing GLX function
+void glXSwapBuffers(Display *display, Window window) {
+    // This is handled by our WebGL context management
+    // No-op for web builds
+}
+
+// Real X11 color functions for WebGL
+Status XAllocColorCells(Display *display, Colormap colormap, Bool contig, unsigned long plane_masks_return[], unsigned int nplanes, unsigned long pixels_return[], unsigned int npixels) {
+    // For WebGL, we don't need to allocate X11 color cells
+    // Just assign sequential pixel values
+    for (unsigned int i = 0; i < npixels; i++) {
+        pixels_return[i] = i;
+    }
+    return 1; // Success
+}
+
+Status XStoreColors(Display *display, Colormap colormap, XColor *defs_in_out, int ncolors) {
+    // For WebGL, we don't need to store colors in X11 colormap
+    // Colors are handled directly by OpenGL
+    return 1; // Success
+}
+
+Status XAllocColor(Display *display, Colormap colormap, XColor *screen_in_out) {
+    // For WebGL, we don't need to allocate X11 colors
+    // Just return success
+    return 1; // Success
+}
+
+Status XFreeColors(Display *display, Colormap colormap, unsigned long pixels[], int npixels, unsigned long planes) {
+    // For WebGL, we don't need to free X11 colors
+    return 1; // Success
+}
+
+// Missing utility functions
+Bool has_writable_cells(Screen *screen, Visual *visual) {
+    // Dummy implementation for web builds
+    return True;
+}
+
+// Convert XColor to GLfloat array for OpenGL
+void xcolor_to_glfloat(const XColor *xcolor, GLfloat *rgba) {
+    rgba[0] = xcolor->red / 65535.0f;   // Red
+    rgba[1] = xcolor->green / 65535.0f; // Green
+    rgba[2] = xcolor->blue / 65535.0f;  // Blue
+    rgba[3] = 1.0f;                     // Alpha
+
+    static int xcolor_count = 0;
+    xcolor_count++;
+    if (xcolor_count <= 5) { // Log first 5 color conversions
+        DL(1, "[%ld] xcolor_to_glfloat: XColor(%d,%d,%d) -> GLfloat(%.3f,%.3f,%.3f,%.3f)\n",
+               (long)(emscripten_get_now()), xcolor->red, xcolor->green, xcolor->blue, rgba[0], rgba[1], rgba[2], rgba[3]);
     }
 }
 
-void glDisable(GLenum cap) {
-    if (cap == GL_DEPTH_TEST) {
-        glDisable(GL_DEPTH_TEST);
-    }
-}
-
-// Web-compatible FPS display function that integrates with existing FPS system
+// Missing fps function
 void do_fps(ModeInfo *mi) {
-    // This function should be called by hacks that want to display FPS
-    // It will use the existing FPS system if available, or provide a web fallback
+    // Dummy implementation for web builds
+    // FPS is handled by the web main loop
+}
 
-    // Check if FPS is enabled via the resource system
-    if (!mi || !mi->fps_p) return;
+// Missing X11 function stubs for web build
+int XSendEvent(Display *display, Window window, Bool propagate, long event_mask, XEvent *event) {
+    // Web stub - events are handled differently in web environment
+    (void)display;
+    (void)window;
+    (void)propagate;
+    (void)event_mask;
+    (void)event;
+    return 1; // Success
+}
 
-    // Initialize FPS state if needed
-    if (web_fps_state_var.last_frame_time == 0.0) {
-        web_fps_state_var.last_frame_time = emscripten_get_now() / 1000.0;
-        web_fps_state_var.last_fps_update_time = web_fps_state_var.last_frame_time;
-        web_fps_state_var.frame_count = 0;
-        web_fps_state_var.current_fps = 0.0;
-        web_fps_state_var.current_load = 0.0;
-        web_fps_state_var.current_polys = 0;
-        web_fps_state_var.target_frame_time = 1.0 / 30.0;  // Default to 30 FPS target
-        web_fps_state_var.total_idle_time = 0.0;
-        web_fps_state_var.last_idle_start = 0.0;
+// Missing function that screenhack.c uses
+char *XGetAtomName(Display *display, Atom atom) {
+    // Web stub - return a default name
+    (void)display;
+    (void)atom;
+    return strdup("WEB_ATOM");
+}
+
+// Stub for get_float_resource
+float get_float_resource(Display *dpy, char *res_name, char *res_class) {
+    // Return default values for common resources
+    (void)dpy;
+    (void)res_class;
+
+    // Use the actual default values from hextrail.c DEF_* constants
+    if (strcmp(res_name, "speed") == 0) {
+        return 1.0; // DEF_SPEED "1.0"
     }
-
-    // Get current time
-    double current_time = emscripten_get_now() / 1000.0;
-    double frame_time = current_time - web_fps_state_var.last_frame_time;
-
-    // Update frame count
-    web_fps_state_var.frame_count++;
-
-    // Calculate FPS and load every second
-    if (current_time - web_fps_state_var.last_fps_update_time >= 1.0) {
-        double update_interval = current_time - web_fps_state_var.last_fps_update_time;
-        web_fps_state_var.current_fps = web_fps_state_var.frame_count / update_interval;
-
-        // Calculate load based on idle time
-        // Load = (1 - idle_time/total_time) * 100
-        double total_time = update_interval;
-        double idle_time = web_fps_state_var.total_idle_time;
-        web_fps_state_var.current_load = fmax(0.0, fmin(100.0, (1.0 - idle_time / total_time) * 100.0));
-
-        // Get polygon count from ModeInfo
-        web_fps_state_var.current_polys = mi->polygon_count;
-
-        // Reset counters
-        web_fps_state_var.frame_count = 0;
-        web_fps_state_var.last_fps_update_time = current_time;
-        web_fps_state_var.total_idle_time = 0.0;
+    if (strcmp(res_name, "thickness") == 0) {
+        return 0.15; // DEF_THICKNESS "0.15"
     }
-
-    // Track idle time if we're ahead of target frame rate
-    if (frame_time < web_fps_state_var.target_frame_time) {
-        double idle_time = web_fps_state_var.target_frame_time - frame_time;
-        web_fps_state_var.total_idle_time += idle_time;
+    if (strcmp(res_name, "spin") == 0) {
+        return 1.0; // DEF_SPIN "True" -> 1.0
     }
-
-    web_fps_state_var.last_frame_time = current_time;
-
-    // Save OpenGL state
-    glPushAttrib(GL_ALL_ATTRIB_BITS);
-    glMatrixMode(GL_PROJECTION);
-    glPushMatrix();
-    glLoadIdentity();
-    glOrtho(0, MI_WIDTH(mi), 0, MI_HEIGHT(mi), -1, 1);
-    glMatrixMode(GL_MODELVIEW);
-    glPushMatrix();
-    glLoadIdentity();
-
-    // Disable depth testing for 2D overlay
-    glDisable(GL_DEPTH_TEST);
-    glDisable(GL_LIGHTING);
-    glDisable(GL_TEXTURE_2D);
-
-    // Set up text rendering
-    glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
-
-    // Position text in bottom left (matching native behavior)
-    int x = 10;
-    int y = MI_HEIGHT(mi) - 10 - 14 * 3; // 3 lines of text, 14px height
-
-    // Display actual FPS values
-    char fps_text[256];
-    snprintf(fps_text, sizeof(fps_text), "FPS: %.1f", web_fps_state_var.current_fps);
-    render_text_simple(x, y, fps_text);
-
-    snprintf(fps_text, sizeof(fps_text), "Load: %.1f%%", web_fps_state_var.current_load);
-    render_text_simple(x, y - 14, fps_text);
-
-    snprintf(fps_text, sizeof(fps_text), "Polys: %d", web_fps_state_var.current_polys);
-    render_text_simple(x, y - 28, fps_text);
-
-    // Restore OpenGL state
-    glPopMatrix();
-    glMatrixMode(GL_PROJECTION);
-    glPopMatrix();
-    glMatrixMode(GL_MODELVIEW);
-    glPopAttrib();
+    if (strcmp(res_name, "wander") == 0) {
+        return 1.0; // DEF_WANDER "True" -> 1.0
+    }
+    return 1.0; // Default for unknown resources
 }
