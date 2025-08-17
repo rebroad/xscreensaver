@@ -154,8 +154,7 @@ make_color_ramp (Screen *screen, Visual *visual, Colormap cmap,
 
   if (writable_pP && *writable_pP)
     {
-      unsigned long *pixels = (unsigned long *)
-    malloc(sizeof(*pixels) * ((*ncolorsP) + 1));
+      unsigned long *pixels = (unsigned long *) malloc(sizeof(*pixels) * ((*ncolorsP) + 1));
 
       /* allocate_writable_colors() won't do here, because we need exactly this
      number of cells, or the color sequence we've chosen won't fit. */
@@ -165,8 +164,7 @@ make_color_ramp (Screen *screen, Visual *visual, Colormap cmap,
       goto FAIL;
     }
 
-      for (i = 0; i < *ncolorsP; i++)
-    colors[i].pixel = pixels[i];
+      for (i = 0; i < *ncolorsP; i++) colors[i].pixel = pixels[i];
       free (pixels);
 
       XStoreColors (dpy, cmap, colors, *ncolorsP);
@@ -390,11 +388,9 @@ make_color_path (Screen *screen, Visual *visual, Colormap cmap,
          color to pad things out. */
 # if 0
       *ncolorsP = k;
-      if (k <= 0)
-    return;
+      if (k <= 0) return;
 # else
-      if (k <= 0)
-        return;
+      if (k <= 0) return;
       for (i = k; i < *ncolorsP; i++)
         /* #### Should duplicate the allocation of the color cell here
            to avoid a double-color-free on PseudoColor, but it's 2018
@@ -421,8 +417,7 @@ make_color_path (Screen *screen, Visual *visual, Colormap cmap,
 
   if (writable_pP && *writable_pP)
     {
-      unsigned long *pixels = (unsigned long *)
-        malloc(sizeof(*pixels) * ((*ncolorsP) + 1));
+      unsigned long *pixels = (unsigned long *) malloc(sizeof(*pixels) * ((*ncolorsP) + 1));
 
       /* allocate_writable_colors() won't do here, because we need exactly this
          number of cells, or the color sequence we've chosen won't fit. */
@@ -570,6 +565,7 @@ make_smooth_colormap (Screen *screen, Visual *visual, Colormap cmap,
       total_s += s[i];
       total_v += v[i];
     }
+
   /* If the average saturation or intensity are too low, repick the colors,
     so that we don't end up with a black-and-white or too-dark map.
    */
@@ -734,8 +730,7 @@ make_random_colormap (Screen *screen, Visual *visual, Colormap cmap,
   RETRY_NON_WRITABLE:
   if (writable_pP && *writable_pP)
     {
-      unsigned long *pixels = (unsigned long *)
-      malloc(sizeof(*pixels) * (ncolors + 1));
+      unsigned long *pixels = (unsigned long *) malloc(sizeof(*pixels) * (ncolors + 1));
 
       allocate_writable_colors (screen, cmap, pixels, &ncolors);
       if (ncolors > 0)

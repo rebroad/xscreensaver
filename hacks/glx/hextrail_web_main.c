@@ -1,6 +1,6 @@
-/* hextrail_web_main.c - Minimal Web Entry Point for HexTrail
+/* hextrail_web_main.c - Web Entry Point for HexTrail
  *
- * This provides the minimal web-specific code needed to run hextrail
+ * This provides the web-specific code needed to run hextrail
  * using the generic xscreensaver_web wrapper.
  */
 
