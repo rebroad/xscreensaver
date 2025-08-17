@@ -77,9 +77,9 @@ typedef struct {
 
   int ncolors;
   XColor *colors;
-} hextrail_configuration;
+} hextrail_config;
 
-static hextrail_configuration *bps = NULL;
+static hextrail_config *bps = NULL;
 
 #ifdef WEB_BUILD
 // Make these accessible to web wrapper
@@ -112,7 +112,7 @@ ENTRYPOINT ModeSpecOpt hextrail_opts = {countof(opts), opts, countof(vars), vars
 static void
 make_plane (ModeInfo *mi)
 {
-  hextrail_configuration *bp = &bps[MI_SCREEN(mi)];
+  hextrail_config *bp = &bps[MI_SCREEN(mi)];
   int x, y;
   GLfloat size, w, h;
   hexagon *grid;
@@ -199,7 +199,7 @@ make_plane (ModeInfo *mi)
 static int
 add_arms (ModeInfo *mi, hexagon *h0, GLfloat incoming_speed)
 {
-  hextrail_configuration *bp = &bps[MI_SCREEN(mi)];
+  hextrail_config *bp = &bps[MI_SCREEN(mi)];
   int i;
   int added = 0;
   int target = 1 + (random() % 4);	/* Aim for 1-4 arms */
@@ -262,7 +262,7 @@ static const XYZ corners[] = {{  0, -1,   0 },       /*      0      */
 static XYZ scaled_corners[6][4];
 
 static void scale_corners(ModeInfo *mi) {
-  hextrail_configuration *bp = &bps[MI_SCREEN(mi)];
+  hextrail_config *bp = &bps[MI_SCREEN(mi)];
   GLfloat size = H * 2 / 3 / MI_COUNT(mi);
   GLfloat margin = thickness * 0.4;
   GLfloat size1 = size * (1 - margin * 2);
@@ -285,7 +285,7 @@ static void scale_corners(ModeInfo *mi) {
 
 static time_t now = 0;
 
-static int hex_invis(hextrail_configuration *bp, XYZ pos, int i, GLfloat *rad) {
+static int hex_invis(hextrail_config *bp, XYZ pos, int i, GLfloat *rad) {
   GLdouble x, y, z;
   /* Project point to screen coordinates */
   gluProject(pos.x, pos.y, pos.z, bp->model, bp->proj, bp->viewport, &x, &y, &z);
@@ -327,7 +327,7 @@ static int hex_invis(hextrail_configuration *bp, XYZ pos, int i, GLfloat *rad) {
 static void
 tick_hexagons (ModeInfo *mi)
 {
-  hextrail_configuration *bp = &bps[MI_SCREEN(mi)];
+  hextrail_config *bp = &bps[MI_SCREEN(mi)];
   int i, j;
   static unsigned int ticks = 0;
   now = time(NULL);
@@ -499,7 +499,7 @@ tick_hexagons (ModeInfo *mi)
 static void
 draw_hexagons (ModeInfo *mi)
 {
-  hextrail_configuration *bp = &bps[MI_SCREEN(mi)];
+  hextrail_config *bp = &bps[MI_SCREEN(mi)];
   int wire = MI_IS_WIREFRAME(mi);
   GLfloat length = sqrt(3) / 3;
   GLfloat size = length / MI_COUNT(mi);
@@ -721,7 +721,7 @@ reshape_hextrail (ModeInfo *mi, int width, int height)
 ENTRYPOINT Bool
 hextrail_handle_event (ModeInfo *mi, XEvent *event)
 {
-  hextrail_configuration *bp = &bps[MI_SCREEN(mi)];
+  hextrail_config *bp = &bps[MI_SCREEN(mi)];
 
   // Handle web parameter change events (NULL event means parameters changed)
   if (event == NULL) {
@@ -801,7 +801,7 @@ static rotator* create_hextrail_rotator(void) {
 ENTRYPOINT void
 init_hextrail (ModeInfo *mi)
 {
-  hextrail_configuration *bp;
+  hextrail_config *bp;
   MI_INIT (mi, bps);
   bp = &bps[MI_SCREEN(mi)];
 
@@ -833,7 +833,7 @@ init_hextrail (ModeInfo *mi)
 ENTRYPOINT void
 draw_hextrail (ModeInfo *mi)
 {
-  hextrail_configuration *bp = &bps[MI_SCREEN(mi)];
+  hextrail_config *bp = &bps[MI_SCREEN(mi)];
 
   #ifdef MATRIX_DEBUG
   matrix_debug_next_frame(); // TODO - really needed for matrix debug?
@@ -891,7 +891,7 @@ draw_hextrail (ModeInfo *mi)
 ENTRYPOINT void
 free_hextrail (ModeInfo *mi)
 {
-  hextrail_configuration *bp = &bps[MI_SCREEN(mi)];
+  hextrail_config *bp = &bps[MI_SCREEN(mi)];
 
   if (!bp->glx_context) return;
   glXMakeCurrent(MI_DISPLAY(mi), MI_WINDOW(mi), *bp->glx_context);
@@ -905,10 +905,10 @@ free_hextrail (ModeInfo *mi)
 #ifdef WEB_BUILD
 // Function to update rotator when spin/wander settings change
 void update_hextrail_rotator(void) {
-    extern hextrail_configuration *bps;
+    extern hextrail_config *bps;
     extern ModeInfo web_mi;
 
-    hextrail_configuration *bp = &bps[web_mi.screen];
+    hextrail_config *bp = &bps[web_mi.screen];
     if (!bp->rot) return;
 
     // Free old rotator and create new one with updated settings
