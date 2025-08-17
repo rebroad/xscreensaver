@@ -1469,6 +1469,7 @@ void glPushMatrix(void) {
 }
 
 void glPopMatrix(void) {
+    // TODO - debug here to show wrapper is running
     MatrixStack *stack = get_current_matrix_stack();
     if (!stack) {
         return;
@@ -1480,6 +1481,7 @@ void glPopMatrix(void) {
 }
 
 void glRotatef(GLfloat angle, GLfloat x, GLfloat y, GLfloat z) {
+    // TODO - debug here to show wrapper is running
     MatrixStack *stack = get_current_matrix_stack();
     if (!stack) {
         return;
@@ -1489,6 +1491,7 @@ void glRotatef(GLfloat angle, GLfloat x, GLfloat y, GLfloat z) {
 }
 
 void glScalef(GLfloat x, GLfloat y, GLfloat z) {
+    // TODO - debug here to show wrapper is running
     MatrixStack *stack = get_current_matrix_stack();
     if (!stack) {
         return;
@@ -1546,6 +1549,7 @@ void glColor4fv(const GLfloat *v) {
 void glMaterialfv(GLenum face, GLenum pname, const GLfloat *params) {
     // Store material properties for shader uniforms
     // For now, just ignore - we'll implement basic lighting later
+    DL(2, "DEBUG: glMaterialfv(face=%d, pname=%d) - material not implemented yet\n", face, pname);
 }
 
 void glLightfv(GLenum light, GLenum pname, const GLfloat *params) {
@@ -1573,9 +1577,7 @@ void glFinish(void) {
 }
 
 void glVertex3f(GLfloat x, GLfloat y, GLfloat z) {
-    if (!immediate.in_begin_end) {
-        return;
-    }
+    if (!immediate.in_begin_end) return;
 
     if (immediate.vertex_count >= MAX_VERTICES) {
         DL(1, "WARNING: Vertex limit reached (%d), dropping vertex!\n", MAX_VERTICES);
