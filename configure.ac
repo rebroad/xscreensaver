@@ -1436,6 +1436,7 @@ if test "$with_xinerama" = yes; then
   # if that succeeded, then we've really got it.
   if test "$have_xinerama" = yes; then
     AC_DEFINE(HAVE_XINERAMA)
+    X_EXTRA_LIBS="$X_EXTRA_LIBS $XINERAMA_LIBS"
   fi
 
 elif test "$with_xinerama" != no; then
@@ -4328,6 +4329,7 @@ if test "$record_anim" = yes; then
   else
     AC_MSG_RESULT(enabling --with-record-animation)
     AC_DEFINE(HAVE_RECORD_ANIM)
+    RECORD_ANIM_DEFS="-DHAVE_RECORD_ANIM"
     ANIM_OBJS='$(ANIM_OBJS)'
     ANIM_LIBS='$(ANIM_LIBS)'
   fi
@@ -4579,6 +4581,8 @@ AC_SUBST(HACK_CONF_DIR)
 AC_SUBST(FONT_DIR)
 AC_SUBST(ANIM_OBJS)
 AC_SUBST(ANIM_LIBS)
+AC_SUBST(DEFS)
+AC_SUBST(RECORD_ANIM_DEFS)
 AC_SUBST(FFMPEG_OBJS)
 AC_SUBST(FFMPEG_CFLAGS)
 AC_SUBST(FFMPEG_LIBS)

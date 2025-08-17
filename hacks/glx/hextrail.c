@@ -70,6 +70,9 @@ static Bool do_spin, do_wander, do_glow, do_neon, do_expand;
 #include <GL/glext.h>
 #endif
 
+/* Disable GL2 support to compile standard OpenGL version only */
+#undef GL_VERSION_2_0
+
 /* Now check for GL_VERSION_2_0 which should be defined in glext.h */
 /* GL_VERSION_2_0 should be defined in glext.h */
 #include "colors.h"
@@ -205,6 +208,7 @@ static int check_gl_extensions(void) {
 }
 #endif // USE_SDL
 
+#ifdef GL_VERSION_2_0
 /* Compile a shader from source */
 static GLuint compile_shader(const char *source, GLenum shader_type) {
     GLuint shader = glCreateShader(shader_type);
@@ -412,6 +416,7 @@ static void do_vertex(GLfloat x, GLfloat y, GLfloat z) {
     glVertex3f(x, y, z);
 #endif // else GL_VERSION_2_0
 }
+#ifdef GL_VERSION_2_0
 /* Initialize shader program */
 static int init_shaders(config *bp) {
     /* Main rendering shader */
@@ -497,6 +502,7 @@ static int init_shaders(config *bp) {
 
     return 1;
 }
+#endif /* GL_VERSION_2_0 */
 
 static GLfloat speed, thickness;
 static int8_t draw_invis = 1;
@@ -1402,7 +1408,7 @@ ENTRYPOINT void reshape_hextrail(ModeInfo *mi, int width, int height) {
 
     glBindTexture(GL_TEXTURE_2D, 0);
   }
-#endif // GL_VRSION_2_0
+#endif // GL_VERSION_2_0
   glMatrixMode(GL_PROJECTION);
   glLoadIdentity();
   gluPerspective (30.0, 1/h, 1.0, 100.0);
@@ -1928,11 +1934,13 @@ ENTRYPOINT void free_hextrail (ModeInfo *mi) {
     }
 #endif // GL_VERSION_2_0
 
+#ifdef GL_VERSION_2_0
   /* Free vertex array */
   if (vertices) {
     free(vertices);
     vertices = NULL;
   }
+#endif // GL_VERSION_2_0
 
   /* Clean up OpenGL state */
   cleanup_gl_state();
@@ -1983,14 +1991,6 @@ XSCREENSAVER_MODULE ("HexTrail", hextrail)
 #endif // else USE_SDL
 
 #endif /* USE_GL */
-
-/* Check for OpenGL errors */
-void check_gl_error(const char* operation) {
-    GLenum err;
-    while ((err = glGetError()) != GL_NO_ERROR) {
-        fprintf(stderr, "OpenGL error during %s: 0x%x\n", operation, err);
-    }
-}
 
 /* Set up OpenGL state */
 void setup_gl_state(void) {
