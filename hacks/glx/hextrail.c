@@ -621,7 +621,7 @@ static int8_t exits(config *bp, hexagon *h0) {
   return exits;
 }
 
-static int8_t add_arms(config *bp, hexagon *h0) {
+static int8_t add_arms(config *bp, hexagon *h0, GLfloat incoming_speed) {
   int8_t added = 0, target = (random() % 4); /* Aim for 1-5 arms */
   int8_t idx[6] = {0, 1, 2, 3, 4, 5};
   for (int8_t i = 0; i < 6; i++) {
@@ -654,7 +654,10 @@ static int8_t add_arms(config *bp, hexagon *h0) {
       continue;
     }
     a0->state = OUT;
-    a0->speed = 0.05 * (0.8 + frand(1.0));
+    /* Blend speeds: 80% incoming speed, 20% original random algorithm */
+    GLfloat random_speed = 0.05 * (0.8 + frand(1.0));
+    a0->speed = incoming_speed > 0 ?
+        (0.8 * incoming_speed + 0.2 * random_speed) : random_speed;
 
     if (h1->state == EMPTY) {
       h1->state = IN;
@@ -828,7 +831,7 @@ static void handle_arm_in(config *bp, hexagon *h0, arm *a0, int j) {
   if (a0->ratio >= 1) {
     h0->doing = 0;
     /* Just finished growing from edge to center.  Look for any available exits. */
-    if (add_arms(bp, h0)) {
+    if (add_arms(bp, h0, a0->speed)) {
       a0->state = DONE;
       a0->ratio = 1;
     } else { // nub grow
@@ -1027,7 +1030,7 @@ static void tick_hexagons (ModeInfo *mi) {
                 new_hex, doinga, ignorea, doingb, ignoreb, fails);
         debug = bp->now;
       }
-    } else if (h0->state == EMPTY && add_arms(bp, h0)) {
+    } else if (h0->state == EMPTY && add_arms(bp, h0, 0.0)) {
       printf("hex created. Arms. doing=%d iters=%d fails=%d pos=%d,%d\n",
           h0->doing, iters, fails, h0->x, h0->y);
       fails = 0;
