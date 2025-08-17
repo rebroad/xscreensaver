@@ -7,7 +7,6 @@ buildscript {
     dependencies {
         classpath 'com.android.tools.build:gradle:8.9.1'
     }
-
 }
 
 allprojects {
@@ -17,7 +16,6 @@ allprojects {
     maven { url 'https://maven.google.com' }
   }
 }
-
 
 task clean(type: Delete) {
     delete('./build')

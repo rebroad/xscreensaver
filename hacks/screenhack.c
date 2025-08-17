@@ -604,9 +604,9 @@ static Widget make_shell(Screen *screen, Widget toplevel, int width, int height)
 }
 
 static void init_window (Display *dpy, Widget toplevel, const char *title) {
-  long pid = getpid();
   Window window;
   XWindowAttributes xgwa;
+  long pid = getpid();
   XtPopup (toplevel, XtGrabNone);
   XtVaSetValues (toplevel, XtNtitle, title, NULL);
 
