@@ -240,14 +240,12 @@ add_arms (ModeInfo *mi, hexagon *h0, GLfloat incoming_speed)
       h1->border_state = IN;
 
       /* Mostly keep the same color */
-      h1->ccolor = h0->ccolor;
-      if (! (random() % 5))
-        h1->ccolor = (h0->ccolor + 1) % bp->ncolors;
+      if (! (random() % 5)) h1->ccolor = (h0->ccolor + 1) % bp->ncolors;
+      else h1->ccolor = h0->ccolor;
 
       bp->live_count++;
       added++;
-      if (added >= target)
-        break;
+      if (added >= target) break;
     }
   return added;
 }
@@ -272,7 +270,6 @@ static void scale_corners(ModeInfo *mi) {
   GLfloat thick2 = thickness * bp->fade_ratio;
   GLfloat size3 = size * thick2 * 0.8;
   GLfloat size4 = size3 * 2; // when total_arms == 1
-
   int i;
   for (i = 0; i < 6; i++) {
     scaled_corners[i][0].x = corners[i].x * size1;
@@ -492,6 +489,13 @@ tick_hexagons (ModeInfo *mi)
     }
 }
 
+# define HEXAGON_COLOR(V,H) do { \
+  (V)[0] = bp->colors[(H)->ccolor].red   / 65535.0 * bp->fade_ratio; \
+  (V)[1] = bp->colors[(H)->ccolor].green / 65535.0 * bp->fade_ratio; \
+  (V)[2] = bp->colors[(H)->ccolor].blue  / 65535.0 * bp->fade_ratio; \
+  (V)[3] = 1; \
+} while (0)
+
 static void
 draw_hexagons (ModeInfo *mi)
 {
@@ -517,23 +521,12 @@ draw_hexagons (ModeInfo *mi)
       GLfloat nub_ratio = 0;
       int j;
 
-      for (j = 0; j < 6; j++)
-        {
-          arm *a = &h->arms[j];
-          if (a->state == OUT || a->state == DONE || a->state == WAIT) {
-            total_arms++;
-            if (a->state == WAIT)
-              nub_ratio = a->ratio;
-          }
-        }
+      for (j = 0; j < 6; j++) {
+        arm *a = &h->arms[j];
+        if (a->state == OUT || a->state == DONE || a->state == WAIT) total_arms++;
+        if (a->state == WAIT) nub_ratio = a->ratio;
+      }
 
-
-# define HEXAGON_COLOR(V,H) do { \
-          (V)[0] = bp->colors[(H)->ccolor].red   / 65535.0 * bp->fade_ratio; \
-          (V)[1] = bp->colors[(H)->ccolor].green / 65535.0 * bp->fade_ratio; \
-          (V)[2] = bp->colors[(H)->ccolor].blue  / 65535.0 * bp->fade_ratio; \
-          (V)[3] = 1; \
-        } while (0)
       HEXAGON_COLOR (color, h);
 
       for (j = 0; j < 6; j++)
@@ -692,9 +685,7 @@ draw_hexagons (ModeInfo *mi)
   glEnd();
 }
 
-
-/* Window management, etc
- */
+/* Window management, etc */
 ENTRYPOINT void
 reshape_hextrail (ModeInfo *mi, int width, int height)
 {
@@ -715,9 +706,7 @@ reshape_hextrail (ModeInfo *mi, int width, int height)
 
   glMatrixMode(GL_MODELVIEW);
   glLoadIdentity();
-  gluLookAt( 0.0, 0.0, 30.0,
-             0.0, 0.0, 0.0,
-             0.0, 1.0, 0.0);
+  gluLookAt( 0.0, 0.0, 30.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0);
 
   {
     GLfloat s = (MI_WIDTH(mi) < MI_HEIGHT(mi)
@@ -795,7 +784,6 @@ hextrail_handle_event (ModeInfo *mi, XEvent *event)
   return False;
 }
 
-
 // Function to create rotator with current spin/wander settings
 static rotator* create_hextrail_rotator(void) {
 #ifdef WEB_BUILD
@@ -814,9 +802,7 @@ ENTRYPOINT void
 init_hextrail (ModeInfo *mi)
 {
   hextrail_configuration *bp;
-
   MI_INIT (mi, bps);
-
   bp = &bps[MI_SCREEN(mi)];
 
   bp->glx_context = init_GL(mi);
@@ -824,7 +810,7 @@ init_hextrail (ModeInfo *mi)
   reshape_hextrail (mi, MI_WIDTH(mi), MI_HEIGHT(mi));
 
   /* Initialize speed from resource */
-  speed = get_float_resource (MI_DISPLAY(mi), "speed", "Float");
+  speed = get_float_resource (MI_DISPLAY(mi), "speed", "Float"); // TODO - needed?
   if (speed <= 0) speed = 1.0;
 
   bp->rot = create_hextrail_rotator();
