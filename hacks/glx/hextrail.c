@@ -82,6 +82,10 @@ static Bool do_spin, do_wander, do_glow, do_neon, do_expand;
 
 #ifdef USE_GL /* whole file */
 
+/* Forward declarations */
+void setup_gl_state(void);
+void cleanup_gl_state(void);
+
 #ifdef GL_VERSION_2_0
 /* Vertex shader source */
 static const char *vertex_shader_source =
@@ -327,6 +331,9 @@ typedef struct {
   GLfloat bloom_intensity;
   int fbo_width, fbo_height;
   GLuint fbo;  /* Main framebuffer object */
+  GLuint main_texture;  /* Main texture for FBO */
+  GLuint vbo;  /* Vertex buffer object */
+  GLuint vao;  /* Vertex array object */
 #endif // GL_VERSION_2_0
 } config;
 
@@ -790,7 +797,7 @@ static void reset_hextrail(ModeInfo *mi) {
   scale_corners(mi);
 
   bp->ncolors = 8;
-  if (!bp->colors)
+  if (!bp->colors) {
 #ifdef USE_SDL
     bp->colors = (SDL_Color *) calloc(bp->ncolors, sizeof(SDL_Color));
     make_smooth_colormap(bp->colors, &bp->ncolors, False, 0, False);
@@ -803,6 +810,7 @@ static void reset_hextrail(ModeInfo *mi) {
     bp->colors = (XColor *) calloc(bp->ncolors, sizeof(XColor));
     make_smooth_colormap (0, 0, 0, bp->colors, &bp->ncolors, False, 0, False);
 #endif
+  }
 }
 
 static void handle_arm_out(config *bp, hexagon *h0, arm *a0, int j) {
@@ -1578,21 +1586,20 @@ ENTRYPOINT void init_hextrail(ModeInfo *mi) {
         glBindFramebuffer(GL_FRAMEBUFFER, bp->fbo);
 
         /* Create and attach texture for main FBO */
-        GLuint main_texture;
-        glGenTextures(1, &main_texture);
-        glBindTexture(GL_TEXTURE_2D, main_texture);
+        glGenTextures(1, &bp->main_texture);
+        glBindTexture(GL_TEXTURE_2D, bp->main_texture);
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, bp->fbo_width, bp->fbo_height, 0, GL_RGBA, GL_FLOAT, NULL);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, main_texture, 0);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, bp->main_texture, 0);
 
         /* Check FBO completeness */
         GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
         if (status != GL_FRAMEBUFFER_COMPLETE) {
             fprintf(stderr, "Main FBO not complete, status: 0x%x\n", status);
-            glDeleteTextures(1, &main_texture);
+            glDeleteTextures(1, &bp->main_texture);
             glDeleteFramebuffers(1, &bp->fbo);
             bp->fbo = 0;
             return;
@@ -1630,7 +1637,7 @@ ENTRYPOINT void init_hextrail(ModeInfo *mi) {
         }
 
         /* Check framebuffer completeness */
-        GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+        status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
         if (status != GL_FRAMEBUFFER_COMPLETE) {
             fprintf(stderr, "Framebuffer not complete, status: 0x%x\n", status);
         }

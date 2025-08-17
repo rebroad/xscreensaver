@@ -12,11 +12,12 @@
 #ifndef __COLORS_H__
 #define __COLORS_H__
 
+#ifdef USE_SDL
 #include "sdlcompat.h"
+#else
 
 /* Like XFreeColors, but works on `XColor *' instead of `unsigned long *'
  */
-#ifndef USE_SDL
 extern void free_colors (Screen *, Colormap, XColor *, int ncolors);
 
 /* Allocates writable, non-contiguous color cells.  The number requested is
