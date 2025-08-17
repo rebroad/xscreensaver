@@ -513,7 +513,6 @@ make_smooth_colormap (Screen *screen, Visual *visual, Colormap cmap,
 {
   int npoints;
   int ncolors = *ncolorsP;
-  int originally_requested = *ncolorsP;  // Save original request
   Bool wanted_writable = (allocate_p && writable_pP && *writable_pP);
   int i;
   int h[MAXPOINTS];
