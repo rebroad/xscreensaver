@@ -197,7 +197,7 @@ make_plane (ModeInfo *mi)
 }
 
 static int
-add_arms (ModeInfo *mi, hexagon *h0)
+add_arms (ModeInfo *mi, hexagon *h0, GLfloat incoming_speed)
 {
   hextrail_configuration *bp = &bps[MI_SCREEN(mi)];
   int i;
@@ -232,8 +232,13 @@ add_arms (ModeInfo *mi, hexagon *h0)
       a0->state = OUT;
       a0->ratio = 0;
       a1->ratio = 0;
-      a0->speed = 0.05 * speed * (0.8 + frand(1.0));
-      a1->speed = a0->speed;
+      /* Use incoming speed as influence, with randomness to increase or decrease */
+      GLfloat base_speed = incoming_speed > 0 ? incoming_speed : 0.05 * (0.8 + frand(1.0));
+      /* Add randomness: 0.5 to 1.5x the incoming speed, so arms can be faster or slower */
+      a0->speed = base_speed * (0.5 + frand(1.0));
+      /* Ensure speed stays within the original bounds: 0.05 * 0.8 to 0.05 * 1.8 */
+      if (a0->speed < 0.04) a0->speed = 0.04;
+      if (a0->speed > 0.09) a0->speed = 0.09;
 
       h1->border_state = IN;
 
@@ -380,7 +385,7 @@ tick_hexagons (ModeInfo *mi)
               {
                 /* Just finished growing from edge to center.
                    Look for any available exits. */
-                if (add_arms (mi, h0)) {
+                if (add_arms (mi, h0, a0->speed)) {
                   bp->live_count--;
                   if (bp->live_count < 0) abort();
                   a0->state = DONE;
@@ -459,7 +464,7 @@ tick_hexagons (ModeInfo *mi)
           }
         h0 = &bp->hexagons[y * bp->grid_w + x];
         if (h0->border_state == EMPTY &&
-            add_arms (mi, h0)) {
+            add_arms (mi, h0, 0.0)) {
           h0->border_state = DONE;
           break;
         }
