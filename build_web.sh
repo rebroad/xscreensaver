@@ -231,6 +231,7 @@ EMCC_ARGS=(
     -I$JWXYZ_DIR
     -I.
     -I$REPO_ROOT
+    -I$REPO_ROOT/web
     -I$HACKS_DIR
     -I$UTILS_DIR
     -I$GLX_DIR
