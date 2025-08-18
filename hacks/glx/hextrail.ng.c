@@ -896,6 +896,7 @@ reshape_hextrail (ModeInfo *mi, int width, int height)
 ENTRYPOINT Bool
 hextrail_handle_event (ModeInfo *mi, XEvent *event)
 {
+  debug_level = mi->debug_level;  /* Set global debug_level for DL() calls */
   hextrail_config *bp = &bps[MI_SCREEN(mi)];
 
   if (gltrackball_event_handler (event, bp->trackball,
@@ -940,11 +941,11 @@ hextrail_handle_event (ModeInfo *mi, XEvent *event)
 	  draw_invis = (int8_t)(draw_invis + 1) % 4;
 	  DL(1, "%s: draw_invis = %d\n", __func__, draw_invis);
 	} else if (c == 'D') {
-	  debug_level = (int8_t)(debug_level - 1) % 4;
-	  DL(1, "%s: debug_level = %d\n", __func__, debug_level);
+	  mi->debug_level = (int8_t)(mi->debug_level - 1) % 4;
+	  DL(1, "%s: debug_level = %d\n", __func__, mi->debug_level);
 	} else if (c == 'd') {
-	  debug_level = (int8_t)(debug_level + 1) % 4;
-	  DL(1, "%s: debug_level = %d\n", __func__, debug_level);
+	  mi->debug_level = (int8_t)(mi->debug_level + 1) % 4;
+	  DL(1, "%s: debug_level = %d\n", __func__, mi->debug_level);
 	} else if (c == 'h') {
 	  hexes_on = !hexes_on;
 	  DL(1, "%s: hexes_on = %d\n", __func__, hexes_on);
@@ -986,6 +987,7 @@ static rotator* create_hextrail_rotator(void) {
 ENTRYPOINT void
 init_hextrail(ModeInfo *mi)
 {
+  debug_level = mi->debug_level;  /* Set global debug_level for DL() calls */
   DL(1, "DEBUG: init_hextrail called\n");
   hextrail_config *bp;
   MI_INIT (mi, bps);
@@ -1025,6 +1027,7 @@ init_hextrail(ModeInfo *mi)
 ENTRYPOINT void
 draw_hextrail (ModeInfo *mi)
 {
+  debug_level = mi->debug_level;  /* Set global debug_level for DL() calls */
   hextrail_config *bp = &bps[MI_SCREEN(mi)];
 
   if (!bp->glx_context) return;
