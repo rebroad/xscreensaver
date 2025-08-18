@@ -202,7 +202,7 @@ if ! command -v emcc &> /dev/null; then
 fi
 
 # Check if we're in the right directory
-if [ ! -f "hacks/glx/hextrail_web_main.c" ]; then
+if [ ! -f "web/hacks/hextrail_web_main.c" ]; then
     echo -e "${RED}❌ hextrail_web_main.c not found. Please run this script from the project root directory.${NC}"
     exit 1
 fi
@@ -234,7 +234,7 @@ EMCC_ARGS=(
     -I$HACKS_DIR
     -I$UTILS_DIR
     -I$GLX_DIR
-    $GLX_DIR/hextrail_web_main.c
+    $REPO_ROOT/web/hacks/hextrail_web_main.c
     $UTILS_DIR/colors.c
     $UTILS_DIR/hsv.c
     $UTILS_DIR/yarandom.c

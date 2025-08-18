@@ -5,13 +5,13 @@
  */
 
 #include <emscripten.h>
-#include "../../web/xscreensaver_web.c"
+#include "../xscreensaver_web.c"
 
 // Include our web headers (WEB_BUILD already defined by build script)
-#include "../../web/xlockmore_web.h"
+#include "../xlockmore_web.h"
 
 // Now include hextrail.c with our web headers already defined
-#include "hextrail.c"
+#include "../../hacks/glx/hextrail.c"
 
 // Web-specific main function
 EMSCRIPTEN_KEEPALIVE
