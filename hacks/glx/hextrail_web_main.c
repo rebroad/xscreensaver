@@ -22,6 +22,8 @@ int main() {
         draw_hextrail,         // draw function
         reshape_hextrail,      // reshape function
         free_hextrail,         // free function
-        hextrail_handle_event  // handle_event function
+        hextrail_handle_event, // handle_event function
+        &hextrail_opts,        // ModeSpecOpt (vars/opts)
+        DEFAULTS               // defaults string
     );
 }

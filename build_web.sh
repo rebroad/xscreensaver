@@ -239,6 +239,7 @@ EMCC_ARGS=(
     $UTILS_DIR/hsv.c
     $UTILS_DIR/yarandom.c
     $UTILS_DIR/usleep.c
+    $UTILS_DIR/debug.c
     $HACKS_DIR/screenhack.c
     $GLX_DIR/rotator.c
     $GLX_DIR/gltrackball.c
