@@ -8,6 +8,7 @@
 #include <GLES3/gl3.h>
 #include <emscripten/html5.h>
 #include "jwxyz.h"
+#include "xlockmore_web.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -22,7 +23,7 @@ static unsigned int webgl_random() {
     return random_seed;
 }
 
-static double frand(double max) {
+double frand(double max) {
     return ((double)webgl_random() / (double)((unsigned int)~0)) * max;
 }
 
@@ -100,6 +101,81 @@ static double frand(double max) {
 #define True 1
 #define False 0
 
+// Web versions of resource functions that parse DEFAULTS string
+static char *web_defaults_string = NULL;
+
+void set_web_defaults_string(const char *defaults) {
+    if (web_defaults_string) {
+        free(web_defaults_string);
+    }
+    web_defaults_string = defaults ? strdup(defaults) : NULL;
+}
+
+// Parse a resource value from the defaults string
+static char* get_resource_value(const char *name) {
+    if (!web_defaults_string) return NULL;
+
+    char *defaults_copy = strdup(web_defaults_string);
+    char *line = strtok(defaults_copy, "\n");
+
+    while (line) {
+        if (line[0] == '*' && strstr(line, name)) {
+            char *colon = strchr(line, ':');
+            if (colon) {
+                char *value = colon + 1;
+                // Skip leading whitespace
+                while (*value == ' ' || *value == '\t') value++;
+                // Remove trailing whitespace
+                char *end = value + strlen(value) - 1;
+                while (end > value && (*end == ' ' || *end == '\t' || *end == '\n' || *end == '\r')) {
+                    *end = '\0';
+                    end--;
+                }
+                char *result = strdup(value);
+                free(defaults_copy);
+                return result;
+            }
+        }
+        line = strtok(NULL, "\n");
+    }
+
+    free(defaults_copy);
+    return NULL;
+}
+
+// Web versions of the resource functions
+char* get_string_resource(void *dpy, const char *name, const char *classname) {
+    (void)dpy; (void)classname;
+    return get_resource_value(name);
+}
+
+float get_float_resource(void *dpy, const char *name, const char *classname) {
+    (void)dpy; (void)classname;
+    char *value = get_resource_value(name);
+    if (!value) return 0.0f;
+    float result = atof(value);
+    free(value);
+    return result;
+}
+
+int get_integer_resource(void *dpy, const char *name, const char *classname) {
+    (void)dpy; (void)classname;
+    char *value = get_resource_value(name);
+    if (!value) return 0;
+    int result = atoi(value);
+    free(value);
+    return result;
+}
+
+Bool get_boolean_resource(void *dpy, const char *name, const char *classname) {
+    (void)dpy; (void)classname;
+    char *value = get_resource_value(name);
+    if (!value) return False;
+    Bool result = (strstr(value, "True") || strstr(value, "true")) ? True : False;
+    free(value);
+    return result;
+}
+
 // GLdouble is missing in WebGL, provide it
 #ifndef GLdouble
 typedef double GLdouble;
@@ -150,7 +226,7 @@ int gluProject(GLdouble objx, GLdouble objy, GLdouble objz,
 
 // Debug logging control
 static Bool debug_logging_enabled = True;
-static int debug_level = 0; // Control debug output levels
+extern int debug_level; // defined in utils/debug.c
 
 // Function to re-enable debug logging
 EMSCRIPTEN_KEEPALIVE
@@ -180,18 +256,6 @@ EMSCRIPTEN_KEEPALIVE
 void set_debug_level(int level) {
     debug_level = level;
     printf("Debug level set to %d\n", level);
-}
-
-// Debug function - level 0 goes to stderr, level 1+ goes to stdout
-void DL(int level, const char* format, ...) {
-    if (!debug_logging_enabled) return;
-    if (level <= debug_level) {
-        va_list args;
-        va_start(args, format);
-        if (level == 0) vfprintf(stderr, format, args);
-        else vfprintf(stdout, format, args);
-        va_end(args);
-    }
 }
 
 // Memory tracking functions
@@ -667,7 +731,7 @@ static void init_shaders() {
 }
 
 // Generic ModeInfo for web builds
-typedef struct {
+struct ModeInfo {
     int screen;
     Window window;
     Display *display;
@@ -677,9 +741,10 @@ typedef struct {
     int height;
     long count;
     int fps_p;
+    int debug_level; // Debug output level
     int polygon_count; // For polygon counting
     void *data;
-} ModeInfo;
+};
 
 #define MI_SCREEN(mi) ((mi)->screen)
 #define MI_WIDTH(mi) ((mi)->width)
@@ -942,9 +1007,43 @@ static int init_webgl() {
     return 1;
 }
 
+// Helper: process hack vars (spin, wander, speed, thickness, etc.) from DEFAULTS/defs
+static void process_hack_vars(ModeSpecOpt *opts, const char *defaults) {
+    if (!opts) return;
+    if (defaults) set_web_defaults_string(defaults);
+
+    for (int i = 0; i < opts->vars_count; i++) {
+        argtype *arg = &opts->vars[i];
+        if (!arg || !arg->var || !arg->name) continue;
+
+        char *value = get_resource_value(arg->name);
+        if (!value && arg->def) {
+            value = strdup(arg->def);
+        }
+        if (!value) continue;
+
+        switch (arg->type) {
+            case t_Bool: {
+                Bool parsed = (strstr(value, "True") || strstr(value, "true") || strcmp(value, "1") == 0) ? True : False;
+                *(Bool *)arg->var = parsed;
+                break;
+            }
+            case t_Float: {
+                float parsed = (float) atof(value);
+                *(float *)arg->var = parsed;
+                break;
+            }
+            default:
+                // Ignore other types for now in web wrapper
+                break;
+        }
+        free(value);
+    }
+}
+
 // Generic web initialization
 EMSCRIPTEN_KEEPALIVE
-int xscreensaver_web_init(init_func init, draw_func draw, reshape_func reshape, free_func free, handle_event_func handle_event) {
+int xscreensaver_web_init(init_func init, draw_func draw, reshape_func reshape, free_func free, handle_event_func handle_event, ModeSpecOpt *opts, const char *defaults) {
     debug_level = 1;
     DL(1, "xscreensaver_web_init called\n");
 
@@ -970,9 +1069,16 @@ int xscreensaver_web_init(init_func init, draw_func draw, reshape_func reshape, 
     web_mi.colormap = (Colormap)1;
     web_mi.width = 800;
     web_mi.height = 600;
-    web_mi.count = 20;
+    web_mi.count = 20; // TODO - remove this?
     web_mi.fps_p = 0;
+    web_mi.debug_level = 1; // Enable debug output for web builds
     web_mi.data = NULL;
+
+    // Process defaults into ModeInfo and hack vars
+    if (defaults) set_web_defaults_string(defaults);
+    web_mi.count = get_integer_resource(NULL, "count", "Int");
+    web_mi.fps_p = get_boolean_resource(NULL, "showFPS", "Boolean");
+    process_hack_vars(opts, defaults);
 
     DL(1, "ModeInfo initialized: width=%d, height=%d\n", web_mi.width, web_mi.height);
 
@@ -2187,24 +2293,3 @@ char *XGetAtomName(Display *display, Atom atom) {
     return strdup("WEB_ATOM");
 }
 
-// Stub for get_float_resource
-float get_float_resource(Display *dpy, char *res_name, char *res_class) {
-    // Return default values for common resources
-    (void)dpy;
-    (void)res_class;
-
-    // Use the actual default values from hextrail.c DEF_* constants
-    if (strcmp(res_name, "speed") == 0) {
-        return 1.0; // DEF_SPEED "1.0"
-    }
-    if (strcmp(res_name, "thickness") == 0) {
-        return 0.15; // DEF_THICKNESS "0.15"
-    }
-    if (strcmp(res_name, "spin") == 0) {
-        return 1.0; // DEF_SPIN "True" -> 1.0
-    }
-    if (strcmp(res_name, "wander") == 0) {
-        return 1.0; // DEF_WANDER "True" -> 1.0
-    }
-    return 1.0; // Default for unknown resources
-}
