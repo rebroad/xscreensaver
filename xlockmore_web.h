@@ -19,6 +19,9 @@ typedef double GLdouble;
 #define ENTRYPOINT
 #define XSCREENSAVER_MODULE(name, func)
 
+// Forward-declare ModeInfo for web builds
+typedef struct ModeInfo ModeInfo;
+
 // Common xscreensaver types and macros
 extern void do_fps(ModeInfo *mi);
 extern Bool screenhack_event_helper(void *display, void *window, void *event);
