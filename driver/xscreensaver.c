@@ -248,6 +248,7 @@
 #include "clientmsg.h"
 #include "xinput.h"
 #include "prefs.h"
+#include "../utils/debug.h"
 
 
 #undef countof
@@ -2478,7 +2479,10 @@ main (int argc, char **argv)
         argv[i]++;
 
       if (!strcmp (argv[i], "-debug"))
-        debug_p = True;
+        {
+          debug_p = True;
+          debug_level = 1;  /* Set debug level to 1 when -debug is used */
+        }
       else if (!strcmp (argv[i], "-v") || !strcmp (argv[i], "-verbose"))
         {
           verbose_p++;
