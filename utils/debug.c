@@ -9,7 +9,7 @@
 #include <stdarg.h>
 
 // Global debug level - can be modified at runtime
-int debug_level = 0;  // Default to no debug output
+int debug_level = -1;  // Default to no debug output (not even stderr)
 
 // Debug logging function
 // level 0: errors (stderr)
