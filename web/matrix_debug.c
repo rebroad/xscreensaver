@@ -80,7 +80,6 @@ static void (*real_glScalef)(GLfloat, GLfloat, GLfloat) = NULL;
 static void (*real_glPushMatrix)(void) = NULL;
 static void (*real_glPopMatrix)(void) = NULL;
 static void (*real_glMultMatrixf)(const GLfloat*) = NULL;
-static void (*real_glMultMatrixd)(const GLdouble*) = NULL;
 static void (*real_glViewport)(GLint, GLint, GLsizei, GLsizei) = NULL;
 static void (*real_gluPerspective)(GLdouble, GLdouble, GLdouble, GLdouble) = NULL;
 static void (*real_gluLookAt)(GLdouble, GLdouble, GLdouble, GLdouble, GLdouble, GLdouble, GLdouble, GLdouble, GLdouble) = NULL;
@@ -227,7 +226,6 @@ void init_matrix_debug_functions(void) {
     #undef glPushMatrix
     #undef glPopMatrix
     #undef glMultMatrixf
-    #undef glMultMatrixd
     #undef glViewport
     #undef gluPerspective
     #undef gluLookAt
@@ -244,7 +242,6 @@ void init_matrix_debug_functions(void) {
     extern void glPushMatrix(void);
     extern void glPopMatrix(void);
     extern void glMultMatrixf(const GLfloat* m);
-    extern void glMultMatrixd(const GLdouble* m);
     extern void glViewport(GLint x, GLint y, GLsizei width, GLsizei height);
     extern void gluPerspective(GLdouble fovy, GLdouble aspect, GLdouble zNear, GLdouble zFar);
     extern void gluLookAt(GLdouble eyex, GLdouble eyey, GLdouble eyez, GLdouble centerx, GLdouble centery, GLdouble centerz, GLdouble upx, GLdouble upy, GLdouble upz);
@@ -262,7 +259,6 @@ void init_matrix_debug_functions(void) {
     real_glPushMatrix = glPushMatrix;
     real_glPopMatrix = glPopMatrix;
     real_glMultMatrixf = glMultMatrixf;
-    real_glMultMatrixd = glMultMatrixd;
     real_glViewport = glViewport;
     real_gluPerspective = gluPerspective;
     real_gluLookAt = gluLookAt;
@@ -279,7 +275,6 @@ void init_matrix_debug_functions(void) {
     #define glPushMatrix debug_glPushMatrix
     #define glPopMatrix debug_glPopMatrix
     #define glMultMatrixf debug_glMultMatrixf
-    #define glMultMatrixd debug_glMultMatrixd
     #define glViewport debug_glViewport
     #define gluPerspective debug_gluPerspective
     #define gluLookAt debug_gluLookAt
@@ -297,7 +292,6 @@ void init_matrix_debug_functions(void) {
     matrix_debug_log("[MDBG]   real_glPushMatrix=%p\n", (void*) real_glPushMatrix);
     matrix_debug_log("[MDBG]   real_glPopMatrix=%p\n", (void*) real_glPopMatrix);
     matrix_debug_log("[MDBG]   real_glMultMatrixf=%p\n", (void*) real_glMultMatrixf);
-    matrix_debug_log("[MDBG]   real_glMultMatrixd=%p\n", (void*) real_glMultMatrixd);
     matrix_debug_log("[MDBG]   real_glViewport=%p\n", (void*) real_glViewport);
     matrix_debug_log("[MDBG]   real_gluPerspective=%p\n", (void*) real_gluPerspective);
     matrix_debug_log("[MDBG]   real_gluLookAt=%p\n", (void*) real_gluLookAt);
@@ -525,10 +519,16 @@ void debug_glMultMatrixf(const GLfloat* m) {
                      m[0], m[1], m[2], m[3], m[4], m[5], m[6], m[7],
                      m[8], m[9], m[10], m[11], m[12], m[13], m[14], m[15]);
 
+    // Show matrix state before multiplication
+    debug_current_opengl_matrix("Before MultMatrixf");
+
     // Call real function (works for both native and WebGL)
     if (real_glMultMatrixf) {
         real_glMultMatrixf(m);
     }
+
+    // Show matrix state after multiplication
+    debug_current_opengl_matrix("After MultMatrixf");
 }
 
 // Additional functions used by hextrail
@@ -560,26 +560,6 @@ void debug_gluLookAt(GLdouble eyex, GLdouble eyey, GLdouble eyez,
     if (real_gluLookAt) {
         real_gluLookAt(eyex, eyey, eyez, centerx, centery, centerz, upx, upy, upz);
     }
-}
-
-// Additional debug functions for both native and web
-void debug_glMultMatrixd(const GLdouble* m) {
-    matrix_debug_log("glMultMatrixd - Input Matrix:\n");
-    for (int i = 0; i < 4; i++) {
-        matrix_debug_log("  [%.6f %.6f %.6f %.6f]\n",
-           m[i*4], m[i*4+1], m[i*4+2], m[i*4+3]);
-    }
-
-    // Show matrix state before multiplication
-    debug_current_opengl_matrix("Before MultMatrixd");
-
-    // Call real function (works for both native and WebGL)
-    if (real_glMultMatrixd) {
-        real_glMultMatrixd(m);
-    }
-
-    // Show matrix state after multiplication
-    debug_current_opengl_matrix("After MultMatrixd");
 }
 
 void debug_glTranslated(GLdouble x, GLdouble y, GLdouble z) {
