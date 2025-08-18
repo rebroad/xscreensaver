@@ -11,7 +11,7 @@
 #include "../xlockmore_web.h"
 
 // Now include hextrail.c with our web headers already defined
-#include "hextrail.c"
+#include "../../hacks/glx/hextrail.c"
 
 // Web-specific main function
 EMSCRIPTEN_KEEPALIVE
