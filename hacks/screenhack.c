@@ -136,6 +136,7 @@
 #include "version.h"
 #include "vroot.h"
 #include "fps.h"
+#include "../utils/debug.h"
 
 #ifdef HAVE_RECORD_ANIM
 # include "recanim.h"
@@ -176,6 +177,7 @@ static XrmOptionDescRec default_options [] = {
   { "-window-id", ".windowID",		XrmoptionSepArg, 0 },
   { "-fps",	".doFPS",		XrmoptionNoArg, "True" },
   { "-no-fps",  ".doFPS",		XrmoptionNoArg, "False" },
+  { "-debug",	".debugLevel",		XrmoptionSepArg, 0 },
 
 # ifdef DEBUG_PAIR
   { "-pair",	".pair",		XrmoptionNoArg, "True" },
