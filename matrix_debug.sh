@@ -76,8 +76,8 @@ check_dependencies() {
     fi
 
     # Check for required files
-    if [ ! -f "matrix_debug.c" ] || [ ! -f "matrix_debug.h" ]; then
-        echo -e "${RED}❌ Required files missing: matrix_debug.c, matrix_debug.h${NC}"
+    if [ ! -f "web/matrix_debug.c" ] || [ ! -f "web/matrix_debug.h" ]; then
+        echo -e "${RED}❌ Required files missing: web/matrix_debug.c, web/matrix_debug.h${NC}"
         exit 1
     fi
 
