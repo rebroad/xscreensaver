@@ -537,6 +537,7 @@ xlockmore_init (Display *dpy, Window window,
   mi->wireframe_p = get_boolean_resource (dpy, "wireframe", "Boolean");
   mi->root_p = root_p;
   mi->fps_p = get_boolean_resource (dpy, "doFPS", "DoFPS");
+  mi->debug_level = get_integer_resource (dpy, "debugLevel", "DebugLevel");
   mi->recursion_depth = -1;  /* see fps.c */
 
   if (mi->pause < 0)
