@@ -749,13 +749,6 @@ draw_hexagons (ModeInfo *mi)
 		GLfloat xoff = corners[k].x - corners[j].x;
 		GLfloat yoff = corners[k].y - corners[j].y;
 		
-		// Debug: Log thickness values for first few arms
-		static int debug_arm_count = 0;
-		if (debug_arm_count < 5) {
-		  DL(1, "DEBUG: Arm rendering - size2=%.3f, thick2=%.3f, xoff=%.3f, yoff=%.3f\n", 
-		     size2, thick2, xoff, yoff);
-		  debug_arm_count++;
-		}
 		GLfloat line_length = (a->state == WAIT) ? 1 : a->ratio;
 		GLfloat start, end;
 		GLfloat ncolor[4];
