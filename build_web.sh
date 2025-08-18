@@ -271,7 +271,7 @@ fi
 
 # Add matrix debugging flag and source file if requested
 if [ "$MATRIX_DEBUG" = true ]; then
-    EMCC_ARGS=(-DMATRIX_DEBUG "$REPO_ROOT/matrix_debug.c" "${EMCC_ARGS[@]}")
+    EMCC_ARGS=(-DMATRIX_DEBUG "$REPO_ROOT/web/matrix_debug.c" "${EMCC_ARGS[@]}")
 fi
 
 # Compile with emscripten using custom HTML template
