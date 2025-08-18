@@ -90,7 +90,7 @@ UTILDIR_OBJS	= $(UTILS_BIN)/colors.o $(UTILS_BIN)/grabclient.o \
 		  $(UTILS_BIN)/textclient.o $(UTILS_BIN)/async_netdb.o \
 		  $(UTILS_BIN)/aligned_malloc.o $(UTILS_BIN)/thread_util.o \
 		  $(UTILS_BIN)/spline.o $(UTILS_BIN)/pow2.o \
-		  $(UTILS_BIN)/font-retry.o $(UTILS_BIN)/easing.o \
+		  $(UTILS_BIN)/font-retry.o $(UTILS_BIN)/easing.o $(UTILS_BIN)/debug.o \
 		  $(UTILS_BIN)/xftwrap.o
 JWXYZ_OBJS	= $(JWXYZ_BIN)/jwzgles.o
 HACKDIR_OBJS	= $(HACK_BIN)/screenhack.o $(HACK_BIN)/xlockmore.o \
@@ -285,6 +285,7 @@ HACK_OBJS	= $(HACK_BIN)/screenhack.o $(HACK_BIN)/xlockmore.o \
 		  $(UTILS_BIN)/xmu.o \
 		  $(UTILS_BIN)/yarandom.o \
 		  $(UTILS_BIN)/doubletime.o \
+		  $(UTILS_BIN)/debug.o \
 		  $(FPS_OBJS) $(JWZGLES_OBJS) $(HACK_GLSL_OBJS) @ANIM_OBJS@
 
 HDRS		= atlantis.h bubble3d.h buildlwo.h e_textures.h \
@@ -627,6 +628,7 @@ $(UTILS_BIN)/spline.o:		$(UTILS_SRC)/spline.c
 $(UTILS_BIN)/pow2.o:		$(UTILS_SRC)/pow2.c
 $(UTILS_BIN)/font-retry.o:	$(UTILS_SRC)/font-retry.c
 $(UTILS_BIN)/easing.o:		$(UTILS_SRC)/easing.c
+$(UTILS_BIN)/debug.o:		$(UTILS_SRC)/debug.c
 $(HACK_BIN)/screenhack.o:	$(HACK_SRC)/screenhack.c
 $(HACK_BIN)/xlockmore.o:	$(HACK_SRC)/xlockmore.c
 $(HACK_BIN)/fps.o:		$(HACK_SRC)/fps.c

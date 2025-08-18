@@ -945,6 +945,7 @@ static int init_webgl() {
 // Generic web initialization
 EMSCRIPTEN_KEEPALIVE
 int xscreensaver_web_init(init_func init, draw_func draw, reshape_func reshape, free_func free, handle_event_func handle_event) {
+    debug_level = 1;
     DL(1, "xscreensaver_web_init called\n");
 
     // Initialize random seed for consistent but varied colors
@@ -1028,6 +1029,7 @@ void set_speed(GLfloat new_speed) {
 EMSCRIPTEN_KEEPALIVE
 void set_thickness(GLfloat new_thickness) {
     extern GLfloat thickness;
+    DL(1, "DEBUG: set_thickness called with %.3f, current thickness=%.3f\n", new_thickness, thickness);
     thickness = new_thickness;
     DL(1, "Thickness set to: %f\n", thickness);
 

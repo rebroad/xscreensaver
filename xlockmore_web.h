@@ -27,6 +27,9 @@ extern GLXContext *init_GL(ModeInfo *mi);
 // Common utility functions
 extern double frand(double max);
 
+// Debug logging declarations
+#include "utils/debug.h"
+
 typedef struct {
     void *var;
     char *name;
