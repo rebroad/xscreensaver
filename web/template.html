@@ -618,12 +618,17 @@
 
                 // Initialize all controls with webpage values after module is ready
                 setTimeout(function() {
+                    console.log("DEBUG: setTimeout callback executing");
                     var spinCheckbox = document.getElementById('spin');
                     var wanderCheckbox = document.getElementById('wander');
                     var speedSlider = document.getElementById('speed');
                     var thicknessSlider = document.getElementById('thickness');
 
+                    console.log("DEBUG: Found controls - spin:", spinCheckbox, "wander:", wanderCheckbox, "speed:", speedSlider, "thickness:", thicknessSlider);
+                    console.log("DEBUG: Module functions - _set_spin:", Module._set_spin, "_set_wander:", Module._set_wander, "_set_speed:", Module._set_speed, "_set_thickness:", Module._set_thickness);
+
                     if (Module._set_spin && Module._set_wander && Module._set_speed && Module._set_thickness) {
+                        console.log("DEBUG: About to call set functions");
                         Module._set_spin(spinCheckbox.checked ? 1 : 0);
                         Module._set_wander(wanderCheckbox.checked ? 1 : 0);
                         Module._set_speed(parseFloat(speedSlider.value));
@@ -632,6 +637,8 @@
                                    ", wander=" + wanderCheckbox.checked +
                                    ", speed=" + speedSlider.value +
                                    ", thickness=" + thicknessSlider.value);
+                    } else {
+                        console.log("ERROR: One or more Module functions are missing!");
                     }
 
                     // Memory monitoring is disabled by default
