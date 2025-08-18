@@ -8,7 +8,7 @@
 #include <GLES3/gl3.h>
 #include <emscripten/html5.h>
 #include "jwxyz.h"
-#include "xlockmore_web.h"
+#include "xlockmore.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

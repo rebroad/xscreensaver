@@ -8,7 +8,12 @@
 #include "../xscreensaver_web.c"
 
 // Include our web headers (WEB_BUILD already defined by build script)
-#include "../xlockmore_web.h"
+#include "../xlockmore.h"
+
+// Enable matrix debug wrappers for the hack when requested
+#ifdef MATRIX_DEBUG
+#include "../matrix_debug.h"
+#endif
 
 // Now include hextrail.c with our web headers already defined
 #include "../../hacks/glx/hextrail.c"

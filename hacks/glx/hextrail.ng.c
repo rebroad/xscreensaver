@@ -17,12 +17,7 @@
 
 # define release_hextrail 0
 
-#ifdef MATRIX_DEBUG
-#include "../../web/matrix_debug.h"
-#endif
-#ifndef WEB_BUILD
 #include "xlockmore.h"
-#endif
 #include "colors.h"
 #include "normals.h"
 #include "rotator.h"
