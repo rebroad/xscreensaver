@@ -684,22 +684,6 @@ draw_hexagons (ModeInfo *mi)
 	  if (a->state == WAIT) nub_ratio = a->ratio;
 	} // loop through arms
 
-	// Debug: Log arm states for first few hexagons (limit to first 5 hexagons)
-	static int debug_hex_count = 0;
-	if (debug_hex_count < 5) {
-	  DL(1, "DEBUG: Hex %d at (%d,%d) arm states: ", debug_hex_count, h->x, h->y);
-	  for (j = 0; j < 6; j++) {
-		arm *a = &h->arms[j];
-		DL(1, "arm%d=%s(%.2f) ", j,
-		   a->state == EMPTY ? "EMPTY" :
-		   a->state == IN ? "IN" :
-		   a->state == OUT ? "OUT" :
-		   a->state == WAIT ? "WAIT" : "DONE", a->ratio);
-	  }
-	  DL(1, "total_arms=%d\n", total_arms);
-	  debug_hex_count++;
-	}
-
 	for (j = 0; j < 6; j++) {
 	  arm *a = &h->arms[j];
 	  int k = (j + 1) % 6;

@@ -558,6 +558,10 @@ static VBOPoolEntry* get_vbo_from_pool(size_t required_vertex_count) {
         entry->vertex_count = required_vertex_count;
         entry->in_use = True;
 
+        // Track memory allocation for new VBO
+        size_t vbo_size = required_vertex_count * (sizeof(Vertex3f) + sizeof(Color4f));
+        track_memory_allocation(vbo_size);
+
         DL(2, "DEBUG: Created new VBO pool entry %d (vertices: %zu)\n", vbo_pool_count, required_vertex_count);
         vbo_pool_count++;
         return entry;
@@ -583,6 +587,10 @@ static void return_vbo_to_pool(VBOPoolEntry* entry) {
 static void cleanup_vbo_pool(void) {
     for (int i = 0; i < vbo_pool_count; i++) {
         if (vbo_pool[i].vbo_vertices) {
+            // Track memory deallocation for VBO
+            size_t vbo_size = vbo_pool[i].vertex_count * (sizeof(Vertex3f) + sizeof(Color4f));
+            track_memory_free(vbo_size);
+
             glDeleteBuffers(1, &vbo_pool[i].vbo_vertices);
             vbo_pool[i].vbo_vertices = 0;
         }
@@ -596,24 +604,6 @@ static void cleanup_vbo_pool(void) {
     vbo_pool_count = 0;
     vbo_pool_next = 0;
     DL(1, "VBO pool cleaned up\n");
-}
-
-// Enhanced memory stats with VBO pool information
-EMSCRIPTEN_KEEPALIVE
-void print_memory_stats() {
-    // Calculate VBO pool memory usage
-    size_t vbo_pool_memory = 0;
-    int vbo_pool_in_use = 0;
-    for (int i = 0; i < vbo_pool_count; i++) {
-        if (vbo_pool[i].in_use) {
-            vbo_pool_in_use++;
-            vbo_pool_memory += vbo_pool[i].vertex_count * (sizeof(Vertex3f) + sizeof(Color4f));
-        }
-    }
-
-    DL(1, "MEMORY STATS: Allocated=%zu, Freed=%zu, Net=%zu, Count=%d, VBO_Pool=%zu bytes (%d/%d in use)\n",
-       total_allocated, total_freed, total_allocated - total_freed, allocation_count,
-       vbo_pool_memory, vbo_pool_in_use, vbo_pool_count);
 }
 
 // Export VBO pool stats to JavaScript
@@ -797,11 +787,6 @@ void main_loop(void) {
     // Check if rendering is disabled
     if (!rendering_enabled) {
         return; // Skip rendering entirely
-    }
-
-    // Print memory stats every 100 frames
-    if (frame_count % 100 == 0) {
-        print_memory_stats();
     }
 
     check_gl_error_wrapper("start of main loop");
@@ -1732,16 +1717,10 @@ void glEnd(void) {
     }
 
     // Track VBO memory allocation (only for new VBOs)
-    static size_t total_vbo_memory = 0;
-    if (vbo_entry->vertex_count == immediate.vertex_count) {
-        // This is a new VBO or reused VBO with same size
-        size_t vbo_size = immediate.vertex_count * (sizeof(Vertex3f) + sizeof(Color4f));
-        if (vbo_entry->vbo_vertices == 0) {
-            // New VBO - track allocation
-            track_memory_allocation(vbo_size);
-            total_vbo_memory += vbo_size;
-        }
-    }
+    size_t vbo_size = immediate.vertex_count * (sizeof(Vertex3f) + sizeof(Color4f));
+
+    // Track allocation only when we create a new VBO (not when reusing existing ones)
+    // This is handled in get_vbo_from_pool() when vbo_pool_count increases
 
     // Upload vertex data to VBO
     glBindBuffer(GL_ARRAY_BUFFER, vbo_entry->vbo_vertices);
