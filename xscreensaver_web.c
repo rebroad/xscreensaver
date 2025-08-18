@@ -1631,12 +1631,6 @@ void glColor4f(GLfloat r, GLfloat g, GLfloat b, GLfloat a) {
     current_color.g = g;
     current_color.b = b;
     current_color.a = a;
-
-    static int color_count = 0;
-    color_count++;
-    if (color_count <= 10) { // Only log first 10 color changes
-        DL(1, "glColor4f: RGBA(%.3f, %.3f, %.3f, %.3f)\n", r, g, b, a);
-    }
 }
 
 void glColor4fv(const GLfloat *v) {
@@ -1646,12 +1640,6 @@ void glColor4fv(const GLfloat *v) {
     current_color.g = v[1];
     current_color.b = v[2];
     current_color.a = v[3];
-
-    static int color_count = 0;
-    color_count++;
-    if (color_count <= 10) { // Only log first 10 color changes
-        DL(1, "glColor4fv: RGBA(%.3f, %.3f, %.3f, %.3f)\n", v[0], v[1], v[2], v[3]);
-    }
 }
 
 void glMaterialfv(GLenum face, GLenum pname, const GLfloat *params) {
