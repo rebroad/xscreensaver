@@ -254,4 +254,4 @@ ERROR!  Sorry, xlockmore.h requires ANSI C (gcc, for example.)
       XSCREENSAVER_MODULE_2(CLASS,PREFIX,PREFIX)
 
 /* Debug logging declarations */
-#include "../../utils/debug.h"
+#include "../utils/debug.h"
