@@ -20,5 +20,7 @@ hacks/glx/[a-z]*
 !hacks/*.?
 hacks/*.o
 hacks/glx/*.o
+hacks/m6502.h
+hacks/glx/molecules.h
 utils/*.o
 po/POTFILES
