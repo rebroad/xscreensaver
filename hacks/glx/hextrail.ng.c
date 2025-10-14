@@ -795,8 +795,13 @@ draw_hexagons (ModeInfo *mi)
 		mi->polygon_count++;
 	  } // arm is IN, OUT, DONE, or WAIT
 
+	  /* Check if adjacent arms are OUT or DONE */
+	  int prev_j = (j - 1 + 6) % 6;
+	  Bool needed = !(h->arms[prev_j].state == OUT || h->arms[prev_j].state == DONE ||
+	                  h->arms[k].state == OUT || h->arms[k].state == DONE);
+
 	  /* Hexagon (one triangle of) in center to hide line miter/bevels.  */
-	  if (total_arms && a->state != DONE && a->state != OUT) {
+	  if (total_arms && a->state != DONE && a->state != OUT && (needed || total_arms == 1)) {
 		p[0] = pos; p[1].z = pos.z; p[2].z = pos.z;
 
 		if (nub_ratio) {
@@ -808,7 +813,6 @@ draw_hexagons (ModeInfo *mi)
 		  int8_t s = (total_arms == 1) ? 3 : 2;
 		  p[1].x = pos.x + scaled_corners[j][s].x;
 		  p[1].y = pos.y + scaled_corners[j][s].y;
-		  /* Inner edge of hexagon border */
 		  p[2].x = pos.x + scaled_corners[k][s].x;
 		  p[2].y = pos.y + scaled_corners[k][s].y;
 		}
@@ -819,7 +823,7 @@ draw_hexagons (ModeInfo *mi)
 		glVertex3f (p[1].x, p[1].y, p[1].z);
 		glVertex3f (p[2].x, p[2].y, p[2].z);
 		mi->polygon_count++;
-	  } // total_arms && a->state != DONE && a->state != OUT
+	  } // total_arms && a->state != DONE && a->state != OUT && (needed || total_arms == 1)
 	} // loop through arms
   } // loop through hexagons
 
