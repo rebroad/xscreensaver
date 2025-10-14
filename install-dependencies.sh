@@ -13,6 +13,8 @@ sudo apt update
 # Install all required dependencies
 sudo apt install -y \
     build-essential \
+    intltool \
+    libpam0g-dev \
     libx11-dev \
     libxext-dev \
     libxrandr-dev \
