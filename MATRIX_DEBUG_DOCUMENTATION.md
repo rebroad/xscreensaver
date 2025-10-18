@@ -10,7 +10,7 @@ The Matrix Debugging Framework is a comprehensive system for debugging and compa
 matrix_debug.sh (Main Orchestrator)
 ├── build_web.sh (WebGL Build Script)
 ├── enhanced_compare.sh (Advanced Comparison)
-├── auto_probe_web.sh (Web Debugging Automation)
+├── probe_web.sh (Web Debugging Automation)
 └── Core Debug Files
     ├── matrix_debug.c (Debug Implementation)
     ├── matrix_debug.h (Debug Headers)
@@ -31,7 +31,7 @@ matrix_debug.sh (Main Orchestrator)
 
 **Dependencies**:
 - ✅ **build_web.sh** - Called for WebGL builds
-- ✅ **auto_probe_web.sh** - Called for advanced web debugging (required)
+- ✅ **probe_web.sh** - Called for advanced web debugging (required)
 - ✅ **matrix_debug.c/h** - Core debugging implementation
 - ✅ **hextrail.c** - Modified with conditional debugging code
 
@@ -62,7 +62,7 @@ matrix_debug.sh (Main Orchestrator)
 emcc [flags] hextrail_web_main.c matrix_debug.c xscreensaver_web.c [other files] -o index.html
 ```
 
-### 4. **auto_probe_web.sh** - Web Debug Output Extraction 🤖
+### 4. **probe_web.sh** - Web Debug Output Extraction 🤖
 **Purpose**: Automated debug output capture and extraction tools
 
 **Dependencies**:
@@ -82,7 +82,7 @@ emcc [flags] hextrail_web_main.c matrix_debug.c xscreensaver_web.c [other files]
   - Provides manual extraction options
 
 **Commands**:
-- `./auto_probe_web.sh` - Run debug output extraction (requires existing web server)
+- `./probe_web.sh` - Run debug output extraction (requires existing web server)
 
 ## 🔄 Data Flow & Interactions
 
@@ -115,7 +115,7 @@ matrix_debug.sh compare
     ↓
 [Run native hextrail and capture debug output]
     ↓
-auto_probe_web.sh (required)
+probe_web.sh (required)
     ↓
 [Intelligent matrix operation comparison (integrated)]
     ↓
@@ -124,7 +124,7 @@ auto_probe_web.sh (required)
 
 ### Web Debugging Flow:
 ```
-auto_probe_web.sh
+probe_web.sh
     ↓
 [Check for existing servers]
     ↓
@@ -182,7 +182,7 @@ auto_probe_web.sh
 ### **Fixed Issues:**
 
 1. **✅ Eliminated Duplication:**
-   - Web server management now centralized in `auto_probe_web.sh`
+   - Web server management now centralized in `probe_web.sh`
    - WebGL output capture logic unified
    - Build logic consolidated
 
@@ -200,7 +200,7 @@ auto_probe_web.sh
 ```
 matrix_debug.sh (Orchestrator)
 ├── build_web.sh (WebGL Build)
-├── auto_probe_web.sh (Web Debugging)
+├── probe_web.sh (Web Debugging)
 └── [Intelligent comparison logic (integrated)]
 
 Each script can also run independently!
@@ -229,7 +229,7 @@ Each script can also run independently!
 ./build_web.sh -matrix-debug
 
 # Extract debug output (after server is running)
-./auto_probe_web.sh
+./probe_web.sh
 ```
 
 ### Direct Script Usage:
@@ -268,7 +268,7 @@ Each script can also run independently!
    - Check: `source ~/src/emsdk/emsdk_env.sh`
 
 2. **"Web server already running"**
-   - Solution: Use `./auto_probe_web.sh cleanup`
+   - Solution: Use `./probe_web.sh cleanup`
    - Check: `lsof -i :8000` for port conflicts
 
 3. **"Matrix operations differ"**

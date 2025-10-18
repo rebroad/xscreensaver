@@ -36,7 +36,7 @@ echo ""
 
 # Step 2: Capture debug output from normal build
 echo -e "${YELLOW}🔍 Step 2: Capturing debug output from normal build...${NC}"
-./auto_probe_web.sh 8000 "$NORMAL_OUTPUT_DIR"
+./probe_web.sh 8000 "$NORMAL_OUTPUT_DIR"
 if [ $? -ne 0 ]; then
     echo -e "${RED}❌ Failed to capture normal build output!${NC}"
     exit 1
@@ -56,7 +56,7 @@ echo ""
 
 # Step 4: Capture debug output from debug build
 echo -e "${YELLOW}🔍 Step 4: Capturing debug output from debug build...${NC}"
-./auto_probe_web.sh 8000 "$DEBUG_OUTPUT_DIR"
+./probe_web.sh 8000 "$DEBUG_OUTPUT_DIR"
 if [ $? -ne 0 ]; then
     echo -e "${RED}❌ Failed to capture debug build output!${NC}"
     exit 1
