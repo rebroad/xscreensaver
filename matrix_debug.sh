@@ -241,14 +241,14 @@ compare_outputs() {
         return 1
     fi
 
-    # Use auto_probe_web.sh for web debugging if available to capture output
-    if [ -f "auto_probe_web.sh" ]; then
-        echo -e "${YELLOW}🤖 Using auto_probe_web.sh for web debugging on port $WEB_SERVER_PORT...${NC}"
+    # Use probe_web.sh for web debugging if available to capture output
+    if [ -f "probe_web.sh" ]; then
+        echo -e "${YELLOW}🤖 Using probe_web.sh for web debugging on port $WEB_SERVER_PORT...${NC}"
         # Add a small delay to ensure window positioning has completed
         sleep 2
-        ./auto_probe_web.sh $WEB_SERVER_PORT
+        ./probe_web.sh $WEB_SERVER_PORT
     else
-        echo -e "${YELLOW}⚠️  auto_probe_web.sh not found; skipping automated web capture${NC}"
+        echo -e "${YELLOW}⚠️  probe_web.sh not found; skipping automated web capture${NC}"
     fi
 
     # Perform intelligent comparison of matrix operations

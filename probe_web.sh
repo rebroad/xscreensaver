@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Automated Web Probing Script for Matrix Debug Output
-# Usage: ./auto_probe_web.sh <port_number> [output_directory]
+# Usage: ./probe_web.sh <port_number> [output_directory]
 # This script extracts debug output from a HexTrail webpage running on the specified port
 # If output_directory is specified, debug output will be saved there instead of matrix_debug_outputs/
 
