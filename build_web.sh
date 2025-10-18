@@ -3,9 +3,31 @@
 # HexTrail Web Build Script
 # This script compiles hextrail for the web using emscripten
 
-set -e
+set -euo pipefail
 
+# Defaults
+DEBUG_MODE=false
+MEMORY_DEBUG=false
+MATRIX_DEBUG=false
 START_SERVER=true  # Start server by default
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+CYAN='\033[0;36m'
+NC='\033[0m' # No Color
+
+print_usage() {
+    echo "Usage: $0 [options]"
+    echo "  -debug        Enable FINDBUG mode for GL error hunting"
+    echo "  -memory       Enable memory debugging and leak detection"
+    echo "  -matrix-debug Enable matrix debugging output"
+    echo "  -noserver     Don't start web server automatically (default: start server)"
+}
+
+# Parse args
 while [[ $# -gt 0 ]]; do
     case $1 in
         -debug)
@@ -25,10 +47,7 @@ while [[ $# -gt 0 ]]; do
             shift
             ;;
         *)
-            echo "Usage: $0 [-debug] [-memory] [-noserver]"
-            echo "  -debug: Enable FINDBUG mode for GL error hunting"
-            echo "  -memory: Enable memory debugging and leak detection"
-            echo "  -noserver: Don't start web server automatically (default: start server)"
+            print_usage
             exit 1
             ;;
     esac
@@ -54,13 +73,6 @@ if ! command -v emcc &> /dev/null; then
 else
     echo -e "${GREEN}✅ emcc found in PATH: $(which emcc)${NC}"
 fi
-
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
 
 UTILS_DIR="$REPO_ROOT/utils"
 GLX_DIR="$REPO_ROOT/hacks/glx"
@@ -164,9 +176,10 @@ start_web_server() {
             echo -e "${YELLOW}💡 Server will run in background. To stop: kill $SERVER_PID${NC}"
             echo "WEBSERVER_PORT:$PORT"  # Parseable output for scripts
 
-            # Store server info for potential cleanup
-            echo $PORT > /tmp/hextrail_web_port.txt
-            echo $SERVER_PID > /tmp/hextrail_web_pid.txt
+            # Store server info for potential cleanup (generic web port file)
+            # Save to repo root so probe script can find it
+            echo $PORT > "$REPO_ROOT/.web_port"
+            echo $SERVER_PID > "$REPO_ROOT/.web_pid"
 
             # Open browser automatically
             open_browser $PORT
@@ -189,7 +202,7 @@ fi
 if [ "$MEMORY_DEBUG" = true ]; then
     echo -e "${YELLOW}🧠 Memory debugging enabled - leak detection and profiling active${NC}"
 fi
-echo -e "${YELLOW}📁 Repository root: $REPO_ROOT${NC}"
+echo -e "${CYAN}📁 Repository root: $REPO_ROOT${NC}"
 echo -e "${YELLOW}📁 Utils directory: $UTILS_DIR${NC}"
 echo -e "${YELLOW}📁 GLX directory: $GLX_DIR${NC}"
 echo -e "${YELLOW}📁 JWXYZ directory: $JWXYZ_DIR${NC}"
