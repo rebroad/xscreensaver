@@ -214,7 +214,6 @@ add_arms (ModeInfo *mi, hexagon *h0)
 
       if (a1->state != EMPTY) abort();
       a0->state = OUT;
-      a1->state = WAIT;
       a0->ratio = 0;
       a1->ratio = 0;
       a0->speed = 0.05 * speed * (0.8 + frand(1.0));
@@ -260,7 +259,6 @@ tick_hexagons (ModeInfo *mi)
                    Pass the baton to this waiting neighbor. */
                 hexagon *h1 = h0->neighbors[j];
                 arm *a1 = &h1->arms[(j + 3) % 6];
-                if (a1->state != WAIT) abort();
                 a0->state = DONE;
                 a0->ratio = 1;
                 a1->state = IN;
@@ -276,14 +274,31 @@ tick_hexagons (ModeInfo *mi)
               {
                 /* Just finished growing from edge to center.
                    Look for any available exits. */
+                if (add_arms (mi, h0))
+                  {
+                    a0->state = DONE;
+                    a0->ratio = 1;
+                    bp->live_count--;
+                    if (bp->live_count < 0) abort();
+                  }
+                else /* nub grow */
+                  {
+                    a0->state = WAIT;
+                    a0->ratio = ((a0->ratio - 1) * 5) + 1;
+                    a0->speed *= 5;
+                  }
+              }
+            break;
+          case WAIT:
+            a0->ratio += a0->speed * (2 - a0->ratio);
+            if (a0->ratio >= 1.999)
+              {
                 a0->state = DONE;
                 a0->ratio = 1;
                 bp->live_count--;
                 if (bp->live_count < 0) abort();
-                add_arms (mi, h0);
               }
-            break;
-          case EMPTY: case WAIT: case DONE:
+          case EMPTY: case DONE:
             break;
           default:
             abort(); break;
@@ -304,13 +319,13 @@ tick_hexagons (ModeInfo *mi)
         if (h0->border_ratio <= 0)
           {
             h0->border_ratio = 0;
-            h0->border_state = EMPTY;
+            h0->border_state = DONE;
           }
       case WAIT:
         if (! (random() % 50))
           h0->border_state = OUT;
         break;
-      case EMPTY:
+      case EMPTY: case DONE:
 /*
         if (! (random() % 3000))
           h0->border_state = IN;
@@ -403,13 +418,16 @@ draw_hexagons (ModeInfo *mi)
       hexagon *h = &bp->hexagons[i];
       int total_arms = 0;
       GLfloat color[4];
+      GLfloat nub_ratio = 2;
       int j;
 
       for (j = 0; j < 6; j++)
         {
           arm *a = &h->arms[j];
-          if (a->state == OUT || a->state == DONE)
+          if (a->state == OUT || a->state == DONE || a->state == WAIT)
             total_arms++;
+          if (a->state == WAIT)
+            nub_ratio = a->ratio;
         }
       
 
@@ -430,7 +448,7 @@ draw_hexagons (ModeInfo *mi)
           int k = (j + 1) % 6;
           XYZ p[6];
 
-          if (h->border_state != EMPTY)
+          if (h->border_state != EMPTY && h->border_state != DONE)
             {
               GLfloat color1[4];
               memcpy (color1, color, sizeof(color1));
@@ -473,13 +491,13 @@ draw_hexagons (ModeInfo *mi)
 
           /* Line from center to edge, or edge to center.
            */
-          if (a->state == IN || a->state == OUT || a->state == DONE)
+          if (a->state == IN || a->state == OUT || a->state == DONE || a->state == WAIT)
             {
               GLfloat x   = (corners[j].x + corners[k].x) / 2;
               GLfloat y   = (corners[j].y + corners[k].y) / 2;
               GLfloat xoff = corners[k].x - corners[j].x;
               GLfloat yoff = corners[k].y - corners[j].y;
-              GLfloat line_length = h->arms[j].ratio;
+              GLfloat line_length = (a->state == WAIT) ? 1 : a->ratio;
               GLfloat start, end;
               GLfloat ncolor[4];
               GLfloat color1[4];
@@ -553,7 +571,7 @@ draw_hexagons (ModeInfo *mi)
             {
               GLfloat size3 = size * thick2 * 0.8;
               if (total_arms == 1)
-                size3 *= 2;
+                size3 *= nub_ratio;
 
               p[0] = h->pos;
 
