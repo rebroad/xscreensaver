@@ -781,10 +781,12 @@ hextrail_handle_event (ModeInfo *mi, XEvent *event)
           printf("DEBUG: Increasing speed from %f to %f\n", speed, speed * 2);
           speed *= 2;
           if (speed > 20) speed = 20;
+          update_hextrail_rotator(mi);
       } else if (keysym == XK_Left) {
           printf("DEBUG: Decreasing speed from %f to %f\n", speed, speed / 2);
           speed /= 2;
           if (speed < 0.0001) speed = 0.0001;
+          update_hextrail_rotator(mi);
       } else if (c == 'i') {
           draw_invis = (draw_invis - 1) % 4;
           printf("DEBUG: draw_invis = %d\n", draw_invis);
@@ -807,14 +809,14 @@ hextrail_handle_event (ModeInfo *mi, XEvent *event)
 // Function to create rotator with current spin/wander settings and speed
 static rotator* create_hextrail_rotator(void) {
 #ifdef WEB_BUILD
-    printf("DEBUG: Creating rotator - do_spin=%d, do_wander=%d\n", do_spin, do_wander);
+    printf("DEBUG: Creating rotator - do_spin=%d, do_wander=%d, speed=%f\n", do_spin, do_wander, speed);
 #endif
 
-    return make_rotator(do_spin ? SPIN_SPEED : 0,
-                       do_spin ? SPIN_SPEED : 0,
-                       do_spin ? SPIN_SPEED : 0,
+    return make_rotator(do_spin ? SPIN_SPEED * speed : 0,
+                       do_spin ? SPIN_SPEED * speed : 0,
+                       do_spin ? SPIN_SPEED * speed : 0,
                        SPIN_ACCEL,
-                       do_wander ? WANDER_SPEED : 0,
+                       do_wander ? WANDER_SPEED * speed : 0,
                        False);
 }
 
@@ -921,24 +923,6 @@ free_hextrail (ModeInfo *mi)
   if (bp->colors) free (bp->colors);
   free (bp->hexagons);
 }
-
-#ifdef WEB_BUILD
-// Function to update rotator when spin/wander settings change
-void update_hextrail_rotator(void) {
-    extern hextrail_config *bps;
-    extern ModeInfo web_mi;
-
-    hextrail_config *bp = &bps[web_mi.screen];
-    if (!bp->rot) return;
-
-    // Free old rotator and create new one with updated settings
-    if (bp->rot) {
-        free_rotator(bp->rot);
-    }
-
-    bp->rot = create_hextrail_rotator();
-}
-#endif
 
 XSCREENSAVER_MODULE ("HexTrail", hextrail)
 
