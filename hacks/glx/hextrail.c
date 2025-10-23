@@ -202,9 +202,7 @@ add_arms (ModeInfo *mi, hexagon *h0, Bool out_p)
   int added = 0;
   int target = 1 + (random() % 4);	/* Aim for 1-4 arms */
 
-  int idx[6];				/* Traverse in random order */
-  for (i = 0; i < 6; i++)
-    idx[i] = i;
+  int idx[6] = {0, 1, 2, 3, 4, 5};	/* Traverse in random order */
   for (i = 0; i < 6; i++)
     {
       int j = random() % 6;
