@@ -184,12 +184,12 @@ make_plane (ModeInfo *mi)
 }
 
 static int
-add_arms (ModeInfo *mi, hexagon *h0, Bool out_p)
+add_arms (ModeInfo *mi, hexagon *h0)
 {
   hextrail_configuration *bp = &bps[MI_SCREEN(mi)];
   int i;
   int added = 0;
-  int target = 1 + (random() % 4);	/* Aim for 1-4 arms */
+  int target = random() % 4;	/* Aim for 0-3 arms */
 
   int idx[6] = {0, 1, 2, 3, 4, 5};	/* Traverse in random order */
   for (i = 0; i < 6; i++)
@@ -199,8 +199,6 @@ add_arms (ModeInfo *mi, hexagon *h0, Bool out_p)
       idx[j] = idx[i];
       idx[i] = swap;
     }
-
-  if (out_p) target--;
 
   for (i = 0; i < 6; i++)
     {
@@ -215,7 +213,7 @@ add_arms (ModeInfo *mi, hexagon *h0, Bool out_p)
       a1 = &h1->arms[(j + 3) % 6];		/* Opposite arm */
 
       if (a1->state != EMPTY) abort();
-      a0->state = (out_p ? OUT : IN);
+      a0->state = OUT;
       a1->state = WAIT;
       a0->ratio = 0;
       a1->ratio = 0;
@@ -282,7 +280,7 @@ tick_hexagons (ModeInfo *mi)
                 a0->ratio = 1;
                 bp->live_count--;
                 if (bp->live_count < 0) abort();
-                add_arms (mi, h0, True);
+                add_arms (mi, h0);
               }
             break;
           case EMPTY: case WAIT: case DONE:
@@ -345,7 +343,7 @@ tick_hexagons (ModeInfo *mi)
           }
         h0 = &bp->hexagons[y * bp->grid_w + x];
         if (h0->border_state == EMPTY &&
-            add_arms (mi, h0, True)) 
+            add_arms (mi, h0))
           {
             h0->border_state = DONE;
             break;
