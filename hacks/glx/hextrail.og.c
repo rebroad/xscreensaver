@@ -10,10 +10,10 @@
  */
 
 #define DEFAULTS	"*delay:	30000       \n" \
-            "*showFPS:      False       \n" \
-            "*wireframe:    False       \n" \
-            "*count:        20          \n" \
-            "*suppressRotationAnimation: True\n" \
+			"*showFPS:      False       \n" \
+			"*wireframe:    False       \n" \
+			"*count:        20          \n" \
+			"*suppressRotationAnimation: True\n" \
 
 # define release_hextrail 0
 
@@ -86,8 +86,10 @@ static hextrail_config *bps = NULL;
 Bool do_spin, do_wander;
 GLfloat speed, thickness;
 #else
-static Bool do_spin, do_wander;
-static GLfloat speed, thickness;
+static Bool do_spin;
+static GLfloat speed;
+static Bool do_wander;
+static GLfloat thickness;
 #endif
 static int draw_invis = 1;
 
@@ -108,6 +110,8 @@ static argtype vars[] = {
 };
 
 ENTRYPOINT ModeSpecOpt hextrail_opts = {countof(opts), opts, countof(vars), vars, NULL};
+
+
 
 static void
 make_plane (ModeInfo *mi)
@@ -173,7 +177,8 @@ make_plane (ModeInfo *mi)
         hexagon *h0 = &grid[y * bp->grid_w + x];
 # undef NEIGHBOR
 # define NEIGHBOR(I,XE,XO,Y) do {                                        \
-          int x1 = x + (y & 1 ? (XO) : (XE)); int y1 = y + (Y);          \
+          int x1 = x + (y & 1 ? (XO) : (XE));                            \
+          int y1 = y + (Y);                                              \
           if (x1 >= 0 && x1 < bp->grid_w && y1 >= 0 && y1 < bp->grid_h)  \
             h0->neighbors[(I)] = &grid [y1 * bp->grid_w + x1];           \
         } while (0)
@@ -202,7 +207,7 @@ add_arms (ModeInfo *mi, hexagon *h0, GLfloat incoming_speed)
   hextrail_config *bp = &bps[MI_SCREEN(mi)];
   int i;
   int added = 0;
-  int target = 1 + (random() % 4);	/* Aim for 1-4 arms */
+  int target = random() % 4;	/* Aim for 0-3 arms */
 
   int idx[6] = {0, 1, 2, 3, 4, 5};	/* Traverse in random order */
   for (i = 0; i < 6; i++)
@@ -248,39 +253,6 @@ add_arms (ModeInfo *mi, hexagon *h0, GLfloat incoming_speed)
       if (added >= target) break;
     }
   return added;
-}
-
-# define H 0.8660254037844386   /* sqrt(3)/2 */
-
-static const XYZ corners[] = {{  0, -1,   0 },       /*      0      */
-                              {  H, -0.5, 0 },       /*  5       1  */
-                              {  H,  0.5, 0 },       /*             */
-                              {  0,  1,   0 },       /*  4       2  */
-                              { -H,  0.5, 0 },       /*      3      */
-                              { -H, -0.5, 0 }};
-
-static XYZ scaled_corners[6][4];
-
-static void scale_corners(ModeInfo *mi) {
-  hextrail_config *bp = &bps[MI_SCREEN(mi)];
-  GLfloat size = H * 2 / 3 / MI_COUNT(mi);
-  GLfloat margin = thickness * 0.4;
-  GLfloat size1 = size * (1 - margin * 2);
-  GLfloat size2 = size * (1 - margin * 3);
-  GLfloat thick2 = thickness * bp->fade_ratio;
-  GLfloat size3 = size * thick2 * 0.8;
-  GLfloat size4 = size3 * 2; // when total_arms == 1
-  int i;
-  for (i = 0; i < 6; i++) {
-    scaled_corners[i][0].x = corners[i].x * size1;
-    scaled_corners[i][0].y = corners[i].y * size1;
-    scaled_corners[i][1].x = corners[i].x * size2;
-    scaled_corners[i][1].y = corners[i].y * size2;
-    scaled_corners[i][2].x = corners[i].x * size3;
-    scaled_corners[i][2].y = corners[i].y * size3;
-    scaled_corners[i][3].x = corners[i].x * size4;
-    scaled_corners[i][3].y = corners[i].y * size4;
-  }
 }
 
 static time_t now = 0;
@@ -362,11 +334,6 @@ tick_hexagons (ModeInfo *mi)
                 a1->ratio = 0;
                 a1->speed = a0->speed;
                 /* bp->live_count unchanged */
-              } else if (a0->ratio <= 0) {
-                a0->state = EMPTY;
-                a0->ratio = 0;
-                bp->live_count--;
-                if (bp->live_count < 0) abort();
               }
             break;
           case IN:
@@ -379,25 +346,30 @@ tick_hexagons (ModeInfo *mi)
               {
                 /* Just finished growing from edge to center.
                    Look for any available exits. */
-                if (add_arms (mi, h0, a0->speed)) {
-                  bp->live_count--;
-                  if (bp->live_count < 0) abort();
-                  a0->state = DONE;
-                  a0->ratio = 1;
-                } else { // nub grow
-                  a0->state = WAIT;
-                  a0->ratio = ((a0->ratio - 1) * 5) + 1; a0->speed *= 5;
-                }
+                if (add_arms (mi, h0, a0->speed))
+                  {
+                    a0->state = DONE;
+                    a0->ratio = 1;
+                    bp->live_count--;
+                    if (bp->live_count < 0) abort();
+                  }
+                else /* nub grow */
+                  {
+                    a0->state = WAIT;
+                    a0->ratio = ((a0->ratio - 1) * 5) + 1;
+                    a0->speed *= 5;
+                  }
               }
             break;
           case WAIT:
             a0->ratio += a0->speed * speed * (2 - a0->ratio);
-            if (a0->ratio >= 1.999) {
-              a0->state = DONE;
-              a0->ratio = 1;
-              bp->live_count--;
-              if (bp->live_count < 0) abort();
-            }
+            if (a0->ratio >= 1.999)
+              {
+                a0->state = DONE;
+                a0->ratio = 1;
+                bp->live_count--;
+                if (bp->live_count < 0) abort();
+              }
           case EMPTY: case DONE:
             break;
           default:
@@ -426,8 +398,7 @@ tick_hexagons (ModeInfo *mi)
         if (! (random() % (int)(50.0/speed)))
           h0->border_state = OUT;
         break;
-      case EMPTY:
-      case DONE:
+      case EMPTY: case DONE:
         break;
       default:
         printf("DEBUG: Invalid border_state: %d\n", h0->border_state);
@@ -449,7 +420,6 @@ tick_hexagons (ModeInfo *mi)
             y = bp->grid_h / 2;
             bp->state = DRAW;
             bp->fade_ratio = 1;
-            scale_corners(mi);
           }
         else
           {
@@ -458,10 +428,11 @@ tick_hexagons (ModeInfo *mi)
           }
         h0 = &bp->hexagons[y * bp->grid_w + x];
         if (h0->border_state == EMPTY &&
-            add_arms (mi, h0, 0.0)) {
-          h0->border_state = DONE;
-          break;
-        }
+            add_arms (mi, h0, 0.0))
+          {
+            h0->border_state = DONE;
+            break;
+          }
       }
 
   if (bp->live_count <= 0 && bp->state != FADE)
@@ -479,7 +450,6 @@ tick_hexagons (ModeInfo *mi)
   else if (bp->state == FADE)
     {
       bp->fade_ratio -= 0.01 * speed;
-      scale_corners(mi);
       if (bp->fade_ratio <= 0)
         {
           make_plane (mi);
@@ -489,12 +459,6 @@ tick_hexagons (ModeInfo *mi)
     }
 }
 
-# define HEXAGON_COLOR(V,H) do { \
-  (V)[0] = bp->colors[(H)->ccolor].red   / 65535.0 * bp->fade_ratio; \
-  (V)[1] = bp->colors[(H)->ccolor].green / 65535.0 * bp->fade_ratio; \
-  (V)[2] = bp->colors[(H)->ccolor].blue  / 65535.0 * bp->fade_ratio; \
-  (V)[3] = 1; \
-} while (0)
 
 static void
 draw_hexagons (ModeInfo *mi)
@@ -503,10 +467,17 @@ draw_hexagons (ModeInfo *mi)
   int wire = MI_IS_WIREFRAME(mi);
   GLfloat length = sqrt(3) / 3;
   GLfloat size = length / MI_COUNT(mi);
-  GLfloat margin = thickness * 0.4;
-  GLfloat size2 = size * (1 - margin * 3);
   GLfloat thick2 = thickness * bp->fade_ratio;
   int i;
+
+# undef H
+# define H 0.8660254037844386   /* sqrt(3)/2 */
+  const XYZ corners[] = {{  0, -1,   0 },       /*      0      */
+                         {  H, -0.5, 0 },       /*  5       1  */
+                         {  H,  0.5, 0 },       /*             */
+                         {  0,  1,   0 },       /*  4       2  */
+                         { -H,  0.5, 0 },       /*      3      */
+                         { -H, -0.5, 0 }};
 
   glFrontFace (GL_CCW);
   glBegin (wire ? GL_LINES : GL_TRIANGLES);
@@ -518,20 +489,33 @@ draw_hexagons (ModeInfo *mi)
       if (draw_invis < h->invis) continue;
       int total_arms = 0;
       GLfloat color[4];
-      GLfloat nub_ratio = 0;
+      GLfloat nub_ratio = 2;
       int j;
 
-      for (j = 0; j < 6; j++) {
-        arm *a = &h->arms[j];
-        if (a->state == OUT || a->state == DONE || a->state == WAIT) total_arms++;
-        if (a->state == WAIT) nub_ratio = a->ratio;
-      }
+      for (j = 0; j < 6; j++)
+        {
+          arm *a = &h->arms[j];
+          if (a->state == OUT || a->state == DONE || a->state == WAIT)
+            total_arms++;
+          if (a->state == WAIT)
+            nub_ratio = a->ratio;
+        }
+      
 
+# define HEXAGON_COLOR(V,H) do { \
+          (V)[0] = bp->colors[(H)->ccolor].red   / 65535.0 * bp->fade_ratio; \
+          (V)[1] = bp->colors[(H)->ccolor].green / 65535.0 * bp->fade_ratio; \
+          (V)[2] = bp->colors[(H)->ccolor].blue  / 65535.0 * bp->fade_ratio; \
+          (V)[3] = 1; \
+        } while (0)
       HEXAGON_COLOR (color, h);
 
       for (j = 0; j < 6; j++)
         {
           arm *a = &h->arms[j];
+          GLfloat margin = thickness * 0.4;
+          GLfloat size1 = size * (1 - margin * 2);
+          GLfloat size2 = size * (1 - margin * 3);
           int k = (j + 1) % 6;
           XYZ p[6];
 
@@ -547,20 +531,20 @@ draw_hexagons (ModeInfo *mi)
               glMaterialfv (GL_FRONT, GL_AMBIENT_AND_DIFFUSE, color1);
 
               /* Outer edge of hexagon border */
-              p[0].x = h->pos.x + scaled_corners[j][0].x;
-              p[0].y = h->pos.y + scaled_corners[j][0].y;
+              p[0].x = h->pos.x + corners[j].x * size1;
+              p[0].y = h->pos.y + corners[j].y * size1;
               p[0].z = h->pos.z;
 
-              p[1].x = h->pos.x + scaled_corners[k][0].x;
-              p[1].y = h->pos.y + scaled_corners[k][0].y;
+              p[1].x = h->pos.x + corners[k].x * size1;
+              p[1].y = h->pos.y + corners[k].y * size1;
               p[1].z = h->pos.z;
 
               /* Inner edge of hexagon border */
-              p[2].x = h->pos.x + scaled_corners[k][1].x;
-              p[2].y = h->pos.y + scaled_corners[k][1].y;
+              p[2].x = h->pos.x + corners[k].x * size2;
+              p[2].y = h->pos.y + corners[k].y * size2;
               p[2].z = h->pos.z;
-              p[3].x = h->pos.x + scaled_corners[j][1].x;
-              p[3].y = h->pos.y + scaled_corners[j][1].y;
+              p[3].x = h->pos.x + corners[j].x * size2;
+              p[3].y = h->pos.y + corners[j].y * size2;
               p[3].z = h->pos.z;
 
               glVertex3f (p[0].x, p[0].y, p[0].z);
@@ -615,6 +599,7 @@ draw_hexagons (ModeInfo *mi)
 
               if (! h->neighbors[j]) abort();  /* arm/neighbor mismatch */
 
+
               /* Center */
               p[0].x = h->pos.x + xoff * size2 * thick2 + x * start;
               p[0].y = h->pos.y + yoff * size2 * thick2 + y * start;
@@ -662,21 +647,20 @@ draw_hexagons (ModeInfo *mi)
           if (total_arms && a->state != DONE && a->state != OUT &&
                   (needed || total_arms == 1))
             {
-              p[0] = h->pos; p[1].z = h->pos.z; p[2].z = h->pos.z;
+              GLfloat size3 = size * thick2 * 0.8;
+              if (total_arms == 1)
+                size3 *= nub_ratio;
 
-              if (nub_ratio) {
-                p[1].x = h->pos.x + scaled_corners[j][2].x * nub_ratio;
-                p[1].y = h->pos.y + scaled_corners[j][2].y * nub_ratio;
-                p[2].x = h->pos.x + scaled_corners[k][2].x * nub_ratio;
-                p[2].y = h->pos.y + scaled_corners[k][2].y * nub_ratio;
-              } else {
-                int8_t s = (total_arms == 1) ? 3 : 2;
-                p[1].x = h->pos.x + scaled_corners[j][s].x;
-                p[1].y = h->pos.y + scaled_corners[j][s].y;
-                /* Inner edge of hexagon border */
-                p[2].x = h->pos.x + scaled_corners[k][s].x;
-                p[2].y = h->pos.y + scaled_corners[k][s].y;
-              }
+              p[0] = h->pos;
+
+              p[1].x = h->pos.x + corners[j].x * size3;
+              p[1].y = h->pos.y + corners[j].y * size3;
+              p[1].z = h->pos.z;
+
+              /* Inner edge of hexagon border */
+              p[2].x = h->pos.x + corners[k].x * size3;
+              p[2].y = h->pos.y + corners[k].y * size3;
+              p[2].z = h->pos.z;
 
               glColor4fv (color);
               glMaterialfv (GL_FRONT, GL_AMBIENT_AND_DIFFUSE, color);
@@ -692,7 +676,9 @@ draw_hexagons (ModeInfo *mi)
   glEnd();
 }
 
-/* Window management, etc */
+
+/* Window management, etc
+ */
 ENTRYPOINT void
 reshape_hextrail (ModeInfo *mi, int width, int height)
 {
@@ -713,7 +699,9 @@ reshape_hextrail (ModeInfo *mi, int width, int height)
 
   glMatrixMode(GL_MODELVIEW);
   glLoadIdentity();
-  gluLookAt( 0.0, 0.0, 30.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0);
+  gluLookAt( 0.0, 0.0, 30.0,
+             0.0, 0.0, 0.0,
+             0.0, 1.0, 0.0);
 
   {
     GLfloat s = (MI_WIDTH(mi) < MI_HEIGHT(mi)
@@ -760,7 +748,8 @@ hextrail_handle_event (ModeInfo *mi, XEvent *event)
       char c = 0;
       XLookupString (&event->xkey, &c, 1, &keysym, 0);
 
-      if (c == ' ' || c == '\t' || c == '\r' || c == '\n') ;
+      if (c == ' ' || c == '\t' || c == '\r' || c == '\n')
+        ;
       else if (c == '>' || c == '.' || c == '+' || c == '=' ||
                keysym == XK_Up || keysym == XK_Next) {
           printf("DEBUG: Increasing count from %ld to %ld\n", MI_COUNT(mi), MI_COUNT(mi) + 1);
@@ -820,11 +809,13 @@ static rotator* create_hextrail_rotator(void) {
                        False);
 }
 
-ENTRYPOINT void
+ENTRYPOINT void 
 init_hextrail (ModeInfo *mi)
 {
   hextrail_config *bp;
+
   MI_INIT (mi, bps);
+
   bp = &bps[MI_SCREEN(mi)];
 
   bp->glx_context = init_GL(mi);
@@ -876,13 +867,16 @@ draw_hextrail (ModeInfo *mi)
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
   glPushMatrix ();
+
   {
     double x, y, z;
     get_position (bp->rot, &x, &y, &z, !bp->button_down_p);
     glTranslatef((x - 0.5) * 6,
                  (y - 0.5) * 6,
                  (z - 0.5) * 12);
+
     gltrackball_rotate (bp->trackball);
+
     get_rotation (bp->rot, &x, &y, &z, !bp->button_down_p);
     glRotatef (z * 360, 0.0, 0.0, 1.0);
   }
@@ -894,11 +888,12 @@ draw_hextrail (ModeInfo *mi)
     glScalef (s, s, s);
   }
 
-  if (! bp->button_down_p){
-    glGetDoublev(GL_MODELVIEW_MATRIX, bp->model);
-    glGetDoublev(GL_PROJECTION_MATRIX, bp->proj);
-    tick_hexagons (mi);
-  }
+  if (! bp->button_down_p)
+    {
+      glGetDoublev(GL_MODELVIEW_MATRIX, bp->model);
+      glGetDoublev(GL_PROJECTION_MATRIX, bp->proj);
+      tick_hexagons (mi);
+    }
   draw_hexagons (mi);
 
   glPopMatrix ();
