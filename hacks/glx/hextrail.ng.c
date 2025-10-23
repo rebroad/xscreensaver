@@ -727,7 +727,7 @@ draw_hexagons (ModeInfo *mi)
 		GLfloat y   = (corners[j].y + corners[k].y) / 2;
 		GLfloat xoff = corners[k].x - corners[j].x;
 		GLfloat yoff = corners[k].y - corners[j].y;
-		
+
 		GLfloat line_length = (a->state == WAIT) ? 1 : a->ratio;
 		GLfloat start, end;
 		GLfloat ncolor[4];
@@ -869,17 +869,17 @@ reshape_hextrail (ModeInfo *mi, int width, int height)
   glClear(GL_COLOR_BUFFER_BIT);
 }
 
-// Function to update rotator when spin/wander settings change
+// Function to update rotator when spin/wander or speed settings change
 void update_hextrail_rotator(ModeInfo *mi) {
 	hextrail_config *bp = &bps[MI_SCREEN(mi)];
 	if (!bp->rot) return;
 
-	// Free old rotator and create new one with updated settings
-	if (bp->rot) {
-		free_rotator(bp->rot);
-	}
-
-	bp->rot = create_hextrail_rotator();
+	// Update the rotator's speed parameters without destroying its state
+	update_rotator_speed(bp->rot,
+	                     do_spin ? SPIN_SPEED * speed : 0,
+	                     do_spin ? SPIN_SPEED * speed : 0,
+	                     do_spin ? SPIN_SPEED * speed : 0,
+	                     do_wander ? WANDER_SPEED * speed : 0);
 }
 
 ENTRYPOINT Bool
@@ -906,10 +906,12 @@ hextrail_handle_event (ModeInfo *mi, XEvent *event)
 	} else if (keysym == XK_Right) {
 	  speed *= 2;
 	  if (speed > 20) speed = 20;
+	  update_hextrail_rotator(mi);
 	  DL(1, "%s: speed = %f -> %f\n", __func__, speed/2, speed);
 	} else if (keysym == XK_Left) {
 	  speed /= 2;
 	  if (speed < 0.0001) speed = 0.0001;
+	  update_hextrail_rotator(mi);
 	  DL(1, "%s: speed = %f -> %f\n", __func__, speed*2, speed);
 	} else if (c == '<' || c == ',' || c == '_' || c == '\010' || c == '\177' ||
 		keysym == XK_Down || keysym == XK_Prior) {
@@ -959,17 +961,17 @@ hextrail_handle_event (ModeInfo *mi, XEvent *event)
   return False;
 }
 
-// Function to create rotator with current spin/wander settings
+// Function to create rotator with current spin/wander settings and speed
 static rotator* create_hextrail_rotator(void) {
 #ifdef WEB_BUILD
-	printf("DEBUG: Creating rotator - do_spin=%d, do_wander=%d\n", do_spin, do_wander);
+	printf("DEBUG: Creating rotator - do_spin=%d, do_wander=%d, speed=%f\n", do_spin, do_wander, speed);
 #endif
 
-	return make_rotator(do_spin ? SPIN_SPEED : 0,
-					   do_spin ? SPIN_SPEED : 0,
-					   do_spin ? SPIN_SPEED : 0,
+	return make_rotator(do_spin ? SPIN_SPEED * speed : 0,
+					   do_spin ? SPIN_SPEED * speed : 0,
+					   do_spin ? SPIN_SPEED * speed : 0,
 					   SPIN_ACCEL,
-					   do_wander ? WANDER_SPEED : 0,
+					   do_wander ? WANDER_SPEED * speed : 0,
 					   False);
 }
 

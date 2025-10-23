@@ -725,8 +725,8 @@ reshape_hextrail (ModeInfo *mi, int width, int height)
   glClear(GL_COLOR_BUFFER_BIT);
 }
 
-// Function to update rotator speed when user changes speed with arrow keys
-static void update_hextrail_rotator(ModeInfo *mi) {
+// Function to update rotator when spin/wander or speed settings change
+void update_hextrail_rotator(ModeInfo *mi) {
 	hextrail_config *bp = &bps[MI_SCREEN(mi)];
 	if (!bp->rot) return;
 
