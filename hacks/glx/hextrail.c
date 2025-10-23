@@ -200,7 +200,7 @@ add_arms (ModeInfo *mi, hexagon *h0, Bool out_p)
   hextrail_configuration *bp = &bps[MI_SCREEN(mi)];
   int i;
   int added = 0;
-  int target = 1 + (random() % 4);	/* Aim for 1-5 arms */
+  int target = 1 + (random() % 4);	/* Aim for 1-4 arms */
 
   int idx[6];				/* Traverse in random order */
   for (i = 0; i < 6; i++)
