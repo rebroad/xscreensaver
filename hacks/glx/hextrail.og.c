@@ -651,9 +651,16 @@ draw_hexagons (ModeInfo *mi)
               mi->polygon_count++;
             }
 
+          /* Check if adjacent arms are OUT or DONE */
+          int prev_j = (j - 5) % 6;
+          Bool needed = !(h->arms[prev_j].state == OUT ||
+                  h->arms[prev_j].state == DONE ||
+                  h->arms[k].state == OUT || h->arms[k].state == DONE);
+
           /* Hexagon (one triangle of) in center to hide line miter/bevels.
            */
-          if (total_arms && a->state != DONE && a->state != OUT)
+          if (total_arms && a->state != DONE && a->state != OUT &&
+                  (needed || total_arms == 1))
             {
               p[0] = h->pos; p[1].z = h->pos.z; p[2].z = h->pos.z;
 
@@ -716,6 +723,19 @@ reshape_hextrail (ModeInfo *mi, int width, int height)
   }
 
   glClear(GL_COLOR_BUFFER_BIT);
+}
+
+// Function to update rotator speed when user changes speed with arrow keys
+static void update_hextrail_rotator(ModeInfo *mi) {
+	hextrail_config *bp = &bps[MI_SCREEN(mi)];
+	if (!bp->rot) return;
+
+	// Update the rotator's speed parameters without destroying its state
+	update_rotator_speed(bp->rot,
+	                     do_spin ? SPIN_SPEED * speed : 0,
+	                     do_spin ? SPIN_SPEED * speed : 0,
+	                     do_spin ? SPIN_SPEED * speed : 0,
+	                     do_wander ? WANDER_SPEED * speed : 0);
 }
 
 ENTRYPOINT Bool
@@ -784,7 +804,7 @@ hextrail_handle_event (ModeInfo *mi, XEvent *event)
   return False;
 }
 
-// Function to create rotator with current spin/wander settings
+// Function to create rotator with current spin/wander settings and speed
 static rotator* create_hextrail_rotator(void) {
 #ifdef WEB_BUILD
     printf("DEBUG: Creating rotator - do_spin=%d, do_wander=%d\n", do_spin, do_wander);
