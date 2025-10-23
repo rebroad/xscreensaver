@@ -222,15 +222,12 @@ add_arms (ModeInfo *mi, hexagon *h0, Bool out_p)
       a0->speed = 0.05 * speed * (0.8 + frand(1.0));
       a1->speed = a0->speed;
 
-      if (h1->border_state == EMPTY)
-        {
-          h1->border_state = IN;
+      h1->border_state = IN;
 
-          /* Mostly keep the same color */
-          h1->ccolor = h0->ccolor;
-          if (! (random() % 5))
-            h1->ccolor = (h0->ccolor + 1) % bp->ncolors;
-        }
+      /* Mostly keep the same color */
+      h1->ccolor = h0->ccolor;
+      if (! (random() % 5))
+        h1->ccolor = (h0->ccolor + 1) % bp->ncolors;
 
       bp->live_count++;
       added++;
