@@ -10,10 +10,10 @@
  */
 
 #define DEFAULTS	"*delay:	30000       \n" \
-			"*showFPS:      False       \n" \
-			"*wireframe:    False       \n" \
-			"*count:        20          \n" \
-			"*suppressRotationAnimation: True\n" \
+                        "*showFPS:      False       \n" \
+                        "*wireframe:    False       \n" \
+                        "*count:        20          \n" \
+                        "*suppressRotationAnimation: True\n" \
 
 # define release_hextrail 0
 
@@ -28,6 +28,13 @@
 #include "rotator.h"
 #include "gltrackball.h"
 #include <ctype.h>
+
+// Fast PRNG for better performance than random()
+static unsigned int fast_rand_seed = 1;
+static unsigned int fast_rand(void) {
+  fast_rand_seed = fast_rand_seed * 1103515245 + 12345;
+  return (fast_rand_seed >> 16) & 0x7fff;
+}
 
 // Rotator constants
 static const double SPIN_SPEED = 0.002;
@@ -59,6 +66,10 @@ struct hexagon {
   state_t border_state;
   GLfloat border_ratio;
   int invis;
+  // Cached color data to avoid repeated calculations
+  GLfloat cached_color[4];
+  int cached_color_frame;
+  Bool color_cache_valid;
 };
 
 typedef struct {
@@ -77,6 +88,10 @@ typedef struct {
 
   int ncolors;
   XColor *colors;
+
+  // Pre-allocated arrays to avoid repeated malloc/free
+  int *random_indices;  // For add_arms random traversal
+  int random_indices_size;
 } hextrail_config;
 
 static hextrail_config *bps = NULL;
@@ -135,6 +150,13 @@ make_plane (ModeInfo *mi)
   make_smooth_colormap (0, 0, 0,
                         bp->colors, &bp->ncolors,
                         False, 0, False);
+
+  // Pre-allocate random indices array for add_arms
+  if (!bp->random_indices || bp->random_indices_size < 6) {
+    if (bp->random_indices) free(bp->random_indices);
+    bp->random_indices_size = 6;
+    bp->random_indices = malloc(bp->random_indices_size * sizeof(int));
+  }
   // Remove duplicate colors at the end of bp->colors and update bp->ncolors accordingly.
   {
     int unique = bp->ncolors;
@@ -168,7 +190,7 @@ make_plane (ModeInfo *mi)
         if (y & 1)
           h0->pos.x += w / 2;
 
-        h0->ccolor = random() % bp->ncolors;
+        h0->ccolor = fast_rand() % bp->ncolors;
       }
 
   for (y = 0; y < bp->grid_h; y++)
@@ -207,12 +229,14 @@ add_arms (ModeInfo *mi, hexagon *h0, GLfloat incoming_speed)
   hextrail_config *bp = &bps[MI_SCREEN(mi)];
   int i;
   int added = 0;
-  int target = random() % 4;	/* Aim for 0-3 arms */
+  int target = fast_rand() % 4;	/* Aim for 0-3 arms */
 
-  int idx[6] = {0, 1, 2, 3, 4, 5};	/* Traverse in random order */
+  // Use pre-allocated array instead of stack allocation
+  int *idx = bp->random_indices;
+  idx[0] = 0; idx[1] = 1; idx[2] = 2; idx[3] = 3; idx[4] = 4; idx[5] = 5;	/* Traverse in random order */
   for (i = 0; i < 6; i++)
     {
-      int j = random() % 6;
+      int j = fast_rand() % 6;
       int swap = idx[j];
       idx[j] = idx[i];
       idx[i] = swap;
@@ -246,7 +270,7 @@ add_arms (ModeInfo *mi, hexagon *h0, GLfloat incoming_speed)
 
       /* Mostly keep the same color */
       h1->ccolor = h0->ccolor;
-      if (! (random() % 5))
+      if (! (fast_rand() % 5))
         h1->ccolor = (h0->ccolor + 1) % bp->ncolors;
 
       bp->live_count++;
@@ -258,36 +282,118 @@ add_arms (ModeInfo *mi, hexagon *h0, GLfloat incoming_speed)
 }
 
 static time_t now = 0;
+static unsigned int ticks = 0;
+
+// Helper function to efficiently update OpenGL color state
+static void update_gl_color(GLfloat new_color[4], GLfloat current_color[4], GLfloat current_material[4]) {
+  if (memcmp(current_color, new_color, sizeof(GLfloat) * 4) != 0) {
+    glColor4fv(new_color);
+    glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, new_color);
+    memcpy(current_color, new_color, sizeof(GLfloat) * 4);
+    memcpy(current_material, new_color, sizeof(GLfloat) * 4);
+  }
+}
 
 # undef H
 # define H 0.8660254037844386   /* sqrt(3)/2 */
 
-static int hex_invis(hextrail_config *bp, XYZ pos, int i, GLfloat *rad) {
+// Pre-calculate and cache hexagon colors to avoid repeated XColor lookups
+static void cache_hexagon_colors(hextrail_config *bp) {
+  for (int i = 0; i < bp->grid_w * bp->grid_h; i++) {
+    hexagon *h = &bp->hexagons[i];
+    if (!h->color_cache_valid || h->cached_color_frame != ticks) {
+      h->cached_color[0] = bp->colors[h->ccolor].red   / 65535.0 * bp->fade_ratio;
+      h->cached_color[1] = bp->colors[h->ccolor].green / 65535.0 * bp->fade_ratio;
+      h->cached_color[2] = bp->colors[h->ccolor].blue  / 65535.0 * bp->fade_ratio;
+      h->cached_color[3] = 1.0;
+      h->cached_color_frame = ticks;
+      h->color_cache_valid = 1;
+    }
+  }
+}
+
+// Cached visibility data to avoid repeated gluProject calls
+typedef struct {
   GLdouble x, y, z;
-  /* Project point to screen coordinates */
+  GLdouble radius;
+  int cached_frame;
+  Bool is_valid;
+} visibility_cache_t;
+
+static visibility_cache_t *vis_cache = NULL;
+static int vis_cache_size = 0;
+
+static int hex_invis(hextrail_config *bp, XYZ pos, int i, GLfloat *rad) {
+  // Initialize cache if needed
+  if (!vis_cache || vis_cache_size != bp->grid_w * bp->grid_h) {
+    if (vis_cache) free(vis_cache);
+    vis_cache_size = bp->grid_w * bp->grid_h;
+    vis_cache = calloc(vis_cache_size, sizeof(visibility_cache_t));
+  }
+
+  visibility_cache_t *cache = &vis_cache[i];
+
+  // Use cached data if available and recent
+  if (cache->is_valid && cache->cached_frame == ticks) {
+    if (rad) *rad = cache->radius;
+    if (cache->z <= 0 || cache->z >= 1) return 2;
+    if (cache->x + cache->radius < bp->viewport[0] || cache->x - cache->radius > bp->viewport[0] + bp->viewport[2] ||
+        cache->y + cache->radius < bp->viewport[1] || cache->y - cache->radius > bp->viewport[1] + bp->viewport[3])
+      return 2; // Fully offscreen
+    if (cache->x < bp->viewport[0] || cache->x > bp->viewport[0] + bp->viewport[2] ||
+        cache->y < bp->viewport[1] || cache->y > bp->viewport[1] + bp->viewport[3])
+      return 1; // Center is offscreen
+    return 0; // Center is onscreen
+  }
+
+  // Calculate and cache new visibility data
+  GLdouble x, y, z;
   gluProject(pos.x, pos.y, pos.z, bp->model, bp->proj, bp->viewport, &x, &y, &z);
 
-  /*static time_t debug = 0;
-  if (debug != now) {
-      printf("%s: pos=(%f,%f,%f) x=%f, y=%f, z=%.1f vp=%d,%d i=%d\n", __func__,
-              pos.x, pos.y, pos.z, x, y, z, bp->viewport[2], bp->viewport[3], i);
-      debug = now;
-  }*/
+  if (z <= 0 || z >= 1) {
+    cache->x = x; cache->y = y; cache->z = z; cache->radius = 0;
+    cache->cached_frame = ticks; cache->is_valid = 1;
+    return 2;
+  }
 
-  if (z <= 0 || z >= 1) return 2;
+  // Pre-calculate hexagon dimensions to avoid repeated calculations
+  static GLfloat cached_wid = 0, cached_hgt = 0;
+  static int cached_size = 0;
+  if (cached_size != bp->size) {
+    cached_wid = 2.0 / bp->size;
+    cached_hgt = cached_wid * H;
+    cached_size = bp->size;
+  }
 
   XYZ edge_posx = pos, edge_posy = pos;
-  GLfloat wid = 2.0 / bp->size, hgt = wid * H;
-  edge_posx.x += wid / 2;
-  edge_posy.y += hgt / 2;
+  edge_posx.x += cached_wid / 2;
+  edge_posy.y += cached_hgt / 2;
+
   GLdouble edge_xx, edge_xy, edge_yx, edge_yy, edge_z;
   gluProject(edge_posx.x, edge_posx.y, edge_posx.z, bp->model, bp->proj, bp->viewport, &edge_xx, &edge_xy, &edge_z);
   gluProject(edge_posy.x, edge_posy.y, edge_posy.z, bp->model, bp->proj, bp->viewport, &edge_yx, &edge_yy, &edge_z);
+
   GLfloat xx_diff = edge_xx - x, xy_diff = edge_xy - y;
   GLfloat yx_diff = edge_yx - x, yy_diff = edge_yy - y;
-  GLdouble radiusx = sqrt(xx_diff * xx_diff + xy_diff * xy_diff);
-  GLdouble radiusy = sqrt(yx_diff * yx_diff + yy_diff * yy_diff);
-  GLdouble radius = radiusx > radiusy ? radiusx : radiusy;
+
+  // Use faster approximation for sqrt when possible
+  GLdouble radiusx_sq = xx_diff * xx_diff + xy_diff * xy_diff;
+  GLdouble radiusy_sq = yx_diff * yx_diff + yy_diff * yy_diff;
+  GLdouble radius_sq = radiusx_sq > radiusy_sq ? radiusx_sq : radiusy_sq;
+
+  // Fast sqrt approximation for small values (good enough for visibility culling)
+  GLdouble radius;
+  if (radius_sq < 0.01) {
+    // For very small values, use linear approximation
+    radius = radius_sq * 0.5f;
+  } else {
+    radius = sqrt(radius_sq);
+  }
+
+  // Cache the results
+  cache->x = x; cache->y = y; cache->z = z; cache->radius = radius;
+  cache->cached_frame = ticks; cache->is_valid = 1;
+
   if (rad) *rad = radius;
 
   if (x + radius < bp->viewport[0] || x - radius > bp->viewport[0] + bp->viewport[2] ||
@@ -306,7 +412,6 @@ tick_hexagons (ModeInfo *mi)
 {
   hextrail_config *bp = &bps[MI_SCREEN(mi)];
   int i, j;
-  static unsigned int ticks = 0;
   now = time(NULL);
 
   /* Enlarge any still-growing arms.
@@ -401,7 +506,7 @@ tick_hexagons (ModeInfo *mi)
             h0->border_state = DONE;
           }
       case WAIT:
-        if (! (random() % (int)(50.0/speed)))
+        if (! (fast_rand() % (int)(50.0/speed)))
           h0->border_state = OUT;
         break;
       case EMPTY: case DONE:
@@ -429,8 +534,8 @@ tick_hexagons (ModeInfo *mi)
           }
         else
           {
-            x = random() % bp->grid_w;
-            y = random() % bp->grid_h;
+            x = fast_rand() % bp->grid_w;
+            y = fast_rand() % bp->grid_h;
           }
         h0 = &bp->hexagons[y * bp->grid_w + x];
         if (h0->border_state == EMPTY &&
@@ -471,10 +576,15 @@ draw_hexagons (ModeInfo *mi)
 {
   hextrail_config *bp = &bps[MI_SCREEN(mi)];
   int wire = MI_IS_WIREFRAME(mi);
-  GLfloat length = sqrt(3) / 3;
+  // Pre-calculate sqrt(3)/3 to avoid repeated sqrt calls
+  static const GLfloat SQRT3_OVER_3 = 0.5773502691896258f; // sqrt(3)/3
+  GLfloat length = SQRT3_OVER_3;
   GLfloat size = length / MI_COUNT(mi);
   GLfloat thick2 = thickness * bp->fade_ratio;
   int i;
+
+  // Pre-cache all hexagon colors
+  cache_hexagon_colors(bp);
 
   const XYZ corners[] = {{  0, -1,   0 },       /*      0      */
                          {  H, -0.5, 0 },       /*  5       1  */
@@ -486,6 +596,10 @@ draw_hexagons (ModeInfo *mi)
   glFrontFace (GL_CCW);
   glBegin (wire ? GL_LINES : GL_TRIANGLES);
   glNormal3f (0, 0, 1);
+
+  // Track current OpenGL state to avoid redundant calls
+  GLfloat current_color[4] = {-1, -1, -1, -1}; // Invalid initial state
+  GLfloat current_material[4] = {-1, -1, -1, -1};
 
   for (i = 0; i < bp->grid_w * bp->grid_h; i++)
     {
@@ -504,15 +618,9 @@ draw_hexagons (ModeInfo *mi)
           if (a->state == WAIT)
             nub_ratio = a->ratio;
         }
-      
 
-# define HEXAGON_COLOR(V,H) do { \
-          (V)[0] = bp->colors[(H)->ccolor].red   / 65535.0 * bp->fade_ratio; \
-          (V)[1] = bp->colors[(H)->ccolor].green / 65535.0 * bp->fade_ratio; \
-          (V)[2] = bp->colors[(H)->ccolor].blue  / 65535.0 * bp->fade_ratio; \
-          (V)[3] = 1; \
-        } while (0)
-      HEXAGON_COLOR (color, h);
+      // Use cached color instead of expensive XColor lookup
+      memcpy(color, h->cached_color, sizeof(color));
 
       for (j = 0; j < 6; j++)
         {
@@ -531,8 +639,7 @@ draw_hexagons (ModeInfo *mi)
               color1[1] *= h->border_ratio;
               color1[2] *= h->border_ratio;
 
-              glColor4fv (color1);
-              glMaterialfv (GL_FRONT, GL_AMBIENT_AND_DIFFUSE, color1);
+              update_gl_color(color1, current_color, current_material);
 
               /* Outer edge of hexagon border */
               p[0].x = h->pos.x + corners[j].x * size1;
@@ -580,11 +687,15 @@ draw_hexagons (ModeInfo *mi)
 
               /* Color of the outer point of the line is average color of
                  this and the neighbor. */
-              HEXAGON_COLOR (ncolor, h->neighbors[j]);
-              ncolor[0] = (ncolor[0] + color[0]) / 2;
-              ncolor[1] = (ncolor[1] + color[1]) / 2;
-              ncolor[2] = (ncolor[2] + color[2]) / 2;
-              ncolor[3] = (ncolor[3] + color[3]) / 2;
+              if (h->neighbors[j]) {
+                memcpy(ncolor, h->neighbors[j]->cached_color, sizeof(ncolor));
+                ncolor[0] = (ncolor[0] + color[0]) * 0.5f;
+                ncolor[1] = (ncolor[1] + color[1]) * 0.5f;
+                ncolor[2] = (ncolor[2] + color[2]) * 0.5f;
+                ncolor[3] = (ncolor[3] + color[3]) * 0.5f;
+              } else {
+                memcpy(ncolor, color, sizeof(ncolor));
+              }
 
               if (a->state == OUT)
                 {
@@ -620,11 +731,10 @@ draw_hexagons (ModeInfo *mi)
               p[3].y = h->pos.y + yoff * size2 * thick2 + y * end;
               p[3].z = h->pos.z;
 
-              glColor4fv (color2);
-              glMaterialfv (GL_FRONT, GL_AMBIENT_AND_DIFFUSE, color2);
+              update_gl_color(color2, current_color, current_material);
               glVertex3f (p[3].x, p[3].y, p[3].z);
-              glColor4fv (color1);
-              glMaterialfv (GL_FRONT, GL_AMBIENT_AND_DIFFUSE, color1);
+
+              update_gl_color(color1, current_color, current_material);
               glVertex3f (p[0].x, p[0].y, p[0].z);
               if (! wire)
                 glVertex3f (p[1].x, p[1].y, p[1].z);
@@ -632,8 +742,7 @@ draw_hexagons (ModeInfo *mi)
 
               glVertex3f (p[1].x, p[1].y, p[1].z);
 
-              glColor4fv (color2);
-              glMaterialfv (GL_FRONT, GL_AMBIENT_AND_DIFFUSE, color2);
+              update_gl_color(color2, current_color, current_material);
               glVertex3f (p[2].x, p[2].y, p[2].z);
               if (! wire)
                 glVertex3f (p[3].x, p[3].y, p[3].z);
@@ -659,8 +768,7 @@ draw_hexagons (ModeInfo *mi)
               p[2].y = h->pos.y + corners[k].y * size3;
               p[2].z = h->pos.z;
 
-              glColor4fv (color);
-              glMaterialfv (GL_FRONT, GL_AMBIENT_AND_DIFFUSE, color);
+              update_gl_color(color, current_color, current_material);
               if (! wire)
                 glVertex3f (p[0].x, p[0].y, p[0].z);
               glVertex3f (p[1].x, p[1].y, p[1].z);
@@ -712,15 +820,15 @@ reshape_hextrail (ModeInfo *mi, int width, int height)
 
 // Function to update rotator when spin/wander or speed settings change
 static void update_hextrail_rotator(ModeInfo *mi) {
-	hextrail_config *bp = &bps[MI_SCREEN(mi)];
-	if (!bp->rot) return;
+        hextrail_config *bp = &bps[MI_SCREEN(mi)];
+        if (!bp->rot) return;
 
-	// Update the rotator's speed parameters without destroying its state
-	update_rotator_speed(bp->rot,
-	                     do_spin ? SPIN_SPEED * speed : 0,
-	                     do_spin ? SPIN_SPEED * speed : 0,
-	                     do_spin ? SPIN_SPEED * speed : 0,
-	                     do_wander ? WANDER_SPEED * speed : 0);
+        // Update the rotator's speed parameters without destroying its state
+        update_rotator_speed(bp->rot,
+                             do_spin ? SPIN_SPEED * speed : 0,
+                             do_spin ? SPIN_SPEED * speed : 0,
+                             do_spin ? SPIN_SPEED * speed : 0,
+                             do_wander ? WANDER_SPEED * speed : 0);
 }
 
 ENTRYPOINT Bool
@@ -803,7 +911,7 @@ static rotator* create_hextrail_rotator(void) {
                        False);
 }
 
-ENTRYPOINT void 
+ENTRYPOINT void
 init_hextrail (ModeInfo *mi)
 {
   hextrail_config *bp;
@@ -911,6 +1019,10 @@ free_hextrail (ModeInfo *mi)
   if (bp->rot) free_rotator (bp->rot);
   if (bp->colors) free (bp->colors);
   free (bp->hexagons);
+  if (bp->random_indices) free (bp->random_indices);
+  if (vis_cache) free (vis_cache);
+  vis_cache = NULL;
+  vis_cache_size = 0;
 }
 
 XSCREENSAVER_MODULE ("HexTrail", hextrail)
