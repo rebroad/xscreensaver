@@ -259,6 +259,9 @@ add_arms (ModeInfo *mi, hexagon *h0, GLfloat incoming_speed)
 
 static time_t now = 0;
 
+# undef H
+# define H 0.8660254037844386   /* sqrt(3)/2 */
+
 static int hex_invis(hextrail_config *bp, XYZ pos, int i, GLfloat *rad) {
   GLdouble x, y, z;
   /* Project point to screen coordinates */
@@ -352,6 +355,7 @@ tick_hexagons (ModeInfo *mi)
                   {
                     a0->state = DONE;
                     a0->ratio = 1;
+                    h0->border_state = WAIT;
                     bp->live_count--;
                     if (bp->live_count < 0) abort();
                   }
@@ -369,6 +373,7 @@ tick_hexagons (ModeInfo *mi)
               {
                 a0->state = DONE;
                 a0->ratio = 1;
+                h0->border_state = WAIT;
                 bp->live_count--;
                 if (bp->live_count < 0) abort();
               }
@@ -386,7 +391,6 @@ tick_hexagons (ModeInfo *mi)
         if (h0->border_ratio >= 1)
           {
             h0->border_ratio = 1;
-            h0->border_state = WAIT;
           }
         break;
       case OUT:
@@ -472,8 +476,6 @@ draw_hexagons (ModeInfo *mi)
   GLfloat thick2 = thickness * bp->fade_ratio;
   int i;
 
-# undef H
-# define H 0.8660254037844386   /* sqrt(3)/2 */
   const XYZ corners[] = {{  0, -1,   0 },       /*      0      */
                          {  H, -0.5, 0 },       /*  5       1  */
                          {  H,  0.5, 0 },       /*             */
@@ -638,16 +640,9 @@ draw_hexagons (ModeInfo *mi)
               mi->polygon_count++;
             }
 
-          /* Check if adjacent arms are OUT or DONE */
-          int prev_j = (j - 5) % 6;
-          Bool needed = !(h->arms[prev_j].state == OUT ||
-                  h->arms[prev_j].state == DONE ||
-                  h->arms[k].state == OUT || h->arms[k].state == DONE);
-
           /* Hexagon (one triangle of) in center to hide line miter/bevels.
            */
-          if (total_arms && a->state != DONE && a->state != OUT &&
-                  (needed || total_arms == 1))
+          if (total_arms)
             {
               GLfloat size3 = size * thick2 * 0.8;
               if (total_arms == 1)
@@ -736,7 +731,6 @@ hextrail_handle_event (ModeInfo *mi, XEvent *event)
   // Handle web parameter change events (NULL event means parameters changed)
   if (event == NULL) {
     printf("DEBUG: hextrail_handle_event - NULL event (parameter change)\n");
-    scale_corners(mi);  // Recalculate corners when thickness changes
     return True;
   }
 
@@ -757,7 +751,6 @@ hextrail_handle_event (ModeInfo *mi, XEvent *event)
           printf("DEBUG: Increasing count from %ld to %ld\n", MI_COUNT(mi), MI_COUNT(mi) + 1);
           MI_COUNT(mi)++;
           bp->size = MI_COUNT(mi) * 2;
-          scale_corners(mi);
       } else if (c == '<' || c == ',' || c == '-' || c == '_' ||
                c == '\010' || c == '\177' || keysym == XK_Down || keysym == XK_Prior) {
           printf("DEBUG: Decreasing count from %ld to %ld\n", MI_COUNT(mi), MI_COUNT(mi) - 1);
@@ -767,7 +760,6 @@ hextrail_handle_event (ModeInfo *mi, XEvent *event)
             MI_COUNT(mi) = 1;
           }
           bp->size = MI_COUNT(mi) * 2;
-          scale_corners(mi);
       } else if (keysym == XK_Right) {
           printf("DEBUG: Increasing speed from %f to %f\n", speed, speed * 2);
           speed *= 2;
