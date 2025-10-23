@@ -349,13 +349,13 @@ tick_hexagons (ModeInfo *mi)
             a0->ratio += a0->speed * speed;
             if (a0->ratio > 1)
               {
+                h0->border_state = WAIT;
                 /* Just finished growing from edge to center.
                    Look for any available exits. */
                 if (add_arms (mi, h0, a0->speed))
                   {
                     a0->state = DONE;
                     a0->ratio = 1;
-                    h0->border_state = WAIT;
                     bp->live_count--;
                     if (bp->live_count < 0) abort();
                   }
@@ -373,7 +373,7 @@ tick_hexagons (ModeInfo *mi)
               {
                 a0->state = DONE;
                 a0->ratio = 1;
-                h0->border_state = WAIT;
+                //h0->border_state = OUT;
                 bp->live_count--;
                 if (bp->live_count < 0) abort();
               }
