@@ -183,17 +183,6 @@ make_plane (ModeInfo *mi)
       }
 }
 
-
-static Bool
-empty_hexagon_p (hexagon *h)
-{
-  int i;
-  for (i = 0; i < 6; i++)
-    if (h->arms[i].state != EMPTY)
-      return False;
-  return True;
-}
-
 static int
 add_arms (ModeInfo *mi, hexagon *h0, Bool out_p)
 {
@@ -220,8 +209,8 @@ add_arms (ModeInfo *mi, hexagon *h0, Bool out_p)
       arm *a0 = &h0->arms[j];
       arm *a1;
       if (!h1) continue;			/* No neighboring cell */
-      if (! empty_hexagon_p (h1)) continue;	/* Occupado */
-      if (a0->state != EMPTY) continue;		/* Arm already exists */
+      if (h1->border_state != EMPTY) continue;	/* Occupado */
+      if (a0->state != EMPTY) continue;		/* Incoming arm */
 
       a1 = &h1->arms[(j + 3) % 6];		/* Opposite arm */
 
@@ -358,9 +347,12 @@ tick_hexagons (ModeInfo *mi)
             y = random() % bp->grid_h;
           }
         h0 = &bp->hexagons[y * bp->grid_w + x];
-        if (empty_hexagon_p (h0) &&
+        if (h0->border_state == EMPTY &&
             add_arms (mi, h0, True)) 
-          break;
+          {
+            h0->border_state = DONE;
+            break;
+          }
       }
 
   if (bp->live_count <= 0 && bp->state != FADE)
