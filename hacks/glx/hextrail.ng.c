@@ -424,7 +424,7 @@ static void handle_arm_in(hextrail_config *bp, hexagon *h0, arm *a0, int j) {
 }
 
 static void handle_nub_grow(hextrail_config *bp, hexagon *h0, arm *a0, int j) {
-  a0->ratio += a0->speed * (2 - a0->ratio);
+  a0->ratio += a0->speed * speed * (2 - a0->ratio);
   if (a0->ratio >= 1.999) {
 	a0->state = DONE;
 	a0->ratio = 1;
@@ -635,7 +635,7 @@ static void tick_hexagons (ModeInfo *mi) {
 	  if (h->state == IN || h->state == WAIT) h->state = OUT;
 	}
   } else if (bp->state == FADE && !pause_fade) {
-	bp->fade_ratio -= bp->fade_speed;
+	bp->fade_ratio -= bp->fade_speed * speed;
 	scale_corners(mi);
 	if (bp->fade_ratio <= 0) {
 	  DL(2, "Fade ended.\n");
@@ -869,6 +869,19 @@ reshape_hextrail (ModeInfo *mi, int width, int height)
   glClear(GL_COLOR_BUFFER_BIT);
 }
 
+// Function to update rotator when spin/wander settings change
+void update_hextrail_rotator(ModeInfo *mi) {
+	hextrail_config *bp = &bps[MI_SCREEN(mi)];
+	if (!bp->rot) return;
+
+	// Free old rotator and create new one with updated settings
+	if (bp->rot) {
+		free_rotator(bp->rot);
+	}
+
+	bp->rot = create_hextrail_rotator();
+}
+
 ENTRYPOINT Bool
 hextrail_handle_event (ModeInfo *mi, XEvent *event)
 {
@@ -1077,24 +1090,6 @@ free_hextrail (ModeInfo *mi)
 	free(bp->chunks);
   }
 }
-
-#ifdef WEB_BUILD
-// Function to update rotator when spin/wander settings change
-void update_hextrail_rotator(void) {
-	extern hextrail_config *bps;
-	extern ModeInfo web_mi;
-
-	hextrail_config *bp = &bps[web_mi.screen];
-	if (!bp->rot) return;
-
-	// Free old rotator and create new one with updated settings
-	if (bp->rot) {
-		free_rotator(bp->rot);
-	}
-
-	bp->rot = create_hextrail_rotator();
-}
-#endif
 
 XSCREENSAVER_MODULE ("HexTrail", hextrail)
 
