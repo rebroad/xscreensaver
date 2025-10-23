@@ -32,8 +32,6 @@
 #define DEF_SPEED       "1.0"
 #define DEF_THICKNESS   "0.15"
 
-#define BELLRAND(n) ((frand((n)) + frand((n)) + frand((n))) / 3)
-
 typedef enum { EMPTY, IN, WAIT, OUT, DONE } state_t;
 
 typedef struct {
