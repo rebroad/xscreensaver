@@ -272,3 +272,35 @@ get_position (rotator *rot, double *x_ret, double *y_ret, double *z_ret,
   if (y_ret) *y_ret = y;
   if (z_ret) *z_ret = z;
 }
+
+
+/* Updates the speed parameters of an existing rotator without destroying
+   the current rotation/position state. This allows speed changes to take
+   effect immediately without jarring visual discontinuities.
+
+   For wander: Since position = f(wander_frame * wander_speed), when we change
+   wander_speed we must adjust wander_frame inversely to preserve position.
+ */
+void
+update_rotator_speed (rotator *rot,
+                      double spin_x_speed,
+                      double spin_y_speed,
+                      double spin_z_speed,
+                      double wander_speed)
+{
+  if (!rot) return;
+
+  /* Preserve wander position when changing speed by adjusting frame count.
+     position depends on (wander_frame * wander_speed), so to keep position
+     constant when changing speed: new_frame = old_frame * (old_speed / new_speed)
+   */
+  if (wander_speed > EPSILON && rot->wander_speed > EPSILON) {
+    double ratio = rot->wander_speed / wander_speed;
+    rot->wander_frame = (int)(rot->wander_frame * ratio);
+  }
+
+  rot->spin_x_speed = spin_x_speed;
+  rot->spin_y_speed = spin_y_speed;
+  rot->spin_z_speed = spin_z_speed;
+  rot->wander_speed = wander_speed;
+}
