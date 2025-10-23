@@ -245,12 +245,14 @@ add_arms (ModeInfo *mi, hexagon *h0, GLfloat incoming_speed)
       h1->border_state = IN;
 
       /* Mostly keep the same color */
-      if (! (random() % 5)) h1->ccolor = (h0->ccolor + 1) % bp->ncolors;
-      else h1->ccolor = h0->ccolor;
+      h1->ccolor = h0->ccolor;
+      if (! (random() % 5))
+        h1->ccolor = (h0->ccolor + 1) % bp->ncolors;
 
       bp->live_count++;
       added++;
-      if (added >= target) break;
+      if (added >= target)
+        break;
     }
   return added;
 }
