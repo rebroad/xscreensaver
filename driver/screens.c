@@ -699,6 +699,10 @@ check_monitor_sanity (monitor **monitors)
   /* After checking for enclosure, check for other lossage against earlier
      monitors.  We do enclosure first so that we make sure to pick the
      larger one.
+
+     Note: We allow overlapping monitors if both have valid dimensions.
+     This handles intentional overlaps (e.g., laptop display overlapping
+     external display for alignment). Each monitor will render independently.
    */
   for (i = 0; i < count; i++)
     for (j = 0; j < i; j++)
@@ -709,8 +713,20 @@ check_monitor_sanity (monitor **monitors)
 
         if (monitors_overlap_p (monitors[i], monitors[j]))
           {
-            monitors[i]->sanity = S_OVERLAP;
-            monitors[i]->enemy = j;
+            /* Only mark as overlap if one of the monitors is invalid.
+             * If both have valid dimensions, allow the overlap so both
+             * monitors can render independently.
+             */
+            if (monitors[i]->width <= 0 || monitors[i]->height <= 0 ||
+                monitors[j]->width <= 0 || monitors[j]->height <= 0)
+              {
+                /* One or both monitors are invalid - mark overlap as error */
+                monitors[i]->sanity = S_OVERLAP;
+                monitors[i]->enemy = j;
+              }
+            /* Otherwise, both monitors are valid and overlapping - allow it.
+             * Don't mark as S_OVERLAP, keep both as S_SANE so they both render.
+             */
           }
       }
 
