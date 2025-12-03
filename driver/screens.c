@@ -6,7 +6,7 @@
  * the above copyright notice appear in all copies and that both that
  * copyright notice and this permission notice appear in supporting
  * documentation.  No representations are made about the suitability of this
- * software for any purpose.  It is provided "as is" without express or 
+ * software for any purpose.  It is provided "as is" without express or
  * implied warranty.
  */
 
@@ -139,7 +139,7 @@ free_monitors (monitor **monitors)
 {
   monitor **m2 = monitors;
   if (! monitors) return;
-  while (*m2) 
+  while (*m2)
     {
       if ((*m2)->desc) free ((*m2)->desc);
       if ((*m2)->err) free ((*m2)->err);
@@ -198,7 +198,7 @@ xinerama_scan_monitors (Display *dpy, char **errP)
   if (! XineramaQueryExtension (dpy, &event, &error))
     return 0;
 
-  if (! XineramaIsActive (dpy)) 
+  if (! XineramaIsActive (dpy))
     return 0;
 
   xsi = XineramaQueryScreens (dpy, &nscreens);
@@ -301,7 +301,7 @@ randr_scan_monitors (Display *dpy, char **errP)
       */
       Screen *screen = ScreenOfDisplay (dpy, i);
       int k;
-      XRRScreenResources *res = 
+      XRRScreenResources *res =
         XRRGetScreenResourcesCurrent (dpy, RootWindowOfScreen (screen));
       if (!res)
         {
@@ -321,7 +321,7 @@ randr_scan_monitors (Display *dpy, char **errP)
           if (!m)
             {
               free_monitors (monitors);
-              if (crtci) 
+              if (crtci)
                 XRRFreeCrtcInfo (crtci);
               if (rroi)
                 XRRFreeOutputInfo (rroi);
@@ -353,7 +353,7 @@ randr_scan_monitors (Display *dpy, char **errP)
             m->sanity = S_DISABLED;
           /* #### do the same for RR_UnknownConnection? */
 
-          if (crtci) 
+          if (crtci)
             XRRFreeCrtcInfo (crtci);
           if (rroi)
             XRRFreeOutputInfo (rroi);
@@ -365,7 +365,7 @@ randr_scan_monitors (Display *dpy, char **errP)
   {
     int ok = 0;
     int i = 0;
-    while (monitors[i]) 
+    while (monitors[i])
       {
         if (monitors[i]->width != 0 && monitors[i]->height != 0)
           ok++;
@@ -442,7 +442,7 @@ basic_scan_monitors (Display *dpy, char **errP)
      modifying xscreensaver to try to get this information from RandR.
  */
 static monitor **
-randr_versus_xinerama_fight (Display *dpy, monitor **randr_monitors, 
+randr_versus_xinerama_fight (Display *dpy, monitor **randr_monitors,
                              char **errP)
 {
   monitor **xinerama_monitors;
@@ -450,7 +450,7 @@ randr_versus_xinerama_fight (Display *dpy, monitor **randr_monitors,
   int xinerama_count = 0;
   char buf[1024];
 
-  if (!randr_monitors) 
+  if (!randr_monitors)
     return 0;
 
   xinerama_monitors = xinerama_scan_monitors (dpy, errP);
@@ -530,7 +530,7 @@ debug_scan_monitors (Display *dpy, char **errP)
       char c;
       m->id = nscreens;
       m->screen = screen;
-      if (4 != sscanf (token, "%dx%d+%d+%d%c", 
+      if (4 != sscanf (token, "%dx%d+%d+%d%c",
                        &m->width, &m->height, &m->x, &m->y, &c))
         abort();
       m->width -= 2;
@@ -539,7 +539,7 @@ debug_scan_monitors (Display *dpy, char **errP)
       token = strtok (0, ",");
     }
   free (s);
-  
+
   index = (index+1) % countof(geoms);
   return monitors;
 }
@@ -691,7 +691,7 @@ check_monitor_sanity (monitor **monitors)
               W1 == W2 &&
               H1 == H2)
             monitors[j]->sanity = S_DUPLICATE;
-          else 
+          else
             monitors[j]->sanity = S_ENCLOSED;
           monitors[j]->enemy = i;
         }
@@ -720,8 +720,8 @@ check_monitor_sanity (monitor **monitors)
   for (i = 0; i < count; i++)
     {
       if (monitors[i]->sanity != S_SANE) continue; /* already marked */
-      if (X1    <  0      || Y1    <  0 || 
-          W1    <= 0      || H1    <= 0 || 
+      if (X1    <  0      || Y1    <  0 ||
+          W1    <= 0      || H1    <= 0 ||
           X1+W1 >= 0x7FFF || Y1+H1 >= 0x7FFF)
         {
           monitors[i]->sanity = S_OFFSCREEN;
@@ -852,7 +852,7 @@ describe_monitor_layout (monitor **monitors)
                   break;
                 case S_OFFSCREEN:
                   fprintf (stderr, "off screen (%dx%d)\n",
-                           WidthOfScreen (e->screen), 
+                           WidthOfScreen (e->screen),
                            HeightOfScreen (e->screen));
                   break;
                 case S_DISABLED:
