@@ -160,10 +160,12 @@ static int randr_gamma_fade (XtAppContext, Display *, Window *wins, int count,
                              double secs, Bool out_p);
 #endif
 static int colormap_fade (XtAppContext, Display *, Window *wins, int count,
-                          double secs, Bool out_p, Bool from_desktop_p);
+                          double secs, Bool out_p, Bool from_desktop_p,
+                          double *interrupted_ratio, double start_ratio);
 static int xshm_fade (XtAppContext, Display *,
                       Window *wins, int count, double secs,
-                      Bool out_p, Bool from_desktop_p, fade_state *);
+                      Bool out_p, Bool from_desktop_p, fade_state *,
+                      double *interrupted_ratio, double start_ratio);
 
 
 static double
@@ -398,12 +400,17 @@ defer_XDestroyWindow (XtAppContext app, Display *dpy, Window w)
 }
 
 
-/* Returns true if canceled by user activity. */
+/* Returns true if canceled by user activity.
+   If interrupted_ratio is non-NULL and fade-out is interrupted, stores the
+   current fade ratio (0.0-1.0) in *interrupted_ratio.
+   If start_ratio is >= 0.0 and out_p is False, fade-in starts from start_ratio
+   instead of 0.0 (used when resuming from an interrupted fade-out).
+ */
 Bool
 fade_screens (XtAppContext app, Display *dpy,
               Window *saver_windows, int nwindows,
               double seconds, Bool out_p, Bool from_desktop_p,
-              void **closureP)
+              void **closureP, double *interrupted_ratio, double start_ratio)
 {
   int status = False;
   fade_state *state = 0;
@@ -452,14 +459,14 @@ fade_screens (XtAppContext app, Display *dpy,
       /* Do it the old-fashioned way, which only really worked on
          8-bit displays. */
       status = colormap_fade (app, dpy, saver_windows, nwindows, seconds,
-                              out_p, from_desktop_p);
+                              out_p, from_desktop_p, interrupted_ratio, start_ratio);
       if (status == 0 || status == 1)
         return status;  /* faded, possibly canceled */
     }
 
   /* Else do it the hard way, by hacking a screenshot. */
   status = xshm_fade (app, dpy, saver_windows, nwindows, seconds, out_p,
-                      from_desktop_p, state);
+                      from_desktop_p, state, interrupted_ratio, start_ratio);
   status = (status ? True : False);
 
   return status;
@@ -497,7 +504,8 @@ fade_screens (XtAppContext app, Display *dpy,
 static int
 colormap_fade (XtAppContext app, Display *dpy,
                Window *saver_windows, int nwindows,
-               double seconds, Bool out_p, Bool from_desktop_p)
+               double seconds, Bool out_p, Bool from_desktop_p,
+               double *interrupted_ratio, double start_ratio)
 {
   int status = -1;
   Colormap *window_cmaps = 0;
@@ -579,7 +587,13 @@ colormap_fade (XtAppContext app, Display *dpy,
     while ((now = double_time()) < end_time)
       {
         double ratio = (end_time - now) / seconds;
-        if (!out_p) ratio = 1-ratio;
+        if (!out_p)
+          {
+            /* For fade-in, adjust to start from start_ratio if provided */
+            ratio = 1-ratio;
+            if (start_ratio >= 0.0)
+              ratio = start_ratio + (1.0 - start_ratio) * ratio;
+          }
 
         log_fade_progress (ratio, out_p, &last_logged_percent);
 
@@ -643,6 +657,9 @@ colormap_fade (XtAppContext app, Display *dpy,
         if (user_active_p (app, dpy, out_p))
           {
             status = 1;   /* user activity status code */
+            /* If fade-out was interrupted, capture the current ratio */
+            if (out_p && interrupted_ratio)
+              *interrupted_ratio = ratio;
             /* Immediately restore colormaps to normal before exiting */
             for (i = 0; i < nscreens; i++)
               {
@@ -1834,7 +1851,8 @@ check_gl_error (const char *type)
 static int
 xshm_fade (XtAppContext app, Display *dpy,
            Window *saver_windows, int nwindows, double seconds,
-           Bool out_p, Bool from_desktop_p, fade_state *state)
+           Bool out_p, Bool from_desktop_p, fade_state *state,
+           double *interrupted_ratio, double start_ratio)
 {
   int screen;
   int status = -1;
@@ -2081,7 +2099,13 @@ xshm_fade (XtAppContext app, Display *dpy,
     while ((now = double_time()) < end_time)
       {
         double ratio = (end_time - now) / seconds;
-        if (!out_p) ratio = 1-ratio;
+        if (!out_p)
+          {
+            /* For fade-in, adjust to start from start_ratio if provided */
+            ratio = 1-ratio;
+            if (start_ratio >= 0.0)
+              ratio = start_ratio + (1.0 - start_ratio) * ratio;
+          }
 
         log_fade_progress (ratio, out_p, &last_logged_percent);
 
@@ -2099,6 +2123,9 @@ xshm_fade (XtAppContext app, Display *dpy,
         if (user_active_p (app, dpy, out_p))
           {
             status = 1;   /* user activity status code */
+            /* If fade-out was interrupted, capture the current ratio */
+            if (out_p && interrupted_ratio)
+              *interrupted_ratio = ratio;
             /* Immediately unmap fader windows to restore display before exiting */
             if (out_p)
               {
