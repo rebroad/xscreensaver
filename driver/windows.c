@@ -471,6 +471,7 @@ blank_screen (saver_info *si)
   int i;
   Bool grabbing_supported_p = True;
 
+  si->actually_blanked_p = False;  /* Reset flag - will be set to True if raise_windows() is called */
   debug_log ("%s: [BLANK_SCREEN] called - starting blank_screen()", blurb());
 
   initialize_screensaver_window (si);
@@ -584,6 +585,7 @@ blank_screen (saver_info *si)
     }
 
   raise_windows (si);
+  si->actually_blanked_p = True;  /* Mark that screen was actually blanked */
   reset_watchdog_timer (si);
 
   /* user_active_p means that the user aborted the fade-out -- but that does
@@ -639,13 +641,25 @@ unblank_screen (saver_info *si)
       monitor_power_on (si, True);
 
       /* When we fade in to the desktop, first fade out from the saver to
-         black, then fade in from black to the desktop. */
-      interrupted_p = fade_screens (si->app, si->dpy,
-                                    current_windows, si->nscreens,
-                                    seconds * ratio,
-                                    True,  /* out_p */
-                                    False, /* from_desktop_p */
-                                    &si->fade_state);
+         black, then fade in from black to the desktop.
+         However, if the screen was never actually blanked (blank_screen()
+         returned early due to user activity), skip the fade-out since the
+         screen is already at normal brightness.
+       */
+      if (si->actually_blanked_p)
+        {
+          interrupted_p = fade_screens (si->app, si->dpy,
+                                        current_windows, si->nscreens,
+                                        seconds * ratio,
+                                        True,  /* out_p */
+                                        False, /* from_desktop_p */
+                                        &si->fade_state);
+        }
+      else
+        {
+          debug_log ("%s: [UNBLANK_SCREEN] screen was never actually blanked, skipping fade-out", blurb());
+          interrupted_p = False;  /* No fade-out needed */
+        }
 
       for (i = 0; i < si->nscreens; i++)
     {
