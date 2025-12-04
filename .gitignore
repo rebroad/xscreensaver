@@ -1,5 +1,8 @@
 build_web/
 Makefile
+**/Makefile
+!OSX/Makefile
+!android/Makefile
 android/xscreensaver/res/drawable/*.png
 android/xscreensaver/res/values/
 android/xscreensaver/res/xml/
