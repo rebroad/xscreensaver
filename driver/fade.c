@@ -395,11 +395,10 @@ log_fade_progress (double ratio, Bool out_p, int *last_logged_percent, Display *
       if (gamma_info && ngamma > 0 && dpy)
         {
           randr_gamma_info *randr_info = (randr_gamma_info *)gamma_info;
-          double min_gamma = 10.0;  /* Initialize higher than any valid gamma (typically 0.0-2.0) */
-          double max_gamma = -1.0;  /* Initialize lower than any valid gamma (gamma is non-negative) */
-          int valid_count = 0;
+          char gamma_values[512] = "";
+          int gamma_count = 0;
 
-          /* Query actual gamma for all enabled screens and find min/max */
+          /* Query actual gamma for all enabled screens and collect all values */
           for (int i = 0; i < ngamma; i++)
             {
               if (randr_info[i].enabled_p)
@@ -407,40 +406,30 @@ log_fade_progress (double ratio, Bool out_p, int *last_logged_percent, Display *
                   double screen_ratio = query_actual_gamma_ratio (dpy, &randr_info[i]);
                   if (screen_ratio >= 0.0)
                     {
-                      if (valid_count == 0)
-                        {
-                          min_gamma = max_gamma = screen_ratio;
-                        }
-                      else
-                        {
-                          if (screen_ratio < min_gamma)
-                            min_gamma = screen_ratio;
-                          if (screen_ratio > max_gamma)
-                            max_gamma = screen_ratio;
-                        }
-                      valid_count++;
+                      if (gamma_count > 0)
+                        strcat (gamma_values, ",");
+                      char val_str[32];
+                      snprintf (val_str, sizeof(val_str), "%.2f", screen_ratio);
+                      strcat (gamma_values, val_str);
+                      gamma_count++;
                     }
                 }
             }
 
-          if (valid_count > 0)
+          if (gamma_count > 0)
             {
-              if (min_gamma == max_gamma)
-                snprintf (actual_gamma_str, sizeof(actual_gamma_str), " (actual gamma: %.2f)", min_gamma);
-              else
-                snprintf (actual_gamma_str, sizeof(actual_gamma_str), " (actual gamma: %.2f-%.2f)", min_gamma, max_gamma);
+              snprintf (actual_gamma_str, sizeof(actual_gamma_str), " (actual gamma: %s)", gamma_values);
             }
         }
 # endif /* HAVE_RANDR_12 */
 
-      /* Query brightness for all enabled outputs and find min/max */
-      char brightness_str[64] = "";
+      /* Query brightness for all enabled outputs and collect all values */
+      char brightness_str[256] = "";
 # ifdef HAVE_RANDR_12
       if (gamma_info && ngamma > 0 && dpy)
         {
           randr_gamma_info *randr_info = (randr_gamma_info *)gamma_info;
-          double min_brightness = 10.0;  /* Initialize higher than any valid brightness (typically 0.0-2.0) */
-          double max_brightness = -1.0;   /* Initialize lower than any valid brightness (brightness is non-negative) */
+          char brightness_values[256] = "";
           int brightness_count = 0;
 
           for (int i = 0; i < ngamma; i++)
@@ -462,17 +451,11 @@ log_fade_progress (double ratio, Bool out_p, int *last_logged_percent, Display *
 
                   if (brightness >= 0.0)
                     {
-                      if (brightness_count == 0)
-                        {
-                          min_brightness = max_brightness = brightness;
-                        }
-                      else
-                        {
-                          if (brightness < min_brightness)
-                            min_brightness = brightness;
-                          if (brightness > max_brightness)
-                            max_brightness = brightness;
-                        }
+                      if (brightness_count > 0)
+                        strcat (brightness_values, ",");
+                      char val_str[32];
+                      snprintf (val_str, sizeof(val_str), "%.2f", brightness);
+                      strcat (brightness_values, val_str);
                       brightness_count++;
                     }
                 }
@@ -480,10 +463,7 @@ log_fade_progress (double ratio, Bool out_p, int *last_logged_percent, Display *
 
           if (brightness_count > 0)
             {
-              if (min_brightness == max_brightness)
-                snprintf (brightness_str, sizeof(brightness_str), " (brightness: %.2f)", min_brightness);
-              else
-                snprintf (brightness_str, sizeof(brightness_str), " (brightness: %.2f-%.2f)", min_brightness, max_brightness);
+              snprintf (brightness_str, sizeof(brightness_str), " (brightness: %s)", brightness_values);
             }
           else
             {
@@ -1924,14 +1904,36 @@ randr_gamma_fade (XtAppContext app, Display *dpy,
                 }
             }
         }
-      /* Verify gamma was restored by querying actual value */
+      /* Verify gamma was restored by querying actual value and compare brightness */
       for (screen = 0; screen < nscreens; screen++)
         {
           if (info[screen].enabled_p)
             {
-              double actual = query_actual_gamma_ratio (dpy, &info[screen]);
-              if (actual >= 0.0)
-                debug_log ("[FADE] fade-in: verified gamma restored to %.2f for screen %d", actual, screen);
+              double actual_gamma = query_actual_gamma_ratio (dpy, &info[screen]);
+              double current_brightness = query_brightness (dpy, info[screen].output);
+              if (current_brightness < 0.0)
+                current_brightness = info[screen].current_brightness;
+
+              const char *output_name = info[screen].output_name ? info[screen].output_name : "unknown";
+
+              if (actual_gamma >= 0.0)
+                {
+                  if (current_brightness >= 0.0)
+                    {
+                      /* Compare with original brightness */
+                      if (fabs (current_brightness - info[screen].original_brightness) < 0.01)
+                        debug_log ("[FADE] fade-in: verified gamma=%.2f brightness=%.2f for %s (MATCHES original brightness %.2f)",
+                                  actual_gamma, current_brightness, output_name, info[screen].original_brightness);
+                      else
+                        debug_log ("[FADE] fade-in: verified gamma=%.2f brightness=%.2f for %s (DIFFERS from original brightness %.2f)",
+                                  actual_gamma, current_brightness, output_name, info[screen].original_brightness);
+                    }
+                  else
+                    {
+                      debug_log ("[FADE] fade-in: verified gamma=%.2f for %s (brightness query failed)",
+                                actual_gamma, output_name);
+                    }
+                }
             }
         }
     }
@@ -1993,20 +1995,22 @@ randr_whack_gamma (Display *dpy, int screen, randr_gamma_info *info,
   XSetErrorHandler (old_handler);
   XSync (dpy, False);
 
+  const char *output_name = info->output_name ? info->output_name : "unknown";
+
   if (error_handler_hit_p)
     {
-      debug_log ("[FADE] XRRSetCrtcGamma FAILED for screen %d (crtc=%lu, ratio=%.2f) - X error occurred",
-                 screen, (unsigned long) info->crtc, ratio);
+      debug_log ("[FADE] XRRSetCrtcGamma FAILED for %s (screen=%d, crtc=%lu, ratio=%.2f) - X error occurred",
+                 output_name, screen, (unsigned long) info->crtc, ratio);
     }
   else if (ratio == 1.0)
     {
-      debug_log ("[FADE] XRRSetCrtcGamma succeeded for screen %d (crtc=%lu, ratio=1.0) - gamma restored to original",
-                 screen, (unsigned long) info->crtc);
+      debug_log ("[FADE] XRRSetCrtcGamma succeeded for %s (screen=%d, crtc=%lu, ratio=1.0) - gamma restored to original",
+                 output_name, screen, (unsigned long) info->crtc);
     }
   else if (verbose_p > 1)
     {
-      debug_log ("[FADE] XRRSetCrtcGamma succeeded for screen %d (crtc=%lu, ratio=%.2f)",
-                 screen, (unsigned long) info->crtc, ratio);
+      debug_log ("[FADE] XRRSetCrtcGamma succeeded for %s (screen=%d, crtc=%lu, ratio=%.2f)",
+                 output_name, screen, (unsigned long) info->crtc, ratio);
     }
 }
 
