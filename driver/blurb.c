@@ -32,9 +32,19 @@ const char *
 blurb (void)
 {
   static char buf[255] = { 0 };
+  struct tm tm;
+  struct timeval now;
   int i;
   pid_t pid = getpid();
 
+# ifdef GETTIMEOFDAY_TWO_ARGS
+  struct timezone tzp;
+  gettimeofday (&now, &tzp);
+# else
+  gettimeofday (&now);
+# endif
+
+  localtime_r (&now.tv_sec, &tm);
   i = strlen (progname);
   if (i > 40) i = 40;
   memcpy (buf, progname, i);
@@ -53,6 +63,24 @@ blurb (void)
   buf[i++] = ']';
   buf[i++] = ':';
   buf[i++] = ' ';
+  buf[i++] = '0' + (tm.tm_hour >= 10 ? tm.tm_hour/10 : 0);
+  buf[i++] = '0' + (tm.tm_hour % 10);
+  buf[i++] = ':';
+  buf[i++] = '0' + (tm.tm_min >= 10 ? tm.tm_min/10 : 0);
+  buf[i++] = '0' + (tm.tm_min % 10);
+  buf[i++] = ':';
+  buf[i++] = '0' + (tm.tm_sec >= 10 ? tm.tm_sec/10 : 0);
+  buf[i++] = '0' + (tm.tm_sec % 10);
+
+# ifdef BLURB_CENTISECONDS
+  {
+    int c = now.tv_usec / 10000;
+    buf[i++] = '.';
+    buf[i++] = '0' + (c >= 10 ? c/10 : 0);
+    buf[i++] = '0' + (c % 10);
+  }
+# endif
+
   buf[i] = 0;
   return buf;
 }
@@ -99,11 +127,6 @@ debug_log (const char *format, ...)
   if (!debug_file)
     return;
 
-  now = time (NULL);
-  tm_info = localtime (&now);
-  strftime (timestamp, sizeof(timestamp), "%Y-%m-%d %H:%M:%S", tm_info);
-
-  fprintf (debug_file, "[%s] ", timestamp);
   va_start (args, format);
   vfprintf (debug_file, format, args);
   va_end (args);
