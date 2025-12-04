@@ -1580,7 +1580,7 @@ main_loop (Display *dpy)
     }
   else
     {
-      DL(1, "wayland: connection failed; assuming real X11");
+      DL(0, "wayland: connection failed; assuming real X11");
     }
 # else /* !HAVE_WAYLAND */
 
@@ -2496,6 +2496,9 @@ main (int argc, char **argv)
   s = strrchr (progname, '/');
   if (s) progname = s+1;
 
+  /* Cache systemd detection once at startup */
+  running_under_systemd_p = (getenv("NOTIFY_SOCKET") != NULL);
+
   pmsg = disavow_privileges();
 
   fclose (stdin);
@@ -2602,6 +2605,7 @@ main (int argc, char **argv)
     {
       int stdout_fd = 1;
       int stderr_fd = 2;
+      logging_to_file_p = True;
       int fd = open (logfile, O_WRONLY | O_APPEND | O_CREAT, 0666);
       if (fd < 0)
         {
@@ -2628,9 +2632,7 @@ main (int argc, char **argv)
                "\n",
                blurb(), logfile);
 
-      if (!verbose_p)
-        verbose_p = True;
-      cmdline_verbose_val = verbose_p;
+      /* Don't auto-enable verbose when logging - let user control verbosity separately */
     }
 
   save_argv (argc, argv);
