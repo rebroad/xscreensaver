@@ -420,23 +420,47 @@ fade_screens (XtAppContext app, Display *dpy,
 
 # ifdef HAVE_SGI_VC_EXTENSION
   /* First try to do it by fading the gamma in an SGI-specific way... */
+  debug_log ("%s: [FADE] trying SGI gamma fade method (%s)", blurb(), (out_p ? "fade-out" : "fade-in"));
   status = sgi_gamma_fade (app, dpy, saver_windows, nwindows, seconds, out_p);
   if (status == 0 || status == 1)
-    return status;  /* faded, possibly canceled */
+    {
+      debug_log ("%s: [FADE] using SGI gamma fade method (%s)", blurb(), (out_p ? "fade-out" : "fade-in"));
+      return status;  /* faded, possibly canceled */
+    }
+  else
+    debug_log ("%s: [FADE] SGI gamma fade method failed (status=%d), trying next method", blurb(), status);
+# else
+  debug_log ("%s: [FADE] SGI gamma fade method not compiled in (HAVE_SGI_VC_EXTENSION not defined)", blurb());
 # endif
 
 # ifdef HAVE_RANDR_12
   /* Then try to do it by fading the gamma in an RANDR-specific way... */
+  debug_log ("%s: [FADE] trying RANDR gamma fade method (%s)", blurb(), (out_p ? "fade-out" : "fade-in"));
   status = randr_gamma_fade (app, dpy, saver_windows, nwindows, seconds, out_p);
   if (status == 0 || status == 1)
-    return status;  /* faded, possibly canceled */
+    {
+      debug_log ("%s: [FADE] using RANDR gamma fade method (%s)", blurb(), (out_p ? "fade-out" : "fade-in"));
+      return status;  /* faded, possibly canceled */
+    }
+  else
+    debug_log ("%s: [FADE] RANDR gamma fade method failed (status=%d), trying next method", blurb(), status);
+# else
+  debug_log ("%s: [FADE] RANDR gamma fade method not compiled in (HAVE_RANDR_12 not defined)", blurb());
 # endif
 
 # ifdef HAVE_XF86VMODE_GAMMA
   /* Then try to do it by fading the gamma in an XFree86-specific way... */
+  debug_log ("%s: [FADE] trying XF86 gamma fade method (%s)", blurb(), (out_p ? "fade-out" : "fade-in"));
   status = xf86_gamma_fade(app, dpy, saver_windows, nwindows, seconds, out_p);
   if (status == 0 || status == 1)
-    return status;  /* faded, possibly canceled */
+    {
+      debug_log ("%s: [FADE] using XF86 gamma fade method (%s)", blurb(), (out_p ? "fade-out" : "fade-in"));
+      return status;  /* faded, possibly canceled */
+    }
+  else
+    debug_log ("%s: [FADE] XF86 gamma fade method failed (status=%d), trying next method", blurb(), status);
+# else
+  debug_log ("%s: [FADE] XF86 gamma fade method not compiled in (HAVE_XF86VMODE_GAMMA not defined)", blurb());
 # endif
 
   if (has_writable_cells (DefaultScreenOfDisplay (dpy),
@@ -444,13 +468,24 @@ fade_screens (XtAppContext app, Display *dpy,
     {
       /* Do it the old-fashioned way, which only really worked on
          8-bit displays. */
+      debug_log ("%s: [FADE] trying colormap fade method (%s)", blurb(), (out_p ? "fade-out" : "fade-in"));
       status = colormap_fade (app, dpy, saver_windows, nwindows, seconds,
                               out_p, from_desktop_p, interrupted_ratio, start_ratio);
       if (status == 0 || status == 1)
-        return status;  /* faded, possibly canceled */
+        {
+          debug_log ("%s: [FADE] using colormap fade method (%s)", blurb(), (out_p ? "fade-out" : "fade-in"));
+          return status;  /* faded, possibly canceled */
+        }
+      else
+        debug_log ("%s: [FADE] colormap fade method failed (status=%d), trying next method", blurb(), status);
+    }
+  else
+    {
+      debug_log ("%s: [FADE] colormap fade method skipped (no writable cells available)", blurb());
     }
 
   /* Else do it the hard way, by hacking a screenshot. */
+  debug_log ("%s: [FADE] using XSHM/OpenGL fade method (%s)", blurb(), (out_p ? "fade-out" : "fade-in"));
   status = xshm_fade (app, dpy, saver_windows, nwindows, seconds, out_p,
                       from_desktop_p, state, interrupted_ratio, start_ratio);
   status = (status ? True : False);
@@ -673,8 +708,9 @@ colormap_fade (XtAppContext app, Display *dpy,
 
   /* If we've been given windows to raise after blackout, raise them before
      releasing the colormaps.
+     However, if fade-out was interrupted, don't raise windows - preserve the interrupted fade level.
    */
-  if (out_p)
+  if (out_p && status != 1)
     {
       for (i = 0; i < nwindows; i++)
         {
@@ -1127,9 +1163,13 @@ xf86_gamma_fade (XtAppContext app, Display *dpy,
      time to flush out.  This sucks! */
   usleep(100000);  /* 1/10th second */
 
-  for (screen = 0; screen < nscreens; screen++)
-    xf86_whack_gamma(dpy, screen, &info[screen], 1.0);
-  XSync(dpy, False);
+  /* If fade-out was interrupted, don't restore gamma - preserve the interrupted fade level */
+  if (status != 1)
+    {
+      for (screen = 0; screen < nscreens; screen++)
+        xf86_whack_gamma(dpy, screen, &info[screen], 1.0);
+      XSync(dpy, False);
+    }
 
  FAIL:
   if (info)
@@ -2110,9 +2150,10 @@ xshm_fade (XtAppContext app, Display *dpy,
   /* If we're fading out, we have completed the transition from what was
      on the screen to black, using our fader windows.  Now raise the saver
      windows and take the fader windows off the screen.  Since they're both
-     black, that will be imperceptible.   
+     black, that will be imperceptible.
+     However, if fade-out was interrupted, don't raise windows - preserve the interrupted fade level.
    */
-  if (out_p)
+  if (out_p && status != 1)
     {
       for (screen = 0; screen < nwindows; screen++)
         {
