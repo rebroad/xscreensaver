@@ -5,7 +5,7 @@
  * the above copyright notice appear in all copies and that both that
  * copyright notice and this permission notice appear in supporting
  * documentation.  No representations are made about the suitability of this
- * software for any purpose.  It is provided "as is" without express or 
+ * software for any purpose.  It is provided "as is" without express or
  * implied warranty.
  *
  * ==========================================================================
@@ -206,6 +206,7 @@
 #endif
 
 #include <stdio.h>
+#include <stdarg.h>
 #include <ctype.h>
 #include <time.h>
 #include <sys/time.h>
@@ -265,6 +266,11 @@
 Bool debug_p = False;
 static Bool splash_p = True;
 static const char *version_number = 0;
+
+/* Rate limiting for debug logs */
+static time_t last_mouse_motion_log = 0;
+static time_t last_user_activity_log = 0;
+#define LOG_RATE_LIMIT_SECONDS 2  /* Log at most once per 2 seconds */
 
 /* Preferences. */
 static Bool lock_p = False;
@@ -767,7 +773,7 @@ parse_time (const char *string)
   if (3 == sscanf (string,   " %u : %2u : %2u %c", &h, &m, &s, &c))
     ;
   else if (2 == sscanf (string, " : %2u : %2u %c", &m, &s, &c) ||
-	   2 == sscanf (string,    " %u : %2u %c", &m, &s, &c))
+       2 == sscanf (string,    " %u : %2u %c", &m, &s, &c))
     h = 0;
   else if (1 == sscanf (string,       " : %2u %c", &s, &c))
     h = m = 0;
@@ -796,7 +802,7 @@ parse_time (const char *string)
    just reads the .ad file and the .xscreensaver file directly rather
    than going through Xt and Xrm.
  */
-static void init_line_handler (int lineno, 
+static void init_line_handler (int lineno,
                                const char *key, const char *val,
                                void *closure)
 {
@@ -1129,7 +1135,7 @@ store_saver_status (Display *dpy,
    bidirectional ClientMessage communication takes place.  Since there are
    no "blanking" windows around at all when xscreensaver-gfx is not running,
    this window is needed.  We could have instead re-tooled xscreensaver-command
-   to do all of its communication through the root window instead, but this 
+   to do all of its communication through the root window instead, but this
    seemed easier.
  */
 static void
@@ -1182,13 +1188,13 @@ create_daemon_window (Display *dpy)
   XStoreName (dpy, daemon_window, "XScreenSaver Daemon");
   XSetClassHint (dpy, daemon_window, &class_hints);
   XChangeProperty (dpy, daemon_window, XA_WM_COMMAND, XA_STRING,
-		   8, PropModeReplace, (unsigned char *) progname,
+           8, PropModeReplace, (unsigned char *) progname,
                    strlen (progname));
   XChangeProperty (dpy, daemon_window, XA_SCREENSAVER_VERSION, XA_STRING,
                    8, PropModeReplace, (unsigned char *) version_number,
-		   strlen (version_number));
+           strlen (version_number));
   XChangeProperty (dpy, daemon_window, XA_SCREENSAVER_ID, XA_STRING,
-		   8, PropModeReplace, (unsigned char *) id, strlen (id));
+           8, PropModeReplace, (unsigned char *) id, strlen (id));
 
   store_saver_status (dpy, False, False, False, now);
   free (id);
@@ -1232,7 +1238,7 @@ grab_mouse (Screen *screen, Cursor cursor)
 {
   Display *dpy = DisplayOfScreen (screen);
   Window w = RootWindowOfScreen (screen);
-  int status = XGrabPointer (dpy, w, True, 
+  int status = XGrabPointer (dpy, w, True,
                              (ButtonPressMask   | ButtonReleaseMask |
                               EnterWindowMask   | LeaveWindowMask |
                               PointerMotionMask | PointerMotionHintMask |
@@ -1506,7 +1512,7 @@ query_pointer (Display *dpy, int *root_xP, int *root_yP)
 
 
 #ifdef HAVE_WAYLAND
-static void 
+static void
 wayland_activity_cb (void *closure)
 {
   Bool *activeP = (Bool *) closure;
@@ -1620,7 +1626,7 @@ main_loop (Display *dpy)
     saver_auth_pid = fork_and_exec (dpy, ac, av);
   }
 
-# if defined(HAVE_LIBSYSTEMD) || defined(HAVE_LIBELOGIND) 
+# if defined(HAVE_LIBSYSTEMD) || defined(HAVE_LIBELOGIND)
   /* Launch xscreensaver-systemd at startup. */
   {
     char *av[10];
@@ -1655,7 +1661,7 @@ main_loop (Display *dpy)
 
          There may already be X events on the queue that arrived along with an
          earlier call to XSync(). If so we need to process those immediately
-         without waiting for more activity on the socket. 
+         without waiting for more activity on the socket.
        */
       if (! XEventsQueued (dpy, QueuedAlready)) {
         int xfd = ConnectionNumber (dpy);
@@ -1696,7 +1702,7 @@ main_loop (Display *dpy)
         tv.tv_usec = 0;
         if (until > now)
           tv.tv_sec = until - now;
-          
+
         if (verbose_p > 3)
           {
             if (!tv.tv_sec && !tv.tv_usec)
@@ -1707,7 +1713,7 @@ main_loop (Display *dpy)
                 time_t t = now + tv.tv_sec;
                 localtime_r (&t, &tm);
                 fprintf (stderr,
-                         "%s: block for %d:%02d:%02d until %02d:%02d:%02d\n", 
+                         "%s: block for %d:%02d:%02d until %02d:%02d:%02d\n",
                          blurb(),
                          (int) tv.tv_sec / (60 * 60),
                          (int) (tv.tv_sec % (60 * 60)) / 60,
@@ -1851,6 +1857,7 @@ main_loop (Display *dpy)
                     {
                       force_blank_p = True;
                       ignore_activity_before = now + 2;
+                      debug_log ("%s: [MAIN] force_blank_p set to True from ClientMessage (BLANK command)", blurb());
                       clientmessage_response (dpy, &xev, True, "blanking");
                     }
                   else if (msg == XA_SELECT ||
@@ -2073,6 +2080,17 @@ main_loop (Display *dpy)
                 (verbose_p > 1 ||
                  (verbose_p && now - active_at > 1)))
               print_xinput_event (dpy, &xev, NULL, "");
+            /* Rate limit user activity logs to reduce verbosity */
+            if (now - last_user_activity_log >= LOG_RATE_LIMIT_SECONDS)
+              {
+                debug_log ("%s: [MAIN] user activity event processed: state=%s active_at=%ld->%ld ignore_activity_before=%ld",
+                           blurb(),
+                           (current_state == UNBLANKED ? "UNBLANKED" :
+                            current_state == BLANKED ? "BLANKED" :
+                            current_state == LOCKED ? "LOCKED" : "AUTH"),
+                           (long) active_at, (long) now, (long) ignore_activity_before);
+                last_user_activity_log = now;
+              }
             active_at = now;
             break;
 
@@ -2098,7 +2116,7 @@ main_loop (Display *dpy)
                   int dist;
                   Bool ignored_p = False;
                   int root_x = last_mouse.x, root_y = last_mouse.y;
-                  query_pointer (dpy, &root_x, &root_y); 
+                  query_pointer (dpy, &root_x, &root_y);
                   dist = MAX (ABS (last_mouse.x - root_x),
                               ABS (last_mouse.y - root_y));
 
@@ -2106,6 +2124,17 @@ main_loop (Display *dpy)
 
                   if (! ignored_p)
                     {
+                      /* Rate limit mouse motion logs to reduce verbosity */
+                      if (now - last_mouse_motion_log >= LOG_RATE_LIMIT_SECONDS)
+                        {
+                          debug_log ("%s: [MAIN] mouse motion activity: state=%s active_at=%ld->%ld ignore_activity_before=%ld",
+                                     blurb(),
+                                     (current_state == UNBLANKED ? "UNBLANKED" :
+                                      current_state == BLANKED ? "BLANKED" :
+                                      current_state == LOCKED ? "LOCKED" : "AUTH"),
+                                     (long) active_at, (long) now, (long) ignore_activity_before);
+                          last_mouse_motion_log = now;
+                        }
                       active_at = now;
                       last_mouse.time = now;
                       last_mouse.x = root_x;
@@ -2168,7 +2197,7 @@ main_loop (Display *dpy)
       case UNBLANKED:
         if (!locking_disabled_p &&
             (force_lock_p ||
-             (lock_p && 
+             (lock_p &&
               now >= active_at + blank_timeout + lock_timeout)))
           {
             if (verbose_p)
@@ -2198,6 +2227,9 @@ main_loop (Display *dpy)
               }
             else
               {
+                debug_log ("%s: [MAIN] checking blank condition: force_blank_p=%d now=%ld active_at=%ld blank_timeout=%ld ignore_activity_before=%ld condition=%s",
+                           blurb(), force_blank_p, (long) now, (long) active_at, (long) blank_timeout, (long) ignore_activity_before,
+                           (now >= active_at + blank_timeout ? "TRUE (timeout)" : "FALSE"));
                 if (verbose_p)
                   fprintf (stderr, "%s: blanking\n", blurb());
                 if (grab_keyboard_and_mouse (mouse_screen (dpy)))
@@ -2206,6 +2238,8 @@ main_loop (Display *dpy)
                     blanked_at = now;
                     locked_at = 0;
                     cursor_blanked_at = now;
+                    debug_log ("%s: [MAIN] transitioning UNBLANKED->BLANKED: blanked_at=%ld",
+                               blurb(), (long) blanked_at);
                     store_saver_status (dpy, True, False, False, blanked_at);
                   }
                 else
@@ -2219,6 +2253,9 @@ main_loop (Display *dpy)
             /* Grab succeeded and state changed: launch graphics. */
             if (! saver_gfx_pid)
               {
+                debug_log ("%s: [MAIN] launching xscreensaver-gfx (state=%s)",
+                           blurb(),
+                           (current_state == BLANKED ? "BLANKED" : "LOCKED"));
                 static Bool first_time_p = True;
                 char *av[20];
                 int ac = 0;
@@ -2239,7 +2276,7 @@ main_loop (Display *dpy)
                   av[ac++] = "--demo";
                 else if (blank_mode == XA_SUSPEND)
                   av[ac++] = "--emergency";
-                  
+
                 if (blank_mode == XA_SELECT || blank_mode == XA_DEMO)
                   av[ac++] = blank_mode_arg;
 
@@ -2255,7 +2292,7 @@ main_loop (Display *dpy)
       case BLANKED:
         if (!locking_disabled_p &&
             (force_lock_p ||
-             (lock_p && 
+             (lock_p &&
               now >= blanked_at + lock_timeout)))
           {
             if (verbose_p)
@@ -2271,6 +2308,9 @@ main_loop (Display *dpy)
                  active_at >= ignore_activity_before)
           {
           UNBLANK:
+            debug_log ("%s: [MAIN] transitioning BLANKED->UNBLANKED: active_at=%ld now=%ld ignore_activity_before=%ld condition=%s",
+                       blurb(), (long) active_at, (long) now, (long) ignore_activity_before,
+                       (active_at >= now && active_at >= ignore_activity_before ? "TRUE" : "FALSE"));
             if (verbose_p)
               fprintf (stderr, "%s: unblanking\n", blurb());
             current_state = UNBLANKED;
@@ -2546,7 +2586,7 @@ main (int argc, char **argv)
         {
         HELP:
           print_banner();
-          fprintf (stderr, 
+          fprintf (stderr,
                    "\t\thttps://www.jwz.org/xscreensaver/\n"
                    "\n"
                    "\tOptions:\n\n"

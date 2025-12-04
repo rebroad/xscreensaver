@@ -20,6 +20,7 @@
 #endif /* HAVE_UNAME */
 
 #include <stdio.h>
+#include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
 #include <pwd.h>		/* for getpwuid() */
@@ -470,6 +471,8 @@ blank_screen (saver_info *si)
   int i;
   Bool grabbing_supported_p = True;
 
+  debug_log ("%s: [BLANK_SCREEN] called - starting blank_screen()", blurb());
+
   initialize_screensaver_window (si);
   sync_server_dpms_settings (si);
 
@@ -575,8 +578,7 @@ blank_screen (saver_info *si)
     {
       time_t now = time ((time_t *) 0);
       si->activity_time = now;  /* Reset activity timer to prevent immediate re-blank */
-      if (p->verbose_p)
-        fprintf (stderr, "%s: screensaver activation cancelled due to user activity during fade (activity_time reset to %ld)\n",
+      debug_log ("%s: [BLANK_SCREEN] user activity detected, aborting activation: activity_time=%ld, returning early",
                  blurb(), (long) now);
       return;
     }
