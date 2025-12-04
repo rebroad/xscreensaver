@@ -5,7 +5,7 @@
  * the above copyright notice appear in all copies and that both that
  * copyright notice and this permission notice appear in supporting
  * documentation.  No representations are made about the suitability of this
- * software for any purpose.  It is provided "as is" without express or 
+ * software for any purpose.  It is provided "as is" without express or
  * implied warranty.
  *
  * XScreenSaver Daemon, version 6.
@@ -22,6 +22,7 @@
 #endif
 
 #include <stdio.h>
+#include <stdlib.h>  /* for exit() */
 #include <ctype.h>
 #include <X11/Xlib.h>
 #include <X11/Xlibint.h>
@@ -97,8 +98,8 @@ maybe_reload_init_file (saver_info *si)
     {
       Bool ov = p->verbose_p;
       if (p->verbose_p)
-	fprintf (stderr, "%s: file \"%s\" has changed, reloading\n",
-		 blurb(), init_file_name());
+    fprintf (stderr, "%s: file \"%s\" has changed, reloading\n",
+         blurb(), init_file_name());
 
       load_init_file (si->dpy, p);
 
@@ -120,10 +121,10 @@ saver_ehandler (Display *dpy, XErrorEvent *error)
   int i;
 
   fprintf (stderr, "\n"
-	   "#######################################"
-	   "#######################################\n\n"
-	   "%s: X Error!  PLEASE REPORT THIS BUG.\n",
-	   blurb());
+       "#######################################"
+       "#######################################\n\n"
+       "%s: X Error!  PLEASE REPORT THIS BUG.\n",
+       blurb());
 
   for (i = 0; i < si->nscreens; i++)
     {
@@ -135,8 +136,8 @@ saver_ehandler (Display *dpy, XErrorEvent *error)
     }
 
   fprintf (stderr, "\n"
-	   "#######################################"
-	   "#######################################\n\n");
+       "#######################################"
+       "#######################################\n\n");
 
   XmuPrintDefaultErrorMessage (dpy, error, stderr);
   exit (1);
@@ -168,7 +169,7 @@ connect_to_server (saver_info *si)
   XSetErrorHandler (saver_ehandler);
 
   toplevel_shell = XtAppInitialize (&si->app, progclass, &options, 0,
-				    &ac, av, defaults, 0, 0);
+                    &ac, av, defaults, 0, 0);
 
   si->dpy = XtDisplay (toplevel_shell);
   si->prefs.db = XtDatabase (si->dpy);
@@ -218,7 +219,7 @@ connect_to_server (saver_info *si)
       class_hints.res_class = "XScreenSaver";
       id = (char *) malloc (20);
       sprintf (id, "%lu", (unsigned long) pid);
-    
+
       attrmask = CWOverrideRedirect | CWEventMask;
       attrs.override_redirect = True;
       attrs.event_mask = PropertyChangeMask;
@@ -261,7 +262,7 @@ initialize_randr (saver_info *si)
       si->using_randr_extension = TRUE;
 
       if (p->verbose_p)
-	fprintf (stderr, "%s: selecting RANDR events\n", blurb());
+    fprintf (stderr, "%s: selecting RANDR events\n", blurb());
       for (i = 0; i < nscreens; i++)
 #  ifdef RRScreenChangeNotifyMask                 /* randr.h 1.5, 2002/09/29 */
         XRRSelectInput (si->dpy, RootWindow (si->dpy, i),
@@ -514,7 +515,14 @@ main_loop (saver_info *si, Bool init_p)
   else
     fprintf (stderr, "%s: blanking\n", blurb());
 
-  blank_screen (si);
+  /* If blank_screen() returns False, user activity aborted the fade-out.
+     Exit immediately - the main process will handle the unblank transition.
+   */
+  if (! blank_screen (si))
+    {
+      debug_log ("%s: [MAIN] blank_screen() aborted, exiting", blurb());
+      exit (0);
+    }
 
 # ifdef DEBUG_MULTISCREEN
   if (p->debug_p)
@@ -546,7 +554,7 @@ main_loop (saver_info *si, Bool init_p)
 
 # ifdef HAVE_RANDR
       else if (si->using_randr_extension &&
-               (event.x_event.type == 
+               (event.x_event.type ==
                 (si->randr_event_number + RRScreenChangeNotify)))
         {
           /* The Resize and Rotate extension sends an event when the

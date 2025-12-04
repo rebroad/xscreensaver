@@ -5,7 +5,7 @@
  * the above copyright notice appear in all copies and that both that
  * copyright notice and this permission notice appear in supporting
  * documentation.  No representations are made about the suitability of this
- * software for any purpose.  It is provided "as is" without express or 
+ * software for any purpose.  It is provided "as is" without express or
  * implied warranty.
  */
 
@@ -49,16 +49,16 @@ extern void monitor_power_on (saver_info *, Bool on_p);
 extern Bool update_screen_layout (saver_info *si);
 extern void initialize_screensaver_window (saver_info *si);
 
-extern void blank_screen (saver_info *si);
+extern Bool blank_screen (saver_info *si);
 extern void unblank_screen (saver_info *si);
 extern void resize_screensaver_window (saver_info *si);
 extern void reset_watchdog_timer (saver_info *);
 
 extern void get_screen_viewport (saver_screen_info *ssi,
-                                 int *x_ret, int *y_ret,
-                                 int *w_ret, int *h_ret,
-                                 int target_x, int target_y,
-                                 Bool verbose_p);
+								 int *x_ret, int *y_ret,
+								 int *w_ret, int *h_ret,
+								 int target_x, int target_y,
+								 Bool verbose_p);
 
 
 /* =======================================================================
@@ -88,7 +88,7 @@ extern Bool select_visual (saver_screen_info *ssi, const char *visual_name);
 extern void store_saver_status (saver_info *si);
 extern const char *signal_name (int signal);
 extern void screenhack_obituary (saver_screen_info *,
-                                 const char *name, const char *error);
+								 const char *name, const char *error);
 
 /* =======================================================================
    misc

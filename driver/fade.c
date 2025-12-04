@@ -297,6 +297,12 @@ user_active_p (XtAppContext app, Display *dpy, Bool fade_out_p)
       XtAppProcessEvent (app, m);
     }
 
+  /* Sync with X server to ensure events are available.
+     XSync() forces a round-trip to the server, ensuring any pending events
+     are delivered to our event queue before we check for them.
+   */
+  XSync (dpy, False);
+
   /* If there is user activity, bug out.  (Bug out on keypresses or
      mouse presses, but not motion, and not release events.  Bugging
      out on motion made the unfade hack be totally useless, I think.)

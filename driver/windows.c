@@ -470,8 +470,9 @@ raise_windows (saver_info *si)
 
 
 /* Called only once, before the main loop begins.
+   Returns True if screen was successfully blanked, False if aborted due to user activity.
  */
-void
+Bool
 blank_screen (saver_info *si)
 {
   saver_preferences *p = &si->prefs;
@@ -587,9 +588,9 @@ blank_screen (saver_info *si)
     {
       time_t now = time ((time_t *) 0);
       si->activity_time = now;  /* Reset activity timer to prevent immediate re-blank */
-      debug_log ("%s: [BLANK_SCREEN] user activity detected, aborting activation: activity_time=%ld, returning early",
+      debug_log ("%s: [BLANK_SCREEN] user activity detected, aborting activation: activity_time=%ld, returning False (process will exit)",
                  blurb(), (long) now);
-      return;
+      return False;
     }
 
   raise_windows (si);
@@ -613,10 +614,15 @@ blank_screen (saver_info *si)
   if (p->mode == BLANK_ONLY &&
       p->dpms_quickoff_p)
     monitor_power_on (si, False);
+
+  return True;  /* Successfully blanked */
 }
 
 
 /* Called only once, upon receipt of SIGTERM, just before exiting.
+   Note: This will only be called if blank_screen() returned True (screen was actually blanked).
+   If blank_screen() returned False (aborted due to user activity), the process exits immediately
+   and this function is never called.
  */
 void
 unblank_screen (saver_info *si)
