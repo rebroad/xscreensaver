@@ -472,6 +472,8 @@ blank_screen (saver_info *si)
   Bool grabbing_supported_p = True;
 
   si->actually_blanked_p = False;  /* Reset flag - will be set to True if raise_windows() is called */
+  si->fade_was_interrupted_p = False;  /* Reset fade interruption tracking */
+  si->interrupted_fade_ratio = 0.0;  /* Reset interrupted fade ratio */
   debug_log ("%s: [BLANK_SCREEN] called - starting blank_screen()", blurb());
 
   initialize_screensaver_window (si);
@@ -552,12 +554,18 @@ blank_screen (saver_info *si)
       if (p->verbose_p) fprintf (stderr, "%s: fading...\n", blurb());
 
       /* This will take several seconds to complete. */
+      si->fade_was_interrupted_p = False;
+      si->interrupted_fade_ratio = 0.0;
       user_active_p = fade_screens (si->app, si->dpy,
                                     current_windows, si->nscreens,
                                     p->fade_seconds / 1000.0,
                                     True,  /* out_p */
                                     True,  /* from_desktop_p */
-                                    &si->fade_state);
+                                    &si->fade_state,
+                                    &si->interrupted_fade_ratio,
+                                    -1.0);  /* No start ratio for fade-out */
+      if (user_active_p)
+        si->fade_was_interrupted_p = True;
       free (current_windows);
 
       if (!p->verbose_p)
@@ -648,12 +656,18 @@ unblank_screen (saver_info *si)
        */
       if (si->actually_blanked_p)
         {
+          si->fade_was_interrupted_p = False;
+          si->interrupted_fade_ratio = 0.0;
           interrupted_p = fade_screens (si->app, si->dpy,
                                         current_windows, si->nscreens,
                                         seconds * ratio,
                                         True,  /* out_p */
                                         False, /* from_desktop_p */
-                                        &si->fade_state);
+                                        &si->fade_state,
+                                        &si->interrupted_fade_ratio,
+                                        -1.0);  /* No start ratio for fade-out */
+          if (interrupted_p)
+            si->fade_was_interrupted_p = True;
         }
       else
         {
@@ -667,21 +681,31 @@ unblank_screen (saver_info *si)
           XClearWindow (si->dpy, ssi->screensaver_window);
     }
 
-      /* Only fade in if the screen was actually blanked.
+      /* Fade in from the interrupted fade level (if fade-out was interrupted)
+         or from black (if fade-out completed).
          If blank_screen() returned early, the screen is already at normal
          brightness, so there's nothing to fade in from.
        */
-      if (! interrupted_p && si->actually_blanked_p)
-        interrupted_p = fade_screens (si->app, si->dpy,
-                                      current_windows, si->nscreens,
-                                      seconds * (1-ratio),
-                                      False, /* out_p */
-                                      False, /* from_desktop_p */
-                                      &si->fade_state);
-      else if (! si->actually_blanked_p)
+      if (! si->actually_blanked_p)
         {
           debug_log ("%s: [UNBLANK_SCREEN] screen was never actually blanked, skipping fade-in", blurb());
           interrupted_p = False;  /* No fade-in needed */
+        }
+      else
+        {
+          /* If fade-out was interrupted, fade-in from that level, otherwise from black */
+          double start_ratio = si->fade_was_interrupted_p ? si->interrupted_fade_ratio : -1.0;
+          if (si->fade_was_interrupted_p)
+            debug_log ("%s: [UNBLANK_SCREEN] fading in from interrupted level: %.2f", blurb(), start_ratio);
+          si->fade_was_interrupted_p = False;  /* Reset for next time */
+          interrupted_p = fade_screens (si->app, si->dpy,
+                                        current_windows, si->nscreens,
+                                        seconds * (1-ratio),
+                                        False, /* out_p */
+                                        False, /* from_desktop_p */
+                                        &si->fade_state,
+                                        NULL,  /* Not tracking interruption for fade-in */
+                                        start_ratio);  /* Start from interrupted ratio if available */
         }
       free (current_windows);
 
