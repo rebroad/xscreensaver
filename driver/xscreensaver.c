@@ -269,7 +269,6 @@ static const char *version_number = 0;
 
 /* Rate limiting for debug logs */
 static time_t last_mouse_motion_log = 0;
-static time_t last_user_activity_log = 0;
 #define LOG_RATE_LIMIT_SECONDS 2  /* Log at most once per 2 seconds */
 
 /* Preferences. */
@@ -495,7 +494,7 @@ static int respawn_thrashing_count = 0;
      - it exited with a "success" status meaning "user is authenticated".
  */
 static Bool
-handle_sigchld (Display *dpy, Bool blanked_p)
+handle_sigchld (Display *dpy, Bool blanked_p, time_t *active_at_p)
 {
   Bool authenticated_p = False;
 
@@ -572,6 +571,12 @@ handle_sigchld (Display *dpy, Bool blanked_p)
                 {
                   debug_log ("%s: [MAIN] xscreensaver-gfx exited normally or was killed - not re-launching (exited_normally=%d, was_killed=%d)",
                              blurb(), exited_normally, was_killed);
+                  /* If it exited normally (user activity during fade-out), immediately trigger UNBLANKED transition */
+                  if (exited_normally && active_at_p)
+                    {
+                      *active_at_p = time ((time_t *) 0);
+                      debug_log ("[MAIN] setting active_at=%ld to immediately trigger UNBLANKED transition", (long) *active_at_p);
+                    }
                   /* Don't re-launch - wait for activity event to transition to UNBLANKED, or we already unblanked */
                 }
               else if (respawn_thrashing_count > 5)
@@ -1816,7 +1821,7 @@ main_loop (Display *dpy)
          When "xscreensaver-auth" dies, we analyze its exit code.
        */
       if (sigchld_received)
-        authenticated_p = handle_sigchld (dpy, current_state != UNBLANKED);
+        authenticated_p = handle_sigchld (dpy, current_state != UNBLANKED, &active_at);
 
       /* Now process any outstanding X11 events on the queue: user activity
          from XInput, and ClientMessages from xscreensaver-command.
@@ -1876,7 +1881,7 @@ main_loop (Display *dpy)
                     {
                       force_blank_p = True;
                       ignore_activity_before = now + 2;
-                      debug_log ("%s: [MAIN] force_blank_p set to True from ClientMessage (BLANK command)", blurb());
+                      debug_log ("[MAIN] force_blank_p set to True from ClientMessage (BLANK command)");
                       clientmessage_response (dpy, &xev, True, "blanking");
                     }
                   else if (msg == XA_SELECT ||
@@ -2099,17 +2104,6 @@ main_loop (Display *dpy)
                 (verbose_p > 1 ||
                  (verbose_p && now - active_at > 1)))
               print_xinput_event (dpy, &xev, NULL, "");
-            /* Rate limit user activity logs to reduce verbosity */
-            if (now - last_user_activity_log >= LOG_RATE_LIMIT_SECONDS)
-              {
-                debug_log ("%s: [MAIN] user activity event processed: state=%s active_at=%ld->%ld ignore_activity_before=%ld",
-                           blurb(),
-                           (current_state == UNBLANKED ? "UNBLANKED" :
-                            current_state == BLANKED ? "BLANKED" :
-                            current_state == LOCKED ? "LOCKED" : "AUTH"),
-                           (long) active_at, (long) now, (long) ignore_activity_before);
-                last_user_activity_log = now;
-              }
             active_at = now;
             break;
 
@@ -2272,7 +2266,7 @@ main_loop (Display *dpy)
             /* Grab succeeded and state changed: launch graphics. */
             if (! saver_gfx_pid)
               {
-                debug_log ("%s: [MAIN] launching xscreensaver-gfx (state=%s)", blurb(),
+                debug_log ("[MAIN] launching xscreensaver-gfx (state=%s)",
                            (current_state == BLANKED ? "BLANKED" : "LOCKED"));
                 static Bool first_time_p = True;
                 char *av[20];
@@ -2300,7 +2294,14 @@ main_loop (Display *dpy)
 
                 av[ac] = 0;
                 gfx_stopped_p = False;
+                debug_log ("[MAIN] about to fork_and_exec xscreensaver-gfx with args:");
+                {
+                  int i;
+                  for (i = 0; i < ac; i++)
+                    debug_log ("[MAIN]   argv[%d] = '%s'", i, av[i]);
+                }
                 saver_gfx_pid = fork_and_exec (dpy, ac, av);
+                debug_log ("[MAIN] fork_and_exec returned pid %lu", (unsigned long) saver_gfx_pid);
                 respawn_thrashing_count = 0;
                 first_time_p = False;
               }
