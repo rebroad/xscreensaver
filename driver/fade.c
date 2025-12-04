@@ -302,7 +302,7 @@ user_active_p (XtAppContext app, Display *dpy, Bool fade_out_p)
                  event.xany.type,
                  (re ? re->evtype : -1));
       XPutBackEvent (dpy, &event);
-      XFlush (dpy);  /* Ensure event is available to main process immediately */
+      XFlush (dpy);  /* Ensure event is available to main process immediately TODO needed? */
       debug_log ("%s: [FADE] event put back and flushed", blurb());
       return True;
     }
@@ -537,7 +537,7 @@ colormap_fade (XtAppContext app, Display *dpy,
                        ? DefaultColormapOfScreen(sc)
                        : window_cmaps[i]);
       for (j = 0; j < ncolors; j++)
-    screen_colors[j].pixel = j;
+        screen_colors[j].pixel = j;
       XQueryColors (dpy, cmap, screen_colors, ncolors);
 
       screen_colors += ncolors;
@@ -551,14 +551,14 @@ colormap_fade (XtAppContext app, Display *dpy,
     {
       fade_cmaps = (Colormap *) calloc(sizeof(Colormap), ncmaps);
       for (i = 0; i < nscreens; i++)
-    {
-      Visual *v = DefaultVisual(dpy, i);
-      Screen *s = ScreenOfDisplay(dpy, i);
-      if (has_writable_cells (s, v))
-        for (j = 0; j < cmaps_per_screen; j++)
-          fade_cmaps[(i * cmaps_per_screen) + j] =
-        XCreateColormap (dpy, RootWindowOfScreen (s), v, AllocAll);
-    }
+        {
+          Visual *v = DefaultVisual(dpy, i);
+          Screen *s = ScreenOfDisplay(dpy, i);
+          if (has_writable_cells (s, v))
+            for (j = 0; j < cmaps_per_screen; j++)
+              fade_cmaps[(i * cmaps_per_screen) + j] =
+            XCreateColormap (dpy, RootWindowOfScreen (s), v, AllocAll);
+        }
     }
 
   /* Run the animation at the maximum frame rate in the time allotted. */
@@ -570,6 +570,8 @@ colormap_fade (XtAppContext app, Display *dpy,
     int frames = 0;
     int last_logged_percent = -1;
     double max = 1/60.0;  /* max FPS */
+    if (!out_p && start_ratio >= 0.0)
+      debug_log ("%s: [FADE] fade-in starting from captured level: %.2f", blurb(), start_ratio);
     while ((now = double_time()) < end_time)
       {
         double ratio = (end_time - now) / seconds;
@@ -645,16 +647,10 @@ colormap_fade (XtAppContext app, Display *dpy,
             status = 1;   /* user activity status code */
             /* If fade-out was interrupted, capture the current ratio */
             if (out_p && interrupted_ratio)
-              *interrupted_ratio = ratio;
-            /* Immediately restore colormaps to normal before exiting */
-            for (i = 0; i < nscreens; i++)
               {
-                Colormap cmap = window_cmaps[i];
-                if (!cmap || !out_p)
-                  cmap = DefaultColormap(dpy, i);
-                XInstallColormap (dpy, cmap);
+                *interrupted_ratio = ratio;
+                debug_log ("%s: [FADE] fade-out interrupted, capturing fade level: %.2f", blurb(), ratio);
               }
-            XSync(dpy, False);
             goto DONE;
           }
         frames++;
@@ -676,16 +672,15 @@ colormap_fade (XtAppContext app, Display *dpy,
   if (current_colors) free (current_colors);
 
   /* If we've been given windows to raise after blackout, raise them before
-     releasing the colormaps.  Only do this if the fade completed successfully
-     (status == 0), not if it was canceled by user activity (status == 1).
+     releasing the colormaps.
    */
-  if (out_p && status == 0)
+  if (out_p)
     {
       for (i = 0; i < nwindows; i++)
-    {
+        {
           XClearWindow (dpy, saver_windows[i]);
-      XMapRaised (dpy, saver_windows[i]);
-    }
+          XMapRaised (dpy, saver_windows[i]);
+        }
       XSync(dpy, False);
     }
 
@@ -697,7 +692,7 @@ colormap_fade (XtAppContext app, Display *dpy,
     {
       Colormap cmap = window_cmaps[i];
       if (!cmap || !out_p)
-    cmap = DefaultColormap(dpy, i);
+        cmap = DefaultColormap(dpy, i);
       XInstallColormap (dpy, cmap);
     }
 
@@ -707,9 +702,9 @@ colormap_fade (XtAppContext app, Display *dpy,
   for (i = 0; i < ncmaps; i++)
     if (fade_cmaps[i])
       {
-    XUninstallColormap(dpy, fade_cmaps[i]);
-    XFreeColormap(dpy, fade_cmaps[i]);
-    fade_cmaps[i] = 0;
+        XUninstallColormap(dpy, fade_cmaps[i]);
+        XFreeColormap(dpy, fade_cmaps[i]);
+        fade_cmaps[i] = 0;
       }
   free (window_cmaps);
   free(fade_cmaps);
@@ -751,7 +746,7 @@ static void sgi_whack_gamma(Display *dpy, int screen,
  */
 static int
 sgi_gamma_fade (XtAppContext app, Display *dpy,
-        Window *saver_windows, int nwindows,
+                Window *saver_windows, int nwindows,
                 double seconds, Bool out_p)
 {
   int nscreens = ScreenCount(dpy);
@@ -771,44 +766,44 @@ sgi_gamma_fade (XtAppContext app, Display *dpy,
   for (screen = 0; screen < nscreens; screen++)
     {
       if (!XSGIvcQueryGammaMap(dpy, screen, info[screen].gamma_map,
-                   &info[screen].gamma_size,
-                   &info[screen].gamma_precision,
-                   &info[screen].alpha_p))
-    goto FAIL;
+                               &info[screen].gamma_size,
+                               &info[screen].gamma_precision,
+                               &info[screen].alpha_p))
+        goto FAIL;
 
       if (!XSGIvcQueryGammaColors(dpy, screen, info[screen].gamma_map,
-                  XSGIVC_COMPONENT_RED,
-                  &info[screen].nred, &info[screen].red1))
-    goto FAIL;
+                              XSGIVC_COMPONENT_RED,
+                              &info[screen].nred, &info[screen].red1))
+        goto FAIL;
       if (! XSGIvcQueryGammaColors(dpy, screen, info[screen].gamma_map,
-                   XSGIVC_COMPONENT_GREEN,
-                   &info[screen].ngreen, &info[screen].green1))
-    goto FAIL;
+                                   XSGIVC_COMPONENT_GREEN,
+                                   &info[screen].ngreen, &info[screen].green1))
+        goto FAIL;
       if (!XSGIvcQueryGammaColors(dpy, screen, info[screen].gamma_map,
-                  XSGIVC_COMPONENT_BLUE,
-                  &info[screen].nblue, &info[screen].blue1))
-    goto FAIL;
+                                  XSGIVC_COMPONENT_BLUE,
+                                  &info[screen].nblue, &info[screen].blue1))
+        goto FAIL;
 
       if (info[screen].gamma_precision == 8)    /* Scale it up to 16 bits. */
-    {
-      int j;
-      for(j = 0; j < info[screen].nred; j++)
-        info[screen].red1[j]   =
-          ((info[screen].red1[j]   << 8) | info[screen].red1[j]);
-      for(j = 0; j < info[screen].ngreen; j++)
-        info[screen].green1[j] =
-          ((info[screen].green1[j] << 8) | info[screen].green1[j]);
-      for(j = 0; j < info[screen].nblue; j++)
-        info[screen].blue1[j]  =
-          ((info[screen].blue1[j]  << 8) | info[screen].blue1[j]);
-    }
+        {
+          int j;
+          for(j = 0; j < info[screen].nred; j++)
+            info[screen].red1[j]   =
+              ((info[screen].red1[j]   << 8) | info[screen].red1[j]);
+          for(j = 0; j < info[screen].ngreen; j++)
+            info[screen].green1[j] =
+              ((info[screen].green1[j] << 8) | info[screen].green1[j]);
+          for(j = 0; j < info[screen].nblue; j++)
+            info[screen].blue1[j]  =
+              ((info[screen].blue1[j]  << 8) | info[screen].blue1[j]);
+        }
 
       info[screen].red2   = (unsigned short *)
-    malloc(sizeof(*info[screen].red2)   * (info[screen].nred+1));
+        malloc(sizeof(*info[screen].red2)   * (info[screen].nred+1));
       info[screen].green2 = (unsigned short *)
-    malloc(sizeof(*info[screen].green2) * (info[screen].ngreen+1));
+        malloc(sizeof(*info[screen].green2) * (info[screen].ngreen+1));
       info[screen].blue2  = (unsigned short *)
-    malloc(sizeof(*info[screen].blue2)  * (info[screen].nblue+1));
+        malloc(sizeof(*info[screen].blue2)  * (info[screen].nblue+1));
     }
 
 #ifdef GETTIMEOFDAY_TWO_ARGS
@@ -823,7 +818,7 @@ sgi_gamma_fade (XtAppContext app, Display *dpy,
   if (!out_p)
     {
       for (screen = 0; screen < nscreens; screen++)
-    sgi_whack_gamma(dpy, screen, &info[screen], 0.0);
+        sgi_whack_gamma(dpy, screen, &info[screen], 0.0);
 
       for (screen = 0; screen < nwindows; screen++)
         {
@@ -850,17 +845,13 @@ sgi_gamma_fade (XtAppContext app, Display *dpy,
         log_fade_progress (ratio, out_p, &last_logged_percent);
 
         for (screen = 0; screen < nwindows; screen++)
-      sgi_whack_gamma (dpy, screen, &info[screen], ratio);
+          sgi_whack_gamma (dpy, screen, &info[screen], ratio);
 
         if (error_handler_hit_p)
           goto FAIL;
         if (user_active_p (app, dpy, out_p))
           {
             status = 1;   /* user activity status code */
-            /* Immediately restore gamma to normal before exiting */
-            for (screen = 0; screen < nscreens; screen++)
-              sgi_whack_gamma(dpy, screen, &info[screen], 1.0);
-            XSync(dpy, False);
             goto DONE;
           }
         frames++;
@@ -878,16 +869,13 @@ sgi_gamma_fade (XtAppContext app, Display *dpy,
 
  DONE:
 
-  /* Only raise windows if fade completed successfully (status == 0),
-     not if it was canceled by user activity (status == 1).
-   */
-  if (out_p && status == 0)
+  if (out_p)
     {
       for (screen = 0; screen < nwindows; screen++)
-    {
+        {
           XClearWindow (dpy, saver_windows[screen]);
-      XMapRaised (dpy, saver_windows[screen]);
-    }
+          XMapRaised (dpy, saver_windows[screen]);
+        }
       XSync(dpy, False);
     }
 
@@ -897,12 +885,8 @@ sgi_gamma_fade (XtAppContext app, Display *dpy,
      time to flush out.  This sucks! */
   usleep(100000);  /* 1/10th second */
 
-  /* Only restore gamma if we haven't already done so (status != 1) */
-  if (status != 1)
-    {
-      for (screen = 0; screen < nscreens; screen++)
-        sgi_whack_gamma(dpy, screen, &info[screen], 1.0);
-    }
+  for (screen = 0; screen < nscreens; screen++)
+    sgi_whack_gamma(dpy, screen, &info[screen], 1.0);
   XSync(dpy, False);
 
  FAIL:
@@ -941,11 +925,11 @@ sgi_whack_gamma (Display *dpy, int screen, struct screen_sgi_gamma_info *info,
     }
 
   XSGIvcStoreGammaColors16(dpy, screen, info->gamma_map, info->nred,
-               XSGIVC_MComponentRed, info->red2);
+                           XSGIVC_MComponentRed, info->red2);
   XSGIvcStoreGammaColors16(dpy, screen, info->gamma_map, info->ngreen,
-               XSGIVC_MComponentGreen, info->green2);
+                           XSGIVC_MComponentGreen, info->green2);
   XSGIvcStoreGammaColors16(dpy, screen, info->gamma_map, info->nblue,
-               XSGIVC_MComponentBlue, info->blue2);
+                           XSGIVC_MComponentBlue, info->blue2);
   XSync(dpy, False);
 }
 
@@ -1071,7 +1055,7 @@ xf86_gamma_fade (XtAppContext app, Display *dpy,
   if (!out_p)
     {
       for (screen = 0; screen < nscreens; screen++)
-    xf86_whack_gamma(dpy, screen, &info[screen], 0.0);
+        xf86_whack_gamma(dpy, screen, &info[screen], 0.0);
       for (screen = 0; screen < nwindows; screen++)
         {
           XUnmapWindow (dpy, saver_windows[screen]);
@@ -1104,10 +1088,12 @@ xf86_gamma_fade (XtAppContext app, Display *dpy,
         if (user_active_p (app, dpy, out_p))
           {
             status = 1;   /* user activity status code */
-            /* Immediately restore gamma to normal before exiting */
-            for (screen = 0; screen < nscreens; screen++)
-              xf86_whack_gamma(dpy, screen, &info[screen], 1.0);
-            XSync(dpy, False);
+            /* If fade-out was interrupted, capture the current ratio */
+            if (out_p && interrupted_ratio)
+              {
+                *interrupted_ratio = ratio;
+                debug_log ("%s: [FADE] fade-out interrupted, capturing fade level: %.2f", blurb(), ratio);
+              }
             goto DONE;
           }
         frames++;
@@ -1125,16 +1111,13 @@ xf86_gamma_fade (XtAppContext app, Display *dpy,
 
  DONE:
 
-  /* Only raise windows if fade completed successfully (status == 0),
-     not if it was canceled by user activity (status == 1).
-   */
-  if (out_p && status == 0)
+  if (out_p)
     {
       for (screen = 0; screen < nwindows; screen++)
-    {
+        {
           XClearWindow (dpy, saver_windows[screen]);
-      XMapRaised (dpy, saver_windows[screen]);
-    }
+          XMapRaised (dpy, saver_windows[screen]);
+        }
       XSync(dpy, False);
     }
 
@@ -1144,12 +1127,8 @@ xf86_gamma_fade (XtAppContext app, Display *dpy,
      time to flush out.  This sucks! */
   usleep(100000);  /* 1/10th second */
 
-  /* Only restore gamma if we haven't already done so (status != 1) */
-  if (status != 1)
-    {
-      for (screen = 0; screen < nscreens; screen++)
-        xf86_whack_gamma(dpy, screen, &info[screen], 1.0);
-    }
+  for (screen = 0; screen < nscreens; screen++)
+    xf86_whack_gamma(dpy, screen, &info[screen], 1.0);
   XSync(dpy, False);
 
  FAIL:
@@ -1469,7 +1448,7 @@ randr_gamma_fade (XtAppContext app, Display *dpy,
   if (!out_p)
     {
       for (screen = 0; screen < nscreens; screen++)
-    randr_whack_gamma(dpy, screen, &info[screen], 0.0);
+        randr_whack_gamma(dpy, screen, &info[screen], 0.0);
       for (screen = 0; screen < nwindows; screen++)
         {
           XUnmapWindow (dpy, saver_windows[screen]);
@@ -1507,10 +1486,6 @@ randr_gamma_fade (XtAppContext app, Display *dpy,
         if (user_active_p (app, dpy, out_p))
           {
             status = 1;   /* user activity status code */
-            /* Immediately restore gamma to normal before exiting */
-            for (screen = 0; screen < nscreens; screen++)
-              randr_whack_gamma (dpy, screen, &info[screen], 1.0);
-            XSync(dpy, False);
             goto DONE;
           }
         frames++;
@@ -1528,16 +1503,13 @@ randr_gamma_fade (XtAppContext app, Display *dpy,
 
  DONE:
 
-  /* Only raise windows if fade completed successfully (status == 0),
-     not if it was canceled by user activity (status == 1).
-   */
-  if (out_p && status == 0)
+  if (out_p)
     {
       for (screen = 0; screen < nwindows; screen++)
-    {
+        {
           XClearWindow (dpy, saver_windows[screen]);
-      XMapRaised (dpy, saver_windows[screen]);
-    }
+          XMapRaised (dpy, saver_windows[screen]);
+        }
       XSync(dpy, False);
     }
 
@@ -1548,12 +1520,8 @@ randr_gamma_fade (XtAppContext app, Display *dpy,
   /* #### That comment was about XF86, not verified with randr. */
   usleep(100000);  /* 1/10th second */
 
-  /* Only restore gamma if we haven't already done so (status != 1) */
-  if (status != 1)
-    {
-      for (screen = 0; screen < nscreens; screen++)
-        randr_whack_gamma (dpy, screen, &info[screen], 1.0);
-    }
+  for (screen = 0; screen < nscreens; screen++)
+    randr_whack_gamma (dpy, screen, &info[screen], 1.0);
   XSync(dpy, False);
 
  FAIL:
@@ -2082,6 +2050,8 @@ xshm_fade (XtAppContext app, Display *dpy,
     int frames = 0;
     int last_logged_percent = -1;
     double max = 1/60.0;  /* max FPS */
+    if (!out_p && start_ratio >= 0.0)
+      debug_log ("%s: [FADE] fade-in starting from captured level: %.2f", blurb(), start_ratio);
     while ((now = double_time()) < end_time)
       {
         double ratio = (end_time - now) / seconds;
@@ -2111,14 +2081,9 @@ xshm_fade (XtAppContext app, Display *dpy,
             status = 1;   /* user activity status code */
             /* If fade-out was interrupted, capture the current ratio */
             if (out_p && interrupted_ratio)
-              *interrupted_ratio = ratio;
-            /* Immediately unmap fader windows to restore display before exiting */
-            if (out_p)
               {
-                for (screen = 0; screen < nwindows; screen++)
-                  if (info[screen].window)
-                    XUnmapWindow (dpy, info[screen].window);
-                XSync(dpy, False);
+                *interrupted_ratio = ratio;
+                debug_log ("%s: [FADE] fade-out interrupted, capturing fade level: %.2f", blurb(), ratio);
               }
             goto DONE;
           }
@@ -2140,21 +2105,19 @@ xshm_fade (XtAppContext app, Display *dpy,
   /* If we're fading out, we have completed the transition from what was
      on the screen to black, using our fader windows.  Now raise the saver
      windows and take the fader windows off the screen.  Since they're both
-     black, that will be imperceptible.  Only do this if the fade completed
-     successfully (status == 0), not if it was canceled by user activity
-     (status == 1).
+     black, that will be imperceptible.   
    */
-  if (out_p && status == 0)
+  if (out_p)
     {
       for (screen = 0; screen < nwindows; screen++)
-    {
+        {
           XClearWindow (dpy, saver_windows[screen]);
-      XMapRaised (dpy, saver_windows[screen]);
+          XMapRaised (dpy, saver_windows[screen]);
           /* Doing this here triggers the same KDE 5 compositor bug that
              defer_XDestroyWindow is to work around. */
           /* if (info[screen].window)
             XUnmapWindow (dpy, info[screen].window); */
-    }
+        }
     }
 
   XSync (dpy, False);
@@ -2166,10 +2129,10 @@ xshm_fade (XtAppContext app, Display *dpy,
   if (!out_p)
     {
       for (screen = 0; screen < nwindows; screen++)
-    {
+        {
           XUnmapWindow (dpy, saver_windows[screen]);
           XClearWindow (dpy, saver_windows[screen]);
-    }
+        }
     }
 
   if (info)
