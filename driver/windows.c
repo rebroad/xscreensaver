@@ -473,7 +473,7 @@ blank_screen (saver_info *si)
 
   si->fade_was_interrupted_p = False;  /* Reset fade interruption tracking */
   si->interrupted_fade_ratio = 0.0;  /* Reset interrupted fade ratio */
-  debug_log ("%s: [BLANK_SCREEN] called - starting blank_screen()", blurb());
+  debug_log ("[BLANK_SCREEN] called - starting blank_screen()");
 
   initialize_screensaver_window (si);
   sync_server_dpms_settings (si);
@@ -669,9 +669,9 @@ unblank_screen (saver_info *si)
       /* If fade-out was interrupted, fade-in from that level, otherwise from black */
       double start_ratio = si->fade_was_interrupted_p ? si->interrupted_fade_ratio : -1.0;
       if (si->fade_was_interrupted_p)
-        debug_log ("%s: [UNBLANK_SCREEN] reusing captured fade level %.2f for fade-in", blurb(), start_ratio);
+        debug_log ("[UNBLANK_SCREEN] reusing captured fade level %.2f for fade-in", start_ratio);
       else
-        debug_log ("%s: [UNBLANK_SCREEN] fading in from black (fade-out completed)", blurb());
+        debug_log ("[UNBLANK_SCREEN] fading in from black (fade-out completed)");
       si->fade_was_interrupted_p = False;  /* Reset for next time */
       interrupted_p = fade_screens (si->app, si->dpy,
                                     current_windows, si->nscreens,
