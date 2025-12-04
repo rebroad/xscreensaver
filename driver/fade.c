@@ -436,7 +436,7 @@ log_fade_progress (double ratio, Bool out_p, int *last_logged_percent, Display *
             {
               if (randr_info[i].enabled_p && randr_info[i].output)
                 {
-                  /* Query actual brightness via xrandr command */
+                  /* Query actual brightness */
                   double brightness = query_brightness (dpy, randr_info[i].output);
                   if (brightness < 0.0)
                     {
@@ -449,6 +449,7 @@ log_fade_progress (double ratio, Bool out_p, int *last_logged_percent, Display *
                       randr_info[i].current_brightness = brightness;
                     }
 
+                  /* Only include valid brightness values (>= 0.0) */
                   if (brightness >= 0.0)
                     {
                       if (brightness_count > 0)
@@ -1729,8 +1730,8 @@ randr_gamma_fade (XtAppContext app, Display *dpy,
             }
 
           /* Query and capture original brightness */
-          info[j].original_brightness = 1.0;  /* default */
-          info[j].current_brightness = 1.0;   /* default */
+          info[j].original_brightness = -1.0;  /* invalid until queried */
+          info[j].current_brightness = -1.0;   /* invalid until queried */
           double queried_brightness = query_brightness (dpy, info[j].output);
           if (queried_brightness >= 0.0)
             {
@@ -1741,13 +1742,18 @@ randr_gamma_fade (XtAppContext app, Display *dpy,
             }
           else
             {
-              debug_log ("[FADE] failed to query brightness for %s, using default 1.0",
+              debug_log ("[FADE] failed to query brightness for %s (setting to invalid -1.0)",
                         info[j].output_name);
             }
 
-          //if (verbose_p > 1)
+           if (info[j].original_brightness >= 0.0)
             debug_log ("[FADE] captured original gamma for screen %d (crtc=%lu, output=%s, brightness=%.2f, size=%d, first_red=%d, first_green=%d, first_blue=%d)",
                       j, (unsigned long) crtc, info[j].output_name, info[j].original_brightness,
+                      info[j].gamma->size,
+                      info[j].gamma->red[0], info[j].gamma->green[0], info[j].gamma->blue[0]);
+          else
+            debug_log ("[FADE] captured original gamma for screen %d (crtc=%lu, output=%s, brightness=invalid, size=%d, first_red=%d, first_green=%d, first_blue=%d)",
+                      j, (unsigned long) crtc, info[j].output_name,
                       info[j].gamma->size,
                       info[j].gamma->red[0], info[j].gamma->green[0], info[j].gamma->blue[0]);
 
@@ -1829,6 +1835,14 @@ randr_gamma_fade (XtAppContext app, Display *dpy,
               continue;
 
             randr_whack_gamma (dpy, screen, &info[screen], ratio);
+
+            /* Update tracked brightness after setting gamma (brightness is calculated from gamma) */
+            if (info[screen].output)
+              {
+                double calculated_brightness = query_brightness (dpy, info[screen].output);
+                if (calculated_brightness >= 0.0)
+                  info[screen].current_brightness = calculated_brightness;
+              }
           }
 
         if (error_handler_hit_p)
@@ -1885,18 +1899,47 @@ randr_gamma_fade (XtAppContext app, Display *dpy,
       /* Fade-in: always restore to full brightness */
       debug_log ("[FADE] fade-in completed: restoring gamma to 1.0 (full brightness)");
       for (screen = 0; screen < nscreens; screen++)
-        randr_whack_gamma (dpy, screen, &info[screen], 1.0);
+        {
+          if (info[screen].enabled_p)
+            {
+              debug_log ("[FADE] fade-in: setting gamma to 1.0 for %s (original brightness was %.3f)",
+                        info[screen].output_name ? info[screen].output_name : "unknown",
+                        info[screen].original_brightness >= 0.0 ? info[screen].original_brightness : -1.0);
+              randr_whack_gamma (dpy, screen, &info[screen], 1.0);
+            }
+        }
       XSync(dpy, False);
-      /* Restore brightness to 1.0 for all outputs using xrandr command */
+
+      /* Query gamma after setting to verify it's actually 1.0 */
+      for (screen = 0; screen < nscreens; screen++)
+        {
+          if (info[screen].enabled_p)
+            {
+              double verify_gamma = query_actual_gamma_ratio (dpy, &info[screen]);
+              debug_log ("[FADE] fade-in: after setting gamma to 1.0, queried gamma for %s is %.3f",
+                        info[screen].output_name ? info[screen].output_name : "unknown", verify_gamma);
+            }
+        }
+
+      /* Restore brightness to original value (not necessarily 1.0) for all outputs using xrandr command */
       for (screen = 0; screen < nscreens; screen++)
         {
           if (info[screen].enabled_p && info[screen].output_name)
             {
-              int ret = set_brightness_via_xrandr (info[screen].output_name, 1.0);
+              /* Restore to original brightness if we captured it, otherwise use 1.0 */
+              double target_brightness = (info[screen].original_brightness >= 0.0)
+                                        ? info[screen].original_brightness
+                                        : 1.0;
+              int ret = set_brightness_via_xrandr (info[screen].output_name, target_brightness);
               if (ret == 0)
                 {
-                  info[screen].current_brightness = 1.0;
-                  debug_log ("[FADE] fade-in: restored brightness to 1.0 for output %s", info[screen].output_name);
+                  info[screen].current_brightness = target_brightness;
+                  if (info[screen].original_brightness >= 0.0)
+                    debug_log ("[FADE] fade-in: restored brightness to %.3f (original) for output %s",
+                              target_brightness, info[screen].output_name);
+                  else
+                    debug_log ("[FADE] fade-in: restored brightness to 1.0 (default, original was invalid) for output %s",
+                              info[screen].output_name);
                 }
               else
                 {
