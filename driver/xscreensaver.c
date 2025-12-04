@@ -496,7 +496,7 @@ handle_sigchld (Display *dpy, Bool blanked_p, time_t *active_at_p)
 
   sigchld_received = 0;
   if (debug_p)
-    fprintf (stderr, "%s: SIGCHLD received\n", blurb());
+    DL(0, "SIGCHLD received");
 
   /* Reap every now-dead inferior without blocking. */
   while (1)
@@ -516,13 +516,12 @@ handle_sigchld (Display *dpy, Bool blanked_p, time_t *active_at_p)
       /* We get SIGCHLD after sending SIGSTOP, but no action is required. */
       if (WIFSTOPPED (wait_status))
         {
-          if (verbose_p)
-            fprintf (stderr, "%s: pid %lu: %s stopped\n", blurb(),
-                     (unsigned long) kid,
-                     (kid == saver_gfx_pid     ? SAVER_GFX_PROGRAM :
-                      kid == saver_auth_pid    ? SAVER_AUTH_PROGRAM :
-                      kid == saver_systemd_pid ? SAVER_SYSTEMD_PROGRAM :
-                      "unknown"));
+          DL(1, "pid %lu: %s stopped",
+             (unsigned long) kid,
+             (kid == saver_gfx_pid     ? SAVER_GFX_PROGRAM :
+              kid == saver_auth_pid    ? SAVER_AUTH_PROGRAM :
+              kid == saver_systemd_pid ? SAVER_SYSTEMD_PROGRAM :
+              "unknown"));
           continue;
         }
 
@@ -801,17 +800,17 @@ parse_time (const char *string)
     h = s = 0;
   else
     {
-      fprintf (stderr, "%s: unparsable duration \"%s\"\n", blurb(), string);
+      DL(0, "unparsable duration \"%s\"", string);
       return -1;
     }
   if (s >= 60 && (h != 0 || m != 0))
     {
-      fprintf (stderr, "%s: seconds > 59 in \"%s\"\n", blurb(), string);
+      DL(0, "seconds > 59 in \"%s\"", string);
       return -1;
     }
   if (m >= 60 && h > 0)
     {
-      fprintf (stderr, "%s: minutes > 59 in \"%s\"\n", blurb(), string);
+      DL(0, "minutes > 59 in \"%s\"", string);
       return -1;
     }
   return ((h * 60 * 60) + (m * 60) + s);
@@ -855,7 +854,7 @@ static void
 read_init_file_simple (const char *filename)
 {
   if (debug_p)
-    fprintf (stderr, "%s: reading %s\n", blurb(), filename);
+    DL(0, "reading %s", filename);
   parse_init_file (filename, init_line_handler, 0);
 }
 
@@ -907,9 +906,9 @@ read_init_files (Bool both_p)
 
   if (read_p && verbose_p)
     {
-      fprintf (stderr, "%s: blank after: %d\n", blurb(), blank_timeout);
+      DL(1, "blank after: %d", blank_timeout);
       if (lock_p)
-        fprintf (stderr, "%s: lock after:  %d\n", blurb(), lock_timeout);
+        DL(1, "lock after:  %d", lock_timeout);
     }
 }
 
@@ -1121,8 +1120,7 @@ store_saver_status (Display *dpy,
   if (debug_p && verbose_p)
     {
       int i;
-      fprintf (stderr, "%s: wrote status property: 0x%lx: ", blurb(),
-               (unsigned long) w);
+      DL(0, "wrote status property: 0x%lx: ", (unsigned long) w);
       for (i = 0; i < nitems; i++)
         {
           if (i > 0) fprintf (stderr, ", ");
@@ -1137,7 +1135,7 @@ store_saver_status (Display *dpy,
         }
       fprintf (stderr, "\n");
       if (system ("xprop -root _SCREENSAVER_STATUS") != 0)
-        fprintf (stderr, "%s: xprop exec failed\n", blurb());
+        DL(0, "xprop exec failed");
     }
 # endif /* 0 */
 
@@ -1277,8 +1275,7 @@ grab_mouse (Screen *screen, Cursor cursor)
 static void
 ungrab_kbd (Display *dpy)
 {
-  if (verbose_p)
-    fprintf (stderr, "%s: ungrabbing keyboard\n", blurb());
+  DL(1, "ungrabbing keyboard");
   XUngrabKeyboard (dpy, CurrentTime);
 }
 
@@ -1286,8 +1283,7 @@ ungrab_kbd (Display *dpy)
 static void
 ungrab_mouse (Display *dpy)
 {
-  if (verbose_p)
-    fprintf (stderr, "%s: ungrabbing mouse\n", blurb());
+  DL(1, "ungrabbing mouse");
   XUngrabPointer (dpy, CurrentTime);
 }
 
@@ -1505,15 +1501,14 @@ maybe_disable_locking (Display *dpy, Bool wayland_p)
     {
       if (debug_p)
         {
-          fprintf (stderr, "%s: %s\n", blurb(), why);
-          fprintf (stderr, "%s: DEBUG MODE: allowing locking anyway!\n",
-                   blurb());
+          DL(0, "%s", why);
+          DL(0, "DEBUG MODE: allowing locking anyway!");
         }
       else
         {
           locking_disabled_p = True;
-          if (lock_p || verbose_p)
-            fprintf (stderr, "%s: locking disabled: %s\n", blurb(), why);
+          if (lock_p)
+            DL(1, "locking disabled: %s", why);
         }
     }
 }
@@ -1580,20 +1575,18 @@ main_loop (Display *dpy)
   else if (getenv ("WAYLAND_DISPLAY") || getenv ("WAYLAND_SOCKET"))
     {
       /* Running under Wayland, but unable to connect. */
-      fprintf (stderr, "%s: wayland: connection failed\n", blurb());
+      DL(0, "wayland: connection failed");
       exit (1);
     }
   else
     {
-      if (verbose_p)
-        fprintf (stderr, "%s: wayland: connection failed; assuming real X11\n",
-                 blurb());
+      DL(1, "wayland: connection failed; assuming real X11");
     }
 # else /* !HAVE_WAYLAND */
 
   if (getenv ("WAYLAND_DISPLAY") || getenv ("WAYLAND_SOCKET"))
     {
-      fprintf (stderr, "%s: not compiled with Wayland support\n", blurb());
+      DL(0, "not compiled with Wayland support");
       exit (1);
     }
 # endif /* !HAVE_WAYLAND */
@@ -1708,7 +1701,7 @@ main_loop (Display *dpy)
             if (blank_cursor_at <= now)
               {
                 if (verbose_p > 3)
-                  fprintf (stderr, "%s: re-blanking cursor\n", blurb());
+                  DL(1, "re-blanking cursor");
                 grab_mouse (mouse_screen (dpy), blank_cursor);
                 cursor_blanked_at = now;
                 blank_cursor_at = cursor_blanked_at + cursor_blank_interval;
@@ -1726,19 +1719,17 @@ main_loop (Display *dpy)
         if (verbose_p > 3)
           {
             if (!tv.tv_sec && tv.tv_usec)
-              fprintf (stderr, "%s: block until input\n", blurb());
+              DL(0, "block until input");
             else
               {
                 struct tm tm;
                 time_t t = now + tv.tv_sec;
                 localtime_r (&t, &tm);
-                fprintf (stderr,
-                         "%s: block for %d:%02d:%02d until %02d:%02d:%02d\n",
-                         blurb(),
-                         (int) tv.tv_sec / (60 * 60),
-                         (int) (tv.tv_sec % (60 * 60)) / 60,
-                         (int) tv.tv_sec % 60,
-                         tm.tm_hour, tm.tm_min, tm.tm_sec);
+                DL(0, "block for %d:%02d:%02d until %02d:%02d:%02d",
+                   (int) tv.tv_sec / (60 * 60),
+                   (int) (tv.tv_sec % (60 * 60)) / 60,
+                   (int) tv.tv_sec % 60,
+                   tm.tm_hour, tm.tm_min, tm.tm_sec);
               }
           }
 
@@ -1786,9 +1777,9 @@ main_loop (Display *dpy)
             }
           else
             {
-              fprintf (stderr, "%s: SIGHUP received: restarting\n", blurb());
+              DL(0, "SIGHUP received: restarting");
               restart_process();   /* Does not return */
-              fprintf (stderr, "%s: SIGHUP RESTART FAILED!\n", blurb());
+              DL(0, "SIGHUP RESTART FAILED!");
             }
         }
 
@@ -1801,8 +1792,8 @@ main_loop (Display *dpy)
           const char *sn = (sig == SIGINT  ? "SIGINT" :
                             sig == SIGQUIT ? "SIGQUIT" : "SIGTERM");
           sigterm_received = 0;
-          fprintf (stderr, "%s: %s received%s: exiting\n", blurb(), sn,
-                   (current_state == LOCKED ? " while locked" : ""));
+          DL(0, "%s received%s: exiting", sn,
+             (current_state == LOCKED ? " while locked" : ""));
 
           /* Rather than calling saver_exit(), set our SIGTERM handler back to
              the default and re-signal it so that this process actually dies
@@ -1971,7 +1962,7 @@ main_loop (Display *dpy)
                       clientmessage_response (dpy, &xev, True, "restarting");
                       XSync (dpy, False);
                       restart_process();   /* Does not return */
-                      fprintf (stderr, "%s: RESTART FAILED!\n", blurb());
+                      DL(0, "RESTART FAILED!");
                     }
                   else
                     clientmessage_response (dpy, &xev, False,
@@ -2183,8 +2174,7 @@ main_loop (Display *dpy)
       if (now >= last_checked_init_file + 60)
         {
           last_checked_init_file = now;
-          if (verbose_p)
-            fprintf(stderr,"%s: checking init file\n", blurb());
+          DL(1, "checking init file");
           read_init_files (False);
         }
 
@@ -2198,8 +2188,7 @@ main_loop (Display *dpy)
              (lock_p &&
               now >= active_at + blank_timeout + lock_timeout)))
           {
-            if (verbose_p)
-              fprintf (stderr, "%s: locking\n", blurb());
+            DL(1, "locking");
             if (grab_keyboard_and_mouse (mouse_screen (dpy)))
               {
                 current_state = LOCKED;
@@ -2220,16 +2209,14 @@ main_loop (Display *dpy)
           {
             if (blanking_disabled_p && !force_blank_p)
               {
-                if (verbose_p)
-                  fprintf (stderr, "%s: not blanking: disabled\n", blurb());
+                DL(1, "not blanking: disabled");
               }
             else
               {
                 debug_log ("[MAIN] checking blank condition: force_blank_p=%d now=%ld active_at=%ld blank_timeout=%ld ignore_activity_before=%ld condition=%s",
                            force_blank_p, (long) now, (long) active_at, (long) blank_timeout, (long) ignore_activity_before,
                            (now >= active_at + blank_timeout ? "TRUE (timeout)" : "FALSE"));
-                if (verbose_p)
-                  fprintf (stderr, "%s: blanking\n", blurb());
+                DL(1, "blanking");
                 if (grab_keyboard_and_mouse (mouse_screen (dpy)))
                   {
                     current_state = BLANKED;
@@ -2299,9 +2286,7 @@ main_loop (Display *dpy)
              (lock_p &&
               now >= blanked_at + lock_timeout)))
           {
-            if (verbose_p)
-              fprintf (stderr, "%s: locking%s\n", blurb(),
-                       (force_lock_p ? "" : " after timeout"));
+            DL(1, "locking%s", (force_lock_p ? "" : " after timeout"));
             current_state = LOCKED;
             authenticated_p = False;
             locked_at = now;
@@ -2315,8 +2300,7 @@ main_loop (Display *dpy)
             debug_log ("[MAIN] transitioning BLANKED->UNBLANKED: active_at=%ld now=%ld ignore_activity_before=%ld condition=%s",
                        (long) active_at, (long) now, (long) ignore_activity_before,
                        (active_at >= now && active_at >= ignore_activity_before ? "TRUE" : "FALSE"));
-            if (verbose_p)
-              fprintf (stderr, "%s: unblanking\n", blurb());
+            DL(1, "unblanking");
             current_state = UNBLANKED;
             ignore_motion_p = False;
             store_saver_status (dpy, False, False, False, now);
@@ -2340,10 +2324,8 @@ main_loop (Display *dpy)
 
                 if (gfx_stopped_p)  /* SIGCONT to allow SIGTERM to proceed */
                   {
-                    if (verbose_p)
-                      fprintf (stderr, "%s: pid %lu: sending "
-                               SAVER_GFX_PROGRAM " SIGCONT\n",
-                               blurb(), (unsigned long) saver_gfx_pid);
+                    DL(1, "pid %lu: sending " SAVER_GFX_PROGRAM " SIGCONT",
+                       (unsigned long) saver_gfx_pid);
                     gfx_stopped_p = False;
                     kill (-saver_gfx_pid, SIGCONT);  /* send to process group */
                   }
@@ -2384,8 +2366,7 @@ main_loop (Display *dpy)
 # endif
               }
 
-            if (verbose_p)
-              fprintf (stderr, "%s: authorizing\n", blurb());
+            DL(1, "authorizing");
             current_state = AUTH;
 
             /* We already hold the mouse grab, but try to re-grab it with
@@ -2413,16 +2394,14 @@ main_loop (Display *dpy)
         else if (authenticated_p)
           {
             /* xscreensaver-auth exited with "success" status */
-            if (verbose_p)
-              fprintf (stderr, "%s: unlocking\n", blurb());
+            DL(1, "unlocking");
             authenticated_p = False;
             goto UNBLANK;
           }
         else
           {
             /* xscreensaver-auth exited with non-success, or with signal. */
-            if (verbose_p)
-              fprintf (stderr, "%s: authorization failed\n", blurb());
+            DL(1, "authorization failed");
             current_state = LOCKED;
             authenticated_p = False;
 
@@ -2484,13 +2463,13 @@ disavow_privileges (void)
 
   if (gid != egid && setgid (gid) != 0)
     {
-      fprintf (stderr, "%s: setgid %d -> %d failed\n", blurb(), egid, gid);
+      DL(0, "setgid %d -> %d failed", egid, gid);
       exit (1);
     }
 
   if (uid != euid && setgid (gid) != 0)
     {
-      fprintf (stderr, "%s: setuid %d -> %d failed\n", blurb(), euid, uid);
+      DL(0, "setuid %d -> %d failed", euid, uid);
       exit (1);
     }
 
@@ -2663,12 +2642,10 @@ main (int argc, char **argv)
   if (cmdline_verbose_p) verbose_p = cmdline_verbose_val;
   if (cmdline_splash_p)  splash_p  = cmdline_splash_val;
 
-  if (verbose_p)
-    fprintf (stderr, "%s: running in process %lu\n", blurb(),
-             (unsigned long) getpid());
+  DL(1, "running in process %lu", (unsigned long) getpid());
 
-  if (verbose_p && pmsg)
-    fprintf (stderr, "%s: %s\n", blurb(), pmsg);
+  if (pmsg)
+    DL(1, "%s", pmsg);
 
   if (! dpy_str)
     {
