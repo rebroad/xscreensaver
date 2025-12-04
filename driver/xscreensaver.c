@@ -792,7 +792,7 @@ parse_time (const char *string)
   if (3 == sscanf (string,   " %u : %2u : %2u %c", &h, &m, &s, &c))
     ;
   else if (2 == sscanf (string, " : %2u : %2u %c", &m, &s, &c) ||
-       2 == sscanf (string,    " %u : %2u %c", &m, &s, &c))
+           2 == sscanf (string,    " %u : %2u %c", &m, &s, &c))
     h = 0;
   else if (1 == sscanf (string,       " : %2u %c", &s, &c))
     h = m = 0;
@@ -1207,13 +1207,13 @@ create_daemon_window (Display *dpy)
   XStoreName (dpy, daemon_window, "XScreenSaver Daemon");
   XSetClassHint (dpy, daemon_window, &class_hints);
   XChangeProperty (dpy, daemon_window, XA_WM_COMMAND, XA_STRING,
-           8, PropModeReplace, (unsigned char *) progname,
+                   8, PropModeReplace, (unsigned char *) progname,
                    strlen (progname));
   XChangeProperty (dpy, daemon_window, XA_SCREENSAVER_VERSION, XA_STRING,
                    8, PropModeReplace, (unsigned char *) version_number,
-           strlen (version_number));
+                   strlen (version_number));
   XChangeProperty (dpy, daemon_window, XA_SCREENSAVER_ID, XA_STRING,
-           8, PropModeReplace, (unsigned char *) id, strlen (id));
+                   8, PropModeReplace, (unsigned char *) id, strlen (id));
 
   store_saver_status (dpy, False, False, False, now);
   free (id);
@@ -2272,8 +2272,7 @@ main_loop (Display *dpy)
             /* Grab succeeded and state changed: launch graphics. */
             if (! saver_gfx_pid)
               {
-                debug_log ("%s: [MAIN] launching xscreensaver-gfx (state=%s)",
-                           blurb(),
+                debug_log ("%s: [MAIN] launching xscreensaver-gfx (state=%s)", blurb(),
                            (current_state == BLANKED ? "BLANKED" : "LOCKED"));
                 static Bool first_time_p = True;
                 char *av[20];

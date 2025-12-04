@@ -45,12 +45,12 @@ typedef struct saver_screen_info saver_screen_info;
 struct saver_preferences {
 
   XrmDatabase db;		/* The resource database into which the
-                   init file is merged, and out of which the
-                   preferences are parsed. */
+                                   init file is merged, and out of which the
+                                   preferences are parsed. */
 
   time_t init_file_date;	/* The date (from stat()) of the .xscreensaver
-                   file the last time this process read or
-                   wrote it. */
+                                   file the last time this process read or
+                                   wrote it. */
 
   Bool verbose_p;		/* whether to print out lots of status info */
   Bool ignore_uninstalled_p;	/* whether to avoid displaying or complaining
@@ -66,7 +66,7 @@ struct saver_preferences {
   Bool splash_p;		/* whether to do a splash screen at startup */
 
   Bool install_cmap_p;		/* whether we should use our own colormap
-                   when using the screen's default visual */
+                                   when using the screen's default visual */
 
   screenhack **screenhacks;	/* the programs to run */
   int screenhacks_count;
@@ -85,7 +85,7 @@ struct saver_preferences {
 
   Bool dpms_enabled_p;		/* whether to power down the monitor */
   Bool dpms_quickoff_p;		/* whether to power down monitor immediately
-                   in "Blank Only" mode */
+                                   in "Blank Only" mode */
   Time dpms_standby;		/* how long until monitor goes black */
   Time dpms_suspend;		/* how long until monitor power-saves */
   Time dpms_off;		/* how long until monitor powers down */
@@ -153,7 +153,7 @@ struct saver_info {
   Bool auth_p;			/* Whether auth dialog currently visible. */
 
   Bool demoing_p;		/* Whether we are demoing a single hack
-                   (without UI.) */
+                                   (without UI.) */
   Bool emergency_p;		/* Restarted because of a crash */
   Bool terminating_p;		/* In the process of shutting down */
   Bool actually_blanked_p;	/* Whether raise_windows() was called (screen actually blanked) */
@@ -161,10 +161,10 @@ struct saver_info {
   XtIntervalId watchdog_id;	/* Timer to implement `prefs.watchdog */
 
   int selection_mode;		/* Set to -1 if the NEXT ClientMessage has just
-                   been received; set to -2 if PREV has just
-                   been received; set to N if SELECT or DEMO N
-                   has been received.  (This is kind of nasty.)
-                 */
+                               been received; set to -2 if PREV has just
+                               been received; set to N if SELECT or DEMO N
+                               has been received.  (This is kind of nasty.)
+                             */
 
   Bool all_clientmessages_p;	/* If the daemon isn't running... */
 };
@@ -206,7 +206,7 @@ struct saver_screen_info {
   Visual *default_visual;	/* visual to use when none other specified */
 
   Cursor cursor;		/* A blank cursor that goes with the
-                   real root window. */
+                                   real root window. */
   unsigned long black_pixel;	/* Black, allocated from `cmap'. */
   Window error_dialog;		/* Error message about crashed savers */
   Pixmap screenshot;		/* Saved screen image before activation */
