@@ -21,6 +21,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
+#include <unistd.h>  /* for getpid() */
 
 const char *progname = "";
 int verbose_p = 0;
@@ -31,41 +32,27 @@ const char *
 blurb (void)
 {
   static char buf[255] = { 0 };
-  struct tm tm;
-  struct timeval now;
   int i;
+  pid_t pid = getpid();
 
-# ifdef GETTIMEOFDAY_TWO_ARGS
-  struct timezone tzp;
-  gettimeofday (&now, &tzp);
-# else
-  gettimeofday (&now);
-# endif
-
-  localtime_r (&now.tv_sec, &tm);
   i = strlen (progname);
   if (i > 40) i = 40;
   memcpy (buf, progname, i);
+  buf[i++] = '[';
+  /* Format PID (max 10 digits) */
+  {
+    char pid_str[12];
+    snprintf (pid_str, sizeof(pid_str), "%ld", (long) pid);
+    int pid_len = strlen (pid_str);
+    if (i + pid_len + 1 < sizeof(buf))
+      {
+        memcpy (buf + i, pid_str, pid_len);
+        i += pid_len;
+      }
+  }
+  buf[i++] = ']';
   buf[i++] = ':';
   buf[i++] = ' ';
-  buf[i++] = '0' + (tm.tm_hour >= 10 ? tm.tm_hour/10 : 0);
-  buf[i++] = '0' + (tm.tm_hour % 10);
-  buf[i++] = ':';
-  buf[i++] = '0' + (tm.tm_min >= 10 ? tm.tm_min/10 : 0);
-  buf[i++] = '0' + (tm.tm_min % 10);
-  buf[i++] = ':';
-  buf[i++] = '0' + (tm.tm_sec >= 10 ? tm.tm_sec/10 : 0);
-  buf[i++] = '0' + (tm.tm_sec % 10);
-
-# ifdef BLURB_CENTISECONDS
-  {
-    int c = now.tv_usec / 10000;
-    buf[i++] = '.';
-    buf[i++] = '0' + (c >= 10 ? c/10 : 0);
-    buf[i++] = '0' + (c % 10);
-  }
-# endif
-
   buf[i] = 0;
   return buf;
 }
