@@ -74,6 +74,7 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <stdarg.h>
 #include <string.h>
 #include <sys/time.h>
 
@@ -275,19 +276,19 @@ user_active_p (XtAppContext app, Display *dpy, Bool fade_out_p)
    */
   if (XCheckIfEvent (dpy, &event, &user_event_p, (XPointer) &motion_p))
     {
-      if (verbose_p > 1)
+      XIRawEvent *re = 0;
+      if (event.xany.type == GenericEvent && !event.xcookie.data)
         {
-          XIRawEvent *re = 0;
-          if (event.xany.type == GenericEvent && !event.xcookie.data)
-            {
-              XGetEventData (dpy, &event.xcookie);
-              re = event.xcookie.data;
-            }
-          fprintf (stderr, "%s: user input %d %d\n", blurb(),
-                   event.xany.type,
-                   (re ? re->evtype : -1));
+          XGetEventData (dpy, &event.xcookie);
+          re = event.xcookie.data;
         }
+      debug_log ("%s: [FADE] user activity detected during fade: type=%d evtype=%d, putting event back",
+                 blurb(),
+                 event.xany.type,
+                 (re ? re->evtype : -1));
       XPutBackEvent (dpy, &event);
+      XFlush (dpy);  /* Ensure event is available to main process immediately */
+      debug_log ("%s: [FADE] event put back and flushed", blurb());
       return True;
     }
 
