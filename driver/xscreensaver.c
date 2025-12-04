@@ -267,10 +267,6 @@ Bool debug_p = False;
 static Bool splash_p = True;
 static const char *version_number = 0;
 
-/* Rate limiting for debug logs */
-static time_t last_mouse_motion_log = 0;
-#define LOG_RATE_LIMIT_SECONDS 2  /* Log at most once per 2 seconds */
-
 /* Preferences. */
 static Bool lock_p = False;
 static Bool locking_disabled_p = False;
@@ -556,8 +552,8 @@ handle_sigchld (Display *dpy, Bool blanked_p, time_t *active_at_p)
           gfx_stopped_p = False;
           Bool exited_normally = WIFEXITED (wait_status) && WEXITSTATUS (wait_status) == 0;
           Bool was_killed = WIFSIGNALED (wait_status) && WTERMSIG (wait_status) == SIGTERM;
-          debug_log ("%s: [MAIN] xscreensaver-gfx exited (blanked_p=%d, exited_normally=%d, was_killed=%d)",
-                     blurb(), blanked_p, exited_normally, was_killed);
+          debug_log ("[MAIN] xscreensaver-gfx exited (blanked_p=%d, exited_normally=%d, was_killed=%d)",
+                     blanked_p, exited_normally, was_killed);
           if (blanked_p)
             {
               /* Don't re-launch if it exited normally (exit code 0).
@@ -569,8 +565,8 @@ handle_sigchld (Display *dpy, Bool blanked_p, time_t *active_at_p)
                */
               if (exited_normally || was_killed)
                 {
-                  debug_log ("%s: [MAIN] xscreensaver-gfx exited normally or was killed - not re-launching (exited_normally=%d, was_killed=%d)",
-                             blurb(), exited_normally, was_killed);
+                  debug_log ("[MAIN] xscreensaver-gfx exited normally or was killed - not re-launching (exited_normally=%d, was_killed=%d)",
+                             exited_normally, was_killed);
                   /* If it exited normally (user activity during fade-out), immediately trigger UNBLANKED transition */
                   if (exited_normally && active_at_p)
                     {
@@ -592,8 +588,8 @@ handle_sigchld (Display *dpy, Bool blanked_p, time_t *active_at_p)
                 }
               else
                 {
-                  debug_log ("%s: [MAIN] re-launching xscreensaver-gfx (blanked_p=%d, exited_normally=%d)",
-                             blurb(), blanked_p, exited_normally);
+                  debug_log ("[MAIN] re-launching xscreensaver-gfx (blanked_p=%d, exited_normally=%d)",
+                             blanked_p, exited_normally);
                   char *av[10];
                   int ac = 0;
                   av[ac++] = SAVER_GFX_PROGRAM;
@@ -2137,17 +2133,6 @@ main_loop (Display *dpy)
 
                   if (! ignored_p)
                     {
-                      /* Rate limit mouse motion logs to reduce verbosity */
-                      if (now - last_mouse_motion_log >= LOG_RATE_LIMIT_SECONDS)
-                        {
-                          debug_log ("%s: [MAIN] mouse motion activity: state=%s active_at=%ld->%ld ignore_activity_before=%ld",
-                                     blurb(),
-                                     (current_state == UNBLANKED ? "UNBLANKED" :
-                                      current_state == BLANKED ? "BLANKED" :
-                                      current_state == LOCKED ? "LOCKED" : "AUTH"),
-                                     (long) active_at, (long) now, (long) ignore_activity_before);
-                          last_mouse_motion_log = now;
-                        }
                       active_at = now;
                       last_mouse.time = now;
                       last_mouse.x = root_x;
@@ -2240,8 +2225,8 @@ main_loop (Display *dpy)
               }
             else
               {
-                debug_log ("%s: [MAIN] checking blank condition: force_blank_p=%d now=%ld active_at=%ld blank_timeout=%ld ignore_activity_before=%ld condition=%s",
-                           blurb(), force_blank_p, (long) now, (long) active_at, (long) blank_timeout, (long) ignore_activity_before,
+                debug_log ("[MAIN] checking blank condition: force_blank_p=%d now=%ld active_at=%ld blank_timeout=%ld ignore_activity_before=%ld condition=%s",
+                           force_blank_p, (long) now, (long) active_at, (long) blank_timeout, (long) ignore_activity_before,
                            (now >= active_at + blank_timeout ? "TRUE (timeout)" : "FALSE"));
                 if (verbose_p)
                   fprintf (stderr, "%s: blanking\n", blurb());
@@ -2251,8 +2236,8 @@ main_loop (Display *dpy)
                     blanked_at = now;
                     locked_at = 0;
                     cursor_blanked_at = now;
-                    debug_log ("%s: [MAIN] transitioning UNBLANKED->BLANKED: blanked_at=%ld",
-                               blurb(), (long) blanked_at);
+                    debug_log ("[MAIN] transitioning UNBLANKED->BLANKED: blanked_at=%ld",
+                               (long) blanked_at);
                     store_saver_status (dpy, True, False, False, blanked_at);
                   }
                 else
@@ -2327,8 +2312,8 @@ main_loop (Display *dpy)
                  active_at >= ignore_activity_before)
           {
           UNBLANK:
-            debug_log ("%s: [MAIN] transitioning BLANKED->UNBLANKED: active_at=%ld now=%ld ignore_activity_before=%ld condition=%s",
-                       blurb(), (long) active_at, (long) now, (long) ignore_activity_before,
+            debug_log ("[MAIN] transitioning BLANKED->UNBLANKED: active_at=%ld now=%ld ignore_activity_before=%ld condition=%s",
+                       (long) active_at, (long) now, (long) ignore_activity_before,
                        (active_at >= now && active_at >= ignore_activity_before ? "TRUE" : "FALSE"));
             if (verbose_p)
               fprintf (stderr, "%s: unblanking\n", blurb());
@@ -2336,22 +2321,22 @@ main_loop (Display *dpy)
             ignore_motion_p = False;
             store_saver_status (dpy, False, False, False, now);
 
-            debug_log ("%s: [MAIN] after UNBLANK transition: active_at=%ld now=%ld blank_timeout=%ld (next blank in %ld seconds)",
-                       blurb(), (long) active_at, (long) now, (long) blank_timeout,
+            debug_log ("[MAIN] after UNBLANK transition: active_at=%ld now=%ld blank_timeout=%ld (next blank in %ld seconds)",
+                       (long) active_at, (long) now, (long) blank_timeout,
                        (long) (active_at + blank_timeout - now));
 
             if (saver_gfx_pid)
               {
-                debug_log ("%s: [MAIN] killing xscreensaver-gfx (pid %lu)",
-                           blurb(), (unsigned long) saver_gfx_pid);
+                debug_log ("[MAIN] killing xscreensaver-gfx (pid %lu)",
+                           (unsigned long) saver_gfx_pid);
                 if (verbose_p)
                   fprintf (stderr,
                            "%s: pid %lu: killing " SAVER_GFX_PROGRAM "\n",
                            blurb(), (unsigned long) saver_gfx_pid);
                 kill (saver_gfx_pid, SIGTERM);
                 respawn_thrashing_count = 0;
-                debug_log ("%s: [MAIN] sent SIGTERM to xscreensaver-gfx (pid %lu), waiting for exit",
-                           blurb(), (unsigned long) saver_gfx_pid);
+                debug_log ("[MAIN] sent SIGTERM to xscreensaver-gfx (pid %lu), waiting for exit",
+                           (unsigned long) saver_gfx_pid);
 
                 if (gfx_stopped_p)  /* SIGCONT to allow SIGTERM to proceed */
                   {
