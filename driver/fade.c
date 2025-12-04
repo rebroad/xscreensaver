@@ -116,16 +116,7 @@
 #include "pow2.h"
 #include "screenshot.h"
 
-/* Since gamma fading doesn't work on the Raspberry Pi, probably the single
-   most popular desktop Linux system these days, let's not use this fade
-   method even if the extension exists (which it does).
- */
 #undef HAVE_XF86VMODE_GAMMA
-
-/* I'm not sure that the RANDR fade method brings anything to the party
-   that the XF86 method does  See below.
- */
-#undef HAVE_RANDR_12
 
 #ifndef HAVE_XINPUT
 # error The XInput2 extension is required
@@ -1382,6 +1373,43 @@ typedef struct {
 } randr_gamma_info;
 
 
+/* Check if we're running on a Raspberry Pi (which doesn't support gamma).
+   Simplest detection: check /proc/cpuinfo for "Hardware" line containing "BCM"
+   (Broadcom chip, which is used by all Raspberry Pi models).
+ */
+static Bool
+is_raspberry_pi (void)
+{
+  static int cached = -1;  /* -1 = unknown, 0 = no, 1 = yes */
+  FILE *f;
+  char line[256];
+
+  if (cached != -1)
+    return (cached == 1);
+
+  cached = 0;  /* Default to not Raspberry Pi */
+
+  /* Check /proc/cpuinfo for Hardware line with BCM (Broadcom chip) */
+  f = fopen ("/proc/cpuinfo", "r");
+  if (f)
+    {
+      while (fgets (line, sizeof(line), f))
+        {
+          /* Look for "Hardware" line containing "BCM" (Broadcom) */
+          if (strstr (line, "Hardware") && strstr (line, "BCM"))
+            {
+              cached = 1;
+              fclose (f);
+              return True;
+            }
+        }
+      fclose (f);
+    }
+
+  return False;
+}
+
+
 static int
 randr_check_gamma_extension (Display *dpy)
 {
@@ -1429,6 +1457,13 @@ randr_gamma_fade (XtAppContext app, Display *dpy,
   if (verbose_p > 1)
     fprintf (stderr, "%s: randr fade %s\n",
              blurb(), (out_p ? "out" : "in"));
+
+  /* Skip RANDR gamma fade on Raspberry Pi (gamma not supported) */
+  if (is_raspberry_pi ())
+    {
+      debug_log ("%s: [FADE] RANDR gamma fade skipped (Raspberry Pi detected - gamma not supported)", blurb());
+      goto FAIL;
+    }
 
   /* Only probe the extension once: the answer isn't going to change. */
   if (ext_ok == -1)
