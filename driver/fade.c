@@ -226,8 +226,11 @@ user_event_p (Display *dpy, XEvent *event, XPointer arg)
 # include <X11/extensions/Xrandr.h>
 typedef struct {
   RRCrtc crtc;
+  RROutput output;
+  char *output_name;
   Bool enabled_p;
   XRRCrtcGamma *gamma;
+  double original_brightness;
 } randr_gamma_info;
 
 /* Helper to query actual gamma ratio by comparing current gamma to original gamma */
@@ -258,10 +261,36 @@ query_actual_gamma_ratio (Display *dpy, randr_gamma_info *ginfo)
   XRRFreeGamma (current_gamma);
   return ratio;
 }
+
+/* Helper to query brightness property for an output via xrandr command */
+static double
+query_brightness (const char *output_name)
+{
+  char cmd[256];
+  char result[64];
+  double brightness = -1.0;
+  FILE *fp;
+
+  if (!output_name)
+    return -1.0;
+
+  snprintf (cmd, sizeof(cmd), "xrandr --output %s --verbose 2>/dev/null | grep -i 'Brightness:' | head -1 | awk '{print $2}'", output_name);
+  fp = popen (cmd, "r");
+  if (fp)
+    {
+      if (fgets (result, sizeof(result), fp))
+        {
+          brightness = strtod (result, NULL);
+        }
+      pclose (fp);
+    }
+  return brightness;
+}
 #else
 /* Dummy type and function when RANDR not available */
 typedef void randr_gamma_info;
 static double query_actual_gamma_ratio (Display *dpy, randr_gamma_info *ginfo) { return -1.0; }
+static double query_brightness (const char *output_name) { (void)output_name; return -1.0; }
 #endif
 
 /* Helper to log fade progress at 5% intervals */
@@ -313,12 +342,33 @@ log_fade_progress (double ratio, Bool out_p, int *last_logged_percent, Display *
         }
 # endif /* HAVE_RANDR_12 */
 
+      /* Query brightness for the first enabled output */
+      char brightness_str[64] = "";
+# ifdef HAVE_RANDR_12
+      if (gamma_info && ngamma > 0)
+        {
+          randr_gamma_info *randr_info = (randr_gamma_info *)gamma_info;
+          for (int i = 0; i < ngamma; i++)
+            {
+              if (randr_info[i].enabled_p && randr_info[i].output_name)
+                {
+                  double brightness = query_brightness (randr_info[i].output_name);
+                  if (brightness >= 0.0)
+                    {
+                      snprintf (brightness_str, sizeof(brightness_str), " (brightness: %.2f)", brightness);
+                    }
+                  break;  /* Only query once, use first enabled output */
+                }
+            }
+        }
+# endif /* HAVE_RANDR_12 */
+
       if (current_5_percent == 0)
-        debug_log ("[FADE] %s: 0%% (start, target=%.2f)%s", (out_p ? "fade-out" : "fade-in"), ratio, actual_gamma_str);
+        debug_log ("[FADE] %s: 0%% (start, target=%.2f)%s%s", (out_p ? "fade-out" : "fade-in"), ratio, actual_gamma_str, brightness_str);
       else if (current_5_percent == 100)
-        debug_log ("[FADE] %s: 100%% (complete, target=%.2f)%s", (out_p ? "fade-out" : "fade-in"), ratio, actual_gamma_str);
+        debug_log ("[FADE] %s: 100%% (complete, target=%.2f)%s%s", (out_p ? "fade-out" : "fade-in"), ratio, actual_gamma_str, brightness_str);
       else
-        debug_log ("[FADE] %s: %d%% (target=%.2f)%s", (out_p ? "fade-out" : "fade-in"), current_5_percent, ratio, actual_gamma_str);
+        debug_log ("[FADE] %s: %d%% (target=%.2f)%s%s", (out_p ? "fade-out" : "fade-in"), current_5_percent, ratio, actual_gamma_str, brightness_str);
       *last_logged_percent = current_5_percent;
     }
 }
@@ -1553,6 +1603,8 @@ randr_gamma_fade (XtAppContext app, Display *dpy,
                          rroi->ncrtc ? rroi->crtcs[0] : 0);
 
           info[j].crtc = crtc;
+          info[j].output = res->outputs[k];
+          info[j].output_name = strdup (rroi->name);
           info[j].gamma = XRRGetCrtcGamma (dpy, crtc);
 
           /* If we can't get gamma for this CRTC, gamma isn't supported */
@@ -1560,14 +1612,44 @@ randr_gamma_fade (XtAppContext app, Display *dpy,
             {
               debug_log ("[FADE] RANDR gamma not supported (XRRGetCrtcGamma returned NULL for crtc %lu)",
                         (unsigned long) crtc);
+              free (info[j].output_name);
               XRRFreeOutputInfo (rroi);
               XRRFreeScreenResources (res);
               goto FAIL;
             }
 
+          /* Capture original brightness property */
+          info[j].original_brightness = 1.0;  /* default */
+          Atom brightness_atom = XInternAtom (dpy, "BACKLIGHT", False);
+          if (brightness_atom != None)
+            {
+              unsigned char *prop_data = NULL;
+              Atom actual_type;
+              int actual_format;
+              unsigned long nitems, bytes_after;
+              if (XRRGetOutputProperty (dpy, info[j].output, brightness_atom,
+                                        0, 4, False, False, AnyPropertyType,
+                                        &actual_type, &actual_format,
+                                        &nitems, &bytes_after, &prop_data) == Success
+                  && prop_data && actual_format == 32 && nitems >= 1)
+                {
+                  /* Brightness property is typically a float, but stored as 32-bit */
+                  float *brightness_val = (float *)prop_data;
+                  info[j].original_brightness = *brightness_val;
+                }
+              if (prop_data) XFree (prop_data);
+            }
+          /* Try alternative: query via xrandr-style brightness (if available) */
+          if (info[j].original_brightness == 1.0)
+            {
+              /* xrandr brightness is typically stored differently - try to get it */
+              /* For now, assume 1.0 if we can't get it */
+            }
+
           //if (verbose_p > 1)
-            debug_log ("[FADE] captured original gamma for screen %d (crtc=%lu, size=%d, first_red=%d, first_green=%d, first_blue=%d)",
-                      j, (unsigned long) crtc, info[j].gamma->size,
+            debug_log ("[FADE] captured original gamma for screen %d (crtc=%lu, output=%s, brightness=%.2f, size=%d, first_red=%d, first_green=%d, first_blue=%d)",
+                      j, (unsigned long) crtc, info[j].output_name, info[j].original_brightness,
+                      info[j].gamma->size,
                       info[j].gamma->red[0], info[j].gamma->green[0], info[j].gamma->blue[0]);
 
           /* #### is this test sufficient? */
@@ -1697,13 +1779,48 @@ randr_gamma_fade (XtAppContext app, Display *dpy,
   /* #### That comment was about XF86, not verified with randr. */
   usleep(100000);  /* 1/10th second */
 
-  /* If fade-out was interrupted, don't restore gamma - preserve the interrupted fade level */
-  if (status != 1)
+  /* For fade-in, always restore gamma to 1.0 (full brightness).
+     For fade-out, only restore if not interrupted (preserve interrupted fade level). */
+  if (!out_p)
     {
+      /* Fade-in: always restore to full brightness */
+      debug_log ("[FADE] fade-in completed: restoring gamma to 1.0 (full brightness)");
+      for (screen = 0; screen < nscreens; screen++)
+        randr_whack_gamma (dpy, screen, &info[screen], 1.0);
+      XSync(dpy, False);
+      /* Restore brightness property to 1.0 for all outputs */
+      for (screen = 0; screen < nscreens; screen++)
+        {
+          if (info[screen].enabled_p && info[screen].output_name)
+            {
+              char cmd[256];
+              snprintf (cmd, sizeof(cmd), "xrandr --output %s --brightness 1.0 2>/dev/null", info[screen].output_name);
+              int ret = system (cmd);
+              if (ret == 0)
+                debug_log ("[FADE] fade-in: restored brightness to 1.0 for output %s", info[screen].output_name);
+              else
+                debug_log ("[FADE] fade-in: failed to restore brightness for output %s (xrandr returned %d)", info[screen].output_name, ret);
+            }
+        }
+      /* Verify gamma was restored by querying actual value */
+      for (screen = 0; screen < nscreens; screen++)
+        {
+          if (info[screen].enabled_p)
+            {
+              double actual = query_actual_gamma_ratio (dpy, &info[screen]);
+              if (actual >= 0.0)
+                debug_log ("[FADE] fade-in: verified gamma restored to %.2f for screen %d", actual, screen);
+            }
+        }
+    }
+  else if (status != 1)
+    {
+      /* Fade-out completed: restore to full brightness */
       for (screen = 0; screen < nscreens; screen++)
         randr_whack_gamma (dpy, screen, &info[screen], 1.0);
       XSync(dpy, False);
     }
+  /* else: fade-out was interrupted, preserve the interrupted fade level */
 
  FAIL:
   if (info)
@@ -1711,6 +1828,7 @@ randr_gamma_fade (XtAppContext app, Display *dpy,
       for (screen = 0; screen < nscreens; screen++)
         {
           if (info[screen].gamma) XRRFreeGamma (info[screen].gamma);
+          if (info[screen].output_name) free (info[screen].output_name);
         }
       free(info);
     }
