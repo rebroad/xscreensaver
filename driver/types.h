@@ -139,6 +139,8 @@ struct saver_info {
   struct _monitor **monitor_layout;	/* private to screens.c */
   Visual **best_gl_visuals;		/* visuals for GL hacks on screen N */
   void *fade_state;			/* fade.c private data */
+  double interrupted_fade_ratio;	/* Fade ratio when fade-out was interrupted (0.0-1.0) */
+  Bool fade_was_interrupted_p;		/* Whether fade-out was interrupted by user activity */
 
 # ifdef HAVE_RANDR
   int randr_event_number;
