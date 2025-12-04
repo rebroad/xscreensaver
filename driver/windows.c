@@ -56,12 +56,12 @@ store_saver_status (saver_info *si)
 
      XScreenSaver 3.20, 1999:	XScreenSaver 6.11, 2025:
 
-    0: BLANK | LOCK | 0	0: BLANK | LOCK | AUTH | 0
-    1: 32 bit time_t	1: 64 bit time_t hi
-    2: screen 0 hack	2: 64 bit time_t lo
-    3: screen 1 hack	3: screen 0 hack
-       ...			4: screen 1 hack
-                   ...
+        0: BLANK | LOCK | 0     0: BLANK | LOCK | AUTH | 0
+        1: 32 bit time_t        1: 64 bit time_t hi
+        2: screen 0 hack        2: 64 bit time_t lo
+        3: screen 1 hack        3: screen 0 hack
+           ...                  4: screen 1 hack
+                                   ...
 
      The first slot is the status: blanked, locked, locked with the password
      dialog posted, or 0 for unblanked.
@@ -197,34 +197,34 @@ initialize_screensaver_window_1 (saver_screen_info *ssi)
   if (install_cmap_p)
     {
       if (! ssi->cmap)
-    {
-      ssi->cmap = XCreateColormap (si->dpy,
-                       RootWindowOfScreen (ssi->screen),
-                      ssi->current_visual, AllocNone);
-      if (! XAllocColor (si->dpy, ssi->cmap, &black)) abort ();
-      ssi->black_pixel = black.pixel;
-    }
+        {
+          ssi->cmap = XCreateColormap (si->dpy,
+                                       RootWindowOfScreen (ssi->screen),
+                                      ssi->current_visual, AllocNone);
+          if (! XAllocColor (si->dpy, ssi->cmap, &black)) abort ();
+          ssi->black_pixel = black.pixel;
+        }
     }
   else
     {
       Colormap def_cmap = DefaultColormapOfScreen (ssi->screen);
       if (ssi->cmap)
-    {
-      XFreeColors (si->dpy, ssi->cmap, &ssi->black_pixel, 1, 0);
-      if (ssi->cmap != def_cmap)
-        XFreeColormap (si->dpy, ssi->cmap);
-    }
+        {
+          XFreeColors (si->dpy, ssi->cmap, &ssi->black_pixel, 1, 0);
+          if (ssi->cmap != def_cmap)
+            XFreeColormap (si->dpy, ssi->cmap);
+        }
       ssi->cmap = def_cmap;
       ssi->black_pixel = BlackPixelOfScreen (ssi->screen);
     }
 
   attrmask = (CWOverrideRedirect | CWEventMask | CWBackingStore | CWColormap |
-          CWBackPixel | CWBackingPixel | CWBorderPixel);
+              CWBackPixel | CWBackingPixel | CWBorderPixel);
   attrs.override_redirect = True;
 
   attrs.event_mask = (KeyPressMask | KeyReleaseMask |
-              ButtonPressMask | ButtonReleaseMask |
-              PointerMotionMask);
+                      ButtonPressMask | ButtonReleaseMask |
+                      PointerMotionMask);
 
   attrs.backing_store = Always;
   attrs.colormap = ssi->cmap;
@@ -240,17 +240,17 @@ initialize_screensaver_window_1 (saver_screen_info *ssi)
     {
       fprintf (stderr, "%s: %d: visual ", blurb(), ssi->number);
       describe_visual (stderr, ssi->screen, ssi->current_visual,
-               install_cmap_p);
+                       install_cmap_p);
     }
   else
     {
       fprintf (stderr, "%s: using visual:   ", blurb());
       describe_visual (stderr, ssi->screen, ssi->current_visual,
-               install_cmap_p);
+                       install_cmap_p);
       fprintf (stderr, "%s: default visual: ", blurb());
       describe_visual (stderr, ssi->screen,
-               DefaultVisualOfScreen (ssi->screen),
-               ssi->install_cmap_p);
+                       DefaultVisualOfScreen (ssi->screen),
+                       ssi->install_cmap_p);
     }
   printed_visual_info = True;
 
@@ -286,10 +286,10 @@ initialize_screensaver_window_1 (saver_screen_info *ssi)
   if (!ssi->screensaver_window)
     {
       ssi->screensaver_window =
-    XCreateWindow (si->dpy, RootWindowOfScreen (ssi->screen),
+        XCreateWindow (si->dpy, RootWindowOfScreen (ssi->screen),
                        ssi->x, ssi->y, ssi->width, ssi->height,
                        0, ssi->current_depth, InputOutput,
-               ssi->current_visual, attrmask, &attrs);
+                       ssi->current_visual, attrmask, &attrs);
       xscreensaver_set_wm_atoms (si->dpy, ssi->screensaver_window,
                                  ssi->width, ssi->height, 0);
 
@@ -302,7 +302,7 @@ initialize_screensaver_window_1 (saver_screen_info *ssi)
         }
 
       if (p->verbose_p > 1)
-    fprintf (stderr, "%s: %d: saver window is 0x%lx\n",
+        fprintf (stderr, "%s: %d: saver window is 0x%lx\n",
                  blurb(), ssi->number,
                  (unsigned long) ssi->screensaver_window);
     }
@@ -316,7 +316,7 @@ initialize_screensaver_window_1 (saver_screen_info *ssi)
                                      BlackPixelOfScreen (ssi->screen),
                                      1);
       ssi->cursor = XCreatePixmapCursor (si->dpy, bit, bit, &black, &black,
-                     0, 0);
+                                         0, 0);
       XFreePixmap (si->dpy, bit);
     }
 
@@ -471,7 +471,6 @@ blank_screen (saver_info *si)
   int i;
   Bool grabbing_supported_p = True;
 
-  si->actually_blanked_p = False;  /* Reset flag - will be set to True if raise_windows() is called */
   si->fade_was_interrupted_p = False;  /* Reset fade interruption tracking */
   si->interrupted_fade_ratio = 0.0;  /* Reset interrupted fade ratio */
   debug_log ("%s: [BLANK_SCREEN] called - starting blank_screen()", blurb());
@@ -542,14 +541,14 @@ blank_screen (saver_info *si)
       if (!current_windows) abort();
 
       for (i = 0; i < si->nscreens; i++)
-    {
-      saver_screen_info *ssi = &si->screens[i];
-      current_windows[i] = ssi->screensaver_window;
-      /* Ensure that the default background of the window is really black,
-         not a pixmap or something.  (This does not clear the window.) */
-      XSetWindowBackground (si->dpy, ssi->screensaver_window,
-                ssi->black_pixel);
-    }
+        {
+          saver_screen_info *ssi = &si->screens[i];
+          current_windows[i] = ssi->screensaver_window;
+          /* Ensure that the default background of the window is really black,
+             not a pixmap or something.  (This does not clear the window.) */
+          XSetWindowBackground (si->dpy, ssi->screensaver_window,
+                                ssi->black_pixel);
+        }
 
       if (p->verbose_p) fprintf (stderr, "%s: fading...\n", blurb());
 
@@ -576,24 +575,7 @@ blank_screen (saver_info *si)
         fprintf (stderr, "%s: fading done\n", blurb());
     }
 
-  /* If user activity was detected during fade-out, abort screensaver activation.
-     The user clearly doesn't want the screensaver to activate if they're pressing
-     keys during the fade.  This applies to all modes, not just blanking-only.
-
-     Also update the activity time to the current time so that the system knows
-     the user was just active, preventing an immediate re-attempt to blank.
-   */
-  if (user_active_p)
-    {
-      time_t now = time ((time_t *) 0);
-      si->activity_time = now;  /* Reset activity timer to prevent immediate re-blank */
-      debug_log ("%s: [BLANK_SCREEN] user activity detected, aborting activation: activity_time=%ld, returning early",
-                 blurb(), (long) now);
-      return;
-    }
-
   raise_windows (si);
-  si->actually_blanked_p = True;  /* Mark that screen was actually blanked */
   reset_watchdog_timer (si);
 
   /* user_active_p means that the user aborted the fade-out -- but that does
@@ -635,26 +617,22 @@ unblank_screen (saver_info *si)
       double seconds = p->fade_seconds / 1000.0;
       double ratio = 1/3.0;
       Window *current_windows = (Window *)
-    calloc(sizeof(Window), si->nscreens);
+        calloc(sizeof(Window), si->nscreens);
       Bool interrupted_p = False;
 
       for (i = 0; i < si->nscreens; i++)
-    {
-      saver_screen_info *ssi = &si->screens[i];
-      current_windows[i] = ssi->screensaver_window;
-    }
+        {
+          saver_screen_info *ssi = &si->screens[i];
+          current_windows[i] = ssi->screensaver_window;
+        }
 
       if (p->verbose_p) fprintf (stderr, "%s: unfading...\n", blurb());
 
       monitor_power_on (si, True);
 
       /* When we fade in to the desktop, first fade out from the saver to
-         black, then fade in from black to the desktop.
-         However, if the screen was never actually blanked (blank_screen()
-         returned early due to user activity), skip the fade-out since the
-         screen is already at normal brightness.
-       */
-      if (si->actually_blanked_p)
+         black, then fade in from black to the desktop. */
+      if (!si->fade_was_interrupted_p)
         {
           si->fade_was_interrupted_p = False;
           si->interrupted_fade_ratio = 0.0;
@@ -664,54 +642,30 @@ unblank_screen (saver_info *si)
                                         True,  /* out_p */
                                         False, /* from_desktop_p */
                                         &si->fade_state,
-                                        &si->interrupted_fade_ratio,  /* OUTPUT: where to store interrupted ratio */
-                                        -1.0);  /* INPUT: no start ratio for fade-out */
-          if (interrupted_p)
-            {
-              si->fade_was_interrupted_p = True;
-              debug_log ("%s: [UNBLANK_SCREEN] fade-out interrupted, captured fade level: %.2f", blurb(), si->interrupted_fade_ratio);
-            }
-        }
-      else
-        {
-          debug_log ("%s: [UNBLANK_SCREEN] screen was never actually blanked, skipping fade-out", blurb());
-          interrupted_p = False;  /* No fade-out needed */
-        }
+                                        NULL,
+                                        -1.0);
 
       for (i = 0; i < si->nscreens; i++)
-    {
-      saver_screen_info *ssi = &si->screens[i];
+        {
+          saver_screen_info *ssi = &si->screens[i];
           XClearWindow (si->dpy, ssi->screensaver_window);
-    }
+        }
 
-      /* Fade in from the interrupted fade level (if fade-out was interrupted)
-         or from black (if fade-out completed).
-         If blank_screen() returned early AND fade wasn't interrupted, the screen
-         is already at normal brightness, so there's nothing to fade in from.
-       */
-      if (! si->actually_blanked_p && ! si->fade_was_interrupted_p)
-        {
-          debug_log ("%s: [UNBLANK_SCREEN] screen was never actually blanked and fade wasn't interrupted, skipping fade-in", blurb());
-          interrupted_p = False;  /* No fade-in needed */
-        }
-      else
-        {
-          /* If fade-out was interrupted, fade-in from that level, otherwise from black */
-          double start_ratio = si->fade_was_interrupted_p ? si->interrupted_fade_ratio : -1.0;
-          if (si->fade_was_interrupted_p)
-            debug_log ("%s: [UNBLANK_SCREEN] reusing captured fade level %.2f for fade-in", blurb(), start_ratio);
-          else
+        /* If fade-out was interrupted, fade-in from that level, otherwise from black */
+        double start_ratio = si->fade_was_interrupted_p ? si->interrupted_fade_ratio : -1.0;
+        if (si->fade_was_interrupted_p)
+          debug_log ("%s: [UNBLANK_SCREEN] reusing captured fade level %.2f for fade-in", blurb(), start_ratio);
+        else
             debug_log ("%s: [UNBLANK_SCREEN] fading in from black (fade-out completed)", blurb());
-          si->fade_was_interrupted_p = False;  /* Reset for next time */
-          interrupted_p = fade_screens (si->app, si->dpy,
-                                        current_windows, si->nscreens,
-                                        seconds * (1-ratio),
-                                        False, /* out_p */
-                                        False, /* from_desktop_p */
-                                        &si->fade_state,
-                                        NULL,  /* Not tracking interruption for fade-in (OUTPUT not needed) */
-                                        start_ratio);  /* INPUT: start from interrupted ratio if available */
-        }
+        si->fade_was_interrupted_p = False;  /* Reset for next time */
+        interrupted_p = fade_screens (si->app, si->dpy,
+                                      current_windows, si->nscreens,
+                                      seconds * (1-ratio),
+                                      False, /* out_p */
+                                      False, /* from_desktop_p */
+                                      &si->fade_state,
+                                      NULL,  /* Not tracking interruption for fade-in (OUTPUT not needed) */
+                                      start_ratio);  /* INPUT: start from interrupted ratio if available */
       free (current_windows);
 
       if (p->verbose_p)
@@ -721,19 +675,19 @@ unblank_screen (saver_info *si)
   else
     {
       for (i = 0; i < si->nscreens; i++)
-    {
-      saver_screen_info *ssi = &si->screens[i];
-      if (ssi->cmap)
         {
-          Colormap c = DefaultColormapOfScreen (ssi->screen);
-          /* avoid technicolor */
+          saver_screen_info *ssi = &si->screens[i];
+          if (ssi->cmap)
+            {
+              Colormap c = DefaultColormapOfScreen (ssi->screen);
+              /* avoid technicolor */
               XSetWindowBackground (si->dpy, ssi->screensaver_window,
                                     BlackPixelOfScreen (ssi->screen));
-          XClearWindow (si->dpy, ssi->screensaver_window);
-          if (c) XInstallColormap (si->dpy, c);
+              XClearWindow (si->dpy, ssi->screensaver_window);
+              if (c) XInstallColormap (si->dpy, c);
+            }
+          XUnmapWindow (si->dpy, ssi->screensaver_window);
         }
-      XUnmapWindow (si->dpy, ssi->screensaver_window);
-    }
     }
 }
 
@@ -792,15 +746,15 @@ select_visual (saver_screen_info *ssi, const char *visual_name)
   if (visual_name && *visual_name)
     {
       if (!strcasecmp(visual_name, "default-i"))
-    {
-      visual_name = "default";
-      install_cmap_p = True;
-    }
+        {
+          visual_name = "default";
+          install_cmap_p = True;
+        }
       else if (!strcasecmp(visual_name, "default-n"))
-    {
-      visual_name = "default";
-      install_cmap_p = False;
-    }
+        {
+          visual_name = "default";
+          install_cmap_p = False;
+        }
       else if (!strcasecmp(visual_name, "GL"))
         {
           new_v = get_screen_gl_visual (si, ssi->real_screen_number);
@@ -836,17 +790,17 @@ select_visual (saver_screen_info *ssi, const char *visual_name)
         new_v = ssi->current_visual;
 
       if (p->verbose_p)
-    {
+        {
 #if 0
-      fprintf (stderr, "%s: %d: visual ", blurb(), ssi->number);
-      describe_visual (stderr, ssi->screen, new_v, install_cmap_p);
+          fprintf (stderr, "%s: %d: visual ", blurb(), ssi->number);
+          describe_visual (stderr, ssi->screen, new_v, install_cmap_p);
 #endif
 #if 0
-      fprintf (stderr, "%s:                  from ", blurb());
-      describe_visual (stderr, ssi->screen, ssi->current_visual,
-               was_installed_p);
+          fprintf (stderr, "%s:                  from ", blurb());
+          describe_visual (stderr, ssi->screen, ssi->current_visual,
+                           was_installed_p);
 #endif
-    }
+        }
 
       ssi->current_visual = new_v;
       ssi->current_depth = visual_depth(ssi->screen, new_v);
@@ -860,12 +814,12 @@ select_visual (saver_screen_info *ssi, const char *visual_name)
       defer_XDestroyWindow (si->app, si->dpy, old_w);
 
       if (p->verbose_p > 1)
-    fprintf (stderr, "%s: %d: destroyed old saver window 0x%lx\n",
-         blurb(), ssi->number, (unsigned long) old_w);
+        fprintf (stderr, "%s: %d: destroyed old saver window 0x%lx\n",
+                 blurb(), ssi->number, (unsigned long) old_w);
 
       if (old_c &&
-      old_c != DefaultColormapOfScreen (ssi->screen))
-    XFreeColormap (si->dpy, old_c);
+          old_c != DefaultColormapOfScreen (ssi->screen))
+        XFreeColormap (si->dpy, old_c);
     }
 
   return got_it;
@@ -944,7 +898,7 @@ update_screen_layout (saver_info *si)
       seen_screens[sn]++;
 
       ssi->default_visual =
-    get_visual_resource (ssi->screen, "visualID", "VisualID", False);
+        get_visual_resource (ssi->screen, "visualID", "VisualID", False);
       ssi->current_visual = ssi->default_visual;
       ssi->current_depth = visual_depth (ssi->screen, ssi->current_visual);
 
