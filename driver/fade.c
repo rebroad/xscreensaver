@@ -1646,8 +1646,6 @@ randr_whack_gamma (Display *dpy, int screen, randr_gamma_info *info,
   XSync (dpy, False);
   XSetErrorHandler (old_handler);
   XSync (dpy, False);
-
-  return 0;
 }
 
 #endif /* HAVE_RANDR_12 */
