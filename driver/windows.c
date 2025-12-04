@@ -667,13 +667,22 @@ unblank_screen (saver_info *si)
           XClearWindow (si->dpy, ssi->screensaver_window);
     }
 
-      if (! interrupted_p)
+      /* Only fade in if the screen was actually blanked.
+         If blank_screen() returned early, the screen is already at normal
+         brightness, so there's nothing to fade in from.
+       */
+      if (! interrupted_p && si->actually_blanked_p)
         interrupted_p = fade_screens (si->app, si->dpy,
                                       current_windows, si->nscreens,
                                       seconds * (1-ratio),
                                       False, /* out_p */
                                       False, /* from_desktop_p */
                                       &si->fade_state);
+      else if (! si->actually_blanked_p)
+        {
+          debug_log ("%s: [UNBLANK_SCREEN] screen was never actually blanked, skipping fade-in", blurb());
+          interrupted_p = False;  /* No fade-in needed */
+        }
       free (current_windows);
 
       if (p->verbose_p)
