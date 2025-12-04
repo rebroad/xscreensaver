@@ -260,7 +260,8 @@ user_active_p (XtAppContext app, Display *dpy, Bool fade_out_p)
   XEvent event;
   XtInputMask m;
   Bool motion_p = fade_out_p;   /* Motion aborts fade-out, not fade-in. */
-  motion_p = False;		/* Naah, never abort on motion only */
+  /* Allow mouse motion to abort fade-out (user wants to cancel screensaver activation) */
+  /* Note: motion_p is True during fade-out, False during fade-in */
 
 # ifdef HAVE_XINPUT
   if (xi_opcode == -1)
