@@ -664,10 +664,13 @@ unblank_screen (saver_info *si)
                                         True,  /* out_p */
                                         False, /* from_desktop_p */
                                         &si->fade_state,
-                                        &si->interrupted_fade_ratio,
-                                        -1.0);  /* No start ratio for fade-out */
+                                        &si->interrupted_fade_ratio,  /* OUTPUT: where to store interrupted ratio */
+                                        -1.0);  /* INPUT: no start ratio for fade-out */
           if (interrupted_p)
-            si->fade_was_interrupted_p = True;
+            {
+              si->fade_was_interrupted_p = True;
+              debug_log ("%s: [UNBLANK_SCREEN] fade-out interrupted, captured fade level: %.2f", blurb(), si->interrupted_fade_ratio);
+            }
         }
       else
         {
@@ -683,12 +686,12 @@ unblank_screen (saver_info *si)
 
       /* Fade in from the interrupted fade level (if fade-out was interrupted)
          or from black (if fade-out completed).
-         If blank_screen() returned early, the screen is already at normal
-         brightness, so there's nothing to fade in from.
+         If blank_screen() returned early AND fade wasn't interrupted, the screen
+         is already at normal brightness, so there's nothing to fade in from.
        */
-      if (! si->actually_blanked_p)
+      if (! si->actually_blanked_p && ! si->fade_was_interrupted_p)
         {
-          debug_log ("%s: [UNBLANK_SCREEN] screen was never actually blanked, skipping fade-in", blurb());
+          debug_log ("%s: [UNBLANK_SCREEN] screen was never actually blanked and fade wasn't interrupted, skipping fade-in", blurb());
           interrupted_p = False;  /* No fade-in needed */
         }
       else
@@ -696,7 +699,9 @@ unblank_screen (saver_info *si)
           /* If fade-out was interrupted, fade-in from that level, otherwise from black */
           double start_ratio = si->fade_was_interrupted_p ? si->interrupted_fade_ratio : -1.0;
           if (si->fade_was_interrupted_p)
-            debug_log ("%s: [UNBLANK_SCREEN] fading in from interrupted level: %.2f", blurb(), start_ratio);
+            debug_log ("%s: [UNBLANK_SCREEN] reusing captured fade level %.2f for fade-in", blurb(), start_ratio);
+          else
+            debug_log ("%s: [UNBLANK_SCREEN] fading in from black (fade-out completed)", blurb());
           si->fade_was_interrupted_p = False;  /* Reset for next time */
           interrupted_p = fade_screens (si->app, si->dpy,
                                         current_windows, si->nscreens,
@@ -704,8 +709,8 @@ unblank_screen (saver_info *si)
                                         False, /* out_p */
                                         False, /* from_desktop_p */
                                         &si->fade_state,
-                                        NULL,  /* Not tracking interruption for fade-in */
-                                        start_ratio);  /* Start from interrupted ratio if available */
+                                        NULL,  /* Not tracking interruption for fade-in (OUTPUT not needed) */
+                                        start_ratio);  /* INPUT: start from interrupted ratio if available */
         }
       free (current_windows);
 
