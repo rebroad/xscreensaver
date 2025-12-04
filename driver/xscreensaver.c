@@ -555,9 +555,26 @@ handle_sigchld (Display *dpy, Bool blanked_p)
         {
           saver_gfx_pid = 0;
           gfx_stopped_p = False;
+          Bool exited_normally = WIFEXITED (wait_status) && WEXITSTATUS (wait_status) == 0;
+          Bool was_killed = WIFSIGNALED (wait_status) && WTERMSIG (wait_status) == SIGTERM;
+          debug_log ("%s: [MAIN] xscreensaver-gfx exited (blanked_p=%d, exited_normally=%d, was_killed=%d)",
+                     blurb(), blanked_p, exited_normally, was_killed);
           if (blanked_p)
             {
-              if (respawn_thrashing_count > 5)
+              /* Don't re-launch if it exited normally (exit code 0).
+                 This likely means user activity aborted blank_screen() and we should wait
+                 for the main loop to process the activity event and transition to UNBLANKED.
+                 Also don't re-launch if we explicitly killed it (SIGTERM) - that means we
+                 intentionally stopped it (e.g., when unblanking).
+                 Only re-launch if it crashed or was killed unexpectedly.
+               */
+              if (exited_normally || was_killed)
+                {
+                  debug_log ("%s: [MAIN] xscreensaver-gfx exited normally or was killed - not re-launching (exited_normally=%d, was_killed=%d)",
+                             blurb(), exited_normally, was_killed);
+                  /* Don't re-launch - wait for activity event to transition to UNBLANKED, or we already unblanked */
+                }
+              else if (respawn_thrashing_count > 5)
                 {
                   /* If we have tried to re-launch this pid N times in a row
                      without unblanking, give up instead of forking it in a
@@ -570,6 +587,8 @@ handle_sigchld (Display *dpy, Bool blanked_p)
                 }
               else
                 {
+                  debug_log ("%s: [MAIN] re-launching xscreensaver-gfx (blanked_p=%d, exited_normally=%d)",
+                             blurb(), blanked_p, exited_normally);
                   char *av[10];
                   int ac = 0;
                   av[ac++] = SAVER_GFX_PROGRAM;
@@ -2317,14 +2336,22 @@ main_loop (Display *dpy)
             ignore_motion_p = False;
             store_saver_status (dpy, False, False, False, now);
 
+            debug_log ("%s: [MAIN] after UNBLANK transition: active_at=%ld now=%ld blank_timeout=%ld (next blank in %ld seconds)",
+                       blurb(), (long) active_at, (long) now, (long) blank_timeout,
+                       (long) (active_at + blank_timeout - now));
+
             if (saver_gfx_pid)
               {
+                debug_log ("%s: [MAIN] killing xscreensaver-gfx (pid %lu)",
+                           blurb(), (unsigned long) saver_gfx_pid);
                 if (verbose_p)
                   fprintf (stderr,
                            "%s: pid %lu: killing " SAVER_GFX_PROGRAM "\n",
                            blurb(), (unsigned long) saver_gfx_pid);
                 kill (saver_gfx_pid, SIGTERM);
                 respawn_thrashing_count = 0;
+                debug_log ("%s: [MAIN] sent SIGTERM to xscreensaver-gfx (pid %lu), waiting for exit",
+                           blurb(), (unsigned long) saver_gfx_pid);
 
                 if (gfx_stopped_p)  /* SIGCONT to allow SIGTERM to proceed */
                   {

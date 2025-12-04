@@ -242,6 +242,32 @@ user_event_p (Display *dpy, XEvent *event, XPointer arg)
 }
 
 
+/* Helper to log fade progress at 5% intervals */
+static void
+log_fade_progress (double ratio, Bool out_p, int *last_logged_percent)
+{
+  int percent;
+  if (out_p)
+    percent = (int)((1.0 - ratio) * 100);  /* fade-out: 0% -> 100% */
+  else
+    percent = (int)(ratio * 100);           /* fade-in: 0% -> 100% */
+
+  /* Round down to nearest 5% */
+  int current_5_percent = (percent / 5) * 5;
+
+  /* Only log when we cross into a new 5% bucket */
+  if (current_5_percent > *last_logged_percent)
+    {
+      if (current_5_percent == 0)
+        debug_log ("%s: [FADE] %s: 0%% (start)", blurb(), (out_p ? "fade-out" : "fade-in"));
+      else if (current_5_percent == 100)
+        debug_log ("%s: [FADE] %s: 100%% (complete)", blurb(), (out_p ? "fade-out" : "fade-in"));
+      else
+        debug_log ("%s: [FADE] %s: %d%%", blurb(), (out_p ? "fade-out" : "fade-in"), current_5_percent);
+      *last_logged_percent = current_5_percent;
+    }
+}
+
 static Bool
 user_active_p (XtAppContext app, Display *dpy, Bool fade_out_p)
 {
@@ -547,11 +573,14 @@ colormap_fade (XtAppContext app, Display *dpy,
     double prev = 0;
     double now;
     int frames = 0;
+    int last_logged_percent = -1;
     double max = 1/60.0;  /* max FPS */
     while ((now = double_time()) < end_time)
       {
         double ratio = (end_time - now) / seconds;
         if (!out_p) ratio = 1-ratio;
+
+        log_fade_progress (ratio, out_p, &last_logged_percent);
 
         /* For each screen, compute the current value of each color...
          */
@@ -807,11 +836,14 @@ sgi_gamma_fade (XtAppContext app, Display *dpy,
     double prev = 0;
     double now;
     int frames = 0;
+    int last_logged_percent = -1;
     double max = 1/60.0;  /* max FPS */
     while ((now = double_time()) < end_time)
       {
         double ratio = (end_time - now) / seconds;
         if (!out_p) ratio = 1-ratio;
+
+        log_fade_progress (ratio, out_p, &last_logged_percent);
 
         for (screen = 0; screen < nwindows; screen++)
       sgi_whack_gamma (dpy, screen, &info[screen], ratio);
@@ -1051,11 +1083,14 @@ xf86_gamma_fade (XtAppContext app, Display *dpy,
     double prev = 0;
     double now;
     int frames = 0;
+    int last_logged_percent = -1;
     double max = 1/60.0;  /* max FPS */
     while ((now = double_time()) < end_time)
       {
         double ratio = (end_time - now) / seconds;
         if (!out_p) ratio = 1-ratio;
+
+        log_fade_progress (ratio, out_p, &last_logged_percent);
 
         for (screen = 0; screen < nscreens; screen++)
           xf86_whack_gamma (dpy, screen, &info[screen], ratio);
@@ -1446,11 +1481,14 @@ randr_gamma_fade (XtAppContext app, Display *dpy,
     double prev = 0;
     double now;
     int frames = 0;
+    int last_logged_percent = -1;
     double max = 1/60.0;  /* max FPS */
     while ((now = double_time()) < end_time)
       {
         double ratio = (end_time - now) / seconds;
         if (!out_p) ratio = 1-ratio;
+
+        log_fade_progress (ratio, out_p, &last_logged_percent);
 
         for (screen = 0; screen < nwindows; screen++)
           {
@@ -2037,11 +2075,14 @@ xshm_fade (XtAppContext app, Display *dpy,
     double prev = 0;
     double now;
     int frames = 0;
+    int last_logged_percent = -1;
     double max = 1/60.0;  /* max FPS */
     while ((now = double_time()) < end_time)
       {
         double ratio = (end_time - now) / seconds;
         if (!out_p) ratio = 1-ratio;
+
+        log_fade_progress (ratio, out_p, &last_logged_percent);
 
         for (screen = 0; screen < nwindows; screen++)
 # ifdef USE_GL
