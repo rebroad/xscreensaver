@@ -6,7 +6,7 @@
  * the above copyright notice appear in all copies and that both that
  * copyright notice and this permission notice appear in supporting
  * documentation.  No representations are made about the suitability of this
- * software for any purpose.  It is provided "as is" without express or 
+ * software for any purpose.  It is provided "as is" without express or
  * implied warranty.
  */
 
@@ -63,12 +63,12 @@ store_saver_status (saver_info *si)
 
      XScreenSaver 3.20, 1999:	XScreenSaver 6.11, 2025:
 
-	0: BLANK | LOCK | 0	0: BLANK | LOCK | AUTH | 0
-	1: 32 bit time_t	1: 64 bit time_t hi
-	2: screen 0 hack	2: 64 bit time_t lo
-	3: screen 1 hack	3: screen 0 hack
-	   ...			4: screen 1 hack
-				   ...
+    0: BLANK | LOCK | 0	0: BLANK | LOCK | AUTH | 0
+    1: 32 bit time_t	1: 64 bit time_t hi
+    2: screen 0 hack	2: 64 bit time_t lo
+    3: screen 1 hack	3: screen 0 hack
+       ...			4: screen 1 hack
+                   ...
 
      The first slot is the status: blanked, locked, locked with the password
      dialog posted, or 0 for unblanked.
@@ -204,34 +204,34 @@ initialize_screensaver_window_1 (saver_screen_info *ssi)
   if (install_cmap_p)
     {
       if (! ssi->cmap)
-	{
-	  ssi->cmap = XCreateColormap (si->dpy,
-				       RootWindowOfScreen (ssi->screen),
-				      ssi->current_visual, AllocNone);
-	  if (! XAllocColor (si->dpy, ssi->cmap, &black)) abort ();
-	  ssi->black_pixel = black.pixel;
-	}
+    {
+      ssi->cmap = XCreateColormap (si->dpy,
+                       RootWindowOfScreen (ssi->screen),
+                      ssi->current_visual, AllocNone);
+      if (! XAllocColor (si->dpy, ssi->cmap, &black)) abort ();
+      ssi->black_pixel = black.pixel;
+    }
     }
   else
     {
       Colormap def_cmap = DefaultColormapOfScreen (ssi->screen);
       if (ssi->cmap)
-	{
-	  XFreeColors (si->dpy, ssi->cmap, &ssi->black_pixel, 1, 0);
-	  if (ssi->cmap != def_cmap)
-	    XFreeColormap (si->dpy, ssi->cmap);
-	}
+    {
+      XFreeColors (si->dpy, ssi->cmap, &ssi->black_pixel, 1, 0);
+      if (ssi->cmap != def_cmap)
+        XFreeColormap (si->dpy, ssi->cmap);
+    }
       ssi->cmap = def_cmap;
       ssi->black_pixel = BlackPixelOfScreen (ssi->screen);
     }
 
   attrmask = (CWOverrideRedirect | CWEventMask | CWBackingStore | CWColormap |
-	      CWBackPixel | CWBackingPixel | CWBorderPixel);
+          CWBackPixel | CWBackingPixel | CWBorderPixel);
   attrs.override_redirect = True;
 
   attrs.event_mask = (KeyPressMask | KeyReleaseMask |
-		      ButtonPressMask | ButtonReleaseMask |
-		      PointerMotionMask);
+              ButtonPressMask | ButtonReleaseMask |
+              PointerMotionMask);
 
   attrs.backing_store = Always;
   attrs.colormap = ssi->cmap;
@@ -247,17 +247,17 @@ initialize_screensaver_window_1 (saver_screen_info *ssi)
     {
       fprintf (stderr, "%s: %d: visual ", blurb(), ssi->number);
       describe_visual (stderr, ssi->screen, ssi->current_visual,
-		       install_cmap_p);
+               install_cmap_p);
     }
   else
     {
       fprintf (stderr, "%s: using visual:   ", blurb());
       describe_visual (stderr, ssi->screen, ssi->current_visual,
-		       install_cmap_p);
+               install_cmap_p);
       fprintf (stderr, "%s: default visual: ", blurb());
       describe_visual (stderr, ssi->screen,
-		       DefaultVisualOfScreen (ssi->screen),
-		       ssi->install_cmap_p);
+               DefaultVisualOfScreen (ssi->screen),
+               ssi->install_cmap_p);
     }
   printed_visual_info = True;
 
@@ -293,10 +293,10 @@ initialize_screensaver_window_1 (saver_screen_info *ssi)
   if (!ssi->screensaver_window)
     {
       ssi->screensaver_window =
-	XCreateWindow (si->dpy, RootWindowOfScreen (ssi->screen),
+    XCreateWindow (si->dpy, RootWindowOfScreen (ssi->screen),
                        ssi->x, ssi->y, ssi->width, ssi->height,
                        0, ssi->current_depth, InputOutput,
-		       ssi->current_visual, attrmask, &attrs);
+               ssi->current_visual, attrmask, &attrs);
       xscreensaver_set_wm_atoms (si->dpy, ssi->screensaver_window,
                                  ssi->width, ssi->height, 0);
 
@@ -309,7 +309,7 @@ initialize_screensaver_window_1 (saver_screen_info *ssi)
         }
 
       if (p->verbose_p > 1)
-	fprintf (stderr, "%s: %d: saver window is 0x%lx\n",
+    fprintf (stderr, "%s: %d: saver window is 0x%lx\n",
                  blurb(), ssi->number,
                  (unsigned long) ssi->screensaver_window);
     }
@@ -323,7 +323,7 @@ initialize_screensaver_window_1 (saver_screen_info *ssi)
                                      BlackPixelOfScreen (ssi->screen),
                                      1);
       ssi->cursor = XCreatePixmapCursor (si->dpy, bit, bit, &black, &black,
-					 0, 0);
+                     0, 0);
       XFreePixmap (si->dpy, bit);
     }
 
@@ -456,7 +456,7 @@ resize_screensaver_window (saver_info *si)
 }
 
 
-static void 
+static void
 raise_windows (saver_info *si)
 {
   int i;
@@ -470,7 +470,7 @@ raise_windows (saver_info *si)
 
 /* Called only once, before the main loop begins.
  */
-void 
+void
 blank_screen (saver_info *si)
 {
   saver_preferences *p = &si->prefs;
@@ -544,14 +544,14 @@ blank_screen (saver_info *si)
       if (!current_windows) abort();
 
       for (i = 0; i < si->nscreens; i++)
-	{
-	  saver_screen_info *ssi = &si->screens[i];
-	  current_windows[i] = ssi->screensaver_window;
-	  /* Ensure that the default background of the window is really black,
-	     not a pixmap or something.  (This does not clear the window.) */
-	  XSetWindowBackground (si->dpy, ssi->screensaver_window,
-				ssi->black_pixel);
-	}
+    {
+      saver_screen_info *ssi = &si->screens[i];
+      current_windows[i] = ssi->screensaver_window;
+      /* Ensure that the default background of the window is really black,
+         not a pixmap or something.  (This does not clear the window.) */
+      XSetWindowBackground (si->dpy, ssi->screensaver_window,
+                ssi->black_pixel);
+    }
 
       if (p->verbose_p) fprintf (stderr, "%s: fading...\n", blurb());
 
@@ -570,6 +570,23 @@ blank_screen (saver_info *si)
         fprintf (stderr, "%s: fading aborted\n", blurb());
       else
         fprintf (stderr, "%s: fading done\n", blurb());
+    }
+
+  /* If user activity was detected during fade-out, abort screensaver activation.
+     The user clearly doesn't want the screensaver to activate if they're pressing
+     keys during the fade.  This applies to all modes, not just blanking-only.
+
+     Also update the activity time to the current time so that the system knows
+     the user was just active, preventing an immediate re-attempt to blank.
+   */
+  if (user_active_p)
+    {
+      time_t now = time ((time_t *) 0);
+      si->activity_time = now;  /* Reset activity timer to prevent immediate re-blank */
+      if (p->verbose_p)
+        fprintf (stderr, "%s: screensaver activation cancelled due to user activity during fade (activity_time reset to %ld)\n",
+                 blurb(), (long) now);
+      return;
     }
 
   raise_windows (si);
@@ -614,14 +631,14 @@ unblank_screen (saver_info *si)
       double seconds = p->fade_seconds / 1000.0;
       double ratio = 1/3.0;
       Window *current_windows = (Window *)
-	calloc(sizeof(Window), si->nscreens);
+    calloc(sizeof(Window), si->nscreens);
       Bool interrupted_p = False;
 
       for (i = 0; i < si->nscreens; i++)
-	{
-	  saver_screen_info *ssi = &si->screens[i];
-	  current_windows[i] = ssi->screensaver_window;
-	}
+    {
+      saver_screen_info *ssi = &si->screens[i];
+      current_windows[i] = ssi->screensaver_window;
+    }
 
       if (p->verbose_p) fprintf (stderr, "%s: unfading...\n", blurb());
 
@@ -637,10 +654,10 @@ unblank_screen (saver_info *si)
                                     &si->fade_state);
 
       for (i = 0; i < si->nscreens; i++)
-	{
-	  saver_screen_info *ssi = &si->screens[i];
+    {
+      saver_screen_info *ssi = &si->screens[i];
           XClearWindow (si->dpy, ssi->screensaver_window);
-	}
+    }
 
       if (! interrupted_p)
         interrupted_p = fade_screens (si->app, si->dpy,
@@ -658,19 +675,19 @@ unblank_screen (saver_info *si)
   else
     {
       for (i = 0; i < si->nscreens; i++)
-	{
-	  saver_screen_info *ssi = &si->screens[i];
-	  if (ssi->cmap)
-	    {
-	      Colormap c = DefaultColormapOfScreen (ssi->screen);
-	      /* avoid technicolor */
+    {
+      saver_screen_info *ssi = &si->screens[i];
+      if (ssi->cmap)
+        {
+          Colormap c = DefaultColormapOfScreen (ssi->screen);
+          /* avoid technicolor */
               XSetWindowBackground (si->dpy, ssi->screensaver_window,
                                     BlackPixelOfScreen (ssi->screen));
-	      XClearWindow (si->dpy, ssi->screensaver_window);
-	      if (c) XInstallColormap (si->dpy, c);
-	    }
-	  XUnmapWindow (si->dpy, ssi->screensaver_window);
-	}
+          XClearWindow (si->dpy, ssi->screensaver_window);
+          if (c) XInstallColormap (si->dpy, c);
+        }
+      XUnmapWindow (si->dpy, ssi->screensaver_window);
+    }
     }
 }
 
@@ -683,12 +700,12 @@ get_screen_gl_visual (saver_info *si, int real_screen_number)
   if (! si->best_gl_visuals)
     {
       int i;
-      si->best_gl_visuals = (Visual **) 
+      si->best_gl_visuals = (Visual **)
         calloc (nscreens + 1, sizeof (*si->best_gl_visuals));
 
       for (i = 0; i < nscreens; i++)
         if (! si->best_gl_visuals[i])
-          si->best_gl_visuals[i] = 
+          si->best_gl_visuals[i] =
             get_best_gl_visual (si, ScreenOfDisplay (si->dpy, i));
     }
 
@@ -729,15 +746,15 @@ select_visual (saver_screen_info *ssi, const char *visual_name)
   if (visual_name && *visual_name)
     {
       if (!strcasecmp(visual_name, "default-i"))
-	{
-	  visual_name = "default";
-	  install_cmap_p = True;
-	}
+    {
+      visual_name = "default";
+      install_cmap_p = True;
+    }
       else if (!strcasecmp(visual_name, "default-n"))
-	{
-	  visual_name = "default";
-	  install_cmap_p = False;
-	}
+    {
+      visual_name = "default";
+      install_cmap_p = False;
+    }
       else if (!strcasecmp(visual_name, "GL"))
         {
           new_v = get_screen_gl_visual (si, ssi->real_screen_number);
@@ -769,21 +786,21 @@ select_visual (saver_screen_info *ssi, const char *visual_name)
     {
       Colormap old_c = ssi->cmap;
       Window old_w = ssi->screensaver_window;
-      if (! new_v) 
+      if (! new_v)
         new_v = ssi->current_visual;
 
       if (p->verbose_p)
-	{
+    {
 #if 0
-	  fprintf (stderr, "%s: %d: visual ", blurb(), ssi->number);
-	  describe_visual (stderr, ssi->screen, new_v, install_cmap_p);
+      fprintf (stderr, "%s: %d: visual ", blurb(), ssi->number);
+      describe_visual (stderr, ssi->screen, new_v, install_cmap_p);
 #endif
 #if 0
-	  fprintf (stderr, "%s:                  from ", blurb());
-	  describe_visual (stderr, ssi->screen, ssi->current_visual,
-			   was_installed_p);
+      fprintf (stderr, "%s:                  from ", blurb());
+      describe_visual (stderr, ssi->screen, ssi->current_visual,
+               was_installed_p);
 #endif
-	}
+    }
 
       ssi->current_visual = new_v;
       ssi->current_depth = visual_depth(ssi->screen, new_v);
@@ -797,12 +814,12 @@ select_visual (saver_screen_info *ssi, const char *visual_name)
       defer_XDestroyWindow (si->app, si->dpy, old_w);
 
       if (p->verbose_p > 1)
-	fprintf (stderr, "%s: %d: destroyed old saver window 0x%lx\n",
-		 blurb(), ssi->number, (unsigned long) old_w);
+    fprintf (stderr, "%s: %d: destroyed old saver window 0x%lx\n",
+         blurb(), ssi->number, (unsigned long) old_w);
 
       if (old_c &&
-	  old_c != DefaultColormapOfScreen (ssi->screen))
-	XFreeColormap (si->dpy, old_c);
+      old_c != DefaultColormapOfScreen (ssi->screen))
+    XFreeColormap (si->dpy, old_c);
     }
 
   return got_it;
@@ -881,7 +898,7 @@ update_screen_layout (saver_info *si)
       seen_screens[sn]++;
 
       ssi->default_visual =
-	get_visual_resource (ssi->screen, "visualID", "VisualID", False);
+    get_visual_resource (ssi->screen, "visualID", "VisualID", False);
       ssi->current_visual = ssi->default_visual;
       ssi->current_depth = visual_depth (ssi->screen, ssi->current_visual);
 
@@ -992,7 +1009,7 @@ screenhack_obituary (saver_screen_info *ssi,
   attrs.border_pixel = ssi->black_pixel;
   attrs.backing_store = Always;
   attrs.colormap = cmap;
-  attrmask = (CWOverrideRedirect | CWBackPixel | CWBorderPixel | 
+  attrmask = (CWOverrideRedirect | CWBackPixel | CWBorderPixel |
               CWBackingStore | CWColormap);
   visual = ssi->current_visual;
   window = ssi->error_dialog =
