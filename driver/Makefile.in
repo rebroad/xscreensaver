@@ -856,7 +856,7 @@ xscreensaver-gfx.o: XScreenSaver_ad.h
 xscreensaver-gfx.o: xscreensaver-gfx.c
 	$(CC) -c $(CC_ALL) $(GFX_DEFS) $<
 xscreensaver-gfx: $(GFX_OBJS)
-	$(CC) $(LDFLAGS) -o $@ $(GFX_OBJS) $(GFX_LIBS)
+	$(CC) $(LDFLAGS) -o $@ $(GFX_OBJS) $(GFX_LIBS) -lm
 
 dialog.o: dialog.c
 	$(CC) -c $(CC_ALL) $(AUTH_DEFS) $<
