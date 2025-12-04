@@ -575,6 +575,22 @@ blank_screen (saver_info *si)
         fprintf (stderr, "%s: fading done\n", blurb());
     }
 
+  /* If user activity was detected during fade-out, abort screensaver activation.
+     The user clearly doesn't want the screensaver to activate if they're pressing
+     keys during the fade.  This applies to all modes, not just blanking-only.
+
+     Also update the activity time to the current time so that the system knows
+     the user was just active, preventing an immediate re-attempt to blank.
+   */
+  if (user_active_p)
+    {
+      time_t now = time ((time_t *) 0);
+      si->activity_time = now;  /* Reset activity timer to prevent immediate re-blank */
+      debug_log ("%s: [BLANK_SCREEN] user activity detected, aborting activation: activity_time=%ld, returning early",
+                 blurb(), (long) now);
+      return;
+    }
+
   raise_windows (si);
   reset_watchdog_timer (si);
 
@@ -634,8 +650,6 @@ unblank_screen (saver_info *si)
          black, then fade in from black to the desktop. */
       if (!si->fade_was_interrupted_p)
         {
-          si->fade_was_interrupted_p = False;
-          si->interrupted_fade_ratio = 0.0;
           interrupted_p = fade_screens (si->app, si->dpy,
                                         current_windows, si->nscreens,
                                         seconds * ratio,
@@ -645,27 +659,28 @@ unblank_screen (saver_info *si)
                                         NULL,
                                         -1.0);
 
-      for (i = 0; i < si->nscreens; i++)
-        {
-          saver_screen_info *ssi = &si->screens[i];
-          XClearWindow (si->dpy, ssi->screensaver_window);
+          for (i = 0; i < si->nscreens; i++)
+            {
+              saver_screen_info *ssi = &si->screens[i];
+              XClearWindow (si->dpy, ssi->screensaver_window);
+            }
         }
 
-        /* If fade-out was interrupted, fade-in from that level, otherwise from black */
-        double start_ratio = si->fade_was_interrupted_p ? si->interrupted_fade_ratio : -1.0;
-        if (si->fade_was_interrupted_p)
-          debug_log ("%s: [UNBLANK_SCREEN] reusing captured fade level %.2f for fade-in", blurb(), start_ratio);
-        else
-            debug_log ("%s: [UNBLANK_SCREEN] fading in from black (fade-out completed)", blurb());
-        si->fade_was_interrupted_p = False;  /* Reset for next time */
-        interrupted_p = fade_screens (si->app, si->dpy,
-                                      current_windows, si->nscreens,
-                                      seconds * (1-ratio),
-                                      False, /* out_p */
-                                      False, /* from_desktop_p */
-                                      &si->fade_state,
-                                      NULL,  /* Not tracking interruption for fade-in (OUTPUT not needed) */
-                                      start_ratio);  /* INPUT: start from interrupted ratio if available */
+      /* If fade-out was interrupted, fade-in from that level, otherwise from black */
+      double start_ratio = si->fade_was_interrupted_p ? si->interrupted_fade_ratio : -1.0;
+      if (si->fade_was_interrupted_p)
+        debug_log ("%s: [UNBLANK_SCREEN] reusing captured fade level %.2f for fade-in", blurb(), start_ratio);
+      else
+        debug_log ("%s: [UNBLANK_SCREEN] fading in from black (fade-out completed)", blurb());
+      si->fade_was_interrupted_p = False;  /* Reset for next time */
+      interrupted_p = fade_screens (si->app, si->dpy,
+                                    current_windows, si->nscreens,
+                                    seconds * (1-ratio),
+                                    False, /* out_p */
+                                    False, /* from_desktop_p */
+                                    &si->fade_state,
+                                    NULL,  /* Not tracking interruption for fade-in (OUTPUT not needed) */
+                                    start_ratio);  /* INPUT: start from interrupted ratio if available */
       free (current_windows);
 
       if (p->verbose_p)
