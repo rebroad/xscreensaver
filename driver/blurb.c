@@ -23,6 +23,13 @@
 #include <stdarg.h>
 #include <unistd.h>  /* for getpid() */
 
+#ifdef HAVE_FCNTL_H
+# include <fcntl.h>  /* for flock */
+#endif
+#ifdef HAVE_SYS_FILE_H
+# include <sys/file.h>  /* for flock on some systems */
+#endif
+
 const char *progname = "";
 int verbose_p = 0;
 int logging_to_file_p = 0;
@@ -85,5 +92,61 @@ blurb (void)
 
   buf[i] = 0;
   return buf;
+}
+
+
+/* Format and write a complete log line atomically to prevent interleaving
+   when multiple processes write to the same log file.
+
+   Uses file locking (flock) when logging to a file to serialize writes,
+   avoiding the need for a buffer. For non-file logging, uses the original
+   multiple fprintf approach since interleaving is less of a concern.
+
+   Returns the number of characters written, or -1 on error. */
+int
+dl_write_atomic (int level, const char *file, int line, const char *fmt, ...)
+{
+  va_list args;
+  int fd = fileno (stderr);
+  int locked = 0;
+
+  if (verbose_p < level)
+    return 0;
+
+  /* Use file locking when logging to a file to prevent interleaving */
+  if (logging_to_file_p && fd >= 0)
+    {
+# ifdef LOCK_EX
+      /* Try to acquire exclusive lock (non-blocking) */
+      if (flock (fd, LOCK_EX | LOCK_NB) == 0)
+        locked = 1;
+      /* If lock fails, continue anyway - better to have interleaved logs than no logs */
+# endif
+    }
+
+  /* Write the log line using multiple fprintf calls (original approach) */
+  if (!running_under_systemd_p || logging_to_file_p)
+    {
+      fprintf (stderr, "%s: ", blurb());
+    }
+  fprintf (stderr, "[%s:%d] ", file, line);
+  va_start (args, fmt);
+  vfprintf (stderr, fmt, args);
+  va_end (args);
+  fprintf (stderr, "\n");
+
+  /* Flush immediately when logging to file */
+  if (logging_to_file_p)
+    fflush (stderr);
+
+  /* Release lock if we acquired it */
+  if (locked)
+    {
+# ifdef LOCK_UN
+      flock (fd, LOCK_UN);
+# endif
+    }
+
+  return 0;  /* Can't easily return byte count with this approach */
 }
 

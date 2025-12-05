@@ -640,6 +640,19 @@ fade_screens (XtAppContext app, Display *dpy,
   if (from_desktop_p && !out_p)
     abort();  /* Fading in from desktop makes no sense */
 
+  /* Log the type of fade operation for debugging */
+  if (out_p)
+    {
+      if (from_desktop_p)
+        debug_log ("[FADE] fade-out FROM desktop (activating screensaver)");
+      else
+        debug_log ("[FADE] fade-out FROM screensaver (deactivating screensaver)");
+    }
+  else
+    {
+      debug_log ("[FADE] fade-in TO desktop (deactivating screensaver)");
+    }
+
   if (out_p)
     flush_user_input (dpy);    /* Flush at start of cycle */
 
@@ -891,6 +904,7 @@ colormap_fade (XtAppContext app, Display *dpy,
             if (!out_p)
               for (j = 0; j < nwindows; j++)
                 {
+                  debug_log ("[FADE] colormap fade-in: unmapping saver window 0x%lx", (unsigned long) saver_windows[j]);
                   XUnmapWindow (dpy, saver_windows[j]);
                   XClearWindow (dpy, saver_windows[j]);
                 }
@@ -938,6 +952,7 @@ colormap_fade (XtAppContext app, Display *dpy,
     {
       for (i = 0; i < nwindows; i++)
         {
+          debug_log ("[FADE] colormap fade-out: clearing and map-raising saver window 0x%lx", (unsigned long) saver_windows[i]);
           XClearWindow (dpy, saver_windows[i]);
           XMapRaised (dpy, saver_windows[i]);
         }
@@ -1080,6 +1095,7 @@ sgi_gamma_fade (XtAppContext app, Display *dpy,
 
       for (screen = 0; screen < nwindows; screen++)
         {
+          debug_log ("[FADE] SGI fade-in: unmapping saver window 0x%lx", (unsigned long) saver_windows[screen]);
           XUnmapWindow (dpy, saver_windows[screen]);
           XClearWindow (dpy, saver_windows[screen]);
           XSync(dpy, False);
@@ -1130,6 +1146,7 @@ sgi_gamma_fade (XtAppContext app, Display *dpy,
     {
       for (screen = 0; screen < nwindows; screen++)
         {
+          debug_log ("[FADE] SGI fade-out: clearing and map-raising saver window 0x%lx", (unsigned long) saver_windows[screen]);
           XClearWindow (dpy, saver_windows[screen]);
           XMapRaised (dpy, saver_windows[screen]);
         }
@@ -1312,6 +1329,7 @@ xf86_gamma_fade (XtAppContext app, Display *dpy,
         xf86_whack_gamma(dpy, screen, &info[screen], 0.0);
       for (screen = 0; screen < nwindows; screen++)
         {
+          debug_log ("[FADE] XF86 fade-in: unmapping saver window 0x%lx", (unsigned long) saver_windows[screen]);
           XUnmapWindow (dpy, saver_windows[screen]);
           XClearWindow (dpy, saver_windows[screen]);
           XSync(dpy, False);
@@ -1362,6 +1380,7 @@ xf86_gamma_fade (XtAppContext app, Display *dpy,
     {
       for (screen = 0; screen < nwindows; screen++)
         {
+          debug_log ("[FADE] XF86 fade-out: clearing and map-raising saver window 0x%lx", (unsigned long) saver_windows[screen]);
           XClearWindow (dpy, saver_windows[screen]);
           XMapRaised (dpy, saver_windows[screen]);
         }
@@ -1928,6 +1947,7 @@ randr_gamma_fade (XtAppContext app, Display *dpy,
         randr_whack_gamma(dpy, screen, &info[screen], initial_ratio);
       for (screen = 0; screen < nwindows; screen++)
         {
+          debug_log ("[FADE] RANDR fade-in: unmapping saver window 0x%lx", (unsigned long) saver_windows[screen]);
           XUnmapWindow (dpy, saver_windows[screen]);
           XClearWindow (dpy, saver_windows[screen]);
           XSync(dpy, False);
@@ -2042,6 +2062,7 @@ randr_gamma_fade (XtAppContext app, Display *dpy,
     {
       for (screen = 0; screen < nwindows; screen++)
         {
+          debug_log ("[FADE] RANDR fade-out: clearing and map-raising saver window 0x%lx", (unsigned long) saver_windows[screen]);
           XClearWindow (dpy, saver_windows[screen]);
           XMapRaised (dpy, saver_windows[screen]);
         }
@@ -2673,6 +2694,7 @@ xshm_fade (XtAppContext app, Display *dpy,
         }
 # endif /* USE_GL */
 
+      debug_log ("[FADE] XSHM/OpenGL: map-raising fader window 0x%lx (screen %d)", (unsigned long) info[screen].window, screen);
       XMapRaised (dpy, info[screen].window);
 
       /* Now that we have mapped the screenshot on the fader windows,
@@ -2761,6 +2783,7 @@ xshm_fade (XtAppContext app, Display *dpy,
     {
       for (screen = 0; screen < nwindows; screen++)
         {
+          debug_log ("[FADE] XSHM/OpenGL fade-out: clearing and map-raising saver window 0x%lx", (unsigned long) saver_windows[screen]);
           XClearWindow (dpy, saver_windows[screen]);
           XMapRaised (dpy, saver_windows[screen]);
           /* Doing this here triggers the same KDE 5 compositor bug that
@@ -2780,6 +2803,7 @@ xshm_fade (XtAppContext app, Display *dpy,
     {
       for (screen = 0; screen < nwindows; screen++)
         {
+          debug_log ("[FADE] XSHM/OpenGL fade-in: unmapping saver window 0x%lx", (unsigned long) saver_windows[screen]);
           XUnmapWindow (dpy, saver_windows[screen]);
           XClearWindow (dpy, saver_windows[screen]);
         }
