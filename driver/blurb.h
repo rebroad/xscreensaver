@@ -13,20 +13,17 @@ extern int verbose_p;
 extern int logging_to_file_p;
 extern int running_under_systemd_p;
 extern const char *blurb (void);
+extern int dl_write_atomic (int level, const char *file, int line, const char *fmt, ...);
 
 /* DL macro - takes verbose level as first argument, then format string and args.
    When not running under systemd and not logging to file, include timestamp and PID via blurb().
-   systemd/journalctl automatically adds progname, PID, and timestamp, so we skip blurb() in that case. */
+   systemd/journalctl automatically adds progname, PID, and timestamp, so we skip blurb() in that case.
+
+   This macro formats the entire log line into a buffer and writes it atomically in one call
+   to prevent interleaving when multiple processes write to the same log file. */
 #define DL(level, ...) \
   do { \
-    if (verbose_p >= (level)) { \
-      if (!running_under_systemd_p || logging_to_file_p) { \
-        fprintf (stderr, "%s: ", blurb()); \
-      } \
-      fprintf (stderr, "[%s:%d] ", __FILE__, __LINE__); \
-      fprintf (stderr, __VA_ARGS__); \
-      fprintf (stderr, "\n"); \
-    } \
+    dl_write_atomic (level, __FILE__, __LINE__, __VA_ARGS__); \
   } while (0)
 
 /* Debug logging macro - always logs (uses DL with level 0) */
