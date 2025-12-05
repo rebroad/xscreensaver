@@ -132,7 +132,7 @@ MSGMERGE = $(INTLTOOL_UPDATE) --gettext-package $(GETTEXT_PACKAGE) --dist
 GENPOT   = $(INTLTOOL_UPDATE) --gettext-package $(GETTEXT_PACKAGE) --pot
 
 DEFS = @DEFS@
-CFLAGS = @CFLAGS@
+CFLAGS = @CFLAGS@ -Werror
 CPPFLAGS = @CPPFLAGS@
 
 INCLUDES = -I.. -I$(top_srcdir)/intl

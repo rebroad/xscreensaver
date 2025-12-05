@@ -494,7 +494,6 @@ blank_screen (saver_info *si)
   int i;
   Bool grabbing_supported_p = True;
 
-  si->fade_was_interrupted_p = False;  /* Reset fade interruption tracking */
   si->interrupted_fade_ratio = 0.0;  /* Reset interrupted fade ratio */
   debug_log ("[BLANK_SCREEN] called - starting blank_screen()");
 
@@ -572,7 +571,6 @@ blank_screen (saver_info *si)
       DL(1, "fading...");
 
       /* This will take several seconds to complete. */
-      si->fade_was_interrupted_p = False;
       si->interrupted_fade_ratio = 0.0;
       user_active_p = fade_screens (si->app, si->dpy,
                                     current_windows, si->nscreens,
@@ -582,8 +580,6 @@ blank_screen (saver_info *si)
                                     &si->fade_state,
                                     &si->interrupted_fade_ratio,
                                     -1.0);  /* No start ratio for fade-out */
-      if (user_active_p)
-        si->fade_was_interrupted_p = True;
       free (current_windows);
 
       if (!p->verbose_p)
@@ -667,8 +663,10 @@ unblank_screen (saver_info *si)
       monitor_power_on (si, True);
 
       /* When we fade in to the desktop, first fade out from the saver to
-         black, then fade in from black to the desktop. */
-      if (!si->fade_was_interrupted_p)
+         black, then fade in from black to the desktop.
+         However, if fade-out was interrupted, skip the fade-out entirely
+         since we're already at the interrupted level. */
+      if (si->interrupted_fade_ratio <= 0.0)
         {
           interrupted_p = fade_screens (si->app, si->dpy,
                                         current_windows, si->nscreens,
@@ -687,20 +685,18 @@ unblank_screen (saver_info *si)
         }
 
       /* If fade-out was interrupted, fade-in from that level, otherwise from black */
-      double start_ratio = si->fade_was_interrupted_p ? si->interrupted_fade_ratio : -1.0;
-      if (si->fade_was_interrupted_p)
-        debug_log ("[UNBLANK_SCREEN] reusing captured fade level %.2f for fade-in", start_ratio);
+      if (si->interrupted_fade_ratio > 0.0)
+        debug_log ("[UNBLANK_SCREEN] reusing captured fade level %.2f for fade-in", si->interrupted_fade_ratio);
       else
         debug_log ("[UNBLANK_SCREEN] fading in from black (fade-out completed)");
-      si->fade_was_interrupted_p = False;  /* Reset for next time */
       interrupted_p = fade_screens (si->app, si->dpy,
                                     current_windows, si->nscreens,
                                     seconds * (1-ratio),
                                     False, /* out_p */
                                     False, /* from_desktop_p */
                                     &si->fade_state,
-                                    NULL,  /* Not tracking interruption for fade-in (OUTPUT not needed) */
-                                    start_ratio);  /* INPUT: start from interrupted ratio if available */
+                                    &si->interrupted_fade_ratio);  /* INPUT: start from interrupted ratio if > 0.0 */
+      si->interrupted_fade_ratio = 0.0;  /* Reset for next time after fade-in completes */
       free (current_windows);
 
       DL(1, "unfading done%s", (interrupted_p ? " (interrupted)" : ""));
