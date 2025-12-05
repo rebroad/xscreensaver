@@ -192,22 +192,21 @@ void
 show_job_list (void)
 {
   struct screenhack_job *job;
-  fprintf(stderr, "%s: job list:\n", blurb());
+  DL(0, "job list:");
   for (job = jobs; job; job = job->next)
     {
-      fprintf (stderr, "  %5ld: %2d: (%s) %s %s\n",
-               (long) job->pid,
-               job->screen,
-               (job->status == job_running ? "running" :
-                job->status == job_stopped ? "stopped" :
-                job->status == job_killed  ? " killed" :
-                job->status == job_dead    ? "   dead" : "    ???"),
-               (job->killed   ? timestring (job->killed) :
-                job->launched ? timestring (job->launched) :
-                "??:??:??"),
-               job->name);
+      DL(0, "  %5ld: %2d: (%s) %s %s",
+         (long) job->pid,
+         job->screen,
+         (job->status == job_running ? "running" :
+          job->status == job_stopped ? "stopped" :
+          job->status == job_killed  ? " killed" :
+          job->status == job_dead    ? "   dead" : "    ???"),
+         (job->killed   ? timestring (job->killed) :
+          job->launched ? timestring (job->launched) :
+          "??:??:??"),
+         job->name);
     }
-  fprintf (stderr, "\n");
 }
 #endif /* DEBUG */
 
@@ -301,13 +300,10 @@ clean_job_list (void)
                now - job->killed > 10 &&
                now - last_warn   > 10)
         {
-          fprintf (stderr,
-                   "%s: WARNING: pid %ld (%s) sent SIGTERM %ld seconds ago"
-                   " and did not die!\n",
-                   blurb(),
-                   (long) job->pid,
-                   job->name,
-                   (long) (now - job->killed));
+          DL(0, "WARNING: pid %ld (%s) sent SIGTERM %ld seconds ago and did not die!",
+             (long) job->pid,
+             job->name,
+             (long) (now - job->killed));
           warnedp = True;
         }
     }
@@ -330,6 +326,7 @@ static int
 kill_job (saver_info *si, pid_t pid, int signal)
 {
   saver_preferences *p = &si->prefs;
+  int verbose_p = p->verbose_p;
   struct screenhack_job *job;
   int status = -1;
 
@@ -340,9 +337,7 @@ kill_job (saver_info *si, pid_t pid, int signal)
       !job->pid ||
       job->status == job_killed)
     {
-      if (p->verbose_p)
-	fprintf (stderr, "%s: no child %ld to signal!\n",
-		 blurb(), (long) pid);
+      DL(1, "no child %ld to signal!", (long) pid);
       goto DONE;
     }
 
@@ -358,30 +353,28 @@ kill_job (saver_info *si, pid_t pid, int signal)
   default: abort();
   }
 
-  if (p->verbose_p)
-    fprintf (stderr, "%s: %d: %s pid %lu (%s)\n",
-             blurb(), job->screen,
-             (job->status == job_killed  ? "killing" :
-              job->status == job_stopped ? "suspending" : "resuming"),
-             (unsigned long) job->pid,
-             job->name);
+  DL(1, "%d: %s pid %lu (%s)", job->screen,
+     (job->status == job_killed  ? "killing" :
+      job->status == job_stopped ? "suspending" : "resuming"),
+     (unsigned long) job->pid,
+     job->name);
 
   status = kill (job->pid, signal);
 
-  if (p->verbose_p && status < 0)
-    {
-      if (errno == ESRCH)
-	fprintf (stderr,
-                 "%s: %d: child process %lu (%s) was already dead\n",
-		 blurb(), job->screen, (unsigned long) job->pid, job->name);
-      else
-	{
-	  char buf [1024];
-	  sprintf (buf, "%s: %d: couldn't kill child process %lu (%s)",
-		   blurb(), job->screen, (unsigned long) job->pid, job->name);
-	  perror (buf);
-	}
-    }
+  if (status < 0)
+      {
+        if (errno == ESRCH)
+          DL(1, "%d: child process %lu (%s) was already dead",
+             job->screen, (unsigned long) job->pid, job->name);
+        else
+          {
+            char buf [1024];
+            sprintf (buf, "%s: %d: couldn't kill child process %lu (%s)",
+                     blurb(), job->screen, (unsigned long) job->pid, job->name);
+            perror (buf);
+          }
+      }
+  }
 
   await_dying_children (si);
 
@@ -462,15 +455,13 @@ xt_sigterm_handler (XtPointer data, XtSignalId *id)
     XtRemoveSignal (xt_sigterm_id);
   xt_sigterm_id = 0;
 
+  int verbose_p = p->verbose_p;
   if (hit_p)
-    fprintf (stderr, "%s: second signal: %s: exiting\n", blurb(), 
-             signal_name (sigterm_received));
+    DL(0, "second signal: %s: exiting", signal_name (sigterm_received));
   else
     {
       hit_p = True;
-      if (p->verbose_p)
-        fprintf (stderr, "%s: %s: unblanking\n", blurb(), 
-                 signal_name (sigterm_received));
+      DL(1, "%s: unblanking", signal_name (sigterm_received));
 
        /* We are in the process of shutting down and are about to exit,
           so don't accidentally re-launch hacks. */
@@ -496,9 +487,7 @@ xt_sigterm_handler (XtPointer data, XtSignalId *id)
         }
       unblank_screen (si);
 
-      if (p->verbose_p)
-        fprintf (stderr, "%s: %s: exiting\n", blurb(), 
-                 signal_name (sigterm_received));
+      DL(1, "%s: exiting", signal_name (sigterm_received));
     }
 
   /* Exit with the original signal received. */
@@ -553,7 +542,7 @@ xt_sigchld_handler (XtPointer data, XtSignalId *id)
   saver_info *si = (saver_info *) data;
 
   if (si->prefs.debug_p)
-    fprintf(stderr, "%s: got SIGCHLD\n", blurb());
+    DL(0, "got SIGCHLD");
 
   await_dying_children (si);		/* Their first album was better */
 }
@@ -572,14 +561,12 @@ await_dying_children (saver_info *si)
       kid = wait4 (-1, &wait_status, WNOHANG|WUNTRACED, &rus);
 
       if (si->prefs.debug_p)
-	{
-	  if (kid < 0 && errno)
-            fprintf (stderr, "%s: waitpid(-1) ==> %ld (%d)\n", blurb(),
-                     (long) kid, errno);
+        {
+          if (kid < 0 && errno)
+            DL(0, "waitpid(-1) ==> %ld (%d)", (long) kid, errno);
           else
-            fprintf (stderr, "%s: waitpid(-1) ==> %ld\n", blurb(),
-                     (long) kid);
-	}
+            DL(0, "waitpid(-1) ==> %ld", (long) kid);
+        }
 
       /* 0 means no more children to reap.
 	 -1 means error -- except "interrupted system call" isn't a "real"
@@ -599,6 +586,7 @@ describe_dead_child (saver_info *si, pid_t kid, int wait_status,
 {
   int i;
   saver_preferences *p = &si->prefs;
+  int verbose_p = p->verbose_p;
   struct screenhack_job *job = find_job (kid);
   const char *name = job ? job->name : "<unknown>";
   int screen_no = job ? job->screen : 0;
@@ -616,11 +604,8 @@ describe_dead_child (saver_info *si, pid_t kid, int wait_status,
       else
         sprintf (msg, _("crashed with status %d"), exit_status);
 
-      if (p->verbose_p)
-        fprintf (stderr,
-                 "%s: %d: child pid %lu (%s) exited abnormally"
-                 " with status %d\n",
-                 blurb(), screen_no, (unsigned long) kid, name, exit_status);
+      DL(1, "%d: child pid %lu (%s) exited abnormally with status %d",
+         screen_no, (unsigned long) kid, name, exit_status);
       if (job)
 	job->status = job_dead;
     }
@@ -633,29 +618,24 @@ describe_dead_child (saver_info *si, pid_t kid, int wait_status,
         {
           /* Expected notification after we killed it. */
           sprintf (msg, _("exited normally with %.100s"), sig);
-          if (p->verbose_p)
-            fprintf (stderr, "%s: %d: child pid %lu (%s)"
-                     " exited normally with %s\n",
-                     blurb(), screen_no, (unsigned long) kid, name, sig);
+          DL(1, "%d: child pid %lu (%s) exited normally with %s",
+             screen_no, (unsigned long) kid, name, sig);
         }
       else
         {
           /* Unexpected signal. */
           sprintf (msg, _("crashed with %.100s"), sig);
-          if (p->verbose_p)
-            fprintf (stderr, "%s: %d: child pid %lu (%s)"
-                     " unexpectedly terminated with %s\n",
-                     blurb(), screen_no, (unsigned long) kid, name, sig);
+          DL(1, "%d: child pid %lu (%s) unexpectedly terminated with %s",
+             screen_no, (unsigned long) kid, name, sig);
         }
       if (job)
 	job->status = job_dead;
     }
   else if (WIFSTOPPED (wait_status))
     {
-      if (p->verbose_p)
-        fprintf (stderr, "%s: child pid %lu (%s) stopped with %s\n",
-                 blurb(), (unsigned long) kid, name,
-                 signal_name (WSTOPSIG (wait_status)));
+      DL(1, "child pid %lu (%s) stopped with %s",
+         (unsigned long) kid, name,
+         signal_name (WSTOPSIG (wait_status)));
       if (job)
 	job->status = job_stopped;
     }
@@ -663,19 +643,18 @@ describe_dead_child (saver_info *si, pid_t kid, int wait_status,
     {
       /* Didn't exit, signal or stop; is this even possible? */
       sprintf (msg, _("crashed mysteriously"));
-      fprintf (stderr, "%s: child pid %lu (%s) died in a mysterious way!",
-	       blurb(), (unsigned long) kid, name);
+      DL(0, "child pid %lu (%s) died in a mysterious way!",
+         (unsigned long) kid, name);
       if (job)
 	job->status = job_dead;
     }
 
 # ifdef LOG_CPU_TIME
-  if (p->verbose_p && job && job->status == job_dead)
+  if (job && job->status == job_dead)
     {
       long u = rus.ru_utime.tv_usec / 1000 + rus.ru_utime.tv_sec * 1000;
       long s = rus.ru_stime.tv_usec / 1000 + rus.ru_stime.tv_sec * 1000;
-      fprintf (stderr, "%s: %d: CPU used: %.1fu, %.1fs\n",
-               blurb(), screen_no, u / 1000.0, s / 1000.0);
+      DL(1, "%d: CPU used: %.1fu, %.1fs", screen_no, u / 1000.0, s / 1000.0);
     }
 # endif /* LOG_CPU_TIME */
 
@@ -783,8 +762,7 @@ abort_debug_timer (XtPointer closure, XtIntervalId *id)
   saver_screen_info *ssi = (saver_screen_info *) closure;
   if (ssi->pid)
     {
-      fprintf (stderr, "%s: %d: %ld: born to ill\n", blurb(), ssi->number,
-               (unsigned long) ssi->pid);
+      DL(0, "%d: %ld: born to ill", ssi->number, (unsigned long) ssi->pid);
       kill (ssi->pid, SIGILL);
     }
 }
@@ -803,6 +781,7 @@ fork_and_exec (saver_screen_info *ssi, const char *command)
 {
   saver_info *si = ssi->global;
   saver_preferences *p = &si->prefs;
+  int verbose_p = p->verbose_p;
   pid_t forked;
 
   switch ((int) (forked = fork ()))
@@ -827,12 +806,10 @@ fork_and_exec (saver_screen_info *ssi, const char *command)
 
     default:	/* parent */
       make_job (forked, (ssi ? ssi->number : 0), command);
-      if (p->verbose_p)
-        fprintf (stderr, "%s: %d: forked \"%s\" in pid %lu"
-                 " on window 0x%lx\n",
-                 blurb(), (ssi ? ssi->number : 0), command,
-                 (unsigned long) forked,
-                 (unsigned long) ssi->screensaver_window);
+      DL(1, "%d: forked \"%s\" in pid %lu on window 0x%lx",
+         (ssi ? ssi->number : 0), command,
+         (unsigned long) forked,
+         (unsigned long) ssi->screensaver_window);
       break;
     }
 
@@ -859,13 +836,12 @@ select_visual_of_hack (saver_screen_info *ssi, screenhack *hack)
     selected = select_visual(ssi, 0);
 
   if (!selected && (p->verbose_p || si->demoing_p))
-    fprintf (stderr,
-             (si->demoing_p
-              ? "%s: warning, no \"%s\" visual for \"%s\"\n"
-              : "%s: no \"%s\" visual; skipping \"%s\"\n"),
-             blurb(),
-             (hack->visual && *hack->visual ? hack->visual : "???"),
-             hack->command);
+    DL(0,
+       (si->demoing_p
+        ? "warning, no \"%s\" visual for \"%s\""
+        : "no \"%s\" visual; skipping \"%s\""),
+       (hack->visual && *hack->visual ? hack->visual : "???"),
+       hack->command);
 
   return selected;
 }
@@ -876,14 +852,13 @@ spawn_screenhack (saver_screen_info *ssi)
 {
   saver_info *si = ssi->global;
   saver_preferences *p = &si->prefs;
+  int verbose_p = p->verbose_p;
   XFlush (si->dpy);
 
   if (!monitor_powered_on_p (si))
     {
-      if (si->prefs.verbose_p)
-        fprintf (stderr,
-                 "%s: %d: X says monitor has powered down; "
-                 "not launching a hack\n", blurb(), ssi->number);
+      DL(1, "%d: X says monitor has powered down; not launching a hack",
+         ssi->number);
       ssi->current_hack = -1;
 
       /* Hooray, this doesn't actually clear the window if it was OpenGL.
@@ -996,10 +971,8 @@ spawn_screenhack (saver_screen_info *ssi)
 		 what we should do is make a list of suitable hacks at
 		 the beginning, then only loop over them.)
 	      */
-	      if (p->verbose_p)
-		fprintf(stderr,
-		      "%s: %d: no programs enabled, or no suitable visuals\n",
-			blurb(), ssi->number);
+          DL(1, "%d: no programs enabled, or no suitable visuals",
+                 ssi->number);
 	      return;
 	    }
 	  else
@@ -1017,8 +990,7 @@ spawn_screenhack (saver_screen_info *ssi)
            but even that was just encouraging bad behavior.  Don't log in
            as root. */
         {
-          fprintf (stderr, "%s: %d: running as root: not launching hacks.\n",
-                   blurb(), ssi->number);
+          DL(0, "%d: running as root: not launching hacks.", ssi->number);
           screenhack_obituary (ssi, "", "XScreenSaver: Don't log in as root.");
           goto DONE;
         }
@@ -1123,16 +1095,14 @@ spawn_screenhack (saver_screen_info *ssi)
               cycle_at = prev_at + off / 1000;
               how_long = 1000 * (cycle_at - now);
 
-              if (p->verbose_p && cycle_at - old > 2)
-                fprintf (stderr, "%s: %d: offsetting cycle time by %ld sec\n",
-                         blurb(), ssi->number,
-                         cycle_at - old);
+              if (cycle_at - old > 2)
+                DL(1, "%d: offsetting cycle time by %ld sec", ssi->number,
+                   cycle_at - old);
             }
         }
 
       if (p->debug_p)
-        fprintf (stderr, "%s: %d: starting cycle_timer (%ld)\n",
-                 blurb(), ssi->number, how_long);
+        DL(0, "%d: starting cycle_timer (%ld)", ssi->number, how_long);
 
       if (ssi->cycle_id)
         XtRemoveTimeOut (ssi->cycle_id);
@@ -1140,13 +1110,11 @@ spawn_screenhack (saver_screen_info *ssi)
         XtAppAddTimeOut (si->app, how_long, cycle_timer, (XtPointer) ssi);
       ssi->cycle_at = now + how_long / 1000;
 
-      if (p->verbose_p)
-        fprintf (stderr, "%s: %d: next cycle in %d:%02d:%02d at %s\n",
-                 blurb(), ssi->number,
-                 (int)  (how_long / 1000) / (60 * 60),
-                 (int) ((how_long / 1000) % (60 * 60)) / 60,
-                 (int)  (how_long / 1000) % 60,
-                 timestring (ssi->cycle_at));
+      DL(1, "%d: next cycle in %d:%02d:%02d at %s", ssi->number,
+         (int)  (how_long / 1000) / (60 * 60),
+         (int) ((how_long / 1000) % (60 * 60)) / 60,
+         (int)  (how_long / 1000) % 60,
+         timestring (ssi->cycle_at));
     }
 }
 
@@ -1199,15 +1167,14 @@ get_best_gl_visual (saver_info *si, Screen *screen)
 {
   saver_preferences *p = &si->prefs;
   Visual *v = get_gl_visual (screen);
+  int verbose_p = p->verbose_p;
   if (!v)
-    fprintf (stderr, "%s: %d: no GL visual!\n", blurb(),
-             screen_number (screen));
-  else if (p->verbose_p)
-    fprintf (stderr, "%s: %d: GL visual is 0x%X%s\n",
-             blurb(), screen_number (screen),
-             (unsigned int) XVisualIDFromVisual (v),
-             (v == DefaultVisualOfScreen (screen)
-              ? " (default)" : ""));
+    DL(0, "%d: no GL visual!", screen_number (screen));
+  else
+    DL(1, "%d: GL visual is 0x%X%s", screen_number (screen),
+       (unsigned int) XVisualIDFromVisual (v),
+       (v == DefaultVisualOfScreen (screen)
+        ? " (default)" : ""));
   return v;
 }
 
@@ -1220,6 +1187,7 @@ Visual *
 get_best_gl_visual (saver_info *si, Screen *screen)
 {
   saver_preferences *p = &si->prefs;
+  int verbose_p = p->verbose_p;
   pid_t forked;
   int fds [2];
   int in, out;
@@ -1310,9 +1278,7 @@ get_best_gl_visual (saver_info *si, Screen *screen)
 
         make_job (forked, 0, av[0]);  /* Bookkeeping for SIGCHLD */
 
-        if (p->verbose_p)
-          fprintf (stderr, "%s: %d: forked \"%s\" in pid %lu\n",
-                   blurb(), 0, av[0], (unsigned long) forked);
+        DL(1, "%d: forked \"%s\" in pid %lu", 0, av[0], (unsigned long) forked);
 
         f = fdopen (in, "r");
         close (out);  /* don't need this one */
@@ -1336,8 +1302,7 @@ get_best_gl_visual (saver_info *si, Screen *screen)
         /* Wait for the child to die - wait for this pid only, not others. */
         pid = waitpid (forked, &wait_status, 0);
         if (si->prefs.debug_p)
-          fprintf (stderr, "%s: waitpid(%ld) => %ld\n", blurb(),
-                   (long) forked, (long) pid);
+          DL(0, "waitpid(%ld) => %ld", (long) forked, (long) pid);
 
         exit_status = WEXITSTATUS (wait_status);
         /* Treat exit code as a signed 8-bit quantity. */
@@ -1345,7 +1310,7 @@ get_best_gl_visual (saver_info *si, Screen *screen)
 
         if (exit_status == EXEC_FAILED_EXIT_STATUS)
           {
-            fprintf (stderr, "%s: %s is not installed\n", blurb(), av[0]);
+            DL(0, "%s is not installed", av[0]);
             return 0;
           }
 
@@ -1354,29 +1319,23 @@ get_best_gl_visual (saver_info *si, Screen *screen)
 
         if (result == 0)
           {
-            if (si->prefs.verbose_p)
-              {
-                int L = strlen(buf);
-                fprintf (stderr, "%s: %s did not report a GL visual!\n",
-                         blurb(), av[0]);
+            int L = strlen(buf);
+            DL(1, "%s did not report a GL visual!", av[0]);
 
-                if (L && buf[L-1] == '\n')
-                  buf[--L] = 0;
-                if (*buf)
-                  fprintf (stderr, "%s: %s said: \"%s\"\n",
-                           blurb(), av[0], buf);
-              }
+            if (L && buf[L-1] == '\n')
+              buf[--L] = 0;
+            if (*buf)
+              DL(1, "%s said: \"%s\"", av[0], buf);
             return 0;
           }
         else
           {
             Visual *v = id_to_visual (screen, result);
-            if (si->prefs.verbose_p)
-              fprintf (stderr, "%s: %d: %s: GL visual is 0x%X%s\n",
-                       blurb(), screen_number (screen),
-                       av[0], result,
-                       (v == DefaultVisualOfScreen (screen)
-                        ? " (default)" : ""));
+            DL(1, "%d: %s: GL visual is 0x%X%s",
+               screen_number (screen),
+               av[0], result,
+               (v == DefaultVisualOfScreen (screen)
+                ? " (default)" : ""));
             return v;
           }
       }
