@@ -23,12 +23,10 @@
 #include <stdarg.h>
 #include <unistd.h>  /* for getpid() */
 
-#ifdef HAVE_FCNTL_H
-# include <fcntl.h>  /* for flock */
-#endif
-#ifdef HAVE_SYS_FILE_H
-# include <sys/file.h>  /* for flock on some systems */
-#endif
+/* Include sys/file.h for flock() - standard on Linux and most Unix systems.
+   Try to include it - if the system doesn't have it, the #ifdef LOCK_EX will
+   prevent using flock. */
+#include <sys/file.h>
 
 const char *progname = "";
 int verbose_p = 0;
@@ -102,15 +100,20 @@ blurb (void)
    avoiding the need for a buffer. For non-file logging, uses the original
    multiple fprintf approach since interleaving is less of a concern.
 
+   verbose_level: the current verbose level to check against (typically verbose_p or p->verbose_p)
+   level: the minimum verbose level required for this message to be logged
+   file, line: source file and line number for the log message
+   fmt, ...: printf-style format string and arguments
+
    Returns the number of characters written, or -1 on error. */
 int
-dl_write_atomic (int level, const char *file, int line, const char *fmt, ...)
+dl_write_atomic (int verbose_level, int level, const char *file, int line, const char *fmt, ...)
 {
   va_list args;
   int fd = fileno (stderr);
   int locked = 0;
 
-  if (verbose_p < level)
+  if (verbose_level < level)
     return 0;
 
   /* Use file locking when logging to a file to prevent interleaving */

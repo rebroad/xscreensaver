@@ -394,7 +394,8 @@ void
 resize_screensaver_window (saver_info *si)
 {
   saver_preferences *p = &si->prefs;
-  int i, verbose_p = p->verbose_p;
+  int verbose_p = p->verbose_p;
+  int i;
 
   for (i = 0; i < si->nscreens; i++)
     {
@@ -1220,7 +1221,7 @@ reset_watchdog_timer (saver_info *si)
                                      (when - now) * 1000,
                                      watchdog_timer, (XtPointer) si);
   DL(2, "watchdog in %d:%02d:%02d",
-       (int)  (when - now) / (60 * 60),
-       (int) ((when - now) % (60 * 60)) / 60,
-       (int)  (when - now) % 60);
+     (int)  (when - now) / (60 * 60),
+     (int) ((when - now) % (60 * 60)) / 60,
+     (int)  (when - now) % 60);
 }
