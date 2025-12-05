@@ -149,15 +149,15 @@ static int xf86_gamma_fade (XtAppContext, Display *, Window *wins, int count,
 #endif
 #ifdef HAVE_RANDR_12
 static int randr_gamma_fade (XtAppContext, Display *, Window *wins, int count,
-                             double secs, Bool out_p, Bool from_desktop_p, double *interrupted_ratio, double start_ratio);
+                             double secs, Bool out_p, Bool from_desktop_p, double *interrupted_ratio);
 #endif
 static int colormap_fade (XtAppContext, Display *, Window *wins, int count,
                           double secs, Bool out_p, Bool from_desktop_p,
-                          double *interrupted_ratio, double start_ratio);
+                          double *interrupted_ratio);
 static int xshm_fade (XtAppContext, Display *,
                       Window *wins, int count, double secs,
                       Bool out_p, Bool from_desktop_p, fade_state *,
-                      double *interrupted_ratio, double start_ratio);
+                      double *interrupted_ratio);
 
 
 static double
@@ -388,7 +388,7 @@ static double query_brightness (Display *dpy, RROutput output) { (void)dpy; (voi
 
 /* Helper to log fade progress at 5% intervals */
 static void
-log_fade_progress (double ratio, Bool out_p, int *last_logged_percent, Display *dpy, void *gamma_info, int ngamma)
+log_fade_progress (const char *fade_type, double ratio, Bool out_p, int *last_logged_percent, Display *dpy, void *gamma_info, int ngamma)
 {
   int percent;
   if (out_p)
@@ -489,11 +489,11 @@ log_fade_progress (double ratio, Bool out_p, int *last_logged_percent, Display *
 # endif /* HAVE_RANDR_12 */
 
       if (current_5_percent == 0)
-        debug_log ("[FADE] %s: 0%% (start, target=%.2f)%s%s", (out_p ? "fade-out" : "fade-in"), ratio, actual_gamma_str, brightness_str);
+        debug_log ("[FADE] %s (%s): 0%% (start, target=%.2f)%s%s", fade_type, (out_p ? "fade-out" : "fade-in"), ratio, actual_gamma_str, brightness_str);
       else if (current_5_percent == 100)
-        debug_log ("[FADE] %s: 100%% (complete, target=%.2f)%s%s", (out_p ? "fade-out" : "fade-in"), ratio, actual_gamma_str, brightness_str);
+        debug_log ("[FADE] %s (%s): 100%% (complete, target=%.2f)%s%s", fade_type, (out_p ? "fade-out" : "fade-in"), ratio, actual_gamma_str, brightness_str);
       else
-        debug_log ("[FADE] %s: %d%% (target=%.2f)%s%s", (out_p ? "fade-out" : "fade-in"), current_5_percent, ratio, actual_gamma_str, brightness_str);
+        debug_log ("[FADE] %s (%s): %d%% (target=%.2f)%s%s", fade_type, (out_p ? "fade-out" : "fade-in"), current_5_percent, ratio, actual_gamma_str, brightness_str);
       *last_logged_percent = current_5_percent;
     }
 }
@@ -626,16 +626,16 @@ defer_XDestroyWindow (XtAppContext app, Display *dpy, Window w)
 
 
 /* Returns true if canceled by user activity.
-   If interrupted_ratio is non-NULL and fade-out is interrupted, stores the
-   current fade ratio (0.0-1.0) in *interrupted_ratio.
-   If start_ratio is >= 0.0 and out_p is False, fade-in starts from start_ratio
-   instead of 0.0 (used when resuming from an interrupted fade-out).
+   If interrupted_ratio is non-NULL:
+     - For fade-out: stores the current fade ratio (0.0-1.0) in *interrupted_ratio when interrupted.
+     - For fade-in: if *interrupted_ratio > 0.0, starts fade-in from that level instead of 0.0
+       (used when resuming from an interrupted fade-out).
  */
 Bool
 fade_screens (XtAppContext app, Display *dpy,
               Window *saver_windows, int nwindows,
               double seconds, Bool out_p, Bool from_desktop_p,
-              void **closureP, double *interrupted_ratio, double start_ratio)
+              void **closureP, double *interrupted_ratio)
 {
   int status = False;
   fade_state *state = 0;
@@ -688,7 +688,7 @@ fade_screens (XtAppContext app, Display *dpy,
 # ifdef HAVE_RANDR_12
   /* Then try to do it by fading the gamma in an RANDR-specific way... */
   debug_log ("[FADE] trying RANDR gamma fade method (%s)", (out_p ? "fade-out" : "fade-in"));
-  status = randr_gamma_fade (app, dpy, saver_windows, nwindows, seconds, out_p, from_desktop_p, interrupted_ratio, start_ratio);
+  status = randr_gamma_fade (app, dpy, saver_windows, nwindows, seconds, out_p, from_desktop_p, interrupted_ratio);
   if (status == 0 || status == 1)
     {
       debug_log ("[FADE] using RANDR gamma fade method (%s)", (out_p ? "fade-out" : "fade-in"));
@@ -722,7 +722,7 @@ fade_screens (XtAppContext app, Display *dpy,
          8-bit displays. */
       debug_log ("[FADE] trying colormap fade method (%s)", (out_p ? "fade-out" : "fade-in"));
       status = colormap_fade (app, dpy, saver_windows, nwindows, seconds,
-                              out_p, from_desktop_p, interrupted_ratio, start_ratio);
+                              out_p, from_desktop_p, interrupted_ratio);
       if (status == 0 || status == 1)
         {
           debug_log ("[FADE] using colormap fade method (%s)", (out_p ? "fade-out" : "fade-in"));
@@ -739,7 +739,7 @@ fade_screens (XtAppContext app, Display *dpy,
   /* Else do it the hard way, by hacking a screenshot. */
   debug_log ("[FADE] using XSHM/OpenGL fade method (%s)", (out_p ? "fade-out" : "fade-in"));
   status = xshm_fade (app, dpy, saver_windows, nwindows, seconds, out_p,
-                      from_desktop_p, state, interrupted_ratio, start_ratio);
+                      from_desktop_p, state, interrupted_ratio);
   status = (status ? True : False);
 
   return status;
@@ -778,7 +778,7 @@ static int
 colormap_fade (XtAppContext app, Display *dpy,
                Window *saver_windows, int nwindows,
                double seconds, Bool out_p, Bool from_desktop_p,
-               double *interrupted_ratio, double start_ratio)
+               double *interrupted_ratio)
 {
   int status = -1;
   Colormap *window_cmaps = 0;
@@ -855,20 +855,24 @@ colormap_fade (XtAppContext app, Display *dpy,
     int frames = 0;
     int last_logged_percent = -1;
     double max = 1/60.0;  /* max FPS */
-    if (!out_p && start_ratio >= 0.0)
-      debug_log ("[FADE] fade-in starting from captured level: %.2f", start_ratio);
+    if (!out_p && interrupted_ratio && *interrupted_ratio > 0.0)
+      debug_log ("[FADE] fade-in starting from captured level: %.2f", *interrupted_ratio);
     while ((now = double_time()) < end_time)
       {
         double ratio = (end_time - now) / seconds;
         if (!out_p)
           {
-            /* For fade-in, adjust to start from start_ratio if provided */
+            /* For fade-in, adjust to start from interrupted_ratio if provided */
             ratio = 1-ratio;
-            if (start_ratio >= 0.0)
-              ratio = start_ratio + (1.0 - start_ratio) * ratio;
+            if (interrupted_ratio && *interrupted_ratio > 0.0)
+              ratio = *interrupted_ratio + (1.0 - *interrupted_ratio) * ratio;
           }
 
-        log_fade_progress (ratio, out_p, &last_logged_percent, dpy, NULL, 0);
+        /* Continuously update interrupted_ratio during fade-out so it's current if interrupted */
+        if (out_p && from_desktop_p && interrupted_ratio)
+          *interrupted_ratio = ratio;
+
+        log_fade_progress ("colormap", ratio, out_p, &last_logged_percent, dpy, NULL, 0);
 
         /* For each screen, compute the current value of each color...
          */
@@ -1130,7 +1134,7 @@ sgi_gamma_fade (XtAppContext app, Display *dpy,
         double ratio = (end_time - now) / seconds;
         if (!out_p) ratio = 1-ratio;
 
-        log_fade_progress (ratio, out_p, &last_logged_percent, dpy, NULL, 0);
+        log_fade_progress ("SGI gamma", ratio, out_p, &last_logged_percent, dpy, NULL, 0);
 
         for (screen = 0; screen < nwindows; screen++)
           sgi_whack_gamma (dpy, screen, &info[screen], ratio);
@@ -1364,7 +1368,7 @@ xf86_gamma_fade (XtAppContext app, Display *dpy,
         double ratio = (end_time - now) / seconds;
         if (!out_p) ratio = 1-ratio;
 
-        log_fade_progress (ratio, out_p, &last_logged_percent, dpy, NULL, 0);
+        log_fade_progress ("XF86 gamma", ratio, out_p, &last_logged_percent, dpy, NULL, 0);
 
         for (screen = 0; screen < nscreens; screen++)
           xf86_whack_gamma (dpy, screen, &info[screen], ratio);
@@ -1675,7 +1679,7 @@ static void randr_whack_gamma (Display *dpy, int screen,
 static int
 randr_gamma_fade (XtAppContext app, Display *dpy,
                    Window *saver_windows, int nwindows,
-                   double seconds, Bool out_p, Bool from_desktop_p, double *interrupted_ratio, double start_ratio)
+                   double seconds, Bool out_p, Bool from_desktop_p, double *interrupted_ratio)
 {
   int xsc = ScreenCount (dpy);
   int nscreens = 0;
@@ -1767,11 +1771,12 @@ randr_gamma_fade (XtAppContext app, Display *dpy,
              For now, we'll store the current gamma ramp and handle the brightness calculation
              specially for fade-in after interruption.
              */
-          if (!out_p && start_ratio >= 0.0 && start_ratio > 0.0)
+          if (!out_p && interrupted_ratio && *interrupted_ratio > 0.0)
             {
               /* Fade-in after interruption: current gamma is at interrupted level.
                  We need to "restore" it to the original (gamma=1.0) by scaling up.
-                 Create a new gamma ramp by dividing the current ramp by start_ratio. */
+                 Create a new gamma ramp by dividing the current ramp by interrupted_ratio. */
+              double start_ratio = *interrupted_ratio;
               info[j].gamma = XRRAllocGamma (current_gamma->size);
               for (int i = 0; i < current_gamma->size; i++)
                 {
@@ -1810,7 +1815,7 @@ randr_gamma_fade (XtAppContext app, Display *dpy,
           info[j].original_brightness = -1.0;  /* invalid until queried */
           info[j].current_brightness = -1.0;   /* invalid until queried */
 
-          if (!out_p && start_ratio >= 0.0)
+          if (!out_p && interrupted_ratio && *interrupted_ratio > 0.0)
             {
               /* Fade-in after interrupted fade-out:
                  - original_brightness = brightness at gamma=1.0 (START value, before fade-out began)
@@ -1820,6 +1825,7 @@ randr_gamma_fade (XtAppContext app, Display *dpy,
                  gamma=1.0. We calculate brightness from that original ramp to get the original brightness.
                  We also query the current brightness to track the interrupted level.
                  */
+              double start_ratio = *interrupted_ratio;
 
               /* Calculate original brightness from the original gamma ramp (gamma=1.0) */
               XRRCrtcGamma *original_gamma = info[j].gamma;
@@ -1886,9 +1892,9 @@ randr_gamma_fade (XtAppContext app, Display *dpy,
                 }
               else
                 {
-                  /* If we can't query, use start_ratio as approximation */
+                  /* If we can't query, use interrupted_ratio as approximation */
                   info[j].current_brightness = start_ratio;
-                  debug_log ("[FADE] fade-in after interruption: using start_ratio %.3f as current brightness for %s (query failed)",
+                  debug_log ("[FADE] fade-in after interruption: using interrupted_ratio %.3f as current brightness for %s (query failed)",
                             start_ratio, info[j].output_name);
                 }
             }
@@ -1908,16 +1914,23 @@ randr_gamma_fade (XtAppContext app, Display *dpy,
                 }
             }
 
-           if (info[j].original_brightness >= 0.0)
-            debug_log ("[FADE] captured original gamma for screen %d (crtc=%lu, output=%s, brightness=%.2f, size=%d, first_red=%d, first_green=%d, first_blue=%d)",
-                      j, (unsigned long) crtc, info[j].output_name, info[j].original_brightness,
-                      info[j].gamma->size,
-                      info[j].gamma->red[0], info[j].gamma->green[0], info[j].gamma->blue[0]);
-          else
-            debug_log ("[FADE] captured original gamma for screen %d (crtc=%lu, output=%s, brightness=invalid, size=%d, first_red=%d, first_green=%d, first_blue=%d)",
-                      j, (unsigned long) crtc, info[j].output_name,
-                      info[j].gamma->size,
-                      info[j].gamma->red[0], info[j].gamma->green[0], info[j].gamma->blue[0]);
+          /* Only log "captured original gamma" during fade-out.
+             During fade-in, we're using the gamma ramp (either restored from interrupted fade-out
+             or the current black gamma ramp), but we didn't "capture" it - it was already captured
+             during fade-out or is the current state. */
+          if (out_p)
+            {
+              if (info[j].original_brightness >= 0.0)
+                debug_log ("[FADE] captured original gamma for screen %d (crtc=%lu, output=%s, brightness=%.2f, size=%d, first_red=%d, first_green=%d, first_blue=%d)",
+                          j, (unsigned long) crtc, info[j].output_name, info[j].original_brightness,
+                          info[j].gamma->size,
+                          info[j].gamma->red[0], info[j].gamma->green[0], info[j].gamma->blue[0]);
+              else
+                debug_log ("[FADE] captured original gamma for screen %d (crtc=%lu, output=%s, brightness=invalid, size=%d, first_red=%d, first_green=%d, first_blue=%d)",
+                          j, (unsigned long) crtc, info[j].output_name,
+                          info[j].gamma->size,
+                          info[j].gamma->red[0], info[j].gamma->green[0], info[j].gamma->blue[0]);
+            }
 
           /* #### is this test sufficient? */
           info[j].enabled_p = (rroi->connection != RR_Disconnected);
@@ -1947,14 +1960,14 @@ randr_gamma_fade (XtAppContext app, Display *dpy,
     }
 
   /* If we're fading in (from black), then first set gamma to the start level.
-     If start_ratio is provided (fade-out was interrupted), start from that level.
+     If interrupted_ratio > 0.0 (fade-out was interrupted), start from that level.
      Otherwise, start from 0.0 (fully black).
   */
   if (!out_p)
     {
-      double initial_ratio = (start_ratio >= 0.0) ? start_ratio : 0.0;
-      if (start_ratio >= 0.0)
-        debug_log ("[FADE] fade-in: setting initial gamma to interrupted level %.2f (not 0.0)", start_ratio);
+      double initial_ratio = (interrupted_ratio && *interrupted_ratio > 0.0) ? *interrupted_ratio : 0.0;
+      if (interrupted_ratio && *interrupted_ratio > 0.0)
+        debug_log ("[FADE] fade-in: setting initial gamma to interrupted level %.2f (not 0.0)", *interrupted_ratio);
       else
         debug_log ("[FADE] fade-in: setting initial gamma to 0.0 (fade-out completed)");
       for (screen = 0; screen < nscreens; screen++)
@@ -1981,8 +1994,8 @@ randr_gamma_fade (XtAppContext app, Display *dpy,
     double reversal_time = 0.0;  /* Time when we reversed direction */
     double reversal_ratio = 0.0;  /* Ratio when we reversed direction */
 
-    if (!out_p && start_ratio >= 0.0)
-      debug_log ("[FADE] fade-in starting from captured level: %.2f", start_ratio);
+    if (!out_p && interrupted_ratio && *interrupted_ratio > 0.0)
+      debug_log ("[FADE] fade-in starting from captured level: %.2f", *interrupted_ratio);
 
     while ((now = double_time()) < end_time)
       {
@@ -2010,8 +2023,8 @@ randr_gamma_fade (XtAppContext app, Display *dpy,
             /* Normal fade-in */
             ratio = (end_time - now) / seconds;
             ratio = 1-ratio;
-            if (start_ratio >= 0.0)
-              ratio = start_ratio + (1.0 - start_ratio) * ratio;
+            if (interrupted_ratio && *interrupted_ratio > 0.0)
+              ratio = *interrupted_ratio + (1.0 - *interrupted_ratio) * ratio;
           }
         else
           {
@@ -2019,7 +2032,11 @@ randr_gamma_fade (XtAppContext app, Display *dpy,
             ratio = (end_time - now) / seconds;
           }
 
-        log_fade_progress (ratio, reversed_p ? False : out_p, &last_logged_percent, dpy, info, nscreens);
+        /* Continuously update interrupted_ratio during fade-out so it's current if interrupted */
+        if (out_p && from_desktop_p && !reversed_p && interrupted_ratio)
+          *interrupted_ratio = ratio;
+
+        log_fade_progress ("RANDR gamma", ratio, reversed_p ? False : out_p, &last_logged_percent, dpy, info, nscreens);
 
         for (screen = 0; screen < nscreens; screen++)
           {
@@ -2486,7 +2503,7 @@ static int
 xshm_fade (XtAppContext app, Display *dpy,
            Window *saver_windows, int nwindows, double seconds,
            Bool out_p, Bool from_desktop_p, fade_state *state,
-           double *interrupted_ratio, double start_ratio)
+           double *interrupted_ratio)
 {
   int screen;
   int status = -1;
@@ -2729,20 +2746,28 @@ xshm_fade (XtAppContext app, Display *dpy,
     int frames = 0;
     int last_logged_percent = -1;
     double max = 1/60.0;  /* max FPS */
-    if (!out_p && start_ratio >= 0.0)
-      debug_log ("[FADE] fade-in starting from captured level: %.2f", start_ratio);
+    if (!out_p && interrupted_ratio && *interrupted_ratio > 0.0)
+      debug_log ("[FADE] fade-in starting from captured level: %.2f", *interrupted_ratio);
     while ((now = double_time()) < end_time)
       {
         double ratio = (end_time - now) / seconds;
         if (!out_p)
           {
-            /* For fade-in, adjust to start from start_ratio if provided */
+            /* For fade-in, adjust to start from interrupted_ratio if provided */
             ratio = 1-ratio;
-            if (start_ratio >= 0.0)
-              ratio = start_ratio + (1.0 - start_ratio) * ratio;
+            if (interrupted_ratio && *interrupted_ratio > 0.0)
+              ratio = *interrupted_ratio + (1.0 - *interrupted_ratio) * ratio;
           }
 
-        log_fade_progress (ratio, out_p, &last_logged_percent, dpy, NULL, 0);
+        /* Continuously update interrupted_ratio during fade-out so it's current if interrupted */
+        if (out_p && from_desktop_p && interrupted_ratio)
+          *interrupted_ratio = ratio;
+
+# ifdef USE_GL
+        log_fade_progress ("OpenGL", ratio, out_p, &last_logged_percent, dpy, NULL, 0);
+# else /* !USE_GL */
+        log_fade_progress ("XSHM", ratio, out_p, &last_logged_percent, dpy, NULL, 0);
+# endif /* !USE_GL */
 
         for (screen = 0; screen < nwindows; screen++)
 # ifdef USE_GL
