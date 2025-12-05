@@ -151,21 +151,27 @@ store_saver_status (saver_info *si)
   if (si->prefs.debug_p && si->prefs.verbose_p)
     {
       int i;
-      fprintf (stderr, "%s: wrote status property: 0x%lx: ", blurb(),
-               (unsigned long) w);
+      char buf[256] = "";
+      char item_buf[32];
+      snprintf (buf, sizeof(buf), "wrote status property: 0x%lx: ", (unsigned long) w);
       for (i = 0; i < nitems; i++)
         {
-          if (i > 0) fprintf (stderr, ", ");
+          if (i > 0) strcat (buf, ", ");
           if (i == 0 || i == 2)
-            fprintf (stderr, "%s",
-                     (status[i] == XA_LOCK  ? "LOCK"  :
-                      status[i] == XA_BLANK ? "BLANK" :
-                      status[i] == XA_AUTH  ? "AUTH"  :
-                      status[i] == 0 ? "0" : "???"));
+            {
+              const char *s = (status[i] == XA_LOCK  ? "LOCK"  :
+                               status[i] == XA_BLANK ? "BLANK" :
+                               status[i] == XA_AUTH  ? "AUTH"  :
+                               status[i] == 0 ? "0" : "???");
+              strcat (buf, s);
+            }
           else
-            fprintf (stderr, "%lu", status[i]);
+            {
+              snprintf (item_buf, sizeof(item_buf), "%lu", status[i]);
+              strcat (buf, item_buf);
+            }
         }
-      fprintf (stderr, "\n");
+      DL(0, "%s", buf);
     }
 
   free (status);
@@ -179,6 +185,7 @@ initialize_screensaver_window_1 (saver_screen_info *ssi)
 {
   saver_info *si = ssi->global;
   saver_preferences *p = &si->prefs;
+  int verbose_p = p->verbose_p;
   Bool install_cmap_p = ssi->install_cmap_p;   /* not p->install_cmap_p */
 
   /* This resets the screensaver window as fully as possible, since there's
@@ -246,19 +253,33 @@ initialize_screensaver_window_1 (saver_screen_info *ssi)
     ;
   else if (ssi->current_visual == DefaultVisualOfScreen (ssi->screen))
     {
-      fprintf (stderr, "%s: %d: visual ", blurb(), ssi->number);
-      describe_visual (stderr, ssi->screen, ssi->current_visual,
-                       install_cmap_p);
+      char buf[256];
+      FILE *f = fmemopen (buf, sizeof(buf), "w");
+      if (f)
+        {
+          describe_visual (f, ssi->screen, ssi->current_visual,
+                          install_cmap_p);
+          fclose (f);
+          DL(0, "%d: visual %s", ssi->number, buf);
+        }
     }
   else
     {
-      fprintf (stderr, "%s: using visual:   ", blurb());
-      describe_visual (stderr, ssi->screen, ssi->current_visual,
-                       install_cmap_p);
-      fprintf (stderr, "%s: default visual: ", blurb());
-      describe_visual (stderr, ssi->screen,
-                       DefaultVisualOfScreen (ssi->screen),
-                       ssi->install_cmap_p);
+      char buf1[256], buf2[256];
+      FILE *f1 = fmemopen (buf1, sizeof(buf1), "w");
+      FILE *f2 = fmemopen (buf2, sizeof(buf2), "w");
+      if (f1 && f2)
+        {
+          describe_visual (f1, ssi->screen, ssi->current_visual,
+                          install_cmap_p);
+          describe_visual (f2, ssi->screen,
+                          DefaultVisualOfScreen (ssi->screen),
+                          ssi->install_cmap_p);
+          fclose (f1);
+          fclose (f2);
+          DL(0, "using visual:   %s", buf1);
+          DL(0, "default visual: %s", buf2);
+        }
     }
   printed_visual_info = True;
 
@@ -303,16 +324,13 @@ initialize_screensaver_window_1 (saver_screen_info *ssi)
 
       if (horked_window)
         {
-          fprintf (stderr,
-            "%s: someone horked our saver window (0x%lx)!  Recreating it...\n",
-                   blurb(), (unsigned long) horked_window);
+          DL(0, "someone horked our saver window (0x%lx)!  Recreating it...",
+             (unsigned long) horked_window);
           defer_XDestroyWindow (si->app, si->dpy, horked_window);
         }
 
-      if (p->verbose_p > 1)
-        fprintf (stderr, "%s: %d: saver window is 0x%lx\n",
-                 blurb(), ssi->number,
-                 (unsigned long) ssi->screensaver_window);
+      DL(2, "%d: saver window is 0x%lx", ssi->number,
+         (unsigned long) ssi->screensaver_window);
     }
 
   if (!ssi->cursor)
@@ -376,7 +394,7 @@ void
 resize_screensaver_window (saver_info *si)
 {
   saver_preferences *p = &si->prefs;
-  int i;
+  int i, verbose_p = p->verbose_p;
 
   for (i = 0; i < si->nscreens; i++)
     {
@@ -389,11 +407,9 @@ resize_screensaver_window (saver_info *si)
       if (! ssi->screensaver_window)
         {
           initialize_screensaver_window_1 (ssi);
-          if (p->verbose_p)
-            fprintf (stderr,
-                     "%s: %d: newly added window 0x%lx %dx%d+%d+%d\n",
-                     blurb(), i, (unsigned long) ssi->screensaver_window,
-                     ssi->width, ssi->height, ssi->x, ssi->y);
+          DL(1, "%d: newly added window 0x%lx %dx%d+%d+%d", i,
+               (unsigned long) ssi->screensaver_window,
+               ssi->width, ssi->height, ssi->x, ssi->y);
         }
 
       /* Make sure the window is the right size -- it might not be if
@@ -414,18 +430,15 @@ resize_screensaver_window (saver_info *si)
           changes.height = ssi->height;
           changes.border_width = 0;
 
-          if (p->verbose_p)
-            fprintf (stderr,
-                     "%s: %d: resize 0x%lx from %dx%d+%d+%d to %dx%d+%d+%d\n",
-                     blurb(), i, (unsigned long) ssi->screensaver_window,
-                     xgwa.width, xgwa.height, xgwa.x, xgwa.y,
-                     ssi->width, ssi->height, ssi->x, ssi->y);
+          DL(1, "%d: resize 0x%lx from %dx%d+%d+%d to %dx%d+%d+%d", i,
+               (unsigned long) ssi->screensaver_window,
+               xgwa.width, xgwa.height, xgwa.x, xgwa.y,
+               ssi->width, ssi->height, ssi->x, ssi->y);
 
           if (! XConfigureWindow (si->dpy, ssi->screensaver_window,
                                   changesmask, &changes))
-            fprintf (stderr, "%s: %d: someone horked our saver window"
-                     " (0x%lx)!  Unable to resize it!\n",
-                     blurb(), i, (unsigned long) ssi->screensaver_window);
+            DL(0, "%d: someone horked our saver window (0x%lx)!  Unable to resize it!",
+               i, (unsigned long) ssi->screensaver_window);
         }
 
       /* Now (if blanked) make sure that it's mapped and running a hack --
@@ -475,6 +488,7 @@ void
 blank_screen (saver_info *si)
 {
   saver_preferences *p = &si->prefs;
+  int verbose_p = p->verbose_p;
   Bool user_active_p = False;
   int i;
   Bool grabbing_supported_p = True;
@@ -506,17 +520,13 @@ blank_screen (saver_info *si)
         {
           grabbing_supported_p = False;
           if (p->verbose_p || p->fade_p || p->unfade_p || p->grab_desktop_p)
-            fprintf (stderr,
-                     "%s: screenshots and fading not supported on Wayland %s\n",
-                     blurb(), desk);
+            DL(0, "screenshots and fading not supported on Wayland %s", desk);
         }
       else if (! on_path_p (prog))
         {
           grabbing_supported_p = False;
           if (p->verbose_p || p->fade_p || p->unfade_p || p->grab_desktop_p)
-            fprintf (stderr,
-                     "%s: screenshots and fading on Wayland require \"%s\"\n",
-                     blurb(), prog);
+            DL(0, "screenshots and fading on Wayland require \"%s\"", prog);
         }
     }
 
@@ -558,7 +568,7 @@ blank_screen (saver_info *si)
                                 ssi->black_pixel);
         }
 
-      if (p->verbose_p) fprintf (stderr, "%s: fading...\n", blurb());
+      DL(1, "fading...");
 
       /* This will take several seconds to complete. */
       si->fade_was_interrupted_p = False;
@@ -578,9 +588,9 @@ blank_screen (saver_info *si)
       if (!p->verbose_p)
         ;
       else if (user_active_p)
-        fprintf (stderr, "%s: fading aborted\n", blurb());
+        DL(0, "fading aborted");
       else
-        fprintf (stderr, "%s: fading done\n", blurb());
+        DL(0, "fading done");
     }
 
   /* If user activity was detected during fade-out, abort screensaver activation.
@@ -628,6 +638,7 @@ void
 unblank_screen (saver_info *si)
 {
   saver_preferences *p = &si->prefs;
+  int verbose_p = p->verbose_p;
   Bool unfade_p = p->unfade_p;
   int i;
 
@@ -650,7 +661,7 @@ unblank_screen (saver_info *si)
           current_windows[i] = ssi->screensaver_window;
         }
 
-      if (p->verbose_p) fprintf (stderr, "%s: unfading...\n", blurb());
+      DL(1, "unfading...");
 
       monitor_power_on (si, True);
 
@@ -691,9 +702,7 @@ unblank_screen (saver_info *si)
                                     start_ratio);  /* INPUT: start from interrupted ratio if available */
       free (current_windows);
 
-      if (p->verbose_p)
-        fprintf (stderr, "%s: unfading done%s\n", blurb(),
-                 (interrupted_p ? " (interrupted)" : ""));
+      DL(1, "unfading done%s", (interrupted_p ? " (interrupted)" : ""));
     }
   else
     {
@@ -743,6 +752,7 @@ select_visual (saver_screen_info *ssi, const char *visual_name)
   XWindowAttributes xgwa;
   saver_info *si = ssi->global;
   saver_preferences *p = &si->prefs;
+  int verbose_p = p->verbose_p;
   Bool install_cmap_p = p->install_cmap_p;
   Bool was_installed_p = (ssi->cmap != DefaultColormapOfScreen(ssi->screen));
   Visual *new_v = 0;
@@ -781,8 +791,8 @@ select_visual (saver_screen_info *ssi, const char *visual_name)
       else if (!strcasecmp(visual_name, "GL"))
         {
           new_v = get_screen_gl_visual (si, ssi->real_screen_number);
-          if (!new_v && p->verbose_p)
-            fprintf (stderr, "%s: no GL visuals\n", blurb());
+          if (!new_v)
+            DL(1, "no GL visuals");
         }
 
       if (!new_v)
@@ -836,9 +846,8 @@ select_visual (saver_screen_info *ssi, const char *visual_name)
       /* Now we can destroy the old window without horking our grabs. */
       defer_XDestroyWindow (si->app, si->dpy, old_w);
 
-      if (p->verbose_p > 1)
-        fprintf (stderr, "%s: %d: destroyed old saver window 0x%lx\n",
-                 blurb(), ssi->number, (unsigned long) old_w);
+      DL(2, "%d: destroyed old saver window 0x%lx", ssi->number,
+         (unsigned long) old_w);
 
       if (old_c &&
           old_c != DefaultColormapOfScreen (ssi->screen))
@@ -984,6 +993,7 @@ screenhack_obituary (saver_screen_info *ssi,
 {
   saver_info *si = ssi->global;
   saver_preferences *p = &si->prefs;
+  int verbose_p = p->verbose_p;
   Time how_long = p->cycle;
   Time max = 1000 * 60;		/* Message stays up no longer than this */
   Window window;
@@ -1013,9 +1023,7 @@ screenhack_obituary (saver_screen_info *ssi,
   ssi->cycle_id =
     XtAppAddTimeOut (si->app, how_long, cycle_timer, (XtPointer) ssi);
   ssi->cycle_at = time ((time_t *) 0) + how_long / 1000;
-  if (p->verbose_p)
-    fprintf (stderr, "%s: %d: cycling in %lu sec\n", blurb(), ssi->number,
-             how_long / 1000);
+  DL(1, "%d: cycling in %lu sec", ssi->number, how_long / 1000);
 
   /* Render an error message while we wait.
 
@@ -1120,7 +1128,7 @@ watchdog_timer (XtPointer closure, XtIntervalId *id)
                      : si->activity_time));
 
   if (si->prefs.debug_p)
-    fprintf (stderr, "%s: watchdog timer raising screen\n", blurb());
+    DL(0, "watchdog timer raising screen");
 
   if (! si->auth_p)		/* Do not race with the password dialog */
     raise_windows (si);
@@ -1132,9 +1140,7 @@ watchdog_timer (XtPointer closure, XtIntervalId *id)
     {
       int i;
       if (si->prefs.verbose_p)
-        fprintf (stderr,
-                 "%s: monitor has powered down; killing running hacks\n",
-                 blurb());
+        DL(0, "monitor has powered down; killing running hacks");
       for (i = 0; i < si->nscreens; i++)
         kill_screenhack (&si->screens[i]);
       /* Do not clear current_hack here. */
@@ -1156,9 +1162,7 @@ watchdog_timer (XtPointer closure, XtIntervalId *id)
         {
           int i;
           if (si->prefs.verbose_p)
-            fprintf (stderr,
-                     "%s: monitor has powered back on; re-launching hacks\n",
-                     blurb());
+            DL(0, "monitor has powered back on; re-launching hacks");
           for (i = 0; i < si->nscreens; i++)
             spawn_screenhack (&si->screens[i]);
         }
@@ -1176,6 +1180,7 @@ void
 reset_watchdog_timer (saver_info *si)
 {
   saver_preferences *p = &si->prefs;
+  int verbose_p = p->verbose_p;
   time_t now = time ((time_t *) 0);
 
   /* When should the watchdog next run?
@@ -1214,9 +1219,8 @@ reset_watchdog_timer (saver_info *si)
   si->watchdog_id = XtAppAddTimeOut (si->app,
                                      (when - now) * 1000,
                                      watchdog_timer, (XtPointer) si);
-  if (p->verbose_p > 1)
-    fprintf (stderr, "%s: watchdog in %d:%02d:%02d\n", blurb(),
-             (int)  (when - now) / (60 * 60),
-             (int) ((when - now) % (60 * 60)) / 60,
-             (int)  (when - now) % 60);
+  DL(2, "watchdog in %d:%02d:%02d",
+       (int)  (when - now) / (60 * 60),
+       (int) ((when - now) % (60 * 60)) / 60,
+       (int)  (when - now) % 60);
 }

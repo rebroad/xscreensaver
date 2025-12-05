@@ -508,8 +508,7 @@ user_active_p (XtAppContext app, Display *dpy, Bool fade_out_p)
   if (m & ~XtIMXEvent)
     {
       /* Process timers and signals only, don't block. */
-      if (verbose_p > 1)
-        fprintf (stderr, "%s: Xt pending %ld\n", blurb(), m);
+      DL(1, "Xt pending %ld", m);
       XtAppProcessEvent (app, m);
     }
 
@@ -552,9 +551,9 @@ flush_user_input (Display *dpy)
             XGetEventData (dpy, &event.xcookie);
             re = event.xcookie.data;
           }
-        fprintf (stderr, "%s: flushed user event %d %d\n", blurb(),
-                 event.xany.type,
-                 (re ? re->evtype : -1));
+        DL(1, "flushed user event %d %d",
+           event.xany.type,
+           (re ? re->evtype : -1));
       }
 }
 
@@ -595,9 +594,8 @@ defer_destroy_handler (XtPointer closure, XtIntervalId *id)
   XDestroyWindow (c->dpy, c->window);
   XSync (c->dpy, False);
   XSetErrorHandler (old_handler);
-  if (verbose_p > 1 && !error_handler_hit_p)
-    fprintf (stderr, "%s: destroyed old window 0x%lx\n",
-             blurb(), (unsigned long) c->window);
+  if (!error_handler_hit_p)
+    DL(2, "destroyed old window 0x%lx", (unsigned long) c->window);
   free (c);
 }
 
@@ -778,9 +776,7 @@ colormap_fade (XtAppContext app, Display *dpy,
 
   error_handler_hit_p = False;
 
-  if (verbose_p > 1)
-    fprintf (stderr, "%s: colormap fade %s\n",
-             blurb(), (out_p ? "out" : "in"));
+  DL(2, "colormap fade %s", (out_p ? "out" : "in"));
 
   total_ncolors = 0;
   for (i = 0; i < nscreens; i++)
@@ -924,8 +920,7 @@ colormap_fade (XtAppContext app, Display *dpy,
         prev = now;
       }
 
-    if (verbose_p > 1)
-      fprintf (stderr, "%s: %.0f FPS\n", blurb(), frames / (now - start_time));
+    DL(2, "%.0f FPS", frames / (now - start_time));
   }
 
   status = 0;   /* completed fade with no user activity */
@@ -1021,9 +1016,7 @@ sgi_gamma_fade (XtAppContext app, Display *dpy,
   struct screen_sgi_gamma_info *info = (struct screen_sgi_gamma_info *)
     calloc(nscreens, sizeof(*info));
 
-  if (verbose_p > 1)
-    fprintf (stderr, "%s: sgi fade %s\n",
-             blurb(), (out_p ? "out" : "in"));
+  DL(2, "sgi fade %s", (out_p ? "out" : "in"));
 
   /* Get the current gamma maps for all screens.
      Bug out and return -1 if we can't get them for some screen.
@@ -1126,8 +1119,7 @@ sgi_gamma_fade (XtAppContext app, Display *dpy,
         prev = now;
       }
 
-    if (verbose_p > 1)
-      fprintf (stderr, "%s: %.0f FPS\n", blurb(), frames / (now - start_time));
+    DL(2, "%.0f FPS", frames / (now - start_time));
   }
 
   status = 0;   /* completed fade with no user activity */
@@ -1166,9 +1158,8 @@ sgi_gamma_fade (XtAppContext app, Display *dpy,
     }
   free(info);
 
-  if (verbose_p > 1 && status)
-    fprintf (stderr, "%s: SGI fade %s failed\n",
-             blurb(), (out_p ? "out" : "in"));
+  if (status)
+    DL(2, "SGI fade %s failed", (out_p ? "out" : "in"));
 
   if (error_handler_hit_p) status = -1;
   return status;
@@ -1238,9 +1229,7 @@ xf86_gamma_fade (XtAppContext app, Display *dpy,
 
   static int ext_ok = -1;
 
-  if (verbose_p > 1)
-    fprintf (stderr, "%s: xf86 fade %s\n",
-             blurb(), (out_p ? "out" : "in"));
+  DL(2, "xf86 fade %s", (out_p ? "out" : "in"));
 
   /* Only probe the extension once: the answer isn't going to change. */
   if (ext_ok == -1)
@@ -1362,8 +1351,7 @@ xf86_gamma_fade (XtAppContext app, Display *dpy,
         prev = now;
       }
 
-    if (verbose_p > 1)
-      fprintf (stderr, "%s: %.0f FPS\n", blurb(), frames / (now - start_time));
+    DL(2, "%.0f FPS", frames / (now - start_time));
   }
 
   status = 0;   /* completed fade with no user activity */
@@ -1406,9 +1394,8 @@ xf86_gamma_fade (XtAppContext app, Display *dpy,
       free(info);
     }
 
-  if (verbose_p > 1 && status)
-    fprintf (stderr, "%s: xf86 fade %s failed\n",
-             blurb(), (out_p ? "out" : "in"));
+  if (status)
+    DL(2, "xf86 fade %s failed", (out_p ? "out" : "in"));
 
   if (error_handler_hit_p) status = -1;
   return status;
@@ -1630,14 +1617,13 @@ randr_check_gamma_extension (Display *dpy)
     return 0;
 
   if (! XRRQueryVersion (dpy, &major, &minor)) {
-    if (verbose_p > 1) fprintf (stderr, "%s: no randr ext\n", blurb());
+    DL(2, "no randr ext");
     return 0;
   }
 
   /* Reject if < 1.5. It's possible that 1.2 - 1.4 work, but untested. */
   if (major < 1 || (major == 1 && minor < 5)) {
-    if (verbose_p > 1) fprintf (stderr, "%s: randr ext only version %d.%d\n",
-                               blurb(), major, minor);
+    DL(2, "randr ext only version %d.%d", major, minor);
     return 0;
   }
 
@@ -1666,9 +1652,7 @@ randr_gamma_fade (XtAppContext app, Display *dpy,
 
   static int ext_ok = -1;
 
-  if (verbose_p > 1)
-    fprintf (stderr, "%s: randr fade %s\n",
-             blurb(), (out_p ? "out" : "in"));
+  DL(2, "randr fade %s", (out_p ? "out" : "in"));
 
   /* Skip RANDR gamma fade on Raspberry Pi (gamma not supported) */
   if (is_raspberry_pi ())
@@ -1888,13 +1872,6 @@ randr_gamma_fade (XtAppContext app, Display *dpy,
                 {
                   info[j].original_brightness = queried_brightness;
                   info[j].current_brightness = queried_brightness;
-                  debug_log ("[FADE] captured original brightness for %s: %.3f",
-                            info[j].output_name, info[j].original_brightness);
-                }
-              else
-                {
-                  debug_log ("[FADE] failed to query brightness for %s (setting to invalid -1.0)",
-                            info[j].output_name);
                 }
             }
 
@@ -1958,6 +1935,7 @@ randr_gamma_fade (XtAppContext app, Display *dpy,
     }
 
   /* Run the animation at the maximum frame rate in the time allotted. */
+  Bool reversed_p = False;  /* Track if we reversed direction due to user activity */
   {
     double start_time = double_time();
     double end_time = start_time + seconds;
@@ -1966,20 +1944,48 @@ randr_gamma_fade (XtAppContext app, Display *dpy,
     int frames = 0;
     int last_logged_percent = -1;
     double max = 1/60.0;  /* max FPS */
+    double reversal_time = 0.0;  /* Time when we reversed direction */
+    double reversal_ratio = 0.0;  /* Ratio when we reversed direction */
+
     if (!out_p && start_ratio >= 0.0)
       debug_log ("[FADE] fade-in starting from captured level: %.2f", start_ratio);
+
     while ((now = double_time()) < end_time)
       {
-        double ratio = (end_time - now) / seconds;
-        if (!out_p)
+        double ratio;
+
+        if (reversed_p)
           {
-            /* For fade-in, adjust to start from start_ratio if provided */
+            /* We reversed direction: fade-in from the reversal point back to 1.0 */
+            double elapsed_since_reversal = now - reversal_time;
+            double remaining_time = end_time - reversal_time;
+            if (remaining_time > 0.0)
+              {
+                /* Fade from reversal_ratio back to 1.0 over remaining time */
+                double fade_progress = elapsed_since_reversal / remaining_time;
+                if (fade_progress > 1.0) fade_progress = 1.0;
+                ratio = reversal_ratio + (1.0 - reversal_ratio) * fade_progress;
+              }
+            else
+              {
+                ratio = 1.0;  /* Already at end time, go to full brightness */
+              }
+          }
+        else if (!out_p)
+          {
+            /* Normal fade-in */
+            ratio = (end_time - now) / seconds;
             ratio = 1-ratio;
             if (start_ratio >= 0.0)
               ratio = start_ratio + (1.0 - start_ratio) * ratio;
           }
+        else
+          {
+            /* Normal fade-out */
+            ratio = (end_time - now) / seconds;
+          }
 
-        log_fade_progress (ratio, out_p, &last_logged_percent, dpy, info, nscreens);
+        log_fade_progress (ratio, reversed_p ? False : out_p, &last_logged_percent, dpy, info, nscreens);
 
         for (screen = 0; screen < nscreens; screen++)
           {
@@ -1999,19 +2005,24 @@ randr_gamma_fade (XtAppContext app, Display *dpy,
 
         if (error_handler_hit_p)
           goto FAIL;
-        /* Only check for user activity during fade-out INTO screensaver (from_desktop_p).
-           Fade-out FROM screensaver and fade-in should NOT be interruptable. */
-        if (out_p && from_desktop_p && user_active_p (app, dpy, True))
+
+        /* Check for user activity during fade-out INTO screensaver (from_desktop_p).
+           If detected, reverse direction and fade back to full brightness. */
+        if (out_p && from_desktop_p && !reversed_p && user_active_p (app, dpy, True))
           {
-            status = 1;   /* user activity status code */
-            /* Fade-out into screensaver was interrupted, capture the current ratio */
+            /* Reverse direction: switch from fade-out to fade-in */
+            reversed_p = True;
+            reversal_time = now;
+            reversal_ratio = ratio;
+            debug_log ("[FADE] fade-out interrupted at ratio %.2f, reversing direction to fade-in", ratio);
+            /* Extend end_time to give us time to fade back in */
+            end_time = now + seconds;
+            /* Capture the interrupted ratio for reporting (if needed) */
             if (interrupted_ratio)
-              {
-                *interrupted_ratio = ratio;
-                debug_log ("[FADE] fade-out interrupted, capturing fade level: %.2f", ratio);
-              }
-            goto DONE;
+              *interrupted_ratio = ratio;
+            /* Continue the loop to fade back in */
           }
+
         frames++;
 
         if (now < prev + max)
@@ -2019,15 +2030,15 @@ randr_gamma_fade (XtAppContext app, Display *dpy,
         prev = now;
       }
 
-    if (verbose_p > 1)
-      fprintf (stderr, "%s: %.0f FPS\n", blurb(), frames / (now - start_time));
+    DL(2, "%.0f FPS", frames / (now - start_time));
   }
 
-  status = 0;   /* completed fade with no user activity */
+  status = 0;   /* completed fade (may have reversed direction) */
 
- DONE:
+  /* If we reversed direction, we're now at fade-in completion, so treat it as fade-in */
+  Bool actually_faded_in = (!out_p) || reversed_p;
 
-  if (out_p && status != 1)
+  if (out_p && !reversed_p && status != 1)
     {
       for (screen = 0; screen < nwindows; screen++)
         {
@@ -2044,9 +2055,9 @@ randr_gamma_fade (XtAppContext app, Display *dpy,
   /* #### That comment was about XF86, not verified with randr. */
   usleep(100000);  /* 1/10th second */
 
-  /* For fade-in, always restore gamma to 1.0 (full brightness).
-     For fade-out, only restore if not interrupted (preserve interrupted fade level). */
-  if (!out_p)
+  /* For fade-in (or reversed fade-out), always restore gamma to 1.0 (full brightness).
+     For fade-out that wasn't reversed, only restore if not interrupted (preserve interrupted fade level). */
+  if (actually_faded_in)
     {
       /* Fade-in: always restore to full brightness */
       debug_log ("[FADE] fade-in completed: restoring gamma to 1.0 (full brightness)");
@@ -2152,9 +2163,8 @@ randr_gamma_fade (XtAppContext app, Display *dpy,
       free(info);
     }
 
-  if (verbose_p > 1 && status)
-    fprintf (stderr, "%s: randr fade %s failed\n",
-             blurb(), (out_p ? "out" : "in"));
+  if (status)
+    DL(2, "randr fade %s failed", (out_p ? "out" : "in"));
 
   return status;
 }
@@ -2306,10 +2316,13 @@ xshm_screenshot_grab (Display *dpy, Window window,
       if (verbose_p)
         {
           int i;
-          fprintf (stderr, "%s: fade: executing:", blurb());
+          char cmd_buf[512] = "";
           for (i = 0; i < ac; i++)
-            fprintf (stderr, " %s", av[i]);
-          fprintf (stderr, "\n");
+            {
+              if (i > 0) strcat (cmd_buf, " ");
+              strcat (cmd_buf, av[i]);
+            }
+          DL(0, "fade: executing: %s", cmd_buf);
         }
 
       switch ((int) (forked = fork ())) {
@@ -2336,8 +2349,7 @@ xshm_screenshot_grab (Display *dpy, Window window,
           if (exit_status & 0x80) exit_status |= ~0xFF;
           if (exit_status != 0)
             {
-              fprintf (stderr, "%s: fade: %s exited with %d\n",
-                       blurb(), av[0], exit_status);
+              DL(0, "fade: %s exited with %d", av[0], exit_status);
               if (pixmap) XFreePixmap (dpy, pixmap);
               return None;
             }
@@ -2369,12 +2381,11 @@ xshm_screenshot_grab (Display *dpy, Window window,
       *late = 0;
 
     if (verbose_p || !pixmap || *late)
-      fprintf (stderr, "%s: %s screenshot 0x%lx %dx%d"
-               " for window 0x%lx%s\n", blurb(),
-               (pixmap ? "saved" : "failed to save"),
-               (unsigned long) pixmap, xgwa.width, xgwa.height,
-               (unsigned long) window,
-               late);
+      DL(0, "%s screenshot 0x%lx %dx%d for window 0x%lx%s",
+         (pixmap ? "saved" : "failed to save"),
+         (unsigned long) pixmap, xgwa.width, xgwa.height,
+         (unsigned long) window,
+         late);
   }
 
   return pixmap;
@@ -2425,7 +2436,7 @@ check_gl_error (const char *type)
   default:
     e = buf; sprintf (buf, "unknown error %d", (int) i); break;
   }
-  fprintf (stderr, "%s: %s error: %s\n", progname, type, e);
+  DL(0, "%s error: %s", type, e);
   return True;
 }
 #endif /* USE_GL */
@@ -2456,11 +2467,9 @@ xshm_fade (XtAppContext app, Display *dpy,
   error_handler_hit_p = False;
 
 # ifdef USE_GL
-  if (verbose_p > 1)
-    fprintf (stderr, "%s: GL fade %s\n", blurb(), (out_p ? "out" : "in"));
+  DL(2, "GL fade %s", (out_p ? "out" : "in"));
 # else /* !USE_GL */
-  if (verbose_p > 1)
-    fprintf (stderr, "%s: SHM fade %s\n", blurb(), (out_p ? "out" : "in"));
+  DL(2, "SHM fade %s", (out_p ? "out" : "in"));
 # endif /* !USE_GL */
 
   info = (xshm_fade_info *) calloc(nwindows, sizeof(*info));
@@ -2730,8 +2739,7 @@ xshm_fade (XtAppContext app, Display *dpy,
         prev = now;
       }
 
-    if (verbose_p > 1)
-      fprintf (stderr, "%s: %.0f FPS\n", blurb(), frames / (now - start_time));
+    DL(2, "%.0f FPS", frames / (now - start_time));
   }
 
   status = 0;   /* completed fade with no user activity */
@@ -2813,13 +2821,11 @@ xshm_fade (XtAppContext app, Display *dpy,
   XSetErrorHandler (old_handler);
 
   if (error_handler_hit_p) status = -1;
-  if (verbose_p > 1 && status)
+  if (status)
 # ifdef HAVE_GL
-    fprintf (stderr, "%s: GL fade %s failed\n",
-             blurb(), (out_p ? "out" : "in"));
+    DL(2, "GL fade %s failed", (out_p ? "out" : "in"));
 # else /* !HAVE_GL */
-    fprintf (stderr, "%s: SHM fade %s failed\n",
-             blurb(), (out_p ? "out" : "in"));
+    DL(2, "SHM fade %s failed", (out_p ? "out" : "in"));
 # endif /* !HAVE_GL */
 
   return status;
