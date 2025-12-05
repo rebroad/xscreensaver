@@ -1716,10 +1716,22 @@ randr_gamma_fade (XtAppContext app, Display *dpy,
           info[j].crtc = crtc;
           info[j].output = res->outputs[k];
           info[j].output_name = strdup (rroi->name);
-          info[j].gamma = XRRGetCrtcGamma (dpy, crtc);
+
+          /* Get the current gamma ramp.
+
+             IMPORTANT: For fade-out, this is the original gamma ramp (at gamma=1.0).
+             For fade-in after interruption, this is the interrupted gamma ramp (at e.g., gamma=0.76).
+             For fade-in from black, this is the black gamma ramp (at gamma=0.0).
+
+             We need to preserve the "original" gamma ramp (at gamma=1.0) for brightness calculations.
+             For fade-in after interruption, we'll need to "restore" the original by scaling the
+             interrupted gamma ramp back to 1.0, or we can calculate brightness assuming the original
+             was at 1.0.
+             */
+          XRRCrtcGamma *current_gamma = XRRGetCrtcGamma (dpy, crtc);
 
           /* If we can't get gamma for this CRTC, gamma isn't supported */
-          if (!info[j].gamma || !crtc)
+          if (!current_gamma || !crtc)
             {
               debug_log ("[FADE] RANDR gamma not supported (XRRGetCrtcGamma returned NULL for crtc %lu)",
                         (unsigned long) crtc);
@@ -1729,24 +1741,54 @@ randr_gamma_fade (XtAppContext app, Display *dpy,
               goto FAIL;
             }
 
+          /* For fade-in after interruption, we need to restore the original gamma ramp (at 1.0).
+             The current gamma ramp is at the interrupted level. We can estimate the original by
+             scaling the current ramp up by 1.0/start_ratio. However, a simpler approach is to
+             calculate brightness from the current ramp and then scale it, or assume the original
+             brightness was 1.0.
+
+             For now, we'll store the current gamma ramp and handle the brightness calculation
+             specially for fade-in after interruption.
+             */
+          if (!out_p && start_ratio >= 0.0 && start_ratio > 0.0)
+            {
+              /* Fade-in after interruption: current gamma is at interrupted level.
+                 We need to "restore" it to the original (gamma=1.0) by scaling up.
+                 Create a new gamma ramp by dividing the current ramp by start_ratio. */
+              info[j].gamma = XRRAllocGamma (current_gamma->size);
+              for (int i = 0; i < current_gamma->size; i++)
+                {
+                  info[j].gamma->red[i] = (unsigned short)(current_gamma->red[i] / start_ratio);
+                  info[j].gamma->green[i] = (unsigned short)(current_gamma->green[i] / start_ratio);
+                  info[j].gamma->blue[i] = (unsigned short)(current_gamma->blue[i] / start_ratio);
+                  /* Clamp to max value */
+                  if (info[j].gamma->red[i] > 65535) info[j].gamma->red[i] = 65535;
+                  if (info[j].gamma->green[i] > 65535) info[j].gamma->green[i] = 65535;
+                  if (info[j].gamma->blue[i] > 65535) info[j].gamma->blue[i] = 65535;
+                }
+              info[j].gamma->size = current_gamma->size;
+              XRRFreeGamma (current_gamma);
+              debug_log ("[FADE] fade-in after interruption: restored original gamma ramp for %s (scaled from interrupted level %.2f)",
+                        info[j].output_name, start_ratio);
+            }
+          else
+            {
+              /* Fade-out or fade-in from black: use the current gamma ramp as-is */
+              info[j].gamma = current_gamma;
+            }
+
           /* Query and capture original brightness.
 
-             IMPORTANT: For fade-in after interrupted fade-out, the "original" brightness is the
-             brightness that corresponds to gamma=1.0 (the START value before fade-out began),
-             NOT the interrupted brightness level (the END value at interruption).
+             At fade-out start: gamma is at 1.0 (full brightness), so we query the current brightness
+             which represents the original brightness before fade-out began.
 
-             Since brightness is calculated from the gamma ramp, and we have the original gamma ramp
-             (which represents gamma=1.0), we can calculate what brightness that corresponds to by
-             temporarily setting gamma to 1.0 and querying, OR by calculating it from the original
-             gamma ramp directly.
+             At fade-in start after interrupted fade-out: gamma is at the interrupted level (e.g., 0.76),
+             but we need the original brightness (at gamma=1.0). Since brightness is calculated from
+             the gamma ramp, and we have the original gamma ramp stored in info[j].gamma (captured at
+             fade-out start, representing gamma=1.0), we calculate brightness from that original ramp.
 
-             However, the simplest approach: since the original gamma ramp represents full brightness
-             (gamma=1.0), and brightness is proportional to gamma, the original brightness should be
-             calculated by querying brightness when gamma is at 1.0. But we can't do that during
-             initialization because gamma is currently at the interrupted level.
-
-             Solution: For fade-in after interruption, we calculate brightness from the original
-             gamma ramp (which represents gamma=1.0) using the same algorithm as query_brightness.
+             At fade-in start from black (fade-out completed): gamma is at 0.0, so we query current
+             brightness (which should be 0.0 or very low).
              */
           info[j].original_brightness = -1.0;  /* invalid until queried */
           info[j].current_brightness = -1.0;   /* invalid until queried */
@@ -1754,11 +1796,12 @@ randr_gamma_fade (XtAppContext app, Display *dpy,
           if (!out_p && start_ratio >= 0.0)
             {
               /* Fade-in after interrupted fade-out:
-                 - original_brightness = brightness at gamma=1.0 (START value, before fade-out)
+                 - original_brightness = brightness at gamma=1.0 (START value, before fade-out began)
                  - current_brightness = brightness at interrupted gamma level (END value, at interruption)
 
-                 We calculate original_brightness from the original gamma ramp (which is at gamma=1.0).
-                 We query current_brightness to get the interrupted level.
+                 The original gamma ramp (info[j].gamma) was captured at fade-out start and represents
+                 gamma=1.0. We calculate brightness from that original ramp to get the original brightness.
+                 We also query the current brightness to track the interrupted level.
                  */
 
               /* Calculate original brightness from the original gamma ramp (gamma=1.0) */
@@ -1834,7 +1877,12 @@ randr_gamma_fade (XtAppContext app, Display *dpy,
             }
           else
             {
-              /* Fade-out or fade-in from black: query actual brightness */
+              /* Fade-out (always starts from non-black) or fade-in from black (fade-out completed):
+                 Query the current brightness, which represents the brightness at the current gamma level.
+
+                 For fade-out: current gamma is 1.0, so this is the original brightness.
+                 For fade-in from black: current gamma is 0.0, so this should be 0.0 or very low.
+                 */
               double queried_brightness = query_brightness (dpy, info[j].output);
               if (queried_brightness >= 0.0)
                 {
