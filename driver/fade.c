@@ -1729,21 +1729,125 @@ randr_gamma_fade (XtAppContext app, Display *dpy,
               goto FAIL;
             }
 
-          /* Query and capture original brightness */
+          /* Query and capture original brightness.
+
+             IMPORTANT: For fade-in after interrupted fade-out, the "original" brightness is the
+             brightness that corresponds to gamma=1.0 (the START value before fade-out began),
+             NOT the interrupted brightness level (the END value at interruption).
+
+             Since brightness is calculated from the gamma ramp, and we have the original gamma ramp
+             (which represents gamma=1.0), we can calculate what brightness that corresponds to by
+             temporarily setting gamma to 1.0 and querying, OR by calculating it from the original
+             gamma ramp directly.
+
+             However, the simplest approach: since the original gamma ramp represents full brightness
+             (gamma=1.0), and brightness is proportional to gamma, the original brightness should be
+             calculated by querying brightness when gamma is at 1.0. But we can't do that during
+             initialization because gamma is currently at the interrupted level.
+
+             Solution: For fade-in after interruption, we calculate brightness from the original
+             gamma ramp (which represents gamma=1.0) using the same algorithm as query_brightness.
+             */
           info[j].original_brightness = -1.0;  /* invalid until queried */
           info[j].current_brightness = -1.0;   /* invalid until queried */
-          double queried_brightness = query_brightness (dpy, info[j].output);
-          if (queried_brightness >= 0.0)
+
+          if (!out_p && start_ratio >= 0.0)
             {
-              info[j].original_brightness = queried_brightness;
-              info[j].current_brightness = queried_brightness;
-              debug_log ("[FADE] captured original brightness for %s: %.3f",
-                        info[j].output_name, info[j].original_brightness);
+              /* Fade-in after interrupted fade-out:
+                 - original_brightness = brightness at gamma=1.0 (START value, before fade-out)
+                 - current_brightness = brightness at interrupted gamma level (END value, at interruption)
+
+                 We calculate original_brightness from the original gamma ramp (which is at gamma=1.0).
+                 We query current_brightness to get the interrupted level.
+                 */
+
+              /* Calculate original brightness from the original gamma ramp (gamma=1.0) */
+              XRRCrtcGamma *original_gamma = info[j].gamma;
+              if (original_gamma && original_gamma->size > 0)
+                {
+                  /* Use the same algorithm as query_brightness, but on the original gamma ramp */
+                  int last_red = find_last_non_clamped (original_gamma->red, original_gamma->size);
+                  int last_green = find_last_non_clamped (original_gamma->green, original_gamma->size);
+                  int last_blue = find_last_non_clamped (original_gamma->blue, original_gamma->size);
+                  CARD16 *best_array = original_gamma->red;
+                  int last_best = last_red;
+
+                  if (last_green > last_best)
+                    {
+                      last_best = last_green;
+                      best_array = original_gamma->green;
+                    }
+                  if (last_blue > last_best)
+                    {
+                      last_best = last_blue;
+                      best_array = original_gamma->blue;
+                    }
+                  if (last_best == 0)
+                    last_best = 1;
+
+                  int middle = last_best / 2;
+                  double i1 = (double)(middle + 1) / original_gamma->size;
+                  double v1 = (double)(best_array[middle]) / 65535.0;
+                  double i2 = (double)(last_best + 1) / original_gamma->size;
+                  double v2 = (double)(best_array[last_best]) / 65535.0;
+
+                  if (v2 < 0.0001)
+                    {
+                      info[j].original_brightness = 0.0;
+                    }
+                  else
+                    {
+                      double log_v1 = log (v1);
+                      double log_v2 = log (v2);
+                      double log_i1 = log (i1);
+                      double log_i2 = log (i2);
+                      double gamma_val = (log_v1 - log_v2) / (log_i1 - log_i2);
+                      info[j].original_brightness = exp (log_v2 - gamma_val * log_i2);
+                    }
+
+                  debug_log ("[FADE] fade-in after interruption: calculated original brightness from gamma ramp: %.3f for %s",
+                            info[j].original_brightness, info[j].output_name);
+                }
+              else
+                {
+                  /* Fallback: assume original brightness is 1.0 (full brightness at gamma=1.0) */
+                  info[j].original_brightness = 1.0;
+                  debug_log ("[FADE] fade-in after interruption: using default brightness 1.0 for %s (could not calculate from gamma ramp)",
+                            info[j].output_name);
+                }
+
+              /* Query current brightness (the interrupted level) */
+              double current_queried = query_brightness (dpy, info[j].output);
+              if (current_queried >= 0.0)
+                {
+                  info[j].current_brightness = current_queried;
+                  debug_log ("[FADE] fade-in after interruption: current (interrupted) brightness for %s: %.3f",
+                            info[j].output_name, info[j].current_brightness);
+                }
+              else
+                {
+                  /* If we can't query, use start_ratio as approximation */
+                  info[j].current_brightness = start_ratio;
+                  debug_log ("[FADE] fade-in after interruption: using start_ratio %.3f as current brightness for %s (query failed)",
+                            start_ratio, info[j].output_name);
+                }
             }
           else
             {
-              debug_log ("[FADE] failed to query brightness for %s (setting to invalid -1.0)",
-                        info[j].output_name);
+              /* Fade-out or fade-in from black: query actual brightness */
+              double queried_brightness = query_brightness (dpy, info[j].output);
+              if (queried_brightness >= 0.0)
+                {
+                  info[j].original_brightness = queried_brightness;
+                  info[j].current_brightness = queried_brightness;
+                  debug_log ("[FADE] captured original brightness for %s: %.3f",
+                            info[j].output_name, info[j].original_brightness);
+                }
+              else
+                {
+                  debug_log ("[FADE] failed to query brightness for %s (setting to invalid -1.0)",
+                            info[j].output_name);
+                }
             }
 
            if (info[j].original_brightness >= 0.0)
