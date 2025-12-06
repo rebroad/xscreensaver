@@ -150,7 +150,7 @@ static int xf86_gamma_fade (XtAppContext, Display *, Window *wins, int count,
 #endif
 #ifdef HAVE_RANDR_12
 static int randr_gamma_fade (XtAppContext, Display *, Window *wins, int count,
-                             double secs, Bool out_p, Bool from_desktop_p, double *interrupted_ratio);
+                             double secs, Bool out_p, Bool from_desktop_p, double *interrupted_ratio, Bool *reversed_p);
 #endif
 static int colormap_fade (XtAppContext, Display *, Window *wins, int count,
                           double secs, Bool out_p, Bool from_desktop_p,
@@ -630,12 +630,14 @@ defer_XDestroyWindow (XtAppContext app, Display *dpy, Window w)
      - For fade-out: stores the current fade ratio (0.0-1.0) in *interrupted_ratio when interrupted.
      - For fade-in: if *interrupted_ratio > 0.0, starts fade-in from that level instead of 0.0
        (used when resuming from an interrupted fade-out).
+   If reversed_p is non-NULL:
+     - Set to True if fade direction was reversed (fade-out -> fade-in due to user activity).
  */
 Bool
 fade_screens (XtAppContext app, Display *dpy,
               Window *saver_windows, int nwindows,
               double seconds, Bool out_p, Bool from_desktop_p,
-              void **closureP, double *interrupted_ratio)
+              void **closureP, double *interrupted_ratio, Bool *reversed_p)
 {
   int status = False;
   fade_state *state = 0;
@@ -678,7 +680,7 @@ fade_screens (XtAppContext app, Display *dpy,
   status = sgi_gamma_fade (app, dpy, saver_windows, nwindows, seconds, out_p);
   if (status == 0 || status == 1)
     {
-      debug_log ("[FADE] using SGI gamma fade method (%s)", (out_p ? "fade-out" : "fade-in"));
+      debug_log ("[FADE] fade_screens ending after SGI gamma fade: status=%d, out_p=%d, from_desktop_p=%d", status, out_p, from_desktop_p);
       return status;  /* faded, possibly canceled */
     }
   else
@@ -690,10 +692,10 @@ fade_screens (XtAppContext app, Display *dpy,
 # ifdef HAVE_RANDR_12
   /* Then try to do it by fading the gamma in an RANDR-specific way... */
   debug_log ("[FADE] trying RANDR gamma fade method (%s)", (out_p ? "fade-out" : "fade-in"));
-  status = randr_gamma_fade (app, dpy, saver_windows, nwindows, seconds, out_p, from_desktop_p, interrupted_ratio);
+  status = randr_gamma_fade (app, dpy, saver_windows, nwindows, seconds, out_p, from_desktop_p, interrupted_ratio, reversed_p);
   if (status == 0 || status == 1)
     {
-      debug_log ("[FADE] using RANDR gamma fade method (%s)", (out_p ? "fade-out" : "fade-in"));
+      debug_log ("[FADE] fade_screens ending after RANDR gamma fade: status=%d, out_p=%d, from_desktop_p=%d, reversed_p=%d", status, out_p, from_desktop_p, (reversed_p ? *reversed_p : False));
       return status;  /* faded, possibly canceled */
     }
   else
@@ -708,7 +710,7 @@ fade_screens (XtAppContext app, Display *dpy,
   status = xf86_gamma_fade(app, dpy, saver_windows, nwindows, seconds, out_p);
   if (status == 0 || status == 1)
     {
-      debug_log ("[FADE] using XF86 gamma fade method (%s)", (out_p ? "fade-out" : "fade-in"));
+      debug_log ("[FADE] fade_screens ending after XF86 gamma fade: status=%d, out_p=%d, from_desktop_p=%d", status, out_p, from_desktop_p);
       return status;  /* faded, possibly canceled */
     }
   else
@@ -728,6 +730,7 @@ fade_screens (XtAppContext app, Display *dpy,
       if (status == 0 || status == 1)
         {
           debug_log ("[FADE] using colormap fade method (%s)", (out_p ? "fade-out" : "fade-in"));
+          debug_log ("[FADE] fade_screens ending after colormap fade: status=%d, out_p=%d, from_desktop_p=%d", status, out_p, from_desktop_p);
           return status;  /* faded, possibly canceled */
         }
       else
@@ -744,6 +747,7 @@ fade_screens (XtAppContext app, Display *dpy,
                       from_desktop_p, state);
   status = (status ? True : False);
 
+  debug_log ("[FADE] fade_screens ending after XSHM/OpenGL fade: status=%d, out_p=%d, from_desktop_p=%d", status, out_p, from_desktop_p);
   return status;
 }
 
@@ -1681,7 +1685,7 @@ static void randr_whack_gamma (Display *dpy, int screen,
 static int
 randr_gamma_fade (XtAppContext app, Display *dpy,
                    Window *saver_windows, int nwindows,
-                   double seconds, Bool out_p, Bool from_desktop_p, double *interrupted_ratio)
+                   double seconds, Bool out_p, Bool from_desktop_p, double *interrupted_ratio, Bool *reversed_p)
 {
   int xsc = ScreenCount (dpy);
   int nscreens = 0;
@@ -1984,7 +1988,9 @@ randr_gamma_fade (XtAppContext app, Display *dpy,
     }
 
   /* Run the animation at the maximum frame rate in the time allotted. */
-  Bool reversed_p = False;  /* Track if we reversed direction due to user activity */
+  /* Initialize reversed_p via pointer (if provided) */
+  if (reversed_p)
+    *reversed_p = False;
   {
     double start_time = double_time();
     double end_time = start_time + seconds;
@@ -2003,7 +2009,7 @@ randr_gamma_fade (XtAppContext app, Display *dpy,
       {
         double ratio;
 
-        if (reversed_p)
+        if (reversed_p && *reversed_p)
           {
             /* We reversed direction: fade-in from the reversal point back to 1.0 */
             double elapsed_since_reversal = now - reversal_time;
@@ -2035,10 +2041,10 @@ randr_gamma_fade (XtAppContext app, Display *dpy,
           }
 
         /* Continuously update interrupted_ratio during fade-out so it's current if interrupted */
-        if (out_p && from_desktop_p && !reversed_p && interrupted_ratio)
+        if (out_p && from_desktop_p && interrupted_ratio)
           *interrupted_ratio = ratio;
 
-        log_fade_progress ("RANDR gamma", ratio, reversed_p ? False : out_p, &last_logged_percent, dpy, info, nscreens);
+        log_fade_progress ("RANDR gamma", ratio, out_p, &last_logged_percent, dpy, info, nscreens);
 
         for (screen = 0; screen < nscreens; screen++)
           {
@@ -2061,15 +2067,19 @@ randr_gamma_fade (XtAppContext app, Display *dpy,
 
         /* Check for user activity during fade-out INTO screensaver (from_desktop_p).
            If detected, reverse direction and fade back to full brightness. */
-        if (out_p && from_desktop_p && !reversed_p && user_active_p (app, dpy, True))
+        if (out_p && from_desktop_p && reversed_p && !(*reversed_p) && user_active_p (app, dpy, True))
           {
             /* Reverse direction: switch from fade-out to fade-in */
-            reversed_p = True;
+            *reversed_p = True;
             reversal_time = now;
             reversal_ratio = ratio;
             debug_log ("[FADE] fade-out interrupted at ratio %.2f, reversing direction to fade-in", ratio);
-            /* Extend end_time to give us time to fade back in */
-            end_time = now + seconds;
+            /* Calculate remaining time based on distance to fade back in.
+               If we faded from 1.0 to reversal_ratio, we need to fade back
+               (1.0 - reversal_ratio) of the original distance.
+               At the same speed, this takes (1.0 - reversal_ratio) * seconds. */
+            double remaining_distance = 1.0 - reversal_ratio;
+            end_time = now + remaining_distance * seconds;
             /* Capture the interrupted ratio for reporting (if needed) */
             if (interrupted_ratio)
               *interrupted_ratio = ratio;
@@ -2089,9 +2099,9 @@ randr_gamma_fade (XtAppContext app, Display *dpy,
   status = 0;   /* completed fade (may have reversed direction) */
 
   /* If we reversed direction, we're now at fade-in completion, so treat it as fade-in */
-  Bool actually_faded_in = (!out_p) || reversed_p;
+  Bool actually_faded_in = (!out_p) || (reversed_p && *reversed_p);
 
-  if (out_p && !reversed_p && status != 1)
+  if (out_p && (!reversed_p || !(*reversed_p)) && status != 1)
     {
       for (screen = 0; screen < nwindows; screen++)
         {
@@ -2196,6 +2206,15 @@ randr_gamma_fade (XtAppContext app, Display *dpy,
                 }
             }
         }
+
+      /* If we just finished fading in as a result of a reversal, we should exit the process
+         immediately to avoid it fading-out when it receives SIGTERM from the parent
+         (which will think we're still BLANKED). */
+      if (reversed_p && *reversed_p)
+        {
+          debug_log ("[FADE] fade-in completed after reversal: would exit xscreensaver-gfx to prevent fade-out on SIGTERM (exit commented out for debugging)");
+          /* exit (0); */  /* Commented out: exit should happen in caller (fade_screens) or higher level */
+        }
     }
   else if (status != 1)
     {
@@ -2219,6 +2238,12 @@ randr_gamma_fade (XtAppContext app, Display *dpy,
 
   if (status)
     DL(2, "randr fade %s failed", (out_p ? "out" : "in"));
+
+  /* Log when randr_gamma_fade ends */
+  if (reversed_p && *reversed_p)
+    debug_log ("[FADE] randr_gamma_fade ending: status=%d, reversed_p=True (fade-in completed after reversal)", status);
+  else
+    debug_log ("[FADE] randr_gamma_fade ending: status=%d, out_p=%d, from_desktop_p=%d, reversed_p=%d", status, out_p, from_desktop_p, (reversed_p ? *reversed_p : False));
 
   return status;
 }

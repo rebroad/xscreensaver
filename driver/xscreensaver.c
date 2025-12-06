@@ -827,7 +827,13 @@ static void init_line_handler (int lineno,
 {
   if (*key == '*' || *key == '.') key++;	/* Xrm wildcards */
 
-  if      (!strcmp (key, "verbose")) verbose_p = !strcasecmp (val, "true");
+  if      (!strcmp (key, "verbose"))
+    {
+      int old_verbose_p = verbose_p;
+      verbose_p = !strcasecmp (val, "true");
+      if (old_verbose_p != verbose_p)
+        debug_log ("[VERBOSE] set via config file 'verbose: %s': verbose_p=%d", val, verbose_p);
+    }
   else if (!strcmp (key, "splash"))  splash_p  = !strcasecmp (val, "true");
   else if (!strcmp (key, "lock"))    lock_p    = !strcasecmp (val, "true");
   else if (!strcmp (key, "mode"))    blanking_disabled_p =
@@ -2517,26 +2523,31 @@ main (int argc, char **argv)
         {
           verbose_p++;
           cmdline_verbose_p = True, cmdline_verbose_val = verbose_p;
+          debug_log ("[VERBOSE] set via command line -v/--verbose: verbose_p=%d", verbose_p);
         }
       else if (!strcmp (argv[i], "-vv"))
         {
           verbose_p += 2;
           cmdline_verbose_p = True, cmdline_verbose_val = verbose_p;
+          debug_log ("[VERBOSE] set via command line -vv: verbose_p=%d", verbose_p);
         }
       else if (!strcmp (argv[i], "-vvv"))
         {
           verbose_p += 3;
           cmdline_verbose_p = True, cmdline_verbose_val = verbose_p;
+          debug_log ("[VERBOSE] set via command line -vvv: verbose_p=%d", verbose_p);
         }
       else if (!strcmp (argv[i], "-vvvv"))
         {
           verbose_p += 4;
           cmdline_verbose_p = True, cmdline_verbose_val = verbose_p;
+          debug_log ("[VERBOSE] set via command line -vvvv: verbose_p=%d", verbose_p);
         }
       else if (!strcmp (argv[i], "-q") || !strcmp (argv[i], "-quiet"))
         {
           verbose_p = 0;
           cmdline_verbose_p = True, cmdline_verbose_val = verbose_p;
+          debug_log ("[VERBOSE] set via command line -q/--quiet: verbose_p=%d", verbose_p);
         }
       else if (!strcmp (argv[i], "-splash"))
         {
@@ -2553,8 +2564,7 @@ main (int argc, char **argv)
         {
           logfile = argv[++i];
           if (!logfile) goto HELP;
-          if (! verbose_p)  /* might already be -vv */
-            verbose_p = cmdline_verbose_p = cmdline_verbose_val = True;
+          /* Don't auto-enable verbose when logging - let user control verbosity separately */
         }
       else if (!strcmp (argv[i], "-ver") ||
                !strcmp (argv[i], "-vers") ||
@@ -2638,10 +2648,22 @@ main (int argc, char **argv)
   save_argv (argc, argv);
   hack_environment();
   print_banner();
+
+  debug_log ("[VERBOSE] initial value before reading config: verbose_p=%d", verbose_p);
   read_init_files (True);
 
   /* Command line overrides init file */
-  if (cmdline_verbose_p) verbose_p = cmdline_verbose_val;
+  if (cmdline_verbose_p)
+    {
+      int old_verbose_p = verbose_p;
+      verbose_p = cmdline_verbose_val;
+      if (old_verbose_p != verbose_p)
+        debug_log ("[VERBOSE] command line override after reading config: verbose_p=%d (was %d)", verbose_p, old_verbose_p);
+    }
+  else
+    {
+      debug_log ("[VERBOSE] final value after startup: verbose_p=%d (from config file, no command line override)", verbose_p);
+    }
   if (cmdline_splash_p)  splash_p  = cmdline_splash_val;
 
   DL(1, "running in process %lu", (unsigned long) getpid());
