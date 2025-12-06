@@ -587,11 +587,11 @@ fork_and_exec (Display *dpy, int argc, char **argv)
     if (verbose_p)
       {
         int i;
-        fprintf (stderr, "%s: pid %lu: launched",
-                 blurb(), (unsigned long) forked);
+        BLURB();
+        fprintf(stderr, "pid %lu: launched", (unsigned long) forked);
         for (i = 0; i < argc; i++)
-          fprintf (stderr, " %s", argv[i]);
-        fprintf (stderr, "\n");
+          fprintf(stderr, " %s", argv[i]);
+        fprintf(stderr, "\n");
       }
     break;
   }

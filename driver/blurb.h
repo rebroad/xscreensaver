@@ -32,5 +32,23 @@ extern int dl_write_atomic (int verbose_level, int level, const char *file, int 
 /* Debug logging macro - always logs (uses DL with level 0) */
 #define debug_log(...) DL(0, __VA_ARGS__)
 
-#endif /*  __BLURB_H__ */
+/* BLURB_PREFIX macro - outputs the prefix (blurb + [file:line]) for use with fprintf(stderr, ...)
+   This allows complex string building without needing buffers. Usage:
 
+   BLURB();
+   fprintf(stderr, "message with %s\n", arg);
+
+   Or in a loop:
+   BLURB();
+   for (i = 0; i < argc; i++)
+     fprintf(stderr, " %s", argv[i]);
+   fprintf(stderr, "\n");
+*/
+#define BLURB() \
+  do { \
+    if (!running_under_systemd_p || logging_to_file_p) \
+      fprintf(stderr, "%s: ", blurb()); \
+    fprintf(stderr, "[%s:%d] ", __FILE__, __LINE__); \
+  } while (0)
+
+#endif /*  __BLURB_H__ */

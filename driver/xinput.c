@@ -138,7 +138,7 @@ init_xinput (Display *dpy, int *opcode_ret)
   devs = XIQueryDevice (dpy, XIAllDevices, &ndevs);
   if (!ndevs)
     {
-      fprintf (stderr, "%s: XInput: no devices\n", blurb());
+      DL(0, "XInput: no devices");
       return False;
     }
 
@@ -146,14 +146,14 @@ init_xinput (Display *dpy, int *opcode_ret)
     for (i = 0; i < ndevs; i++)
       {
         XIDeviceInfo *d = &devs[i];
-        fprintf (stderr, "%s:   device %2d/%d: %s: %s\n",
-                 blurb(), d->deviceid, d->attachment, 
-                 (d->use == XIMasterPointer  ? "MP" :
-                  d->use == XIMasterKeyboard ? "MK" :
-                  d->use == XISlavePointer   ? "SP" :
-                  d->use == XISlaveKeyboard  ? "SK" :
-                  d->use == XIFloatingSlave  ? "FS" : "??"),
-                 d->name);
+        DL(1, "  device %2d/%d: %s: %s",
+           d->deviceid, d->attachment,
+           (d->use == XIMasterPointer  ? "MP" :
+            d->use == XIMasterKeyboard ? "MK" :
+            d->use == XISlavePointer   ? "SP" :
+            d->use == XISlaveKeyboard  ? "SK" :
+            d->use == XIFloatingSlave  ? "FS" : "??"),
+           d->name);
       }
 
   XIFreeDeviceInfo (devs);
