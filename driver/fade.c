@@ -2192,15 +2192,6 @@ randr_gamma_fade (XtAppContext app, Display *dpy,
                 }
             }
         }
-
-      /* If we just finished fading in as a result of a reversal, we should exit the process
-         immediately to avoid it fading-out when it receives SIGTERM from the parent
-         (which will think we're still BLANKED). */
-      if (reversed_p && *reversed_p)
-        {
-          debug_log ("[FADE] fade-in completed after reversal: would exit xscreensaver-gfx to prevent fade-out on SIGTERM (exit commented out for debugging)");
-          /* exit (0); */  /* Commented out: exit should happen in caller (fade_screens) or higher level */
-        }
     }
   else if (status != 1)
     {
