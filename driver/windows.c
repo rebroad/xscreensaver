@@ -564,21 +564,30 @@ blank_screen (saver_info *si)
 
       /* This will take several seconds to complete. */
       si->interrupted_fade_ratio = 0.0;
+      Bool fade_reversed_p = False;
       user_active_p = fade_screens (si->app, si->dpy,
                                     current_windows, si->nscreens,
                                     p->fade_seconds / 1000.0,
                                     True,  /* out_p */
                                     True,  /* from_desktop_p */
                                     &si->fade_state,
-                                    &si->interrupted_fade_ratio);
+                                    &si->interrupted_fade_ratio,
+                                    &fade_reversed_p);
       free (current_windows);
 
-      if (!p->verbose_p)
-        ;
-      else if (user_active_p)
+      if (user_active_p)
         DL(0, "fading aborted");
       else
         DL(0, "fading done");
+
+      /* If fade was reversed (fade-out -> fade-in due to user activity),
+         exit immediately to prevent the process from fading-out when it
+         receives SIGTERM from the parent (which thinks we're still BLANKED). */
+      if (fade_reversed_p)
+        {
+          debug_log ("[BLANK_SCREEN] fade-out was reversed to fade-in: exiting xscreensaver-gfx to prevent fade-out on SIGTERM");
+          exit (0);
+        }
     }
 
   /* If user activity was detected during fade-out, abort screensaver activation.
@@ -665,7 +674,8 @@ unblank_screen (saver_info *si)
                                         True,  /* out_p */
                                         False, /* from_desktop_p */
                                         &si->fade_state,
-                                        NULL);
+                                        NULL,
+                                        NULL);  /* reversed_p: not needed for unblank */
 
           for (i = 0; i < si->nscreens; i++)
             {
@@ -685,7 +695,8 @@ unblank_screen (saver_info *si)
                                     False, /* out_p */
                                     False, /* from_desktop_p */
                                     &si->fade_state,
-                                    &si->interrupted_fade_ratio);  /* INPUT: start from interrupted ratio if > 0.0 */
+                                    &si->interrupted_fade_ratio,  /* INPUT: start from interrupted ratio if > 0.0 */
+                                    NULL);  /* reversed_p: not needed for unblank */
       si->interrupted_fade_ratio = 0.0;  /* Reset for next time after fade-in completes */
       free (current_windows);
 
