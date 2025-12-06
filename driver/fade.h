@@ -12,6 +12,9 @@
 #ifndef __FADE_H__
 #define __FADE_H__
 
+/* Forward declaration - full definition in fade.c */
+typedef struct fade_state fade_state;
+
 /* Returns true if canceled by user activity.
    If interrupted_ratio is non-NULL:
 	 - For fade-out: stores the current fade ratio (0.0-1.0) in *interrupted_ratio when interrupted.

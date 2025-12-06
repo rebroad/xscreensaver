@@ -674,7 +674,7 @@ unblank_screen (saver_info *si)
                                         True,  /* out_p */
                                         False, /* from_desktop_p */
                                         &si->fade_state,
-                                        NULL,
+                                        NULL,  /* interrupted_ratio: not needed for this fade-out */
                                         NULL);  /* reversed_p: not needed for unblank */
 
           for (i = 0; i < si->nscreens; i++)
@@ -690,7 +690,7 @@ unblank_screen (saver_info *si)
                                     False, /* out_p */
                                     False, /* from_desktop_p */
                                     &si->fade_state,
-                                    NULL,  /* INPUT: start from interrupted ratio if > 0.0 */
+                                    &si->interrupted_fade_ratio,  /* INPUT: start from interrupted ratio if > 0.0 */
                                     NULL);  /* reversed_p: not needed for unblank */
       si->interrupted_fade_ratio = 0.0;  /* Reset for next time after fade-in completes */
       free (current_windows);
