@@ -21,7 +21,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
-#include <unistd.h>  /* for getpid() */
+#include <unistd.h>  /* for getpid(), write(), fsync() */
+#include <errno.h>   /* for errno, EINTR */
 
 /* Include sys/file.h for flock() - standard on Linux and most Unix systems.
    Try to include it - if the system doesn't have it, the #ifdef LOCK_EX will
@@ -96,9 +97,9 @@ blurb (void)
 /* Format and write a complete log line atomically to prevent interleaving
    when multiple processes write to the same log file.
 
-   Uses file locking (flock) when logging to a file to serialize writes,
-   avoiding the need for a buffer. For non-file logging, uses the original
-   multiple fprintf approach since interleaving is less of a concern.
+   Formats the entire log line into a single buffer, then writes it in one
+   atomic operation while holding a file lock. This ensures that log lines
+   from different processes cannot be interleaved.
 
    verbose_level: the current verbose level to check against (typically verbose_p or p->verbose_p)
    level: the minimum verbose level required for this message to be logged
@@ -112,6 +113,10 @@ dl_write_atomic (int verbose_level, int level, const char *file, int line, const
   va_list args;
   int fd = fileno (stderr);
   int locked = 0;
+  char buffer[4096];
+  int pos = 0;
+  int written = 0;
+  const char *blurb_str = NULL;
 
   if (verbose_level < level)
     return 0;
@@ -120,27 +125,77 @@ dl_write_atomic (int verbose_level, int level, const char *file, int line, const
   if (logging_to_file_p && fd >= 0)
     {
 # ifdef LOCK_EX
-      /* Try to acquire exclusive lock (non-blocking) */
-      if (flock (fd, LOCK_EX | LOCK_NB) == 0)
+      /* Acquire exclusive lock (blocking) to ensure atomic writes */
+      if (flock (fd, LOCK_EX) == 0)
         locked = 1;
       /* If lock fails, continue anyway - better to have interleaved logs than no logs */
 # endif
     }
 
-  /* Write the log line using multiple fprintf calls (original approach) */
+  /* Format the entire log line into a single buffer */
   if (!running_under_systemd_p || logging_to_file_p)
     {
-      fprintf (stderr, "%s: ", blurb());
+      blurb_str = blurb();
+      pos = snprintf (buffer, sizeof(buffer), "%s: ", blurb_str);
+      if (pos < 0 || pos >= (int)sizeof(buffer))
+        pos = sizeof(buffer) - 1;
     }
-  fprintf (stderr, "[%s:%d] ", file, line);
+
+  /* Add file:line prefix */
+  {
+    int n = snprintf (buffer + pos, sizeof(buffer) - pos, "[%s:%d] ", file, line);
+    if (n > 0 && pos + n < (int)sizeof(buffer))
+      pos += n;
+    else if (pos < (int)sizeof(buffer))
+      pos = sizeof(buffer) - 1;
+  }
+
+  /* Format the message */
   va_start (args, fmt);
-  vfprintf (stderr, fmt, args);
+  {
+    int n = vsnprintf (buffer + pos, sizeof(buffer) - pos, fmt, args);
+    if (n > 0 && pos + n < (int)sizeof(buffer))
+      pos += n;
+    else if (pos < (int)sizeof(buffer))
+      pos = sizeof(buffer) - 1;
+  }
   va_end (args);
-  fprintf (stderr, "\n");
+
+  /* Add newline */
+  if (pos < (int)sizeof(buffer) - 1)
+    {
+      buffer[pos++] = '\n';
+      buffer[pos] = '\0';
+    }
+  else
+    {
+      buffer[sizeof(buffer) - 2] = '\n';
+      buffer[sizeof(buffer) - 1] = '\0';
+      pos = sizeof(buffer) - 1;
+    }
+
+  /* Write the entire formatted line in one operation */
+  /* Loop to handle partial writes */
+  {
+    ssize_t total_written = 0;
+    ssize_t n;
+    while (total_written < pos)
+      {
+        n = write (fd, buffer + total_written, pos - total_written);
+        if (n < 0)
+          {
+            if (errno == EINTR)
+              continue;  /* Interrupted, try again */
+            break;  /* Error, give up */
+          }
+        total_written += n;
+      }
+    written = (int)total_written;  /* Safe cast since buffer is limited to 4096 */
+  }
 
   /* Flush immediately when logging to file */
   if (logging_to_file_p)
-    fflush (stderr);
+    fsync (fd);  /* Ensure data is written to disk */
 
   /* Release lock if we acquired it */
   if (locked)
@@ -150,6 +205,6 @@ dl_write_atomic (int verbose_level, int level, const char *file, int line, const
 # endif
     }
 
-  return 0;  /* Can't easily return byte count with this approach */
+  return written;
 }
 

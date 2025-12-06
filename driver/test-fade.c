@@ -197,7 +197,7 @@ main (int argc, char **argv)
       fade_screens (app, dpy, windows, nwindows, seconds,
                     True,  /* out_p */
                     True,  /* from_desktop_p */
-                    &state);
+                    &state, NULL, NULL);  /* reversed_p: not needed for test */
       for (i = 0; i < nwindows; i++)
         XMapRaised (dpy, windows[i]);
       XSync (dpy, False);
@@ -220,12 +220,12 @@ main (int argc, char **argv)
                     seconds * ratio,
                     True,  /* out_p */
                     False, /* from_desktop_p */
-                    &state);
+                    &state, NULL, NULL);  /* reversed_p: not needed for test */
       fade_screens (app, dpy, windows, nwindows, 
                     seconds * ratio,
                     False, /* out_p */
                     False, /* from_desktop_p */
-                    &state);
+                    &state, NULL, NULL);  /* reversed_p: not needed for test */
       XSync (dpy, False);
       fprintf(stderr, "%s: in done\n\n", blurb());
       fflush(stderr);
