@@ -137,6 +137,7 @@
 typedef struct {
   int nscreens;
   Pixmap *screenshots;
+  double *interrupted_ratio;  /* Pointer to interrupted fade ratio (from saver_info) */
 } fade_state;
 
 
@@ -157,8 +158,7 @@ static int colormap_fade (XtAppContext, Display *, Window *wins, int count,
                           double *interrupted_ratio);
 static int xshm_fade (XtAppContext, Display *,
                       Window *wins, int count, double secs,
-                      Bool out_p, Bool from_desktop_p, fade_state *,
-                      double *interrupted_ratio);
+                      Bool out_p, Bool from_desktop_p, fade_state *);
 
 
 #ifdef HAVE_XINPUT
@@ -636,6 +636,8 @@ fade_screens (XtAppContext app, Display *dpy,
       state = (fade_state *) calloc (1, sizeof (*state));
       *closureP = state;
     }
+  /* Store interrupted_ratio pointer in state for access by fade functions */
+  state->interrupted_ratio = interrupted_ratio;
 
   if (from_desktop_p && !out_p)
     abort();  /* Fading in from desktop makes no sense */
@@ -725,7 +727,7 @@ fade_screens (XtAppContext app, Display *dpy,
   /* Else do it the hard way, by hacking a screenshot. */
   debug_log ("[FADE] using XSHM/OpenGL fade method (%s)", (out_p ? "fade-out" : "fade-in"));
   status = xshm_fade (app, dpy, saver_windows, nwindows, seconds, out_p,
-                      from_desktop_p, state, interrupted_ratio);
+                      from_desktop_p, state);
   status = (status ? True : False);
 
   return status;
@@ -2488,8 +2490,7 @@ check_gl_error (const char *type)
 static int
 xshm_fade (XtAppContext app, Display *dpy,
            Window *saver_windows, int nwindows, double seconds,
-           Bool out_p, Bool from_desktop_p, fade_state *state,
-           double *interrupted_ratio)
+           Bool out_p, Bool from_desktop_p, fade_state *state)
 {
   int screen;
   int status = -1;
@@ -2732,6 +2733,7 @@ xshm_fade (XtAppContext app, Display *dpy,
     int frames = 0;
     int last_logged_percent = -1;
     double max = 1/60.0;  /* max FPS */
+    double *interrupted_ratio = state->interrupted_ratio;
     if (!out_p && interrupted_ratio && *interrupted_ratio > 0.0)
       debug_log ("[FADE] fade-in starting from captured level: %.2f", *interrupted_ratio);
     while ((now = double_time()) < end_time)

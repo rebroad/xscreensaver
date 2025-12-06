@@ -578,8 +578,7 @@ blank_screen (saver_info *si)
                                     True,  /* out_p */
                                     True,  /* from_desktop_p */
                                     &si->fade_state,
-                                    &si->interrupted_fade_ratio,
-                                    -1.0);  /* No start ratio for fade-out */
+                                    &si->interrupted_fade_ratio);
       free (current_windows);
 
       if (!p->verbose_p)
@@ -674,8 +673,7 @@ unblank_screen (saver_info *si)
                                         True,  /* out_p */
                                         False, /* from_desktop_p */
                                         &si->fade_state,
-                                        NULL,
-                                        -1.0);
+                                        NULL);
 
           for (i = 0; i < si->nscreens; i++)
             {

@@ -362,19 +362,18 @@ kill_job (saver_info *si, pid_t pid, int signal)
   status = kill (job->pid, signal);
 
   if (status < 0)
-      {
-        if (errno == ESRCH)
-          DL(1, "%d: child process %lu (%s) was already dead",
-             job->screen, (unsigned long) job->pid, job->name);
-        else
-          {
-            char buf [1024];
-            sprintf (buf, "%s: %d: couldn't kill child process %lu (%s)",
-                     blurb(), job->screen, (unsigned long) job->pid, job->name);
-            perror (buf);
-          }
-      }
-  }
+    {
+      if (errno == ESRCH)
+        DL(1, "%d: child process %lu (%s) was already dead",
+           job->screen, (unsigned long) job->pid, job->name);
+      else
+        {
+          char buf [1024];
+          sprintf (buf, "%s: %d: couldn't kill child process %lu (%s)",
+                   blurb(), job->screen, (unsigned long) job->pid, job->name);
+          perror (buf);
+        }
+    }
 
   await_dying_children (si);
 
