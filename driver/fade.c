@@ -134,11 +134,11 @@
 #endif
 
 
-typedef struct {
+struct fade_state {
   int nscreens;
   Pixmap *screenshots;
   double *interrupted_ratio;  /* Pointer to interrupted fade ratio (from saver_info) */
-} fade_state;
+};
 
 
 #ifdef HAVE_SGI_VC_EXTENSION
@@ -151,11 +151,10 @@ static int xf86_gamma_fade (XtAppContext, Display *, Window *wins, int count,
 #endif
 #ifdef HAVE_RANDR_12
 static int randr_gamma_fade (XtAppContext, Display *, Window *wins, int count,
-                             double secs, Bool out_p, Bool from_desktop_p, double *interrupted_ratio, Bool *reversed_p);
+                             double secs, Bool out_p, Bool from_desktop_p, fade_state *state, Bool *reversed_p);
 #endif
 static int colormap_fade (XtAppContext, Display *, Window *wins, int count,
-                          double secs, Bool out_p, Bool from_desktop_p,
-                          double *interrupted_ratio);
+                          double secs, Bool out_p, Bool from_desktop_p, fade_state *state);
 static int xshm_fade (XtAppContext, Display *,
                       Window *wins, int count, double secs,
                       Bool out_p, Bool from_desktop_p, fade_state *);
@@ -612,10 +611,10 @@ defer_XDestroyWindow (XtAppContext app, Display *dpy, Window w)
 
 
 /* Returns true if canceled by user activity.
-   If interrupted_ratio is non-NULL:
-     - For fade-out: stores the current fade ratio (0.0-1.0) in *interrupted_ratio when interrupted.
-     - For fade-in: if *interrupted_ratio > 0.0, starts fade-in from that level instead of 0.0
-       (used when resuming from an interrupted fade-out).
+   The interrupted_ratio pointer should be stored in closure's fade_state->interrupted_ratio before calling.
+   - For fade-out: stores the current fade ratio (0.0-1.0) in *interrupted_ratio when interrupted.
+   - For fade-in: if *interrupted_ratio > 0.0, starts fade-in from that level instead of 0.0
+     (used when resuming from an interrupted fade-out).
    If reversed_p is non-NULL:
      - Set to True if fade direction was reversed (fade-out -> fade-in due to user activity).
  */
@@ -678,7 +677,7 @@ fade_screens (XtAppContext app, Display *dpy,
 # ifdef HAVE_RANDR_12
   /* Then try to do it by fading the gamma in an RANDR-specific way... */
   debug_log ("[FADE] trying RANDR gamma fade method (%s)", (out_p ? "fade-out" : "fade-in"));
-  status = randr_gamma_fade (app, dpy, saver_windows, nwindows, seconds, out_p, from_desktop_p, interrupted_ratio, reversed_p);
+  status = randr_gamma_fade (app, dpy, saver_windows, nwindows, seconds, out_p, from_desktop_p, state, reversed_p);
   if (status == 0 || status == 1)
     {
       debug_log ("[FADE] fade_screens ending after RANDR gamma fade: status=%d, out_p=%d, from_desktop_p=%d, reversed_p=%d", status, out_p, from_desktop_p, (reversed_p ? *reversed_p : False));
@@ -712,7 +711,7 @@ fade_screens (XtAppContext app, Display *dpy,
          8-bit displays. */
       debug_log ("[FADE] trying colormap fade method (%s)", (out_p ? "fade-out" : "fade-in"));
       status = colormap_fade (app, dpy, saver_windows, nwindows, seconds,
-                              out_p, from_desktop_p, interrupted_ratio);
+                              out_p, from_desktop_p, state);
       if (status == 0 || status == 1)
         {
           debug_log ("[FADE] using colormap fade method (%s)", (out_p ? "fade-out" : "fade-in"));
@@ -770,13 +769,14 @@ static int
 colormap_fade (XtAppContext app, Display *dpy,
                Window *saver_windows, int nwindows,
                double seconds, Bool out_p, Bool from_desktop_p,
-               double *interrupted_ratio)
+               fade_state *state)
 {
   int status = -1;
   Colormap *window_cmaps = 0;
   int i, j, k;
   unsigned int cmaps_per_screen = 5;
   unsigned int nscreens = ScreenCount(dpy);
+  double *interrupted_ratio = state ? state->interrupted_ratio : NULL;
   unsigned int ncmaps = nscreens * cmaps_per_screen;
   Colormap *fade_cmaps = 0;
   Bool installed = False;
@@ -1671,13 +1671,14 @@ static void randr_whack_gamma (Display *dpy, int screen,
 static int
 randr_gamma_fade (XtAppContext app, Display *dpy,
                    Window *saver_windows, int nwindows,
-                   double seconds, Bool out_p, Bool from_desktop_p, double *interrupted_ratio, Bool *reversed_p)
+                   double seconds, Bool out_p, Bool from_desktop_p, fade_state *state, Bool *reversed_p)
 {
   int xsc = ScreenCount (dpy);
   int nscreens = 0;
   int j, screen;
   int status = -1;
   randr_gamma_info *info = 0;
+  double *interrupted_ratio = state ? state->interrupted_ratio : NULL;
 
   static int ext_ok = -1;
 
