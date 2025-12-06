@@ -17,11 +17,13 @@
 	 - For fade-out: stores the current fade ratio (0.0-1.0) in *interrupted_ratio when interrupted.
 	 - For fade-in: if *interrupted_ratio > 0.0, starts fade-in from that level instead of 0.0
 	   (used when resuming from an interrupted fade-out).
+   If reversed_p is non-NULL:
+	 - Set to True if fade direction was reversed (fade-out -> fade-in due to user activity).
  */
 extern Bool fade_screens (XtAppContext app, Display *dpy,
 						  Window *black_windows, int nwindows,
 			  double seconds, Bool out_p, Bool from_desktop_p,
-						  void **closureP, double *interrupted_ratio);
+						  void **closureP, double *interrupted_ratio, Bool *reversed_p);
 
 /* Like XDestroyWindow, but destroys the window later, on a timer.  This is
    necessary to work around a KDE 5 compositor bug.  Without this, destroying
