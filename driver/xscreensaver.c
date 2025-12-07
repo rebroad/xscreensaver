@@ -316,17 +316,13 @@ kill_all_subprocs (void)
 {
   if (saver_gfx_pid)
     {
-      if (verbose_p)
-        fprintf (stderr, "%s: pid %lu: killing " SAVER_GFX_PROGRAM "\n",
-                 blurb(), (unsigned long) saver_gfx_pid);
+      DL(1, "pid %lu: killing " SAVER_GFX_PROGRAM, (unsigned long) saver_gfx_pid);
       kill (saver_gfx_pid, SIGTERM);
 
       if (gfx_stopped_p)	/* SIGCONT to allow SIGTERM to proceed */
         {
-          if (verbose_p)
-            fprintf (stderr, "%s: pid %lu: sending " SAVER_GFX_PROGRAM
-                     " SIGCONT\n",
-                     blurb(), (unsigned long) saver_gfx_pid);
+          DL(1, "pid %lu: sending " SAVER_GFX_PROGRAM " SIGCONT",
+             (unsigned long) saver_gfx_pid);
           gfx_stopped_p = False;
           kill (-saver_gfx_pid, SIGCONT);  /* send to process group */
         }
@@ -334,17 +330,13 @@ kill_all_subprocs (void)
 
   if (saver_auth_pid)
     {
-      if (verbose_p)
-        fprintf (stderr, "%s: pid %lu: killing " SAVER_AUTH_PROGRAM "\n",
-                 blurb(), (unsigned long) saver_auth_pid);
+      DL(1, "pid %lu: killing " SAVER_AUTH_PROGRAM, (unsigned long) saver_auth_pid);
       kill (saver_auth_pid, SIGTERM);
     }
 
   if (saver_systemd_pid)
     {
-      if (verbose_p)
-        fprintf (stderr, "%s: pid %lu: killing " SAVER_SYSTEMD_PROGRAM "\n",
-                 blurb(), (unsigned long) saver_systemd_pid);
+      DL(1, "pid %lu: killing " SAVER_SYSTEMD_PROGRAM, (unsigned long) saver_systemd_pid);
       kill (saver_systemd_pid, SIGTERM);
     }
 }
@@ -394,9 +386,7 @@ catch_signal (int sig, RETSIGTYPE (*handler) (int))
   if (((long) signal (sig, handler)) == -1L)
 # endif /* !HAVE_SIGACTION */
     {
-      char buf [255];
-      sprintf (buf, "%s: couldn't catch signal %d", blurb(), sig);
-      perror (buf);
+      DL(0, "couldn't catch signal %d: %s", sig, strerror(errno));
       saver_exit (1);
     }
 }
@@ -411,9 +401,7 @@ restart_process (void)
   kill_all_subprocs();
   execvp (saved_argv [0], saved_argv);	/* shouldn't return */
   {
-    char buf [512];
-    sprintf (buf, "%s: could not restart process", blurb());
-    perror(buf);
+    DL(0, "could not restart process: %s", strerror(errno));
     fflush(stderr);
     abort();
   }
@@ -441,17 +429,15 @@ fork_and_exec (Display *dpy, int argc, char **argv)
   pid_t forked = fork();
   switch ((int) forked) {
   case -1:
-    sprintf (buf, "%s: couldn't fork", blurb());
-    perror (buf);
+    DL(0, "couldn't fork: %s", strerror(errno));
     break;
 
   case 0:
     close (ConnectionNumber (dpy));	/* close display fd */
     execvp (argv[0], argv);		/* shouldn't return. */
 
-    sprintf (buf, "%s: pid %lu: couldn't exec %s", blurb(),
-             (unsigned long) getpid(), argv[0]);
-    perror (buf);
+    DL(0, "pid %lu: couldn't exec %s: %s",
+       (unsigned long) getpid(), argv[0], strerror(errno));
     exit (1);				/* exits child fork */
     break;
 
@@ -472,8 +458,7 @@ fork_and_exec (Display *dpy, int argc, char **argv)
     if (setpgid (forked, 0))
       {
         char buf [255];
-        sprintf (buf, "%s: setpgid %d", blurb(), forked);
-        perror (buf);
+        DL(0, "setpgid %d: %s", forked, strerror(errno));
       }
     break;
   }
@@ -581,9 +566,8 @@ handle_sigchld (Display *dpy, Bool blanked_p, time_t *active_at_p)
                      tight loop.  Screen will remain grabbed, but desktop will
                      be visible.
                    */
-                  fprintf (stderr, "%s: pid %lu: " SAVER_GFX_PROGRAM
-                           " won't re-launch!\n",
-                           blurb(), (unsigned long) kid);
+                  DL(0, "pid %lu: " SAVER_GFX_PROGRAM " won't re-launch!",
+                     (unsigned long) kid);
                 }
               else
                 {
@@ -598,9 +582,9 @@ handle_sigchld (Display *dpy, Bool blanked_p, time_t *active_at_p)
                   if (verbose_p > 2) av[ac++] = "--verbose";
                   if (debug_p)       av[ac++] = "--debug";
                   av[ac] = 0;
-                  fprintf (stderr, "%s: pid %lu: " SAVER_GFX_PROGRAM
-                           " exited unexpectedly %s: re-launching\n",
-                           blurb(), (unsigned long) kid, how);
+                  DL(0, "pid %lu: " SAVER_GFX_PROGRAM
+                     " exited unexpectedly %s: re-launching",
+                     (unsigned long) kid, how);
                   gfx_stopped_p = False;
                   saver_gfx_pid = fork_and_exec (dpy, ac, av);
                   respawn_thrashing_count++;
@@ -609,9 +593,8 @@ handle_sigchld (Display *dpy, Bool blanked_p, time_t *active_at_p)
           else
             {
               /* Should not have been running anyway. */
-              if (verbose_p)
-                fprintf (stderr, "%s: pid %lu: " SAVER_GFX_PROGRAM
-                         " exited %s\n", blurb(), (unsigned long) kid, how);
+              DL(1, "pid %lu: " SAVER_GFX_PROGRAM " exited %s",
+                 (unsigned long) kid, how);
             }
         }
       else if (kid == saver_systemd_pid)
@@ -623,9 +606,9 @@ handle_sigchld (Display *dpy, Bool blanked_p, time_t *active_at_p)
              failed to start, or dies.
            */
           saver_systemd_pid = 0;
-          fprintf (stderr, "%s: pid %lu: " SAVER_SYSTEMD_PROGRAM
-                   " exited unexpectedly %s\n",
-                   blurb(), (unsigned long) kid, how);
+          DL(0, "pid %lu: " SAVER_SYSTEMD_PROGRAM
+             " exited unexpectedly %s",
+             (unsigned long) kid, how);
         }
       else if (kid == saver_auth_pid)
         {
@@ -651,15 +634,13 @@ handle_sigchld (Display *dpy, Bool blanked_p, time_t *active_at_p)
                 strcpy (how, "and authentication failed");
             }
 
-          if (verbose_p)
-            fprintf (stderr, "%s: pid %lu: " SAVER_AUTH_PROGRAM " exited %s\n",
-                     blurb(), (unsigned long) kid, how);
+          DL(1, "pid %lu: " SAVER_AUTH_PROGRAM " exited %s",
+             (unsigned long) kid, how);
         }
-      else if (verbose_p)
+      else
         {
-          fprintf (stderr, "%s: pid %lu: unknown child"
-                   " exited unexpectedly %s\n",
-                   blurb(), (unsigned long) kid, how);
+          DL(1, "pid %lu: unknown child exited unexpectedly %s",
+             (unsigned long) kid, how);
         }
     }
 
@@ -1019,11 +1000,10 @@ ensure_no_screensaver_running (Display *dpy)
                   || type == None)
                 id = (unsigned char *) "???";
 
-              fprintf (stderr,
-                       "%s: already running on display %s"
-                       " (window 0x%x)\n from process %s\n",
-                       blurb(), DisplayString (dpy), (int) kids [i],
-                       (char *) id);
+              DL(0, "already running on display %s"
+                 " (window 0x%x) from process %s",
+                 DisplayString (dpy), (int) kids [i],
+                 (char *) id);
               saver_exit (1);
             }
           else if (XGetWindowProperty (dpy, kids[i], XA_WM_COMMAND, 0, 128,
@@ -1037,11 +1017,10 @@ ensure_no_screensaver_running (Display *dpy)
                        !strcmp ((char *) version, "xfce4-screensaver") ||
                        !strcmp ((char *) version, "light-locker")))
             {
-              fprintf (stderr,
-                       "%s: \"%s\" is already running on display %s"
-                       " (window 0x%x)\n",
-                       blurb(), (char *) version,
-                       DisplayString (dpy), (int) kids [i]);
+              DL(0, "\"%s\" is already running on display %s"
+                 " (window 0x%x)",
+                 (char *) version,
+                 DisplayString (dpy), (int) kids [i]);
               saver_exit (1);
             }
         }
@@ -1250,9 +1229,8 @@ grab_kbd (Screen *screen)
   Window w = RootWindowOfScreen (screen);
   int status = XGrabKeyboard (dpy, w, True, GrabModeAsync, GrabModeAsync,
                               CurrentTime);
-  if (verbose_p)
-    fprintf (stderr, "%s: grabbing keyboard on 0x%lx: %s\n",
-             blurb(), (unsigned long) w, grab_string (status));
+  DL(1, "grabbing keyboard on 0x%lx: %s",
+     (unsigned long) w, grab_string (status));
   return status;
 }
 
@@ -1271,9 +1249,8 @@ grab_mouse (Screen *screen, Cursor cursor)
                               Button5MotionMask | ButtonMotionMask),
                              GrabModeAsync, GrabModeAsync, w,
                              cursor, CurrentTime);
-  if (verbose_p)
-    fprintf (stderr, "%s: grabbing mouse on 0x%lx... %s\n",
-             blurb(), (unsigned long) w, grab_string (status));
+  DL(1, "grabbing mouse on 0x%lx... %s",
+     (unsigned long) w, grab_string (status));
   return status;
 }
 
@@ -1327,8 +1304,7 @@ nuke_focus (Screen *screen)
       else if (rev == RevertToNone)        strcpy (r, "RevertToNone");
       else    sprintf (r, "0x%x", rev);
 
-      fprintf (stderr, "%s: removing focus from %s / %s\n",
-               blurb(), w, r);
+      DL(1, "removing focus from %s / %s", w, r);
     }
 
   XSetInputFocus (dpy, None, RevertToNone, CurrentTime);
@@ -1369,8 +1345,7 @@ grab_keyboard_and_mouse (Screen *screen)
 
   if (kstatus != GrabSuccess)
     {
-      fprintf (stderr, "%s: couldn't grab keyboard: %s\n",
-               blurb(), grab_string (kstatus));
+      DL(0, "couldn't grab keyboard: %s", grab_string (kstatus));
 
       if (! focus_fuckus)
         {
@@ -1392,8 +1367,7 @@ grab_keyboard_and_mouse (Screen *screen)
     }
 
   if (mstatus != GrabSuccess)
-    fprintf (stderr, "%s: couldn't grab pointer: %s\n",
-             blurb(), grab_string (mstatus));
+    DL(0, "couldn't grab pointer: %s", grab_string (mstatus));
 
 
   /* When should we allow blanking to proceed?  The current theory
@@ -1456,9 +1430,7 @@ mouse_screen (Display *dpy)
                                     &root_x, &root_y, &win_x, &win_y, &mask);
         if (status != None)
           {
-            if (verbose_p)
-              fprintf (stderr, "%s: mouse is on screen %d of %d\n",
-                       blurb(), i, nscreens);
+            DL(1, "mouse is on screen %d of %d", i, nscreens);
             return ScreenOfDisplay (dpy, i);
           }
       }
@@ -1574,8 +1546,7 @@ main_loop (Display *dpy)
   else if (wdpy)
     {
       /* Connected to Wayland, but no idle protocols available. */
-      fprintf (stderr, "%s: wayland: idle detection is impossible.\n",
-               blurb());
+      DL(0, "wayland: idle detection is impossible.");
       exit (1);
     }
   else if (getenv ("WAYLAND_DISPLAY") || getenv ("WAYLAND_SOCKET"))
@@ -1777,9 +1748,7 @@ main_loop (Display *dpy)
           sighup_received = 0;
           if (current_state == LOCKED)
             {
-              fprintf (stderr,
-                       "%s: SIGHUP received while locked: ignoring\n",
-                       blurb());
+              DL(0, "SIGHUP received while locked: ignoring");
             }
           else
             {
@@ -1986,11 +1955,9 @@ main_loop (Display *dpy)
                       type = xev.xclient.message_type;
                       tstr = type ? XGetAtomName (dpy, type) : 0;
                       name = msg  ? XGetAtomName (dpy, msg)  : 0;
-                      fprintf (stderr,
-                               "%s: unrecognized ClientMessage %s %s\n",
-                               blurb(),
-                               (tstr ? tstr : "???"),
-                               (name ? name : "???"));
+                      DL(0, "unrecognized ClientMessage %s %s",
+                         (tstr ? tstr : "???"),
+                         (name ? name : "???"));
                       if (tstr) XFree (tstr);
                       if (name) XFree (name);
                       print_x11_error_p = op;
@@ -2162,9 +2129,7 @@ main_loop (Display *dpy)
             {
               active_at = now;
               wayland_active_p = False;
-              if (verbose_p)
-                fprintf (stderr,"%s: wayland reports user activity\n",
-                         blurb());
+              DL(1, "wayland reports user activity");
             }
         }
 # endif /* HAVE_WAYLAND */
@@ -2205,8 +2170,7 @@ main_loop (Display *dpy)
                 store_saver_status (dpy, True, True, False, locked_at);
               }
             else
-              fprintf (stderr, "%s: unable to grab -- locking aborted!\n",
-                       blurb());
+              DL(0, "unable to grab -- locking aborted!");
 
             force_lock_p = False;   /* Single shot */
           }
@@ -2234,8 +2198,7 @@ main_loop (Display *dpy)
                     store_saver_status (dpy, True, False, False, blanked_at);
                   }
                 else
-                  fprintf (stderr, "%s: unable to grab -- blanking aborted!\n",
-                           blurb());
+                  DL(0, "unable to grab -- blanking aborted!");
               }
           }
 
@@ -2319,10 +2282,8 @@ main_loop (Display *dpy)
               {
                 debug_log ("[MAIN] killing xscreensaver-gfx (pid %lu)",
                            (unsigned long) saver_gfx_pid);
-                if (verbose_p)
-                  fprintf (stderr,
-                           "%s: pid %lu: killing " SAVER_GFX_PROGRAM "\n",
-                           blurb(), (unsigned long) saver_gfx_pid);
+                DL(1, "pid %lu: killing " SAVER_GFX_PROGRAM,
+                   (unsigned long) saver_gfx_pid);
                 kill (saver_gfx_pid, SIGTERM);
                 respawn_thrashing_count = 0;
                 debug_log ("[MAIN] sent SIGTERM to xscreensaver-gfx (pid %lu), waiting for exit",
@@ -2427,10 +2388,8 @@ main_loop (Display *dpy)
 
             if (gfx_stopped_p)	/* SIGCONT to resume savers */
               {
-                if (verbose_p)
-                  fprintf (stderr, "%s: pid %lu: sending " SAVER_GFX_PROGRAM
-                           " SIGCONT\n",
-                           blurb(), (unsigned long) saver_gfx_pid);
+                DL(1, "pid %lu: sending " SAVER_GFX_PROGRAM " SIGCONT",
+                   (unsigned long) saver_gfx_pid);
                 gfx_stopped_p = False;
                 kill (-saver_gfx_pid, SIGCONT);  /* send to process group */
               }
@@ -2621,26 +2580,25 @@ main (int argc, char **argv)
         {
           char buf[255];
         FAIL:
-          sprintf (buf, "%.100s: %.100s", blurb(), logfile);
-          perror (buf);
+          DL(0, "%.100s: %s", logfile, strerror(errno));
           fflush (stderr);
           fflush (stdout);
           saver_exit (1);
         }
 
-      fprintf (stderr, "%s: logging to file %s\n", blurb(), logfile);
+      DL(0, "logging to file %s", logfile);
 
       if (dup2 (fd, stdout_fd) < 0) goto FAIL;
       if (dup2 (fd, stderr_fd) < 0) goto FAIL;
 
-      fprintf (stderr, "\n\n"
-               "#####################################"
-               "#####################################\n"
-               "%s: logging to \"%s\"\n"
-               "#####################################"
-               "#####################################\n"
-               "\n",
-               blurb(), logfile);
+      DL(0, "\n\n"
+         "#####################################"
+         "#####################################\n"
+         "logging to \"%s\"\n"
+         "#####################################"
+         "#####################################\n"
+         "\n",
+         logfile);
 
       /* Don't auto-enable verbose when logging - let user control verbosity separately */
     }
@@ -2674,9 +2632,7 @@ main (int argc, char **argv)
   if (! dpy_str)
     {
       dpy_str = ":0.0";
-      fprintf (stderr,
-               "%s: warning: $DISPLAY is not set: defaulting to \"%s\"\n",
-               blurb(), dpy_str);
+      DL(0, "warning: $DISPLAY is not set: defaulting to \"%s\"", dpy_str);
     }
 
   /* Copy the --display arg to $DISPLAY for subprocesses. */
