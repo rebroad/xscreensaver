@@ -2659,7 +2659,6 @@ main (int argc, char **argv)
       int fd = open (logfile, O_WRONLY | O_APPEND | O_CREAT, 0666);
       if (fd < 0)
         {
-          char buf[255];
         FAIL:
           DL(0, "%.100s: %s", logfile, strerror(errno));
           fflush (stderr);
