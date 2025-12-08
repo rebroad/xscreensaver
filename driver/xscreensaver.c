@@ -292,6 +292,10 @@ Window daemon_window = 0;
 Cursor blank_cursor = None;
 Cursor auth_cursor  = None;
 
+/* Logfile rotation tracking. */
+static char *logfile_old_name = NULL;
+static Bool exiting_due_to_already_running = False;
+
 
 /* for the --restart command.
  */
@@ -345,6 +349,37 @@ kill_all_subprocs (void)
 static void
 saver_exit (int status)
 {
+  /* If exiting early due to already running, restore the .old logfile */
+  if (exiting_due_to_already_running && logfile_old_name && status == 1)
+    {
+      struct stat st;
+      char *logfile_name = NULL;
+      size_t len = strlen(logfile_old_name);
+
+      /* Extract original logfile name by removing ".old" suffix */
+      if (len > 4 && strcmp(logfile_old_name + len - 4, ".old") == 0)
+        {
+          logfile_name = (char *) malloc(len - 3);
+          if (logfile_name)
+            {
+              memcpy(logfile_name, logfile_old_name, len - 4);
+              logfile_name[len - 4] = '\0';
+
+              /* Restore .old back to original name */
+              if (stat(logfile_old_name, &st) == 0)
+                {
+                  if (rename(logfile_old_name, logfile_name) == 0)
+                    {
+                      /* Successfully restored - output to stderr since logfile might be redirected */
+                      fprintf(stderr, "%s: restored logfile from %s to %s\n",
+                              blurb(), logfile_old_name, logfile_name);
+                    }
+                }
+              free(logfile_name);
+            }
+        }
+    }
+
   kill_all_subprocs();
   exit (status);
 }
@@ -1004,6 +1039,7 @@ ensure_no_screensaver_running (Display *dpy)
                  " (window 0x%x) from process %s",
                  DisplayString (dpy), (int) kids [i],
                  (char *) id);
+              exiting_due_to_already_running = True;
               saver_exit (1);
             }
           else if (XGetWindowProperty (dpy, kids[i], XA_WM_COMMAND, 0, 128,
@@ -1021,6 +1057,7 @@ ensure_no_screensaver_running (Display *dpy)
                  " (window 0x%x)",
                  (char *) version,
                  DisplayString (dpy), (int) kids [i]);
+              exiting_due_to_already_running = True;
               saver_exit (1);
             }
         }
@@ -1571,6 +1608,9 @@ main_loop (Display *dpy)
   maybe_disable_locking (dpy, wayland_p);
   init_xscreensaver_atoms (dpy);
   ensure_no_screensaver_running (dpy);
+
+  /* If we got here, no existing instance was found, so clear the flag */
+  exiting_due_to_already_running = False;
 
   if (! init_xinput (dpy, &xi_opcode))
     saver_exit (1);
@@ -2591,7 +2631,33 @@ main (int argc, char **argv)
     {
       int stdout_fd = 1;
       int stderr_fd = 2;
+      struct stat st;
       logging_to_file_p = True;
+
+      /* Rename existing logfile to .old before opening new one */
+      if (stat(logfile, &st) == 0)
+        {
+          size_t len = strlen(logfile);
+          logfile_old_name = (char *) malloc(len + 5);
+          if (logfile_old_name)
+            {
+              sprintf(logfile_old_name, "%s.old", logfile);
+              if (rename(logfile, logfile_old_name) == 0)
+                {
+                  DL(0, "renamed existing logfile from %s to %s",
+                     logfile, logfile_old_name);
+                }
+              else
+                {
+                  /* Failed to rename - continue anyway, will overwrite */
+                  DL(0, "failed to rename %s to %s: %s (will overwrite)",
+                     logfile, logfile_old_name, strerror(errno));
+                  free(logfile_old_name);
+                  logfile_old_name = NULL;
+                }
+            }
+        }
+
       int fd = open (logfile, O_WRONLY | O_APPEND | O_CREAT, 0666);
       if (fd < 0)
         {
