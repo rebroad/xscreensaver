@@ -288,11 +288,6 @@ static int sigterm_received = 0;
 static int sigchld_received = 0;
 static Bool gfx_stopped_p = False;
 
-/* Logfile handling - opened early, write to .new until check completes */
-static int logfile_new_fd = -1;  /* New logfile (write mode) */
-static char *logfile_new = NULL;
-static const char *logfile_name = NULL;
-
 Window daemon_window = 0;
 Cursor blank_cursor = None;
 Cursor auth_cursor  = None;
@@ -1575,48 +1570,6 @@ main_loop (Display *dpy)
   init_xscreensaver_atoms (dpy);
   ensure_no_screensaver_running (dpy);
 
-  /* If we got here, no existing instance was found. Rename old logfile to .old,
-     then rename .new logfile to regular name. The file descriptor remains valid after rename. */
-  if (logfile_new && logfile_new_fd >= 0)
-    {
-      char *logfile_old = (char *) malloc (strlen(logfile_name) + 5);
-      if (logfile_old)
-        {
-          struct stat st;
-          sprintf (logfile_old, "%s.old", logfile_name);
-
-          /* Always rename old logfile to .old if it exists, regardless of size.
-             This preserves the log data. The .old file will be overwritten if it exists. */
-          if (stat (logfile_name, &st) == 0)
-            {
-              /* Rename old logfile to .old (this overwrites any existing .old) */
-              if (rename (logfile_name, logfile_old) < 0)
-                {
-                  DL(0, "failed to rename %s to %s: %s", logfile_name, logfile_old, strerror(errno));
-                  /* Continue anyway - we'll overwrite the old logfile */
-                }
-              else
-                {
-                  DL(0, "renamed old logfile from %s to %s (%ld bytes)", logfile_name, logfile_old, (long)st.st_size);
-                }
-            }
-          free (logfile_old);
-        }
-
-      /* Rename .new to regular logfile name */
-      if (rename (logfile_new, logfile_name) < 0)
-        {
-          DL(0, "failed to rename %s to %s: %s", logfile_new, logfile_name, strerror(errno));
-          /* Continue anyway - we can still use the .new file */
-        }
-      else
-        {
-          DL(0, "renamed logfile from %s to %s", logfile_new, logfile_name);
-          free (logfile_new);
-          logfile_new = NULL;  /* No longer needed */
-        }
-    }
-
   if (! init_xinput (dpy, &xi_opcode))
     saver_exit (1);
 
@@ -2632,52 +2585,35 @@ main (int argc, char **argv)
         }
     }
 
-  /* Open logfile early (before checking for existing instance) so that
-     error messages are preserved even if we exit due to existing instance.
-     Write to .new logfile only until we confirm no existing instance. */
-  logfile_name = logfile;
   if (logfile)
     {
       int stdout_fd = 1;
       int stderr_fd = 2;
       logging_to_file_p = True;
-
-      /* Create .new logfile name */
-      logfile_new = (char *) malloc (strlen(logfile) + 5);
-      if (!logfile_new)
+      int fd = open (logfile, O_WRONLY | O_APPEND | O_CREAT, 0666);
+      if (fd < 0)
         {
-          DL(0, "out of memory allocating logfile name");
-          saver_exit (1);
-        }
-      sprintf (logfile_new, "%s.new", logfile);
-
-      /* Open .new logfile in write mode - create new file (truncate if exists) */
-      logfile_new_fd = open (logfile_new, O_WRONLY | O_CREAT | O_TRUNC, 0666);
-      if (logfile_new_fd < 0)
-        {
-          DL(0, "%.100s: %s", logfile_new, strerror(errno));
+          char buf[255];
+        FAIL:
+          DL(0, "%.100s: %s", logfile, strerror(errno));
           fflush (stderr);
           fflush (stdout);
           saver_exit (1);
         }
 
-      /* Redirect stdout and stderr to .new logfile */
-      if (dup2 (logfile_new_fd, stdout_fd) < 0 || dup2 (logfile_new_fd, stderr_fd) < 0)
-        {
-          DL(0, "dup2() failed: %s", strerror(errno));
-          fflush (stderr);
-          fflush (stdout);
-          saver_exit (1);
-        }
+      DL(0, "logging to file %s", logfile);
+
+      if (dup2 (fd, stdout_fd) < 0) goto FAIL;
+      if (dup2 (fd, stderr_fd) < 0) goto FAIL;
 
       DL(0, "\n\n"
          "#####################################"
          "#####################################\n"
-         "logging to \"%s\" (temporary)\n"
+         "logging to \"%s\"\n"
          "#####################################"
          "#####################################\n"
          "\n",
-         logfile_new);
+         logfile);
 
       /* Don't auto-enable verbose when logging - let user control verbosity separately */
     }
