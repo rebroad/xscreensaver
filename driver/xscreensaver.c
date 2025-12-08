@@ -460,7 +460,6 @@ handle_signals (void)
 static pid_t
 fork_and_exec (Display *dpy, int argc, char **argv)
 {
-  char buf [255];
   pid_t forked = fork();
   switch ((int) forked) {
   case -1:
@@ -492,7 +491,6 @@ fork_and_exec (Display *dpy, int argc, char **argv)
      */
     if (setpgid (forked, 0))
       {
-        char buf [255];
         DL(0, "setpgid %d: %s", forked, strerror(errno));
       }
     break;
