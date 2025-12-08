@@ -649,7 +649,7 @@ describe_dead_child (saver_info *si, pid_t kid, int wait_status,
     }
 
 # ifdef LOG_CPU_TIME
-  if (job && job->status == job_dead)
+  if (p->verbose_p && job && job->status == job_dead)
     {
       long u = rus.ru_utime.tv_usec / 1000 + rus.ru_utime.tv_sec * 1000;
       long s = rus.ru_stime.tv_usec / 1000 + rus.ru_stime.tv_sec * 1000;
@@ -1319,12 +1319,12 @@ get_best_gl_visual (saver_info *si, Screen *screen)
         if (result == 0)
           {
             int L = strlen(buf);
-            DL(1, "%s did not report a GL visual!", av[0]);
+            DL(0, "%s did not report a GL visual!", av[0]);
 
             if (L && buf[L-1] == '\n')
               buf[--L] = 0;
             if (*buf)
-              DL(1, "%s said: \"%s\"", av[0], buf);
+              DL(0, "%s said: \"%s\"", av[0], buf);
             return 0;
           }
         else

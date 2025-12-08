@@ -430,7 +430,6 @@ handle_signals (void)
 static pid_t
 fork_and_exec (Display *dpy, int argc, char **argv)
 {
-  char buf [255];
   pid_t forked = fork();
   switch ((int) forked) {
   case -1:
@@ -462,7 +461,6 @@ fork_and_exec (Display *dpy, int argc, char **argv)
      */
     if (setpgid (forked, 0))
       {
-        char buf [255];
         DL(0, "setpgid %d: %s", forked, strerror(errno));
       }
     break;
@@ -1584,10 +1582,24 @@ main_loop (Display *dpy)
       char *logfile_old = (char *) malloc (strlen(logfile_name) + 5);
       if (logfile_old)
         {
+          struct stat st;
           sprintf (logfile_old, "%s.old", logfile_name);
 
-          /* Rename old logfile to .old (ignore errors if it doesn't exist) */
-          rename (logfile_name, logfile_old);
+          /* Always rename old logfile to .old if it exists, regardless of size.
+             This preserves the log data. The .old file will be overwritten if it exists. */
+          if (stat (logfile_name, &st) == 0)
+            {
+              /* Rename old logfile to .old (this overwrites any existing .old) */
+              if (rename (logfile_name, logfile_old) < 0)
+                {
+                  DL(0, "failed to rename %s to %s: %s", logfile_name, logfile_old, strerror(errno));
+                  /* Continue anyway - we'll overwrite the old logfile */
+                }
+              else
+                {
+                  DL(0, "renamed old logfile from %s to %s (%ld bytes)", logfile_name, logfile_old, (long)st.st_size);
+                }
+            }
           free (logfile_old);
         }
 
