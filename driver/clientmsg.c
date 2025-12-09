@@ -117,11 +117,12 @@ clientmessage_response (Display *dpy, XEvent *xev, Bool ok, const char *msg)
                       ? (pid_t) xev->xclient.data.l[1]
                       : 0);
       if (caller)
-        fprintf (stderr, "%s: ClientMessage %s: %s (from pid %lu)\n", blurb(), 
-                 (name ? name : "???"), msg, (unsigned long) caller);
+        DL(0, "ClientMessage %s: %s (from pid %lu)",
+           (name ? name : "???"), msg, (unsigned long) caller);
       else
-        fprintf (stderr, "%s: ClientMessage %s: %s\n", blurb(), 
-                 (name ? name : "???"), msg);
+        DL(0, "ClientMessage %s: %s",
+           (name ? name : "???"), msg);
+      if (name) XFree (name);
     }
 
   L = strlen (msg);
