@@ -2266,8 +2266,24 @@ randr_whack_gamma (Display *dpy, int screen, randr_gamma_info *info,
     }
   else if (ratio == 1.0)
     {
-      debug_log ("[FADE] XRRSetCrtcGamma succeeded for %s (screen=%d, crtc=%lu, ratio=1.0) - gamma restored to original",
-                 output_name, screen, (unsigned long) info->crtc);
+      double brightness = -1.0;
+      if (info->output)
+        brightness = query_brightness (dpy, info->output);
+
+      if (brightness >= 0.0)
+        {
+          if (info->original_brightness >= 0.0)
+            debug_log ("[FADE] XRRSetCrtcGamma succeeded for %s (screen=%d, crtc=%lu, ratio=1.0) - gamma restored to original (brightness: %.2f, original: %.2f)",
+                       output_name, screen, (unsigned long) info->crtc, brightness, info->original_brightness);
+          else
+            debug_log ("[FADE] XRRSetCrtcGamma succeeded for %s (screen=%d, crtc=%lu, ratio=1.0) - gamma restored to original (brightness: %.2f)",
+                       output_name, screen, (unsigned long) info->crtc, brightness);
+        }
+      else
+        {
+          debug_log ("[FADE] XRRSetCrtcGamma succeeded for %s (screen=%d, crtc=%lu, ratio=1.0) - gamma restored to original (brightness: query failed)",
+                     output_name, screen, (unsigned long) info->crtc);
+        }
     }
   else if (verbose_p > 1)
     {
