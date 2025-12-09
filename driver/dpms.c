@@ -38,14 +38,12 @@ disable_builtin_saver (Display *dpy)
   XGetScreenSaver (dpy, &otimeout, &ointerval, &oblanking, &oexposures);
   if (otimeout == 0 && ointerval == 0 && oblanking == 0 && oexposures == 0)
     {
-      if (verbose_p > 1)
-        fprintf (stderr, "%s: builtin saver already disabled\n", blurb());
+      DL(2, "builtin saver already disabled");
       return False;
     }
   else
     {
-      if (verbose_p)
-        fprintf (stderr, "%s: disabling server's builtin saver\n", blurb());
+      DL(1, "disabling server's builtin saver");
       XSetScreenSaver (dpy, 0, 0, 0, 0);
       XForceScreenSaver (dpy, ScreenSaverReset);
       return True;
@@ -65,8 +63,7 @@ void
 sync_server_dpms_settings_1 (Display *dpy, struct saver_preferences *p)
 {
   disable_builtin_saver (dpy);
-  if (p->verbose_p)
-    fprintf (stderr, "%s: DPMS not supported at compile time\n", blurb());
+  DL(1, "DPMS not supported at compile time");
 }
 
 Bool monitor_powered_on_p (saver_info *si)
@@ -129,8 +126,7 @@ sync_server_dpms_settings (saver_info *si)
     */
   if (! monitor_powered_on_p (si))
     {
-      if (verbose_p > 1)
-        fprintf (stderr, "%s: DPMS: monitor off, skipping sync\n", blurb());
+      DL(2, "DPMS: monitor off, skipping sync");
       return;
     }
 
@@ -185,24 +181,21 @@ sync_server_dpms_settings_1 (Display *dpy, struct saver_preferences *p)
 
   if (! DPMSQueryExtension (dpy, &event, &error))
     {
-      if (verbose_p > 1 || (verbose_p && !warned_p))
-        fprintf (stderr, "%s: XDPMS extension not supported\n", blurb());
+      DL(warned_p ? 2 : 1, "XDPMS extension not supported");
       warned_p = True;
       return;
     }
 
   if (! DPMSCapable (dpy))
     {
-      if (verbose_p > 1 || (verbose_p && !warned_p))
-        fprintf (stderr, "%s: DPMS not supported\n", blurb());
+      DL(warned_p ? 2 : 1, "DPMS not supported");
       warned_p = True;
       return;
     }
 
   if (! DPMSInfo (dpy, &o_power, &o_enabled))
     {
-      if (verbose_p > 1 || (verbose_p && !warned_p))
-        fprintf (stderr, "%s: unable to get DPMS state\n", blurb());
+      DL(warned_p ? 2 : 1, "unable to get DPMS state");
       warned_p = True;
       return;
     }
@@ -211,32 +204,28 @@ sync_server_dpms_settings_1 (Display *dpy, struct saver_preferences *p)
     {
       if (! (enabled_p ? DPMSEnable (dpy) : DPMSDisable (dpy)))
         {
-          if (verbose_p && !warned_p)
-            fprintf (stderr, "%s: unable to set DPMS state\n", blurb());
+          if (!warned_p)
+            DL(1, "unable to set DPMS state");
           warned_p = True;
           return;
         }
       else
         {
-          if (verbose_p)
-            fprintf (stderr, "%s: turned DPMS %s\n", blurb(),
-                     enabled_p ? "on" : "off");
+          DL(1, "turned DPMS %s", enabled_p ? "on" : "off");
           changed_p = True;
         }
     }
 
   if (bogus_p)
     {
-      if (verbose_p)
-        fprintf (stderr, "%s: not setting bogus DPMS timeouts: %d %d %d\n",
-                 blurb(), standby_secs, suspend_secs, off_secs);
+      DL(1, "not setting bogus DPMS timeouts: %d %d %d",
+         standby_secs, suspend_secs, off_secs);
       return;
     }
 
   if (!DPMSGetTimeouts (dpy, &o_standby, &o_suspend, &o_off))
     {
-      if (verbose_p)
-        fprintf (stderr, "%s: unable to get DPMS timeouts\n", blurb());
+      DL(1, "unable to get DPMS timeouts");
       return;
     }
 
@@ -246,21 +235,18 @@ sync_server_dpms_settings_1 (Display *dpy, struct saver_preferences *p)
     {
       if (!DPMSSetTimeouts (dpy, standby_secs, suspend_secs, off_secs))
         {
-          if (verbose_p)
-            fprintf (stderr, "%s: unable to set DPMS timeouts\n", blurb());
+          DL(1, "unable to set DPMS timeouts");
           return;
         }
       else
         {
-          if (verbose_p)
-            fprintf (stderr, "%s: set DPMS timeouts: %d %d %d\n", blurb(),
-                     standby_secs, suspend_secs, off_secs);
+          DL(1, "set DPMS timeouts: %d %d %d",
+             standby_secs, suspend_secs, off_secs);
           changed_p = True;
         }
     }
-  else if (verbose_p > 1)
-    fprintf (stderr, "%s: DPMS timeouts already %d %d %d\n", blurb(),
-             o_standby, o_suspend, o_off);
+  else
+    DL(2, "DPMS timeouts already %d %d %d", o_standby, o_suspend, o_off);
 
   if (changed_p)
     change_count++;
@@ -327,13 +313,12 @@ monitor_powered_on_p (saver_info *si)
 	case DPMSModeOff:     result = False; break;  /* really off */
 	default:	      result = True;  break;  /* protocol error? */
 	}
-      if (verbose_p > 1)
-        fprintf (stderr, "%s: DPMSInfo = %s %s\n", blurb(),
-                 (state == DPMSModeOn      ? "DPMSModeOn" :
-                  state == DPMSModeStandby ? "DPMSModeStandby" :
-                  state == DPMSModeSuspend ? "DPMSModeSuspend" :
-                  state == DPMSModeOff     ? "DPMSModeOff" : "???"),
-                 (result ? "True" : "False"));
+      DL(2, "DPMSInfo = %s %s",
+           (state == DPMSModeOn      ? "DPMSModeOn" :
+            state == DPMSModeStandby ? "DPMSModeStandby" :
+            state == DPMSModeSuspend ? "DPMSModeSuspend" :
+            state == DPMSModeOff     ? "DPMSModeOff" : "???"),
+           (result ? "True" : "False"));
     }
 
   return result;
@@ -397,18 +382,15 @@ monitor_power_on (saver_info *si, Bool on_p)
       XSetErrorHandler (old_handler);
       /* Ignore error_handler_hit_p, just probe monitor instead */
 
-      if (verbose_p > 1 && error_handler_hit_p)
-        fprintf (stderr, "%s: DPMSForceLevel got an X11 error\n", blurb());
+      if (error_handler_hit_p)
+        DL(2, "DPMSForceLevel got an X11 error");
 
       if ((!!on_p) != monitor_powered_on_p (si))  /* double-check */
-	fprintf (stderr,
-       "%s: DPMSForceLevel(dpy, %s) did not change monitor power state\n",
-		 blurb(),
+        DL(0, "DPMSForceLevel(dpy, %s) did not change monitor power state",
                  (on_p ? "DPMSModeOn" : "DPMSModeOff"));
     }
-  else if (verbose_p > 1)
-    fprintf (stderr, "%s: monitor is already %s\n", blurb(),
-             on_p ? "on" : "off");
+  else
+    DL(2, "monitor is already %s", on_p ? "on" : "off");
 }
 
 
@@ -452,16 +434,12 @@ brute_force_dpms (saver_info *si, time_t activity_time)
     else if (si->wayland_dpms)
       {
         wayland_monitor_power_on (si->wayland_dpms, want);
-        if (p->verbose_p)
-          fprintf (stderr, "%s: powered %s monitor\n", blurb(),
-                   (want ? "on" : "off"));
+        DL(1, "powered %s monitor", (want ? "on" : "off"));
         return;
       }
     else if (si->wayland_dpy)
       {
-        if (verbose_p)
-          fprintf (stderr, "%s: wayland: unable to power %s monitor\n",
-                   blurb(), (want ? "on" : "off"));
+        DL(1, "wayland: unable to power %s monitor", (want ? "on" : "off"));
         return;
       }
   }
@@ -488,9 +466,9 @@ brute_force_dpms (saver_info *si, time_t activity_time)
   XSync (dpy, False);
   XSetErrorHandler (old_handler);
 
-  if (p->verbose_p > 1 && error_handler_hit_p)
+  if (error_handler_hit_p)
     {
-      fprintf (stderr, "%s: DPMSForceLevel got an X11 error\n", blurb());
+      DL(2, "DPMSForceLevel got an X11 error");
       return;
     }
 
@@ -501,11 +479,9 @@ brute_force_dpms (saver_info *si, time_t activity_time)
                      target == DPMSModeStandby ? "Standby" :
                      target == DPMSModeOn      ? "On" : "???");
     if (state != target)
-      fprintf (stderr,
-          "%s: DPMSForceLevel(dpy, %s) did not change monitor power state\n",
-               blurb(), s);
-    else if (p->verbose_p)
-      fprintf (stderr, "%s: set monitor power to %s\n", blurb(), s);
+      DL(0, "DPMSForceLevel(dpy, %s) did not change monitor power state", s);
+    else
+      DL(1, "set monitor power to %s", s);
   }
 }
 
