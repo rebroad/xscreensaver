@@ -465,14 +465,12 @@ xscreensaver_command (const char *cmd)
   sprintf (buf, "xscreensaver-command %.100s --%.100s",
            (verbose_p ? "--verbose" : "--quiet"),
            cmd);
-  if (verbose_p)
-    fprintf (stderr, "%s: exec: %s\n", blurb(), buf);
+  DL(1, "exec: %s", buf);
   rc = system (buf);
   if (rc == -1)
-    fprintf (stderr, "%s: exec failed: %s\n", blurb(), buf);
+    DL(0, "exec failed: %s", buf);
   else if (WEXITSTATUS(rc) != 0)
-    fprintf (stderr, "%s: exec: \"%s\" exited with status %d\n", 
-             blurb(), buf, WEXITSTATUS(rc));
+    DL(0, "exec: \"%s\" exited with status %d", buf, WEXITSTATUS(rc));
 }
 
 
@@ -491,8 +489,8 @@ dbus_send (sd_bus *bus, const char *dest, const char *path,
 
   rc = sd_bus_message_new_method_call (bus, &m, dest, path, interface, msg);
   if (rc < 0) {
-    fprintf (stderr, "%s: dbus_send: failed to create message: %s%s: %s\n",
-             blurb(), interface, msg, strerror(-rc));
+    DL(0, "dbus_send: failed to create message: %s%s: %s",
+       interface, msg, strerror(-rc));
     return 0;
   }
 
@@ -501,15 +499,13 @@ dbus_send (sd_bus *bus, const char *dest, const char *path,
 
   rc = sd_bus_call (bus, m, -1, &error, &reply);
   if (rc < 0) {
-    fprintf (stderr, "%s: dbus_send: call failed: %s.%s: %s\n", 
-             blurb(), interface, msg, strerror(-rc));
+    DL(0, "dbus_send: call failed: %s.%s: %s", interface, msg, strerror(-rc));
     return 0;
   }
 
   rc = sd_bus_message_read (reply, "s", &ret);
   if (rc < 0) {
-    fprintf (stderr, "%s: dbus_send: failed to read reply: %s.%s: %s\n", 
-             blurb(), interface, msg, strerror(-rc));
+    DL(0, "dbus_send: failed to read reply: %s.%s: %s", interface, msg, strerror(-rc));
     return 0;
   }
 
@@ -531,16 +527,14 @@ xscreensaver_register_sleep_lock (struct handler_ctx *ctx)
                                DBUS_SD_METHOD_WHAT, DBUS_SD_METHOD_WHO,
                                DBUS_SD_METHOD_WHY, DBUS_SD_METHOD_MODE);
   if (rc < 0) {
-    fprintf (stderr, "%s: inhibit sleep failed: %s\n", 
-             blurb(), error.message);
+    DL(0, "inhibit sleep failed: %s", error.message);
     goto DONE;
   }
 
   /* Save the lock fd and explicitly take a ref to the lock message. */
   rc = sd_bus_message_read (reply, "h", &fd);
   if (rc < 0 || fd < 0) {
-    fprintf (stderr, "%s: inhibit sleep failed: no lock fd: %s\n",
-             blurb(), strerror(-rc));
+    DL(0, "inhibit sleep failed: no lock fd: %s", strerror(-rc));
     goto DONE;
   }
   sd_bus_message_ref(reply);
@@ -567,8 +561,7 @@ xscreensaver_prepare_for_sleep_cb (sd_bus_message *m, void *arg,
 
   rc = sd_bus_message_read (m, "b", &before_sleep);
   if (rc < 0) {
-    fprintf (stderr, "%s: message read failed: %s\n",
-             blurb(), strerror(-rc));
+    DL(0, "message read failed: %s", strerror(-rc));
     return 1;  /* >= 0 means success */
   }
 
@@ -591,7 +584,7 @@ xscreensaver_prepare_for_sleep_cb (sd_bus_message *m, void *arg,
       ctx->lock_message = NULL;
       ctx->lock_fd = -1;
     } else {
-      fprintf (stderr, "%s: no context lock\n", blurb());
+      DL(0, "no context lock");
     }
   } else {
     /* Tell xscreensaver to present the unlock dialog right now. */
@@ -600,7 +593,7 @@ xscreensaver_prepare_for_sleep_cb (sd_bus_message *m, void *arg,
     /* We woke from sleep, so we need to re-register for the next sleep. */
     rc = xscreensaver_register_sleep_lock (ctx);
     if (rc < 0)
-      fprintf (stderr, "%s: could not re-register sleep lock\n", blurb());
+      DL(0, "could not re-register sleep lock");
   }
 
   return 1;  /* >= 0 means success */
@@ -691,15 +684,14 @@ add_new_entry (struct handler_ctx *ctx,
       sprintf (c2, " cookie \"%s\"", remove_dir (entry->cookie));
     else
       *c2 = 0;
-    fprintf (stderr,
-             "%s: inhibited by \"%s\" (%s%s%s) with \"%s\"%s%s\n",
-             blurb(), remove_dir (application_name),
-             (via ? "via " : ""),
-             (via ? via : ""),
-             (sender ? sender : ""),
-             inhibit_reason,
-             c2,
-             (entry->ignored_p ? " (ignored)" : ""));
+    DL(1, "inhibited by \"%s\" (%s%s%s) with \"%s\"%s%s",
+       remove_dir (application_name),
+       (via ? "via " : ""),
+       (via ? via : ""),
+       (sender ? sender : ""),
+       inhibit_reason,
+       c2,
+       (entry->ignored_p ? " (ignored)" : ""));
   }
 
   return entry;
@@ -712,8 +704,7 @@ free_entry (struct handler_ctx *ctx, struct inhibit_entry *entry)
   if (entry->peer) {
     int rc = sd_bus_track_remove_name (ctx->track, entry->peer);
     if (rc < 0) {
-      fprintf (stderr, "%s: failed to stop tracking peer \"%s\": %s\n",
-               blurb(), entry->peer, strerror(-rc));
+      DL(0, "failed to stop tracking peer \"%s\": %s", entry->peer, strerror(-rc));
     }
     free (entry->peer);
   }
@@ -747,25 +738,20 @@ remove_matching_entry (struct handler_ctx *ctx,
     if (matching_cookie
         ? !strcmp (entry->cookie, matching_cookie)
         : !sd_bus_track_count_name (ctx->track, entry->peer)) {
-      if (verbose_p) {
-        if (matching_cookie)
-          fprintf (stderr,
-                   "%s: uninhibited by \"%s\" (%s%s%s) with \"%s\""
-                   " cookie \"%s\"%s\n",
-                   blurb(), remove_dir (entry->appname),
-                   (via ? "via " : ""),
-                   (via ? via : ""),
-                   (sender ? sender : ""),
-                   entry->reason,
-                   remove_dir (entry->cookie),
-                   (entry->ignored_p ? " (ignored)" : ""));
-        else
-          fprintf (stderr, "%s: peer %s for inhibiting app \"%s\" has died:"
-                           " uninhibiting %s%s\n",
-                   blurb(), entry->peer, entry->appname,
-                   remove_dir (entry->cookie),
-                   (entry->ignored_p ? " (ignored)" : ""));
-      }
+      if (matching_cookie)
+        DL(1, "uninhibited by \"%s\" (%s%s%s) with \"%s\" cookie \"%s\"%s",
+             remove_dir (entry->appname),
+             (via ? "via " : ""),
+             (via ? via : ""),
+             (sender ? sender : ""),
+             entry->reason,
+             remove_dir (entry->cookie),
+             (entry->ignored_p ? " (ignored)" : ""));
+      else
+        DL(1, "peer %s for inhibiting app \"%s\" has died: uninhibiting %s%s",
+             entry->peer, entry->appname,
+             remove_dir (entry->cookie),
+             (entry->ignored_p ? " (ignored)" : ""));
       SLIST_REMOVE (&inhibit_head, entry, inhibit_entry, entries);
       free_entry (ctx, entry);
       found = True;
@@ -773,9 +759,8 @@ remove_matching_entry (struct handler_ctx *ctx,
     }
   }
 
-  if (!found && matching_cookie && verbose_p)
-    fprintf (stderr, "%s: uninhibit: no match for cookie \"%s\"\n",
-             blurb(), remove_dir (matching_cookie));
+  if (!found && matching_cookie)
+    DL(1, "uninhibit: no match for cookie \"%s\"", remove_dir (matching_cookie));
 
   return found;
 }
@@ -798,19 +783,17 @@ xscreensaver_inhibit_cb (sd_bus_message *m, void *arg,
 
   int rc = sd_bus_message_read(m, "ss", &application_name, &inhibit_reason);
   if (rc < 0) {
-    fprintf (stderr, "%s: failed to parse method call: %s\n",
-             blurb(), strerror(-rc));
+    DL(0, "failed to parse method call: %s", strerror(-rc));
     return rc;
   }
 
   if (!application_name || !*application_name) {
-    fprintf (stderr, "%s: no app name in method call\n", blurb());
+    DL(0, "no app name in method call");
     return -1;
   }
 
   if (!inhibit_reason || !*inhibit_reason) {
-    fprintf (stderr, "%s: no reason in method call from \"%s\"\n",
-             blurb(), application_name);
+    DL(0, "no reason in method call from \"%s\"", application_name);
     return -1;
   }
 
@@ -821,8 +804,7 @@ xscreensaver_inhibit_cb (sd_bus_message *m, void *arg,
   /* Tell the global tracker object to monitor when this peer exits. */
   rc = sd_bus_track_add_name(ctx->track, sender);
   if (rc < 0) {
-    fprintf (stderr, "%s: failed to track peer \"%s\": %s\n",
-             blurb(), sender, strerror(-rc));
+    DL(0, "failed to track peer \"%s\": %s", sender, strerror(-rc));
     sender = NULL;
   }
 
@@ -850,8 +832,7 @@ xscreensaver_uninhibit_cb (sd_bus_message *m, void *arg,
 
   int rc = sd_bus_message_read (m, "u", &cookie);
   if (rc < 0) {
-    fprintf (stderr, "%s: failed to parse method call: %s\n",
-             blurb(), strerror(-rc));
+    DL(0, "failed to parse method call: %s", strerror(-rc));
     return rc;
   }
 
@@ -883,8 +864,7 @@ xscreensaver_gnome_inhibitor_added_cb (sd_bus_message *m, void *arg,
 
   rc = sd_bus_message_read (m, "o", &path);
   if (rc < 0) {
-    fprintf (stderr, "%s: failed to parse method call: %s\n",
-             blurb(), strerror(-rc));
+    DL(0, "failed to parse method call: %s", strerror(-rc));
     return rc;
   }
 
@@ -928,8 +908,7 @@ xscreensaver_gnome_inhibitor_removed_cb (sd_bus_message *m, void *arg,
 
   rc = sd_bus_message_read (m, "o", &path);
   if (rc < 0) {
-    fprintf (stderr, "%s: failed to parse method call: %s\n",
-             blurb(), strerror(-rc));
+    DL(0, "failed to parse method call: %s", strerror(-rc));
     return rc;
   }
 
@@ -974,8 +953,7 @@ xscreensaver_kde_inhibitor_changed_cb (sd_bus_message *m, void *arg,
 
   rc = sd_bus_message_new_method_call (bus, &m, dest, path, interface, msg);
   if (rc < 0) {
-    fprintf (stderr, "%s: KDE: failed to create message: %s%s: %s\n",
-             blurb(), interface, msg, strerror(-rc));
+    DL(0, "KDE: failed to create message: %s%s: %s", interface, msg, strerror(-rc));
     return rc;
   }
 
@@ -984,8 +962,7 @@ xscreensaver_kde_inhibitor_changed_cb (sd_bus_message *m, void *arg,
 
   rc = sd_bus_call (bus, m, -1, &error, &reply);
   if (rc < 0) {
-    fprintf (stderr, "%s: KDE: call failed: %s.%s: %s\n", 
-             blurb(), interface, msg, strerror(-rc));
+    DL(0, "KDE: call failed: %s.%s: %s", interface, msg, strerror(-rc));
     return rc;
   }
 
@@ -994,8 +971,7 @@ xscreensaver_kde_inhibitor_changed_cb (sd_bus_message *m, void *arg,
   /* It's an array of an arbitrary number of structs of 2 strings each. */
   rc = sd_bus_message_enter_container (m, 'a', "(ss)");
   if (rc < 0) {
-    fprintf (stderr, "%s: KDE: enter container failed: %s.%s: %s\n", 
-             blurb(), interface, msg, strerror(-rc));
+    DL(0, "KDE: enter container failed: %s.%s: %s", interface, msg, strerror(-rc));
     return rc;
   }
 
@@ -1019,8 +995,7 @@ xscreensaver_kde_inhibitor_changed_cb (sd_bus_message *m, void *arg,
 
     rc = sd_bus_message_read (m, "(ss)", &appname, &reason);
     if (rc < 0) {
-      fprintf (stderr, "%s: KDE: message read failed: %s.%s: %s\n", 
-               blurb(), interface, msg, strerror(-rc));
+      DL(0, "KDE: message read failed: %s.%s: %s", interface, msg, strerror(-rc));
       return rc;
     }
 
@@ -1051,13 +1026,11 @@ xscreensaver_kde_inhibitor_changed_cb (sd_bus_message *m, void *arg,
   SLIST_FOREACH_SAFE (entry, &inhibit_head, entries, entry_next) {
     if (!strcmp (entry->cookie, INTERNAL_KDE_COOKIE) &&
         !entry->seen_p) {
-      if (verbose_p)
-        fprintf (stderr,
-                 "%s: uninhibited by \"%s\" (via %s) with \"%s\"%s\n",
-                 blurb(), remove_dir (entry->appname),
-                 interface,
-                 entry->reason,
-                 (entry->ignored_p ? " (ignored)" : ""));
+      DL(1, "uninhibited by \"%s\" (via %s) with \"%s\"%s",
+         remove_dir (entry->appname),
+         interface,
+         entry->reason,
+         (entry->ignored_p ? " (ignored)" : ""));
       SLIST_REMOVE (&inhibit_head, entry, inhibit_entry, entries);
       free_entry (ctx, entry);
     }
@@ -1163,15 +1136,13 @@ service_exists_p (sd_bus *bus, const char *name)
 
   rc = sd_bus_message_new_method_call (bus, &m, dest, path, interface, msg);
   if (rc < 0) {
-    fprintf (stderr, "%s: dbus_send: failed to create message: %s%s: %s\n",
-             blurb(), interface, msg, strerror(-rc));
+    DL(0, "dbus_send: failed to create message: %s%s: %s", interface, msg, strerror(-rc));
     return 0;
   }
 
   rc = sd_bus_message_append (m, "s", name);
   if (rc < 0) {
-    fprintf (stderr, "%s: dbus_send: failed append arg: %s%s: %s\n",
-             blurb(), interface, msg, strerror(-rc));
+    DL(0, "dbus_send: failed append arg: %s%s: %s", interface, msg, strerror(-rc));
     return 0;
   }
 
@@ -1179,15 +1150,13 @@ service_exists_p (sd_bus *bus, const char *name)
 
   rc = sd_bus_call (bus, m, -1, &error, &reply);
   if (rc < 0) {
-    fprintf (stderr, "%s: dbus_send: call failed: %s.%s: %s\n", 
-             blurb(), interface, msg, strerror(-rc));
+    DL(0, "dbus_send: call failed: %s.%s: %s", interface, msg, strerror(-rc));
     return 0;
   }
 
   rc = sd_bus_message_read (reply, "b", &ret);
   if (rc < 0) {
-    fprintf (stderr, "%s: dbus_send: failed to read reply: %s.%s: %s\n", 
-             blurb(), interface, msg, strerror(-rc));
+    DL(0, "dbus_send: failed to read reply: %s.%s: %s", interface, msg, strerror(-rc));
     return 0;
   }
 
@@ -1217,15 +1186,13 @@ xscreensaver_systemd_loop (void)
 
   rc = sd_bus_open_system (&system_bus);
   if (rc < 0) {
-    fprintf (stderr, "%s: system bus connection failed: %s\n",
-             blurb(), strerror(-rc));
+    DL(0, "system bus connection failed: %s", strerror(-rc));
     goto FAIL;
   }
 
   rc = sd_bus_open_user (&user_bus);
   if (rc < 0) {
-    fprintf (stderr, "%s: user bus connection failed: %s\n",
-             blurb(), strerror(-rc));
+    DL(0, "user bus connection failed: %s", strerror(-rc));
     goto FAIL;
   }
 
@@ -1238,8 +1205,7 @@ xscreensaver_systemd_loop (void)
                          NULL,
                          NULL);
   if (rc < 0) {
-    fprintf (stderr, "%s: cannot create user bus tracker: %s\n",
-             blurb(), strerror(-rc));
+    DL(0, "cannot create user bus tracker: %s", strerror(-rc));
     goto FAIL;
   }
 
@@ -1255,22 +1221,19 @@ xscreensaver_systemd_loop (void)
       if (pid != -1) {
         char *pname = process_name (pid);
         if (pname) {
-          fprintf (stderr, "%s: \"%s\" in use by pid %lu (%s)\n",
-                   blurb(), name, (unsigned long) pid, remove_dir (pname));
+          DL(0, "\"%s\" in use by pid %lu (%s)", name, (unsigned long) pid, remove_dir (pname));
           free (pname);
         } else {
-          fprintf (stderr, "%s: \"%s\" in use by pid %lu\n",
-                   blurb(), name, (unsigned long) pid);
+          DL(0, "\"%s\" in use by pid %lu", name, (unsigned long) pid);
         }
       } else if (-rc == EEXIST || -rc == EALREADY) {
-        fprintf (stderr, "%s: \"%s\" already in use\n", blurb(), name);
+        DL(0, "\"%s\" already in use", name);
       } else {
-        fprintf (stderr, "%s: unknown error: \"%s\": %s\n",
-                 blurb(), name, strerror(-rc));
+        DL(0, "unknown error: \"%s\": %s", name, strerror(-rc));
       }
       goto FAIL;
     } else if (verbose_p) {
-      fprintf (stderr, "%s: registered as \"%s\"\n", blurb(), name);
+      DL(1, "registered as \"%s\"", name);
     }
   }
 
@@ -1295,27 +1258,17 @@ xscreensaver_systemd_loop (void)
     rc = sd_bus_request_name (user_bus, name, 0);
     if (rc >= 0) {
       fd_p = True;
-      if (verbose_p)
-        fprintf (stderr, "%s: registered as \"%s\"\n", blurb(), name);
+      DL(1, "registered as \"%s\"", name);
     } else {
       pid_t pid = get_bus_name_pid (user_bus, name);
       if (pid != -1) {
         char *pname = process_name (pid);
-        if (verbose_p) {
-          fprintf (stderr, "%s: \"%s\" in use by pid %lu (%s)\n",
-                   blurb(), name, (unsigned long) pid, remove_dir (pname));
-          free (pname);
-        } else {
-          if (verbose_p)
-            fprintf (stderr, "%s: \"%s\" in use by pid %lu\n",
-                     blurb(), name, (unsigned long) pid);
-        }
+        DL(1, "\"%s\" in use by pid %lu (%s)", name, (unsigned long) pid, remove_dir (pname));
+        free (pname);
       } else if (-rc == EEXIST || -rc == EALREADY) {
-        if (verbose_p)
-          fprintf (stderr, "%s: \"%s\" already in use\n", blurb(), name);
+        DL(1, "\"%s\" already in use", name);
       } else {
-        fprintf (stderr, "%s: unknown error for \"%s\": %s\n",
-                 blurb(), name, strerror(-rc));
+        DL(0, "unknown error for \"%s\": %s", name, strerror(-rc));
       }
     }
 
@@ -1353,15 +1306,13 @@ xscreensaver_systemd_loop (void)
           pid_t pid = get_bus_name_pid (user_bus, name);
           if (pid != -1) {
             char *pname = process_name (pid);
-            fprintf (stderr, "%s: \"%s\" in use by pid %lu (%s)%s\n",
-                     blurb(), name, (unsigned long) pid, remove_dir (pname),
-                     rr);
+            DL(1, "\"%s\" in use by pid %lu (%s)%s", name, (unsigned long) pid, remove_dir (pname), rr);
             free (pname);
           } else {
-            fprintf (stderr, "%s: \"%s\" in use%s\n", blurb(), name, rr);
+            DL(0, "\"%s\" in use%s", name, rr);
           }
         } else {
-          fprintf (stderr, "%s: \"%s\" not in use%s\n", blurb(), name, rr);
+          DL(0, "\"%s\" not in use%s", name, rr);
         }
       }
     }
@@ -1383,8 +1334,7 @@ xscreensaver_systemd_loop (void)
                                        xscreensaver_dbus_vtable,
                                        &global_ctx);
         if (rc < 0) {
-          fprintf (stderr, "%s: vtable registration failed for %s: %s\n",
-                   blurb(), names[i], strerror(-rc));
+          DL(0, "vtable registration failed for %s: %s", names[i], strerror(-rc));
           goto FAIL;
         }
       }
@@ -1406,8 +1356,7 @@ xscreensaver_systemd_loop (void)
   rc = sd_bus_add_match (system_bus, NULL, DBUS_SD_MATCH,
                          xscreensaver_prepare_for_sleep_cb, &global_ctx);
   if (rc < 0) {
-    fprintf (stderr, "%s: registering sleep callback failed: %s\n",
-             blurb(), strerror(-rc));
+    DL(0, "registering sleep callback failed: %s", strerror(-rc));
     goto FAIL;
   }
 
@@ -1417,8 +1366,7 @@ xscreensaver_systemd_loop (void)
   rc = sd_bus_add_match (system_bus, NULL, DBUS_SD_LOCK_MATCH,
                          xscreensaver_lock_cb, &global_ctx);
   if (rc < 0) {
-    fprintf (stderr, "%s: registering lock-session callback failed: %s\n",
-             blurb(), strerror(-rc));
+    DL(0, "registering lock-session callback failed: %s", strerror(-rc));
     goto FAIL;
   }
 
@@ -1426,8 +1374,7 @@ xscreensaver_systemd_loop (void)
   rc = sd_bus_add_match (system_bus, NULL, DBUS_SD_UNLOCK_MATCH,
                          xscreensaver_unlock_cb, &global_ctx);
   if (rc < 0) {
-    fprintf (stderr, "%s: registering lock-session callback failed: %s\n",
-             blurb(), strerror(-rc));
+    DL(0, "registering lock-session callback failed: %s", strerror(-rc));
     goto FAIL;
   }
 
@@ -1438,8 +1385,7 @@ xscreensaver_systemd_loop (void)
   rc = sd_bus_add_match (user_bus, NULL, DBUS_GSN_MATCH_1,
                          xscreensaver_gnome_inhibitor_added_cb, &global_ctx);
   if (rc < 0) {
-    fprintf (stderr, "%s: registering GNOME inhibitor callback failed: %s\n",
-             blurb(), strerror(-rc));
+    DL(0, "registering GNOME inhibitor callback failed: %s", strerror(-rc));
     goto FAIL;
   }
 
@@ -1449,8 +1395,7 @@ xscreensaver_systemd_loop (void)
   rc = sd_bus_add_match (user_bus, NULL, DBUS_GSN_MATCH_2,
                          xscreensaver_gnome_inhibitor_removed_cb, &global_ctx);
   if (rc < 0) {
-    fprintf (stderr, "%s: registering GNOME de-inhibitor callback failed: %s\n",
-             blurb(), strerror(-rc));
+    DL(0, "registering GNOME de-inhibitor callback failed: %s", strerror(-rc));
     goto FAIL;
   }
 
@@ -1460,8 +1405,7 @@ xscreensaver_systemd_loop (void)
   rc = sd_bus_add_match (user_bus, NULL, DBUS_KDE_MATCH,
                          xscreensaver_kde_inhibitor_changed_cb, &global_ctx);
   if (rc < 0) {
-    fprintf (stderr, "%s: registering KDE inhibitor callback failed: %s\n",
-             blurb(), strerror(-rc));
+    DL(0, "registering KDE inhibitor callback failed: %s", strerror(-rc));
     goto FAIL;
   }
 
@@ -1479,8 +1423,7 @@ xscreensaver_systemd_loop (void)
     do {
       rc = sd_bus_process (system_bus, NULL);
       if (rc < 0) {
-        fprintf (stderr, "%s: failed to process system bus: %s\n",
-                 blurb(), strerror(-rc));
+        DL(0, "failed to process system bus: %s", strerror(-rc));
         goto FAIL;
       }
     } while (rc > 0);
@@ -1488,8 +1431,7 @@ xscreensaver_systemd_loop (void)
     do {
       rc = sd_bus_process (user_bus, NULL);
       if (rc < 0) {
-        fprintf (stderr, "%s: failed to process user bus: %s\n",
-                 blurb(), strerror(-rc));
+        DL(0, "failed to process user bus: %s", strerror(-rc));
         goto FAIL;
       }
     } while (rc > 0);
@@ -1513,8 +1455,7 @@ xscreensaver_systemd_loop (void)
           SLIST_FOREACH (entry, &inhibit_head, entries) {
             char ct[100];
             ctime_r (&entry->start_time, ct);
-            fprintf (stderr, "%s: inhibited by \"%s\" since %s",
-                     blurb(), remove_dir (entry->appname), ct);
+            DL(1, "inhibited by \"%s\" since %s", remove_dir (entry->appname), ct);
           }
         }
         xscreensaver_command ("deactivate");
@@ -1528,15 +1469,13 @@ xscreensaver_systemd_loop (void)
     */
     rc = sd_bus_get_fd (system_bus);
     if (rc < 0) {
-      fprintf (stderr, "%s: sd_bus_get_fd failed for system bus: %s\n",
-               blurb(), strerror(-rc));
+      DL(0, "sd_bus_get_fd failed for system bus: %s", strerror(-rc));
       goto FAIL;
     }
     fds[0].fd = rc;
     rc = sd_bus_get_events (system_bus);
     if (rc < 0) {
-      fprintf (stderr, "%s: sd_bus_get_events failed for system bus: %s\n",
-               blurb(), strerror(-rc));
+      DL(0, "sd_bus_get_events failed for system bus: %s", strerror(-rc));
       goto FAIL;
     }
     fds[0].events = rc;
@@ -1544,15 +1483,13 @@ xscreensaver_systemd_loop (void)
 
     rc = sd_bus_get_fd (user_bus);
     if (rc < 0) {
-      fprintf (stderr, "%s: sd_bus_get_fd failed for user bus: %s\n",
-               blurb(), strerror(-rc));
+      DL(0, "sd_bus_get_fd failed for user bus: %s", strerror(-rc));
       goto FAIL;
     }
     fds[1].fd = rc;
     rc = sd_bus_get_events (user_bus);
     if (rc < 0) {
-      fprintf (stderr, "%s: sd_bus_get_events failed for user bus: %s\n",
-               blurb(), strerror(-rc));
+      DL(0, "sd_bus_get_events failed for user bus: %s", strerror(-rc));
       goto FAIL;
     }
     fds[1].events = rc;
@@ -1565,14 +1502,12 @@ xscreensaver_systemd_loop (void)
 
     rc = sd_bus_get_timeout (system_bus, &system_timeout_usec);
     if (rc < 0) {
-      fprintf (stderr, "%s: sd_bus_get_timeout failed for system bus: %s\n",
-               blurb(), strerror(-rc));
+      DL(0, "sd_bus_get_timeout failed for system bus: %s", strerror(-rc));
       goto FAIL;
     }
     sd_bus_get_timeout (user_bus, &user_timeout_usec);
     if (rc < 0) {
-      fprintf (stderr, "%s: sd_bus_get_timeout failed for user bus: %s\n",
-               blurb(), strerror(-rc));
+      DL(0, "sd_bus_get_timeout failed for user bus: %s", strerror(-rc));
       goto FAIL;
     }
 
@@ -1595,12 +1530,12 @@ xscreensaver_systemd_loop (void)
 
     rc = poll (fds, 3, poll_timeout_msec);
     if (rc < 0) {
-      fprintf (stderr, "%s: poll failed: %s\n", blurb(), strerror(errno));
+      DL(0, "poll failed: %s", strerror(errno));
       goto FAIL;
     }
 
     if (fds[2].revents & (POLLERR | POLLHUP | POLLNVAL)) {
-      fprintf (stderr, "%s: X connection closed\n", blurb());
+      DL(0, "X connection closed");
       dpy = 0;
       goto FAIL;
     } else if (fds[2].revents & POLLIN) {

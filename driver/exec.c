@@ -168,8 +168,7 @@ exec_command (const char *shell, const char *command, int nice_level)
          If you do so, you will open a security hole.  Mail jwz
          so that he may enlighten you as to the error of your ways.
        */
-      fprintf (stderr, "%s: we're still running as root!  Disaster!\n",
-               blurb());
+      DL(0, "we're still running as root!  Disaster!");
       exit (-1);
     }
 
@@ -213,9 +212,7 @@ nice_process (int nice_level)
       perror (buf);
     }
 #else
-  fprintf (stderr,
-	   "%s: don't know how to change process priority on this system\n",
-	   blurb());
+  DL(0, "don't know how to change process priority on this system");
 
 #endif
 }

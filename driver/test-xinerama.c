@@ -49,45 +49,38 @@ main (int argc, char **argv)
 
   if (!XineramaQueryExtension(dpy, &event_number, &error_number))
     {
-      fprintf(stderr, "%s: XineramaQueryExtension(dpy, ...) ==> False\n",
-	      blurb());
-      fprintf(stderr, "%s: server does not support the Xinerama extension\n",
-	      blurb());
+      DL(0, "XineramaQueryExtension(dpy, ...) ==> False");
+      DL(0, "server does not support the Xinerama extension");
       exit(1);
     }
   else
-    fprintf(stderr, "%s: XineramaQueryExtension(dpy, ...) ==> %d, %d\n",
-            blurb(), event_number, error_number);
+    DL(0, "XineramaQueryExtension(dpy, ...) ==> %d, %d", event_number, error_number);
 
   if (!XineramaIsActive(dpy))
     {
-      fprintf(stderr, "%s: XineramaIsActive(dpy) ==> False\n", blurb());
-      fprintf(stderr, "%s: server says Xinerama is turned off\n", blurb());
+      DL(0, "XineramaIsActive(dpy) ==> False");
+      DL(0, "server says Xinerama is turned off");
       exit(1);
     }
   else
-    fprintf(stderr, "%s: XineramaIsActive(dpy) ==> True\n", blurb());
+    DL(0, "XineramaIsActive(dpy) ==> True");
 
   if (!XineramaQueryVersion(dpy, &major, &minor))
     {
-      fprintf(stderr, "%s: XineramaQueryVersion(dpy, ...) ==> False\n",
-              blurb());
-      fprintf(stderr, "%s: server didn't report Xinerama version numbers?\n",
-	      blurb());
+      DL(0, "XineramaQueryVersion(dpy, ...) ==> False");
+      DL(0, "server didn't report Xinerama version numbers?");
     }
   else
-    fprintf(stderr, "%s: XineramaQueryVersion(dpy, ...) ==> %d, %d\n", blurb(),
-	    major, minor);
+    DL(0, "XineramaQueryVersion(dpy, ...) ==> %d, %d", major, minor);
 
   xsi = XineramaQueryScreens (dpy, &nscreens);
-  fprintf(stderr, "%s: %d Xinerama screens\n", blurb(), nscreens);
+  DL(0, "%d Xinerama screens", nscreens);
   
   for (i = 0; i < nscreens; i++)
-    fprintf (stderr, "%s:   screen %d: %dx%d+%d+%d\n",
-             blurb(),
-             xsi[i].screen_number,
-             xsi[i].width, xsi[i].height,
-             xsi[i].x_org, xsi[i].y_org);
+    DL(0, "  screen %d: %dx%d+%d+%d",
+       xsi[i].screen_number,
+       xsi[i].width, xsi[i].height,
+       xsi[i].x_org, xsi[i].y_org);
   XFree (xsi);
   XSync (dpy, False);
   exit (0);

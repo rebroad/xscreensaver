@@ -371,8 +371,8 @@ saver_exit (int status)
                   if (rename(logfile_old_name, logfile_name) == 0)
                     {
                       /* Successfully restored - output to stderr since logfile might be redirected */
-                      fprintf(stderr, "%s: restored logfile from %s to %s\n",
-                              blurb(), logfile_old_name, logfile_name);
+                      DL(0, "restored logfile from %s to %s",
+                         logfile_old_name, logfile_name);
                     }
                 }
               free(logfile_name);
@@ -950,9 +950,8 @@ error_handler (Display *dpy, XErrorEvent *event)
 
   if (print_x11_error_p)
     {
-      const char *b = blurb();
       const char *p = progname;
-      fprintf (stderr, "\n%s: X ERROR! PLEASE REPORT THIS BUG!\n\n", b);
+      DL(0, "\nX ERROR! PLEASE REPORT THIS BUG!\n");
       progname = b;
       XmuPrintDefaultErrorMessage (dpy, event, stderr);
       progname = p;
@@ -1140,7 +1139,7 @@ store_saver_status (Display *dpy,
   if (debug_p && verbose_p)
     {
       int i;
-      DL(0, "wrote status property: 0x%lx: ", (unsigned long) w);
+      fprintf (stderr, "wrote status property: 0x%lx: ", (unsigned long) w);
       for (i = 0; i < nitems; i++)
         {
           if (i > 0) fprintf (stderr, ", ");
@@ -2379,10 +2378,9 @@ main_loop (Display *dpy)
                    window manager) the names of file icons on the desktop, or
                    other things. */
 # if 0
-                if (verbose_p)
-                  fprintf (stderr, "%s: pid %lu: sending " SAVER_GFX_PROGRAM
-                           " SIGSTOP\n", blurb(),
-                           (unsigned long) saver_gfx_pid);
+                DL(1, "pid %lu: sending " SAVER_GFX_PROGRAM
+                   " SIGSTOP\n",
+                   (unsigned long) saver_gfx_pid);
                 gfx_stopped_p = True;
                 kill (-saver_gfx_pid, SIGSTOP);  /* send to process group */
 # endif
@@ -2620,7 +2618,7 @@ main (int argc, char **argv)
         }
       else
         {
-          fprintf (stderr, "\n%s: unknown option: %s\n\n", blurb(), oa);
+          DL(0, "unknown option: %s", oa);
           goto HELP;
         }
     }

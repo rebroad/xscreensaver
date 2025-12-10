@@ -1526,8 +1526,7 @@ slideshow_handle_event (ModeInfo *mi, XEvent *event)
       event->xany.type == VisibilityNotify)
     {
       ss->redisplay_needed_p = True;
-      if (verbose_p)
-        fprintf (stderr, "%s: exposure\n", blurb());
+      DL(1, "exposure");
       return False;
     }
 #if 0   /* This tends to trigger "no sprites" aborts, and I don't care

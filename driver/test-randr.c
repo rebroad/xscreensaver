@@ -62,9 +62,9 @@ query_outputs (Display *dpy, int screen)
         {
           int k;
           XRROutputInfo *rroi = XRRGetOutputInfo (dpy, res, res->outputs[j]);
-          fprintf (stderr, "%s:   Output %d: %s: %s (%d)\n", blurb(), j,
-                   rroi->name,
-                   (rroi->connection == RR_Connected         ? "connected" :
+          DL(0, "  Output %d: %s: %s (%d)", j,
+             rroi->name,
+             (rroi->connection == RR_Connected         ? "connected" :
                     rroi->connection == RR_Disconnected      ? "disconnected" :
                     rroi->connection == RR_UnknownConnection ? "unknown" :
                     "ERROR"),
@@ -72,11 +72,10 @@ query_outputs (Display *dpy, int screen)
           for (k = 0; k < rroi->ncrtc; k++)
             {
               XRRCrtcInfo *crtci = XRRGetCrtcInfo (dpy, res, rroi->crtcs[k]);
-              fprintf(stderr, "%s:   %c CRTC %d (%d): %dx%d+%d+%d\n", 
-                      blurb(),
-                      (rroi->crtc == rroi->crtcs[k] ? '+' : ' '),
-                      k, (int) rroi->crtcs[k],
-                      crtci->width, crtci->height, crtci->x, crtci->y);
+              DL(0, "  %c CRTC %d (%d): %dx%d+%d+%d",
+                 (rroi->crtc == rroi->crtcs[k] ? '+' : ' '),
+                 k, (int) rroi->crtcs[k],
+                 crtci->width, crtci->height, crtci->x, crtci->y);
               XRRFreeCrtcInfo (crtci);
             }
           XRRFreeOutputInfo (rroi);
@@ -106,27 +105,21 @@ main (int argc, char **argv)
 
   if (!XRRQueryExtension(dpy, &event_number, &error_number))
     {
-      fprintf(stderr, "%s: XRRQueryExtension(dpy, ...) ==> False\n",
-	      blurb());
-      fprintf(stderr, "%s: server does not support the RANDR extension\n",
-	      blurb());
+      DL(0, "XRRQueryExtension(dpy, ...) ==> False");
+      DL(0, "server does not support the RANDR extension");
       major = -1;
     }
   else
     {
-      fprintf(stderr, "%s: XRRQueryExtension(dpy, ...) ==> %d, %d\n",
-              blurb(), event_number, error_number);
+      DL(0, "XRRQueryExtension(dpy, ...) ==> %d, %d", event_number, error_number);
 
       if (!XRRQueryVersion(dpy, &major, &minor))
         {
-          fprintf(stderr, "%s: XRRQueryVersion(dpy, ...) ==> False\n",
-                  blurb());
-          fprintf(stderr, "%s: server didn't report RANDR version numbers?\n",
-                  blurb());
+          DL(0, "XRRQueryVersion(dpy, ...) ==> False");
+          DL(0, "server didn't report RANDR version numbers?");
         }
       else
-        fprintf(stderr, "%s: XRRQueryVersion(dpy, ...) ==> %d, %d\n", blurb(),
-                major, minor);
+        DL(0, "XRRQueryVersion(dpy, ...) ==> %d, %d", major, minor);
     }
 
   for (i = 0; i < nscreens; i++)
@@ -146,8 +139,7 @@ main (int argc, char **argv)
 
       if (error_handler_hit_p)
         {
-          fprintf(stderr, "%s:   XRRGetScreenInfo(dpy, %d) ==> X error:\n",
-                  blurb(), i);
+          DL(0, "  XRRGetScreenInfo(dpy, %d) ==> X error:", i);
           /* do it again without the error handler to print the error */
           rrc = XRRGetScreenInfo (dpy, RootWindow (dpy, i));
         }
@@ -156,7 +148,7 @@ main (int argc, char **argv)
           SizeID current_size = -1;
           Rotation current_rotation = ~0;
 
-          fprintf (stderr, "\n%s: Screen %d\n", blurb(), i);
+          DL(0, "Screen %d", i);
 
           current_size =
             XRRConfigCurrentConfiguration (rrc, &current_rotation);
@@ -169,11 +161,9 @@ main (int argc, char **argv)
             Time server_time, config_time;
             server_time = XRRConfigTimes (rrc, &config_time);
             if (config_time == 0 || server_time == 0)
-              fprintf (stderr, "%s:   config has never been changed\n",
-                       blurb());
+              DL(0, "  config has never been changed");
             else
-              fprintf (stderr, "%s:   config changed %lu seconds ago\n",
-                       blurb(), (unsigned long) (server_time - config_time));
+              DL(0, "  config changed %lu seconds ago", (unsigned long) (server_time - config_time));
           }
 # endif
 
@@ -182,7 +172,8 @@ main (int argc, char **argv)
             Rotation available, current;
             available = XRRConfigRotations (rrc, &current);
 
-            fprintf (stderr, "%s:   Available Rotations:\t", blurb());
+            BLURB();
+            fprintf (stderr, "  Available Rotations:\t");
             if (available & RR_Rotate_0)   fprintf (stderr,   " 0");
             if (available & RR_Rotate_90)  fprintf (stderr,  " 90");
             if (available & RR_Rotate_180) fprintf (stderr, " 180");
@@ -193,11 +184,11 @@ main (int argc, char **argv)
             fprintf (stderr, "\n");
 
             if (current_rotation != current)
-              fprintf (stderr,
-                       "%s:   WARNING: rotation inconsistency: 0x%X vs 0x%X\n",
-                       blurb(), current_rotation, current);
+              DL(0, "  WARNING: rotation inconsistency: 0x%X vs 0x%X",
+                 current_rotation, current);
 
-            fprintf (stderr, "%s:   Current Rotation:\t", blurb());
+            BLURB();
+            fprintf (stderr, "  Current Rotation:\t");
             if (current & RR_Rotate_0)   fprintf (stderr,   " 0");
             if (current & RR_Rotate_90)  fprintf (stderr,  " 90");
             if (current & RR_Rotate_180) fprintf (stderr, " 180");
@@ -207,14 +198,16 @@ main (int argc, char **argv)
               fprintf (stderr, " none");
             fprintf (stderr, "\n");
 
-            fprintf (stderr, "%s:   Available Reflections:\t", blurb());
+            BLURB();
+            fprintf (stderr, "  Available Reflections:\t");
             if (available & RR_Reflect_X) fprintf (stderr,   " X");
             if (available & RR_Reflect_Y) fprintf (stderr,   " Y");
             if (! (available & (RR_Reflect_X | RR_Reflect_Y)))
               fprintf (stderr, " none");
             fprintf (stderr, "\n");
 
-            fprintf (stderr, "%s:   Current Reflections:\t", blurb());
+            BLURB();
+            fprintf (stderr, "  Current Reflections:\t");
             if (current & RR_Reflect_X) fprintf (stderr,   " X");
             if (current & RR_Reflect_Y) fprintf (stderr,   " Y");
             if (! (current & (RR_Reflect_X | RR_Reflect_Y)))
@@ -229,15 +222,14 @@ main (int argc, char **argv)
 
             rrsizes = XRRConfigSizes (rrc, &nsizes);
             if (nsizes <= 0)
-                fprintf (stderr, "%s:   sizes:\t none\n", blurb());
+                DL(0, "  sizes:\t none");
             else
               for (j = 0; j < nsizes; j++)
                 {
                   short *rates;
                   int nrates, k;
-                  fprintf (stderr,
-                           "%s:   %c size %d: %d x %d\t rates:",
-                           blurb(), 
+                  BLURB();
+                  fprintf (stderr, "  %c size %d: %d x %d\t rates:",
                            (j == current_size ? '+' : ' '),
                            j,
                            rrsizes[j].width, rrsizes[j].height);
@@ -258,8 +250,7 @@ main (int argc, char **argv)
         }
       else if (major >= 0)
         {
-          fprintf(stderr, "%s:   XRRGetScreenInfo(dpy, %d) ==> NULL\n",
-                  blurb(), i);
+          DL(0, "  XRRGetScreenInfo(dpy, %d) ==> NULL", i);
         }
 
       query_outputs (dpy, i);
@@ -279,10 +270,9 @@ main (int argc, char **argv)
 
       XSync (dpy, False);
 
-      fprintf (stderr, "\n%s: awaiting events...\n\n"
-          "\t(If you resize the screen or add/remove monitors, this should\n"
-          "\tnotice that and print stuff.  Otherwise, hit ^C.)\n\n",
-               blurb());
+      DL(0, "awaiting events...");
+      DL(0, "(If you resize the screen or add/remove monitors, this should");
+      DL(0, "notice that and print stuff.  Otherwise, hit ^C.)");
       while (1)
         {
 	  XEvent event;
@@ -294,39 +284,32 @@ main (int argc, char **argv)
                 (XRRScreenChangeNotifyEvent *) &event;
               int screen = XRRRootToScreen (dpy, xrr_event->window);
 
-              fprintf (stderr, "%s: screen %d: RRScreenChangeNotify event\n",
-                       blurb(), screen);
+              DL(0, "screen %d: RRScreenChangeNotify event", screen);
 
-              fprintf (stderr, "%s: screen %d: old size: \t%d x %d\n",
-                       blurb(), screen,
-                       DisplayWidth (dpy, screen),
-                       DisplayHeight (dpy, screen));
-              fprintf (stderr, "%s: screen %d: old root: \t%d x %d\t0x%lx\n",
-                       blurb(), screen,
-                       xgwa[screen].width, xgwa[screen].height,
-                       (unsigned long) w[screen]);
+              DL(0, "screen %d: old size: \t%d x %d", screen,
+                 DisplayWidth (dpy, screen), DisplayHeight (dpy, screen));
+              DL(0, "screen %d: old root: \t%d x %d\t0x%lx", screen,
+                 xgwa[screen].width, xgwa[screen].height,
+                 (unsigned long) w[screen]);
 
               XRRUpdateConfiguration (&event);
               XSync (dpy, False);
 
-              fprintf (stderr, "%s: screen %d: new size: \t%d x %d\n",
-                       blurb(), screen,
-                       DisplayWidth (dpy, screen),
-                       DisplayHeight (dpy, screen));
+              DL(0, "screen %d: new size: \t%d x %d", screen,
+                 DisplayWidth (dpy, screen), DisplayHeight (dpy, screen));
 
               w[screen] = RootWindow (dpy, screen);
               XGetWindowAttributes (dpy, w[screen], &xgwa[screen]);
-              fprintf (stderr, "%s: screen %d: new root:\t%d x %d\t0x%lx\n",
-                       blurb(), screen,
-                       xgwa[screen].width, xgwa[screen].height,
-                       (unsigned long) w[screen]);
+              DL(0, "screen %d: new root:\t%d x %d\t0x%lx", screen,
+                 xgwa[screen].width, xgwa[screen].height,
+                 (unsigned long) w[screen]);
 
               for (i = 0; i < nscreens; i++)
                 query_outputs (dpy, i);
             }
           else
             {
-              fprintf (stderr, "%s: event %d\n", blurb(), event.type);
+              DL(0, "event %d", event.type);
             }
         }
     }

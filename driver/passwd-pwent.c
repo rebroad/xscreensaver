@@ -198,8 +198,7 @@ get_encrypted_passwd (const char *user)
        || 1
 # endif
        ))
-    fprintf (stderr, "%s: %s: couldn't get password of \"%s\"\n",
-	     blurb(), pwtype, (user ? user : "(null)"));
+    DL(0, "%s: couldn't get password of \"%s\"", pwtype, (user ? user : "(null)"));
 
   return result;
 }
