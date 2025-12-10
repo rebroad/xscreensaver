@@ -168,7 +168,8 @@ exec_command (const char *shell, const char *command, int nice_level)
          If you do so, you will open a security hole.  Mail jwz
          so that he may enlighten you as to the error of your ways.
        */
-      DL(0, "we're still running as root!  Disaster!");
+      fprintf (stderr, "%s: we're still running as root!  Disaster!\n",
+               blurb());
       exit (-1);
     }
 

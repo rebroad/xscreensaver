@@ -950,6 +950,7 @@ error_handler (Display *dpy, XErrorEvent *event)
 
   if (print_x11_error_p)
     {
+      const char *b = blurb();
       const char *p = progname;
       DL(0, "\nX ERROR! PLEASE REPORT THIS BUG!\n");
       progname = b;
