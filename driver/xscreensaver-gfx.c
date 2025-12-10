@@ -93,6 +93,7 @@ void
 maybe_reload_init_file (saver_info *si)
 {
   saver_preferences *p = &si->prefs;
+  int verbose_p = p->verbose_p;
   if (init_file_changed_p (p))
     {
       Bool ov = p->verbose_p;
@@ -439,6 +440,7 @@ debug_multiscreen_timer (XtPointer closure, XtIntervalId *id)
 {
   saver_info *si = (saver_info *) closure;
   saver_preferences *p = &si->prefs;
+  int verbose_p = p->verbose_p;
   if (update_screen_layout (si))
     {
       if (p->verbose_p)

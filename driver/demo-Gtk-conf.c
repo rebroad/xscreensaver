@@ -1821,12 +1821,9 @@ get_description (GList *parms, gboolean verbose_p)
 	  }
 
 #if 0
-      /*if (verbose_p)*/
-        {
-          DL(1, "text read   is \"%s\"", doc->string);
-          DL(1, "description is \"%s\"", d);
-          DL(1, "translation is \"%s\"", _(d));
-        }
+      DL(1, "text read   is \"%s\"", doc->string);
+      DL(1, "description is \"%s\"", d);
+      DL(1, "translation is \"%s\"", _(d));
 #endif /* 0 */
 
       return (d);

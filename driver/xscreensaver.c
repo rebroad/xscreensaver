@@ -952,7 +952,9 @@ error_handler (Display *dpy, XErrorEvent *event)
     {
       const char *b = blurb();
       const char *p = progname;
-      DL(0, "\nX ERROR! PLEASE REPORT THIS BUG!\n");
+      fprintf (stderr, "\n");
+      DL(0, "X ERROR! PLEASE REPORT THIS BUG!");
+      fprintf (stderr, "\n");
       progname = b;
       XmuPrintDefaultErrorMessage (dpy, event, stderr);
       progname = p;
@@ -1140,6 +1142,7 @@ store_saver_status (Display *dpy,
   if (debug_p && verbose_p)
     {
       int i;
+      BLURB();
       fprintf (stderr, "wrote status property: 0x%lx: ", (unsigned long) w);
       for (i = 0; i < nitems; i++)
         {
@@ -1606,9 +1609,6 @@ main_loop (Display *dpy)
   maybe_disable_locking (dpy, wayland_p);
   init_xscreensaver_atoms (dpy);
   ensure_no_screensaver_running (dpy);
-
-  /* If we got here, no existing instance was found, so clear the flag */
-  exiting_due_to_already_running = False;
 
   if (! init_xinput (dpy, &xi_opcode))
     saver_exit (1);
@@ -2380,8 +2380,7 @@ main_loop (Display *dpy)
                    other things. */
 # if 0
                 DL(1, "pid %lu: sending " SAVER_GFX_PROGRAM
-                   " SIGSTOP\n",
-                   (unsigned long) saver_gfx_pid);
+                   " SIGSTOP", (unsigned long) saver_gfx_pid);
                 gfx_stopped_p = True;
                 kill (-saver_gfx_pid, SIGSTOP);  /* send to process group */
 # endif
