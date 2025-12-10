@@ -387,6 +387,7 @@ brute_force_dpms (saver_info *si, time_t activity_time)
 {
   Display *dpy = si->dpy;
   saver_preferences *p = &si->prefs;
+  int verbose_p = p->verbose_p;
   XErrorHandler old_handler;
   int event_number, error_number;
   BOOL onoff = False;

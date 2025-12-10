@@ -1304,18 +1304,17 @@ xf86_gamma_fade (XtAppContext app, Display *dpy,
           if (verbose_p > 1 && out_p)
             {
               int i;
-              DL(0, "initial gamma ramps, size %d:",
-                      info[screen].size);
+              DL(0, "initial gamma ramps, size %d:", info[screen].size);
               BLURB(); fprintf(stderr, "  R:");
               for (i = 0; i < info[screen].size; i++)
-                fprintf(stderr, " %d", info[screen].r[i]);
-              fprintf(stderr, "\n"); BLURB(); fprintf(stderr, "  G:");
+                fprintf (stderr, " %d", info[screen].r[i]);
+              fprintf (stderr, "\n"); BLURB(); fprintf(stderr, "  G:");
               for (i = 0; i < info[screen].size; i++)
-                fprintf(stderr, " %d", info[screen].g[i]);
-              fprintf(stderr, "\n"); BLURB(); fprintf(stderr, "  B:");
+                fprintf (stderr, " %d", info[screen].g[i]);
+              fprintf (stderr, "\n"); BLURB(); fprintf(stderr, "  B:");
               for (i = 0; i < info[screen].size; i++)
-                fprintf(stderr, " %d", info[screen].b[i]);
-              fprintf(stderr, "\n");
+                fprintf (stderr, " %d", info[screen].b[i]);
+              fprintf (stderr, "\n");
             }
 # endif /* 0 */
 
