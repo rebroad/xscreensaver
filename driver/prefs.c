@@ -137,8 +137,7 @@ parse_init_file (const char *name,
       value = strchr (key, ':');
       if (!value)
 	{
-	  fprintf (stderr, "%s: %s:%d: unparsable line: %s\n", blurb(),
-                   name, line, key);
+      DL(0, "%s:%d: unparsable line: %s", name, line, key);
 	  continue;
 	}
       else

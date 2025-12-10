@@ -63,7 +63,7 @@ test (int testnum, const char *screens, const char *desired)
       else if (4 != sscanf (token, "%dx%d+%d+%d%c", 
                             &m->width, &m->height, &m->x, &m->y, &c))
         {
-          fprintf (stderr, "%s: unparsable geometry: %s\n", blurb(), token);
+          DL(0, "unparsable geometry: %s", token);
           exit (1);
         }
       monitors[nscreens] = m;
@@ -92,16 +92,12 @@ test (int testnum, const char *screens, const char *desired)
   *out = 0;
 
   if (!strcmp (result, desired))
-    fprintf (stderr, "%s: test %2d OK\n", blurb(), testnum);
+    DL(0, "test %2d OK", testnum);
   else
-    fprintf (stderr, "%s: test %2d FAILED:\n"
-             "%s:   given: %s\n"
-             "%s:  wanted: %s\n"
-             "%s:     got: %s\n",
-             blurb(), testnum,
-             blurb(), screens, 
-             blurb(), desired, 
-             blurb(), result);
+    DL(0, "test %2d FAILED:", testnum);
+    DL(0, "  given: %s", screens);
+    DL(0, " wanted: %s", desired);
+    DL(0, "    got: %s", result);
 
 # if 0
   {

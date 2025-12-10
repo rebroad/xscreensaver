@@ -1304,18 +1304,18 @@ xf86_gamma_fade (XtAppContext app, Display *dpy,
           if (verbose_p > 1 && out_p)
             {
               int i;
-              fprintf (stderr, "%s: initial gamma ramps, size %d:\n",
-                       blurb(), info[screen].size);
-              fprintf (stderr, "%s:   R:", blurb());
+              DL(0, "initial gamma ramps, size %d:",
+                      info[screen].size);
+              BLURB(); fprintf(stderr, "  R:");
               for (i = 0; i < info[screen].size; i++)
-                fprintf (stderr, " %d", info[screen].r[i]);
-              fprintf (stderr, "\n%s:   G:", blurb());
+                fprintf(stderr, " %d", info[screen].r[i]);
+              fprintf(stderr, "\n"); BLURB(); fprintf(stderr, "  G:");
               for (i = 0; i < info[screen].size; i++)
-                fprintf (stderr, " %d", info[screen].g[i]);
-              fprintf (stderr, "\n%s:   B:", blurb());
+                fprintf(stderr, " %d", info[screen].g[i]);
+              fprintf(stderr, "\n"); BLURB(); fprintf(stderr, "  B:");
               for (i = 0; i < info[screen].size; i++)
-                fprintf (stderr, " %d", info[screen].b[i]);
-              fprintf (stderr, "\n");
+                fprintf(stderr, " %d", info[screen].b[i]);
+              fprintf(stderr, "\n");
             }
 # endif /* 0 */
 
@@ -1932,18 +1932,17 @@ randr_gamma_fade (XtAppContext app, Display *dpy,
           if (verbose_p > 1 && out_p)
             {
               int m;
-              fprintf (stderr, "%s: initial gamma ramps, size %d:\n",
-                       blurb(), info[j].gamma->size);
-              fprintf (stderr, "%s:   R:", blurb());
+              DL(2, "initial gamma ramps, size %d:", info[j].gamma->size);
+              BLURB(); fprintf(stderr, "  R:");
               for (m = 0; m < info[j].gamma->size; m++)
-                fprintf (stderr, " %d", info[j].gamma->red[m]);
-              fprintf (stderr, "\n%s:   G:", blurb());
+                fprintf(stderr, " %d", info[j].gamma->red[m]);
+              fprintf(stderr, "\n"); BLURB(); fprintf(stderr, "  G:");
               for (m = 0; m < info[j].gamma->size; m++)
-                fprintf (stderr, " %d", info[j].gamma->green[m]);
-              fprintf (stderr, "\n%s:   B:", blurb());
+                fprintf(stderr, " %d", info[j].gamma->green[m]);
+              fprintf(stderr, "\n"); BLURB(); fprintf(stderr, "  B:");
               for (m = 0; m < info[j].gamma->size; m++)
-                fprintf (stderr, " %d", info[j].gamma->blue[m]);
-              fprintf (stderr, "\n");
+                fprintf(stderr, " %d", info[j].gamma->blue[m]);
+              fprintf(stderr, "\n");
             }
 # endif /* 0 */
 

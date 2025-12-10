@@ -311,8 +311,7 @@ make_parameter (const char *filename, xmlNodePtr node)
   else
     {
       if (debug_p)
-        fprintf (stderr, "%s: WARNING: %s: unknown tag: \"%s\"\n",
-                 blurb(), filename, name);
+        DL(0, "WARNING: %s: unknown tag: \"%s\"", filename, name);
       free (p);
       return 0;
     }
@@ -325,8 +324,7 @@ make_parameter (const char *filename, xmlNodePtr node)
       else
         {
           if (debug_p)
-            fprintf (stderr, "%s: WARNING: %s: unknown %s type: \"%s\"\n",
-                     blurb(), filename, name, type);
+            DL(0, "WARNING: %s: unknown %s type: \"%s\"", filename, name, type);
           free (p);
           return 0;
         }
@@ -363,10 +361,8 @@ make_parameter (const char *filename, xmlNodePtr node)
       p->integer_p &&
       (p->high != p->low) &&
       (p->high - p->low) <= 1)
-    fprintf (stderr,
-            "%s: WARNING: %s: %s: range [%.1f, %.1f] shouldn't be integral!\n",
-             blurb(), filename, p->id,
-             p->low, p->high);
+    DL(0, "WARNING: %s: %s: range [%.1f, %.1f] shouldn't be integral!",
+       filename, p->id, p->low, p->high);
 
   if (p->type == SELECT)
     {
@@ -402,17 +398,15 @@ make_select_option (const char *filename, xmlNodePtr node)
   else if (node->type != XML_ELEMENT_NODE)
     {
       if (debug_p)
-        fprintf (stderr,
-                 "%s: WARNING: %s: %s: unexpected child tag type %d\n",
-                 blurb(), filename, node->name, (int)node->type);
+        DL(0, "WARNING: %s: %s: unexpected child tag type %d",
+           filename, node->name, (int)node->type);
       return 0;
     }
   else if (strcmp ((char *) node->name, "option"))
     {
       if (debug_p)
-        fprintf (stderr,
-                 "%s: WARNING: %s: %s: child not an option tag: \"%s\"\n",
-                 blurb(), filename, node->name, node->name);
+        DL(0, "WARNING: %s: %s: child not an option tag: \"%s\"",
+           filename, node->name, node->name);
       return 0;
     }
   else
@@ -537,12 +531,12 @@ sanity_check_parameter (const char *filename, const xmlChar *node_name,
     }
 
 # define WARN(STR) \
-   fprintf (stderr, "%s: %s: " STR " in <%s%s id=\"%s\">\n", \
-              blurb(), filename, node_name, \
-              (!strcmp((char *) node_name, "number") \
-               ? (p->type == SPINBUTTON ? " type=spinbutton" : " type=slider")\
-               : ""), \
-              (p->id ? (char *) p->id : ""))
+   DL(0, "%s: " STR " in <%s%s id=\"%s\">", \
+      filename, node_name, \
+      (!strcmp((char *) node_name, "number") \
+       ? (p->type == SPINBUTTON ? " type=spinbutton" : " type=slider")\
+       : ""), \
+      (p->id ? (char *) p->id : ""))
 # define CHECK(SLOT,NAME) \
    if (p->SLOT && !allowed.SLOT) \
      WARN ("\"" NAME "\" is not a valid option"); \
@@ -612,9 +606,8 @@ sanity_check_menu_options (const char *filename, const xmlChar *node_name,
   if (prefix) free (prefix);
   prefix = 0;
   if (nulls > 1)
-    fprintf (stderr, 
-             "%s: %s: more than one menu with no arg-set in <select id=\"%s\">\n",
-             blurb(), filename, p->id);
+    DL(0, "%s: more than one menu with no arg-set in <select id=\"%s\">",
+       filename, p->id);
 }
 
 
@@ -629,8 +622,7 @@ sanity_check_text_node (const char *filename, const xmlNodePtr node)
   if (node->type != XML_TEXT_NODE) abort();
   while (isspace (*body)) body++;
   if (*body)
-    fprintf (stderr, "%s: WARNING: %s: random text present: \"%s\"\n",
-             blurb(), filename, body);
+    DL(0, "WARNING: %s: random text present: \"%s\"", filename, body);
 }
 
 
@@ -675,15 +667,13 @@ sanity_check_parameters (const char *filename, GList *parms)
       GList *p2;
 
       if (*sw != '-' && *sw != '+')
-        fprintf (stderr, "%s: %s: switch does not begin with hyphen \"%s\"\n",
-                 blurb(), filename, sw);
+        DL(0, "%s: switch does not begin with hyphen \"%s\"", filename, sw);
 
       for (p2 = p->next; p2; p2 = p2->next)
         {
           const char *sw2 = (const char *) p2->data;
           if (!strcmp (sw, sw2))
-            fprintf (stderr, "%s: %s: duplicate switch \"%s\"\n",
-                     blurb(), filename, sw);
+            DL(0, "%s: duplicate switch \"%s\"", filename, sw);
         }
 
       free (sw);
@@ -798,13 +788,11 @@ make_adjustment (const char *filename, parameter *p)
   if (p->value < low || p->value > high)
     {
       if (debug_p && p->integer_p)
-        fprintf (stderr, "%s: WARNING: %s: %d is not in range [%d, %d]\n",
-                 blurb(), filename,
-                 (int) p->value, (int) low, (int) high);
+        DL(0, "WARNING: %s: %d is not in range [%d, %d]",
+           filename, (int) p->value, (int) low, (int) high);
       else if (debug_p)
-        fprintf (stderr,
-                 "%s: WARNING: %s: %.2f is not in range [%.2f, %.2f]\n",
-                 blurb(), filename, p->value, low, high);
+        DL(0, "WARNING: %s: %.2f is not in range [%.2f, %.2f]",
+           filename, p->value, low, high);
       value = (value < low ? low : high);
     }
 #if 0
@@ -1111,12 +1099,12 @@ browse_button_cb (GtkButton *button, gpointer user_data)
   const char *ofile = gtk_entry_get_text (entry);
   char *file = strdup (ofile);
 
-  if (debug_p) fprintf (stderr, "%s: settings browse button\n", blurb());
+  if (debug_p) DL(0, "settings browse button");
   if (file_chooser (win, entry, &file, _("Select file."),
                     debug_p, FALSE, FALSE))
     {
       if (debug_p)
-        fprintf (stderr, "%s:   file: \"%s\" -> \"%s\n", blurb(), ofile, file);
+        DL(0, "  file: \"%s\" -> \"%s\"", ofile, file);
       gtk_entry_set_text (entry, file);
     }
   free (file);
@@ -1466,8 +1454,7 @@ parse_command_line_into_parameters (const char *filename,
       if (option && option[0] != '-' && option[0] != '+')
         {
           if (debug_p)
-            fprintf (stderr, "%s: WARNING: %s: not a switch: \"%s\"\n",
-                     blurb(), filename, option);
+            DL(0, "WARNING: %s: not a switch: \"%s\"", filename, option);
         }
       else
         {
@@ -1596,8 +1583,7 @@ parse_command_line_into_parameters_1 (const char *filename,
   if (!match)
     {
       if (debug_p && !parent)
-        fprintf (stderr, "%s: WARNING: %s: no match for %s %s\n",
-                 blurb(), filename, option, (value ? value : ""));
+        DL(0, "WARNING: %s: no match for %s %s", filename, option, (value ? value : ""));
       return FALSE;
     }
 
@@ -1837,9 +1823,9 @@ get_description (GList *parms, gboolean verbose_p)
 #if 0
       /*if (verbose_p)*/
         {
-          fprintf (stderr, "%s: text read   is \"%s\"\n", blurb(),doc->string);
-          fprintf (stderr, "%s: description is \"%s\"\n", blurb(), d);
-          fprintf (stderr, "%s: translation is \"%s\"\n", blurb(), _(d));
+          DL(1, "text read   is \"%s\"", doc->string);
+          DL(1, "description is \"%s\"", d);
+          DL(1, "translation is \"%s\"", _(d));
         }
 #endif /* 0 */
 
@@ -1929,8 +1915,7 @@ load_configurator_1 (const char *program, const char *arguments,
       GtkWidget *vbox0;
       GList *parms;
 
-      if (verbose_p)
-        fprintf (stderr, "%s: reading %s...\n", blurb(), file);
+      DL(1, "reading %s...", file);
 
       res = fread (chars, 1, 4, f);
       if (res <= 0)
@@ -1972,8 +1957,7 @@ load_configurator_1 (const char *program, const char *arguments,
     {
       parameter *p;
 
-      if (verbose_p)
-        fprintf (stderr, "%s: %s does not exist.\n", blurb(), file);
+      DL(1, "%s does not exist.", file);
 
       p = calloc (1, sizeof(*p));
       p->type = COMMAND;

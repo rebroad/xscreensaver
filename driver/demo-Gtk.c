@@ -542,7 +542,7 @@ image_files_p (const char *path, int max_depth)
                 for (i = 0; i < countof(exts); i++)
                   if (!strcasecmp (ext+1, exts[i]))
                     {
-                      /* fprintf (stderr, "%s: found %s\n", blurb(), f2); */
+                      /* DL(0, "found %s", f2); */
                       ok = TRUE;
                       break;
                     }
@@ -616,7 +616,7 @@ warning_dialog_cb (GtkDialog *dialog, gint response_id, gpointer user_data)
   XScreenSaverWindow *win = XSCREENSAVER_WINDOW (user_data);
   state *s = &win->state;
   if (s->debug_p)
-    fprintf (stderr, "%s: dialog response %d\n", blurb(), response_id);
+    DL(0, "dialog response %d", response_id);
   switch (response_id) {
   case D_LAUNCH: restart_menu_cb (GTK_WIDGET (dialog), user_data); break;
   case D_GNOME:  kill_gnome_screensaver (s); break;
@@ -701,8 +701,7 @@ run_cmd (state *s, Atom command, int arg)
   flush_dialog_changes_and_save (s);
 
   if (s->debug_p)
-    fprintf (stderr, "%s: command: %s %d\n", blurb(),
-             XGetAtomName (s->dpy, command), arg);
+    DL(0, "command: %s %d", XGetAtomName (s->dpy, command), arg);
   status = xscreensaver_command (s->dpy, command, arg, FALSE, &err);
 
   /* Kludge: ignore the spurious "window unexpectedly deleted" errors... */
@@ -736,7 +735,7 @@ run_hack (state *s, int list_elt, Bool report_errors_p)
   schedule_preview (s, 0);
 
   if (s->debug_p)
-    fprintf (stderr, "%s: command: DEMO %d\n", blurb(), hack_number + 1);
+    DL(0, "command: DEMO %d", hack_number + 1);
   status = xscreensaver_command (s->dpy, XA_DEMO, hack_number + 1,
                                  FALSE, &err);
 
@@ -812,7 +811,7 @@ fork_and_exec (state *s, int argc, char **argv)
     if (s->debug_p)
       {
         int i;
-        fprintf (stderr, "%s: pid %lu: forked:", blurb(),
+        BLURB(); fprintf (stderr, "pid %lu: forked:",
                  (unsigned long) forked);
         for (i = 0; i < argc; i++)
           if (strchr (argv[i], ' '))
@@ -842,7 +841,7 @@ quit_menu_cb (GtkAction *menu_action, gpointer user_data)
 {
   XScreenSaverWindow *win = XSCREENSAVER_WINDOW (user_data);
   state *s = &win->state;
-  if (s->debug_p) fprintf (stderr, "%s: quit menu\n", blurb());
+  if (s->debug_p) DL(0, "quit menu");
   flush_dialog_changes_and_save (s);
   kill_preview_subproc (s, FALSE);
   g_application_quit (G_APPLICATION (
@@ -856,7 +855,7 @@ about_menu_cb (GtkAction *menu_action, gpointer user_data)
 {
   XScreenSaverWindow *win = XSCREENSAVER_WINDOW (user_data);
   state *s = &win->state;
-  if (s->debug_p) fprintf (stderr, "%s: about menu\n", blurb());
+  if (s->debug_p) DL(0, "about menu");
   preview_theme_cb (NULL, user_data);
 }
 
@@ -872,7 +871,7 @@ doc_menu_cb (GtkAction *menu_action, gpointer user_data)
   int ac = 0;
   char *av[10];
 
-  if (s->debug_p) fprintf (stderr, "%s: doc menu\n", blurb());
+  if (s->debug_p) DL(0, "doc menu");
 
   if (!p->help_url || !*p->help_url)
     {
@@ -901,7 +900,7 @@ file_menu_cb (GtkAction *menu_action, gpointer user_data)
 {
   XScreenSaverWindow *win = XSCREENSAVER_WINDOW (user_data);
   state *s = &win->state;
-  if (s->debug_p) fprintf (stderr, "%s: file menu post\n", blurb());
+  if (s->debug_p) DL(0, "file menu post");
   sensitize_menu_items (s, FALSE);
 }
 
@@ -912,7 +911,7 @@ activate_menu_cb (GtkAction *menu_action, gpointer user_data)
 {
   XScreenSaverWindow *win = XSCREENSAVER_WINDOW (user_data);
   state *s = &win->state;
-  if (s->debug_p) fprintf (stderr, "%s: activate menu\n", blurb());
+  if (s->debug_p) DL(0, "activate menu");
   run_cmd (s, XA_ACTIVATE, 0);
 }
 
@@ -923,7 +922,7 @@ lock_menu_cb (GtkAction *menu_action, gpointer user_data)
 {
   XScreenSaverWindow *win = XSCREENSAVER_WINDOW (user_data);
   state *s = &win->state;
-  if (s->debug_p) fprintf (stderr, "%s: lock menu\n", blurb());
+  if (s->debug_p) DL(0, "lock menu");
   run_cmd (s, XA_LOCK, 0);
 }
 
@@ -934,7 +933,7 @@ kill_menu_cb (GtkAction *menu_action, gpointer user_data)
 {
   XScreenSaverWindow *win = XSCREENSAVER_WINDOW (user_data);
   state *s = &win->state;
-  if (s->debug_p) fprintf (stderr, "%s: kill menu\n", blurb());
+  if (s->debug_p) DL(0, "kill menu");
   run_cmd (s, XA_EXIT, 0);
 }
 
@@ -947,7 +946,7 @@ restart_menu_cb (GtkWidget *widget, gpointer user_data)
   state *s = &win->state;
   int ac = 0;
   char *av[10];
-  if (s->debug_p) fprintf (stderr, "%s: restart menu\n", blurb());
+  if (s->debug_p) DL(0, "restart menu");
   if (!s->dpy) return;
   flush_dialog_changes_and_save (s);
   xscreensaver_command (s->dpy, XA_EXIT, 0, FALSE, NULL);
@@ -1029,7 +1028,7 @@ demo_write_init_file (state *s, saver_preferences *p)
   if (!write_init_file (s->dpy, p, s->short_version, FALSE))
     {
       if (s->debug_p)
-        fprintf (stderr, "%s: wrote %s\n", blurb(), init_file_name());
+        DL(0, "wrote %s", init_file_name());
       return 0;
     }
   else
@@ -1058,7 +1057,7 @@ run_this_cb (GtkButton *button, gpointer user_data)
   state *s = &win->state;
   int list_elt = selected_list_element (s);
   if (list_elt < 0) return;
-  if (s->debug_p) fprintf (stderr, "%s: preview button\n", blurb());
+  if (s->debug_p) DL(0, "preview button");
   flush_dialog_changes_and_save (s);
   run_hack (s, list_elt, TRUE);
 }
@@ -1082,7 +1081,7 @@ force_list_select_item (state *s, GtkWidget *list, int list_elt, Bool scroll_p)
       selection = gtk_tree_view_get_selection (GTK_TREE_VIEW (list));
       gtk_tree_selection_select_iter (selection, &iter);
       if (s->debug_p)
-        fprintf (stderr, "%s: select list elt %d\n", blurb(), list_elt);
+        DL(0, "select list elt %d", list_elt);
     }
   if (scroll_p) ensure_selected_item_visible (s, GTK_WIDGET (list));
   if (!was) gtk_widget_set_sensitive (parent, FALSE);
@@ -1099,7 +1098,7 @@ run_next_cb (GtkButton *button, gpointer user_data)
   GtkWidget *list_widget = win->list;
   int list_elt = selected_list_element (s);
 
-  if (s->debug_p) fprintf (stderr, "%s: down arrow\n", blurb());
+  if (s->debug_p) DL(0, "down arrow");
 
   if (list_elt < 0)
     list_elt = 0;
@@ -1131,7 +1130,7 @@ run_prev_cb (GtkButton *button, gpointer user_data)
   GtkWidget *list_widget = win->list;
   int list_elt = selected_list_element (s);
 
-  if (s->debug_p) fprintf (stderr, "%s: up arrow\n", blurb());
+  if (s->debug_p) DL(0, "up arrow");
 
   if (list_elt < 0)
     list_elt = s->list_count - 1;
@@ -1180,8 +1179,7 @@ flush_changes (state *s,
       hack->enabled_p = enabled_p;
       changed = TRUE;
       if (s->debug_p)
-        fprintf (stderr, "%s: \"%s\": enabled => %d\n",
-                 blurb(), hack->name, enabled_p);
+        DL(0, "\"%s\": enabled => %d", hack->name, enabled_p);
     }
 
   if (command)
@@ -1192,8 +1190,7 @@ flush_changes (state *s,
           hack->command = strdup (command);
           changed = TRUE;
           if (s->debug_p)
-            fprintf (stderr, "%s: \"%s\": command => \"%s\"\n",
-                     blurb(), hack->name, command);
+            DL(0, "\"%s\": command => \"%s\"", hack->name, command);
         }
     }
 
@@ -1208,8 +1205,7 @@ flush_changes (state *s,
           hack->visual = strdup (visual);
           changed = TRUE;
           if (s->debug_p)
-            fprintf (stderr, "%s: \"%s\": visual => \"%s\"\n",
-                     blurb(), hack->name, visual);
+            DL(0, "\"%s\": visual => \"%s\"", hack->name, visual);
         }
     }
 
@@ -1422,8 +1418,7 @@ flush_dialog_changes_and_save (state *s)
                 free (p->dialog_theme);
                 p2->dialog_theme = name2;
                 if (s->debug_p)
-                  fprintf (stderr, "%s:   theme => \"%s\"\n", blurb(),
-                           p2->dialog_theme);
+                  DL(0, "  theme => \"%s\"", p2->dialog_theme);
               }
             else
               {
@@ -1442,8 +1437,7 @@ flush_dialog_changes_and_save (state *s)
       !!strcmp (p->image_directory, p2->image_directory))
     {
       if (s->debug_p)
-        fprintf (stderr, "%s: imagedir validating \"%s\" -> \"%s\"\n",
-                 blurb(), p->image_directory, p2->image_directory);
+        DL(0, "imagedir validating \"%s\" -> \"%s\"", p->image_directory, p2->image_directory);
       if (! validate_image_directory (s, p2->image_directory))
         {
           /* Don't save the bad new value into the preferences. */
@@ -1462,9 +1456,9 @@ flush_dialog_changes_and_save (state *s)
   if (p->FIELD != p2->FIELD) {                           \
     changed = TRUE;                                      \
     if (s->debug_p)                                      \
-      fprintf (stderr, "%s:   %s: %ld => %ld\n", blurb(),\
-               STR(FIELD), (unsigned long) p->FIELD,     \
-               (unsigned long) p2->FIELD);               \
+      DL(0, "  %s: %ld => %ld",                          \
+         STR(FIELD), (unsigned long) p->FIELD,          \
+         (unsigned long) p2->FIELD);                     \
   }                                                      \
   p->FIELD = p2->FIELD
 
@@ -1503,8 +1497,8 @@ flush_dialog_changes_and_save (state *s)
     {                                                     \
       changed = TRUE;                                     \
       if (s->debug_p)                                     \
-        fprintf (stderr, "%s:   %s => \"%s\"\n", blurb(), \
-                 STR(FIELD), p2->FIELD);                  \
+        DL(0, "  %s => \"%s\"",                          \
+           STR(FIELD), p2->FIELD);                        \
     }                                                     \
   if (p->FIELD && p->FIELD != p2->FIELD)                  \
     free (p->FIELD);                                      \
@@ -1530,7 +1524,7 @@ flush_dialog_changes_and_save (state *s)
          in case the timeout has changed.  Without this, it would wait
          until the *old* timeout had expired before reloading. */
       if (s->debug_p)
-        fprintf (stderr, "%s: command: DEACTIVATE\n", blurb());
+        DL(0, "command: DEACTIVATE");
       if (s->dpy)
         xscreensaver_command (s->dpy, XA_DEACTIVATE, 0, 0, 0);
     }
@@ -1552,11 +1546,9 @@ pref_changed_cb (GtkWidget *widget, gpointer user_data)
   if (s->debug_p)
     {
       if (s->flushing_p)
-        fprintf (stderr, "%s:   (pref changed: %s)\n", blurb(),
-                 gtk_widget_get_name (widget));
+        DL(0, "  (pref changed: %s)", gtk_widget_get_name (widget));
       else
-        fprintf (stderr, "%s: pref changed: %s\n", blurb(),
-                 gtk_widget_get_name (widget));
+        DL(0, "pref changed: %s", gtk_widget_get_name (widget));
     }
 
   if (! s->flushing_p)
@@ -1651,7 +1643,7 @@ mode_menu_item_cb (GtkWidget *widget, gpointer user_data)
   if (s->flushing_p) return;  /* Called as a spurious side-effect */
   if (s->initializing_p) return;
 
-  if (s->debug_p) fprintf (stderr, "%s: mode menu\n", blurb());
+  if (s->debug_p) DL(0, "mode menu");
 
   /* Keep the same list element displayed as before; except if we're
      switching *to* "one screensaver" mode from any other mode, set
@@ -1709,7 +1701,7 @@ switch_page_cb (GtkNotebook *notebook, GtkWidget *page,
   XScreenSaverWindow *win = XSCREENSAVER_WINDOW (user_data);
   state *s = &win->state;
 
-  if (s->debug_p) fprintf (stderr, "%s: tab changed\n", blurb());
+  if (s->debug_p) DL(0, "tab changed");
   populate_prefs_page (s);
   pref_changed_cb (GTK_WIDGET (notebook), user_data);
 
@@ -1734,7 +1726,7 @@ list_activated_cb (GtkTreeView *list, GtkTreePath *path,
   char *str;
   int list_elt;
 
-  if (s->debug_p) fprintf (stderr, "%s: list activated\n", blurb());
+  if (s->debug_p) DL(0, "list activated");
 
   /* I did this in Gtk 2 and I don't remember why:
      if (gdk_pointer_is_grabbed()) return;
@@ -1760,7 +1752,7 @@ list_select_changed_cb (GtkTreeSelection *selection, gpointer data)
   char *str;
   int list_elt;
  
-  if (s->debug_p) fprintf (stderr, "%s: list selection changed\n", blurb());
+  if (s->debug_p) DL(0, "list selection changed");
 
   if (!gtk_tree_selection_get_selected (selection, &model, &iter))
     return;
@@ -1805,7 +1797,7 @@ list_checkbox_cb (GtkCellRendererToggle *toggle,
 
   int list_elt;
 
-  if (s->debug_p) fprintf (stderr, "%s: list checkbox\n", blurb());
+  if (s->debug_p) DL(0, "list checkbox");
 
   if (!gtk_tree_model_get_iter (model, &iter, path))
     {
@@ -2024,7 +2016,7 @@ validate_image_directory (state *s, const char *path)
           close (out);  /* don't need this one */
 
           if (s->debug_p)
-            fprintf (stderr, "%s: forked %s\n", blurb(), av[0]);
+            DL(0, "forked %s", av[0]);
 
           while (1)
             {
@@ -2040,7 +2032,7 @@ validate_image_directory (state *s, const char *path)
                   if (n <= 0)
                     {
                       if (s->debug_p)
-                        fprintf (stderr, "%s: %s: read EOF\n", blurb(), av[0]);
+                        DL(0, "%s: read EOF", av[0]);
                       break;
                     }
                   else
@@ -2050,8 +2042,7 @@ validate_image_directory (state *s, const char *path)
                       *ss = 0;
 
                       if (s->debug_p)
-                        fprintf (stderr, "%s: %s: read: \"%s\"\n", blurb(),
-                                 av[0], ss - n);
+                        DL(0, "%s: read: \"%s\"", av[0], ss - n);
                     }
                 }
 
@@ -2064,7 +2055,7 @@ validate_image_directory (state *s, const char *path)
                   kill (forked, SIGTERM);
 
                   if (s->debug_p)
-                    fprintf (stderr, "%s: cancel\n", blurb());
+                    DL(0, "cancel");
                   break;
                 }
             }
@@ -2073,7 +2064,7 @@ validate_image_directory (state *s, const char *path)
           close (in);
 
           if (s->debug_p)
-            fprintf (stderr, "%s: %s exited\n", blurb(), av[0]);
+            DL(0, "%s exited", av[0]);
 
           /* Wait for the child to die. */
           {
@@ -2088,7 +2079,7 @@ validate_image_directory (state *s, const char *path)
     g_source_remove (vtc.timer_id);
 
   if (s->debug_p)
-    fprintf (stderr, "%s: dismiss\n", blurb());
+    DL(0, "dismiss");
 
   if (! closed_p)
     gtk_widget_destroy (dialog);
@@ -2118,13 +2109,12 @@ image_text_pref_changed_event_cb (GtkWidget *widget, GdkEvent *event,
   const char *str = gtk_entry_get_text (w);
   char *path = pathname_tilde (str, TRUE, TRUE);
 
-  if (s->debug_p) fprintf (stderr, "%s: imagedir text edited\n", blurb());
+  if (s->debug_p) DL(0, "imagedir text edited");
 
   if (p->image_directory && strcmp(p->image_directory, path))
     {
       if (s->debug_p)
-        fprintf (stderr, "%s: imagedir validating \"%s\" -> \"%s\"\n", blurb(),
-                 p->image_directory, path);
+        DL(0, "imagedir validating \"%s\" -> \"%s\"", p->image_directory, path);
       if (! validate_image_directory (s, path))
         {
           /* Don't save the bad new value into the preferences. */
@@ -2181,8 +2171,7 @@ file_chooser (GtkWindow *parent, GtkEntry *entry, char **retP,
       if (! program_p)
         {
           gtk_file_chooser_set_file (GTK_FILE_CHOOSER (dialog), gf, NULL);
-          if (verbose_p)
-            fprintf (stderr, "%s:   chooser: default \"%s\"\n", blurb(), p2);
+          DL(1, "  chooser: default \"%s\"", p2);
         }
       free (p2);
       if (! gf) abort();
@@ -2199,8 +2188,7 @@ file_chooser (GtkWindow *parent, GtkEntry *entry, char **retP,
 
       if (*retP && !strcmp (*retP, path))
         {
-          if (verbose_p)
-            fprintf (stderr, "%s:   chooser: unchanged\n", blurb());
+          DL(1, "  chooser: unchanged");
           free (path);	/* no change */
         }
       else if (dir_p && !directory_p (path))
@@ -2219,17 +2207,15 @@ file_chooser (GtkWindow *parent, GtkEntry *entry, char **retP,
         }
       else
         {
-          if (verbose_p)
-            fprintf (stderr, "%s:   chooser: \"%s\" -> \"%s\n",
-                     blurb(), *retP, path);
+          DL(1, "  chooser: \"%s\" -> \"%s\"", *retP, path);
           if (*retP) free (*retP);
           *retP = path;
           gtk_entry_set_text (entry, path);
           changed_p = TRUE;
         }
     }
-  else if (verbose_p)
-    fprintf (stderr, "%s:   chooser: canceled\n", blurb());
+  else
+    DL(1, "  chooser: canceled");
 
   gtk_widget_destroy (dialog);
   return changed_p;
@@ -2245,7 +2231,7 @@ browse_image_dir_cb (GtkButton *button, gpointer user_data)
   saver_preferences *p = &s->prefs;
   char *old = strdup (p->image_directory);
 
-  if (s->debug_p) fprintf (stderr, "%s: imagedir browse button\n", blurb());
+  if (s->debug_p) DL(0, "imagedir browse button");
   if (file_chooser (GTK_WINDOW (win),
                     GTK_ENTRY (win->image_text),
                     &p->image_directory,
@@ -2275,7 +2261,7 @@ browse_text_file_cb (GtkButton *button, gpointer user_data)
   state *s = &win->state;
   saver_preferences *p = &s->prefs;
 
-  if (s->debug_p) fprintf (stderr, "%s: textfile browse button\n", blurb());
+  if (s->debug_p) DL(0, "textfile browse button");
   if (file_chooser (GTK_WINDOW (win),
                     GTK_ENTRY (win->text_file_entry),
                     &p->text_file,
@@ -2293,7 +2279,7 @@ browse_text_program_cb (GtkButton *button, gpointer user_data)
   state *s = &win->state;
   saver_preferences *p = &s->prefs;
 
-  if (s->debug_p) fprintf (stderr, "%s: textprogram browse button\n", blurb());
+  if (s->debug_p) DL(0, "textprogram browse button");
   if (file_chooser (GTK_WINDOW (win),
                     GTK_ENTRY (win->text_program_entry),
                     &p->text_program,
@@ -2312,7 +2298,7 @@ preview_theme_cb (GtkWidget *w, gpointer user_data)
   int ac = 0;
   char *av[10];
 
-  if (s->debug_p) fprintf (stderr, "%s: preview theme button\n", blurb());
+  if (s->debug_p) DL(0, "preview theme button");
 
   /* Settings button is disabled with --splash --splash so that we don't
      end up with two copies of xscreensaver-settings running. */
@@ -2334,7 +2320,7 @@ settings_cb (GtkButton *button, gpointer user_data)
   XScreenSaverDialog *dialog = XSCREENSAVER_DIALOG (s->dialog);
   int list_elt = selected_list_element (s);
 
-  if (s->debug_p) fprintf (stderr, "%s: settings button\n", blurb());
+  if (s->debug_p) DL(0, "settings button");
 
   populate_demo_window (s, list_elt);   /* reset the widget */
   populate_popup_window (s);		/* create UI on popup window */
@@ -3370,9 +3356,7 @@ reset_preview_window (state *s)
       gtk_widget_show (pr);
       id = (window ? gdk_x11_window_get_xid (window) : 0);
       if (s->debug_p && oid != id)
-        fprintf (stderr, "%s: window id 0x%X -> 0x%X\n", blurb(),
-                 (unsigned int) oid,
-                 (unsigned int) id);
+        DL(0, "window id 0x%X -> 0x%X", (unsigned int) oid, (unsigned int) id);
     }
 }
 
@@ -3395,15 +3379,14 @@ fix_preview_visual (state *s)
     {
       gvisual2 = gvisual1;
       if (s->debug_p)
-        fprintf (stderr, "%s: couldn't convert X Visual 0x%lx to a GdkVisual;"
-                 " winging it.\n", blurb(),
-             (xvisual ? (unsigned long) xvisual->visualid : 0L));
+        DL(0, "couldn't convert X Visual 0x%lx to a GdkVisual; winging it.",
+           (xvisual ? (unsigned long) xvisual->visualid : 0L));
     }
 
   if (s->debug_p)
-    fprintf (stderr, "%s: using %s visual 0x%lx\n", blurb(),
-             (gvisual1 == gvisual2 ? "default" : "non-default"),
-             (xvisual ? (unsigned long) xvisual->visualid : 0L));
+    DL(0, "using %s visual 0x%lx",
+       (gvisual1 == gvisual2 ? "default" : "non-default"),
+       (xvisual ? (unsigned long) xvisual->visualid : 0L));
 
   if (!gtk_widget_get_realized (widget) ||
       gtk_widget_get_visual (widget) != gvisual2)
@@ -3456,13 +3439,11 @@ reap_zombies (state *s)
           if (pid == s->running_preview_pid)
             {
               char *ss = subproc_pretty_name (s);
-              fprintf (stderr, "%s: pid %lu (%s) died\n", blurb(),
-                       (unsigned long) pid, ss);
+              DL(0, "pid %lu (%s) died", (unsigned long) pid, ss);
               free (ss);
             }
           else
-            fprintf (stderr, "%s: pid %lu died\n", blurb(),
-                     (unsigned long) pid);
+            DL(0, "pid %lu died", (unsigned long) pid);
         }
     }
 }
@@ -3564,7 +3545,7 @@ get_best_gl_visual (state *s)
 
         if (exit_status == EXEC_FAILED_EXIT_STATUS)
           {
-            fprintf (stderr, "%s: %s is not installed\n", blurb(), av[0]);
+            DL(0, "%s is not installed", av[0]);
             return 0;
           }
 
@@ -3574,15 +3555,14 @@ get_best_gl_visual (state *s)
         if (result == 0)
           {
             if (s->debug_p)
-              fprintf (stderr, "%s: %s did not report a GL visual!\n",
-                       blurb(), av[0]);
+              DL(0, "%s did not report a GL visual!", av[0]);
             return 0;
           }
         else
           {
             Visual *v = id_to_visual (DefaultScreenOfDisplay (s->dpy), result);
             if (s->debug_p)
-              fprintf (stderr, "%s: GL visual is 0x%X\n", blurb(), result);
+              DL(0, "GL visual is 0x%X", result);
             if (!v) abort();
             return v;
           }
@@ -3618,8 +3598,8 @@ kill_preview_subproc (state *s, Bool reset_p)
           if (errno == ESRCH)
             {
               if (s->debug_p)
-                fprintf (stderr, "%s: pid %lu (%s) was already dead.\n",
-                         blurb(), (unsigned long) s->running_preview_pid, ss);
+                DL(0, "pid %lu (%s) was already dead.",
+                   (unsigned long) s->running_preview_pid, ss);
             }
           else
             {
@@ -3633,8 +3613,7 @@ kill_preview_subproc (state *s, Bool reset_p)
 	int endstatus;
 	waitpid(s->running_preview_pid, &endstatus, 0);
 	if (s->debug_p)
-	  fprintf (stderr, "%s: killed pid %lu (%s)\n", blurb(),
-		   (unsigned long) s->running_preview_pid, ss);
+          DL(0, "killed pid %lu (%s)", (unsigned long) s->running_preview_pid, ss);
       }
 
       free (ss);
@@ -3759,8 +3738,7 @@ launch_preview_subproc (state *s)
         if (s->debug_p)
           {
             char *ss = subproc_pretty_name (s);
-            fprintf (stderr, "%s: forked %lu (%s)\n", blurb(),
-                     (unsigned long) forked, ss);
+            DL(0, "forked %lu (%s)", (unsigned long) forked, ss);
             free (ss);
           }
         break;
@@ -3805,7 +3783,7 @@ hack_environment (state *s)
     abort ();
 
   if (s->debug_p)
-    fprintf (stderr, "%s: %s\n", blurb(), ndpy);
+    DL(0, "%s", ndpy);
 
   /* don't free(ndpy) -- some implementations of putenv (BSD 4.4, glibc
      2.0) copy the argument, but some (libc4,5, glibc 2.1.2) do not.
@@ -3826,7 +3804,7 @@ hack_environment (state *s)
       /* do not free(npath) -- see above */
 
       if (s->debug_p)
-        fprintf (stderr, "%s: added \"%s\" to $PATH\n", blurb(), def_path);
+        DL(0, "added \"%s\" to $PATH", def_path);
     }
 }
 
@@ -3848,7 +3826,7 @@ hack_subproc_environment (Window preview_window_id, Bool debug_p)
     abort ();
 
   if (debug_p)
-    fprintf (stderr, "%s: %s\n", blurb(), nssw);
+    DL(0, "%s", nssw);
 
   /* do not free(nssw) -- see above */
 }
@@ -3887,9 +3865,9 @@ schedule_preview (state *s, const char *cmd)
   if (s->debug_p)
     {
       if (cmd)
-        fprintf (stderr, "%s: scheduling preview \"%s\"\n", blurb(), cmd);
+        DL(0, "scheduling preview \"%s\"", cmd);
       else
-        fprintf (stderr, "%s: scheduling preview death\n", blurb());
+        DL(0, "scheduling preview death");
     }
 
   if (s->desired_preview_cmd) free (s->desired_preview_cmd);
@@ -3926,9 +3904,9 @@ check_subproc_timer (gpointer data)
       if (s->debug_p && s->running_preview_error_p)
         {
           char *ss = subproc_pretty_name (s);
-          fprintf (stderr, "%s: timer: pid %lu (%s) is %s\n", blurb(),
-                   (unsigned long) s->running_preview_pid, ss,
-                   (s->running_preview_error_p ? "dead" : "alive"));
+          DL(0, "timer: pid %lu (%s) is %s",
+             (unsigned long) s->running_preview_pid, ss,
+             (s->running_preview_error_p ? "dead" : "alive"));
           free (ss);
         }
 
@@ -3970,7 +3948,7 @@ schedule_preview_check (state *s)
   int ticks = 5;
 
   if (s->debug_p)
-    fprintf (stderr, "%s: scheduling check\n", blurb());
+    DL(0, "scheduling check");
 
   if (s->subproc_check_timer_id)
     g_source_remove (s->subproc_check_timer_id);
@@ -4024,7 +4002,7 @@ check_blanked_timer (gpointer data)
   if (blanked_p && s->running_preview_pid)
     {
       if (s->debug_p)
-        fprintf (stderr, "%s: screen is blanked: killing preview\n", blurb());
+        DL(0, "screen is blanked: killing preview");
       kill_preview_subproc (s, TRUE);
     }
 
@@ -4377,14 +4355,11 @@ the_network_is_not_the_computer (gpointer data)
         }
       else
         {
-          if (verbose_p)
-            fprintf (stderr,
-                     "%s: wayland: connection failed; assuming real X11\n",
-                     blurb());
+          DL(1, "wayland: connection failed; assuming real X11");
         }
 # else  /* !HAVE_WAYLAND */
       if (s->debug_p)
-        fprintf (stderr, "%s: wayland: disabled at compile time\n", blurb());
+        DL(0, "wayland: disabled at compile time");
       warning_dialog (s->window, _("Warning"),
         _("Not compiled with support for Wayland. "
           "The XScreenSaver daemon will not work.\n"));
@@ -4401,7 +4376,7 @@ the_network_is_not_the_computer (gpointer data)
 static int
 x_error (Display *dpy, XErrorEvent *error)
 {
-  fprintf (stderr, "\n%s: X error:\n", blurb());
+  DL(0, "X error:");
   XmuPrintDefaultErrorMessage (dpy, error, stderr);
   /* No way to get 'state' in here... */
   /* kill_preview_subproc (s, FALSE); */
@@ -4416,7 +4391,7 @@ g_logger (const gchar *domain, GLogLevelFlags log_level,
 {
   if (log_level & G_LOG_LEVEL_DEBUG) return;
   if (log_level & G_LOG_LEVEL_INFO)  return;
-  fprintf (stderr, "%s: %s: %s\n", blurb(), domain, message);
+  DL(0, "%s: %s", domain, message);
   if (log_level & G_LOG_LEVEL_CRITICAL) exit (-1);
 }
 
@@ -4433,7 +4408,7 @@ g_other_logger (GLogLevelFlags log_level, const GLogField *fields,
     {
       const GLogField *field = &fields[i];
       if (strcmp (field->key, "MESSAGE")) continue;
-      fprintf (stderr, "%s: %s\n", blurb(), (char *) field->value);
+      DL(0, "%s", (char *) field->value);
       ret = G_LOG_WRITER_HANDLED;
     }
   if (log_level & G_LOG_LEVEL_CRITICAL) exit (-1);
@@ -4460,7 +4435,7 @@ manual_cb (GtkButton *button, gpointer user_data)
   int hack_number;
   char *name, *name2, *cmd, *str;
   char *oname = 0;
-  if (s->debug_p) fprintf (stderr, "%s: documentation button\n", blurb());
+  if (s->debug_p) DL(0, "documentation button");
   if (list_elt < 0) return;
   hack_number = s->list_elt_to_hack_number[list_elt];
 
@@ -4522,7 +4497,7 @@ settings_adv_cb (GtkButton *button, gpointer user_data)
   XScreenSaverWindow *win = dialog->main;
   state *s = &win->state;
   GtkNotebook *notebook = GTK_NOTEBOOK (dialog->opt_notebook);
-  if (s->debug_p) fprintf (stderr, "%s: settings advanced button\n", blurb());
+  if (s->debug_p) DL(0, "settings advanced button");
   settings_sync_cmd_text (s);
   gtk_notebook_set_current_page (notebook, 1);
 }
@@ -4536,7 +4511,7 @@ settings_std_cb (GtkButton *button, gpointer user_data)
   XScreenSaverWindow *win = dialog->main;
   state *s = &win->state;
   GtkNotebook *notebook = GTK_NOTEBOOK (dialog->opt_notebook);
-  if (s->debug_p) fprintf (stderr, "%s: settings standard button\n", blurb());
+  if (s->debug_p) DL(0, "settings standard button");
   settings_sync_cmd_text (s);
   gtk_notebook_set_current_page (notebook, 0);
 }
@@ -4551,7 +4526,7 @@ settings_reset_cb (GtkButton *button, gpointer user_data)
   GtkWidget *cmd = GTK_WIDGET (dialog->cmd_text);
   state *s = &win->state;
   char *cmd_line;
-  if (s->debug_p) fprintf (stderr, "%s: settings reset button\n", blurb());
+  if (s->debug_p) DL(0, "settings reset button");
   if (! s->cdata) return;
   cmd_line = get_configurator_command_line (s->cdata, TRUE);
   gtk_entry_set_text (GTK_ENTRY (cmd), cmd_line);
@@ -4570,7 +4545,7 @@ settings_switch_page_cb (GtkNotebook *notebook, GtkWidget *page,
   state *s = &win->state;
   GtkWidget *adv = dialog->adv_button;
   GtkWidget *std = dialog->std_button;
-  if (s->debug_p) fprintf (stderr, "%s: settings page changed\n", blurb());
+  if (s->debug_p) DL(0, "settings page changed");
 
   if (page_num == 0)
     {
@@ -4600,7 +4575,7 @@ settings_cancel_cb (GtkWidget *button, gpointer user_data)
   XScreenSaverDialog *dialog = XSCREENSAVER_DIALOG (user_data);
   XScreenSaverWindow *win = dialog->main;
   state *s = &win->state;
-  if (s->debug_p) fprintf (stderr, "%s: settings cancel button\n", blurb());
+  if (s->debug_p) DL(0, "settings cancel button");
   gtk_widget_hide (GTK_WIDGET (dialog));
   gtk_widget_unrealize (GTK_WIDGET (dialog));
 
@@ -4618,7 +4593,7 @@ settings_ok_cb (GtkWidget *button, gpointer user_data)
   state *s = &win->state;
   GtkNotebook *notebook = GTK_NOTEBOOK (dialog->opt_notebook);
   int page = gtk_notebook_get_current_page (notebook);
-  if (s->debug_p) fprintf (stderr, "%s: settings ok button\n", blurb());
+  if (s->debug_p) DL(0, "settings ok button");
 
   if (page == 0)
     /* Regenerate the command-line from the widget contents before saving.
@@ -4981,8 +4956,7 @@ save_window_position (state *s, GtkWindow *win, int x, int y, Bool dialog_p)
   p->settings_geom = strdup (str);
 
   if (s->debug_p)
-    fprintf (stderr, "%s: geom: %s => %s\n", blurb(),
-             (old ? old : "null"), str);
+    DL(0, "geom: %s => %s", (old ? old : "null"), str);
 
   /* This writes the .xscreensaver file repeatedly as the window is dragged,
      which is too much.  We could defer it with a timer.  But instead let's
@@ -5015,7 +4989,7 @@ restore_window_position (state *s, GtkWindow *window, Bool dialog_p)
   if (x <= 0 || y <= 0) return;
 
   if (s->debug_p)
-    fprintf (stderr, "%s: restore origin: %d,%d\n", blurb(), x, y);
+    DL(0, "restore origin: %d,%d", x, y);
   gtk_window_move (window, x, y);
 }
 
@@ -5126,10 +5100,10 @@ xscreensaver_window_realize (GtkWidget *self, gpointer user_data)
     s->backend = X11_BACKEND;
 
   if (s->debug_p)
-    fprintf (stderr, "%s: GDK backend is %s\n", blurb(),
-             (s->backend == X11_BACKEND      ? "X11" :
-              s->backend == XWAYLAND_BACKEND ? "XWayland" :
-              s->backend == WAYLAND_BACKEND  ? "Wayland" : "???"));
+    DL(0, "GDK backend is %s",
+       (s->backend == X11_BACKEND      ? "X11" :
+        s->backend == XWAYLAND_BACKEND ? "XWayland" :
+        s->backend == WAYLAND_BACKEND  ? "Wayland" : "???"));
 
   if (s->backend != WAYLAND_BACKEND)
     s->dpy = gdk_x11_get_default_xdisplay();
@@ -5146,11 +5120,9 @@ xscreensaver_window_realize (GtkWidget *self, gpointer user_data)
       if (s->debug_p)
         {
           if (s->dpy)
-            fprintf (stderr, "%s: opened secondary XWayland connection\n",
-                     blurb());
+            DL(0, "opened secondary XWayland connection");
           else
-            fprintf (stderr, "%s: failed to open XWayland connection\n",
-                     blurb());
+            DL(0, "failed to open XWayland connection");
         }
     }
 
@@ -5252,12 +5224,12 @@ xscreensaver_window_realize (GtkWidget *self, gpointer user_data)
       {
         s->dpms_why = _("Power management not supported by this X11 display");
         if (s->debug_p)
-          fprintf (stderr, "%s: %s\n", blurb(), s->dpms_why);
+          DL(0, "%s", s->dpms_why);
       }
   }
 # else  /* !HAVE_DPMS_EXTENSION */
   if (s->debug_p)
-    fprintf (stderr, "%s: DPMS not supported at compile time\n", blurb());
+    DL(0, "DPMS not supported at compile time");
 # endif /* !HAVE_DPMS_EXTENSION */
 
 # ifdef HAVE_WAYLAND
@@ -5304,7 +5276,7 @@ xscreensaver_window_realize (GtkWidget *self, gpointer user_data)
           s->grab_why =
             _("Screenshots and fading not supported on Wayland GNOME");
           if (s->debug_p)
-            fprintf (stderr, "%s:  %s\n", blurb(), s->grab_why);
+            DL(0, "%s", s->grab_why);
         }
       else if (desk && (strcasestr (desk, "KDE") ||
                         strcasestr (desk, "plasma")))
@@ -5313,7 +5285,7 @@ xscreensaver_window_realize (GtkWidget *self, gpointer user_data)
           s->grab_why =
             _("Screenshots and fading not supported on Wayland KDE");
           if (s->debug_p)
-            fprintf (stderr, "%s:  %s\n", blurb(), s->grab_why);
+            DL(0, "%s", s->grab_why);
         }
       else if (! on_path_p (prog))
         {
@@ -5321,7 +5293,7 @@ xscreensaver_window_realize (GtkWidget *self, gpointer user_data)
           s->grab_why =
             _("Screenshots and fading on Wayland require \"grim\"");
           if (s->debug_p)
-            fprintf (stderr, "%s:  %s\n", blurb(), s->grab_why);
+            DL(0, "%s", s->grab_why);
         }
     }
 
@@ -5550,7 +5522,7 @@ xscreensaver_app_startup (GApplication *app)
   */
 # ifdef ENABLE_NLS
   if (!setlocale (LC_NUMERIC, "C"))
-    fprintf (stderr, "%s: warning: could not set LC_NUMERIC=C\n", blurb());
+    DL(0, "warning: could not set LC_NUMERIC=C");
 # endif /* ENABLE_NLS */
 }
 

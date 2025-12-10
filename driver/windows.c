@@ -818,11 +818,13 @@ select_visual (saver_screen_info *ssi, const char *visual_name)
       if (p->verbose_p)
         {
 #if 0
-          fprintf (stderr, "%s: %d: visual ", blurb(), ssi->number);
+          BLURB();
+          fprintf (stderr, "%d: visual ", ssi->number);
           describe_visual (stderr, ssi->screen, new_v, install_cmap_p);
 #endif
 #if 0
-          fprintf (stderr, "%s:                  from ", blurb());
+          BLURB();
+          fprintf (stderr, "                 from ");
           describe_visual (stderr, ssi->screen, ssi->current_visual,
                            was_installed_p);
 #endif

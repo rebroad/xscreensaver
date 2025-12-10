@@ -118,12 +118,10 @@ set_ids_by_number (uid_t uid, gid_t gid)
 
   if (uid_errno == 0 && gid_errno == 0 && sgs_errno == 0)
     {
-      if (verbose_p)
-        fprintf (stderr, "%s: changed uid/gid to %.100s/%.100s (%ld/%ld)\n",
-                 blurb(),
-                 (p && p->pw_name ? p->pw_name : "???"),
-                 (g && g->gr_name ? g->gr_name : "???"),
-                 (long) uid, (long) gid);
+      DL(1, "changed uid/gid to %.100s/%.100s (%ld/%ld)",
+         (p && p->pw_name ? p->pw_name : "???"),
+         (g && g->gr_name ? g->gr_name : "???"),
+         (long) uid, (long) gid);
       return 0;
     }
   else
@@ -146,7 +144,7 @@ set_ids_by_number (uid_t uid, gid_t gid)
               perror (buf);
             }
 
-	  fprintf (stderr, "%s: effective group list: ", blurb());
+      BLURB(); fprintf(stderr, "effective group list: ");
 	  size = sizeof(groups) / sizeof(gid_t);
           n = getgroups (size - 1, groups);
           if (n < 0)
@@ -223,9 +221,7 @@ disavow_privileges (void)
 
   if (uid != euid || gid != egid)
     {
-      if (verbose_p)
-        fprintf (stderr, "%s: initial effective uid/gid was %s\n", blurb(),
-                 uid_gid_string (euid, egid));
+      DL(1, "initial effective uid/gid was %s", uid_gid_string (euid, egid));
       if (set_ids_by_number (uid, gid) != 0)
         exit (1);  /* already printed error */
     }
@@ -256,15 +252,12 @@ disavow_privileges (void)
       !strcmp (p->pw_name, "sys") ||
       !strcmp (p->pw_name, "games"))
     {
-      fprintf (stderr,
-               "%s: running as user \"%s\" -- authentication disallowed\n",
-               blurb(),
-               (p && p->pw_name && *p->pw_name
+      DL(0, "running as user \"%s\" -- authentication disallowed",
+         (p && p->pw_name && *p->pw_name
                 ? p->pw_name
                 : "<unknown>"));
       exit (1);
     }
 
-  if (verbose_p)
-    fprintf (stderr, "%s: running as user \"%s\"\n", blurb(), p->pw_name);
+  DL(1, "running as user \"%s\"", p->pw_name);
 }

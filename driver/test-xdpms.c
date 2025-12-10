@@ -62,64 +62,55 @@ main (int argc, char **argv)
 
   if (!DPMSQueryExtension(dpy, &event_number, &error_number))
     {
-      fprintf(stderr, "%s: DPMSQueryExtension(dpy, ...) ==> False\n",
-	      blurb());
-      fprintf(stderr, "%s: server does not support the XDPMS extension\n",
-	      blurb());
+      DL(0, "DPMSQueryExtension(dpy, ...) ==> False");
+      DL(0, "server does not support the XDPMS extension");
       exit(1);
     }
   else
-    fprintf(stderr, "%s: DPMSQueryExtension(dpy, ...) ==> %d, %d\n", blurb(),
-	    event_number, error_number);
+    DL(0, "DPMSQueryExtension(dpy, ...) ==> %d, %d", event_number, error_number);
 
   if (!DPMSCapable(dpy))
     {
-      fprintf(stderr, "%s: DPMSCapable(dpy) ==> False\n", blurb());
-      fprintf(stderr, "%s: server says hardware doesn't support DPMS\n",
-	      blurb());
+      DL(0, "DPMSCapable(dpy) ==> False");
+      DL(0, "server says hardware doesn't support DPMS");
       exit(1);
     }
   else
-    fprintf(stderr, "%s: DPMSCapable(dpy) ==> True\n", blurb());
+    DL(0, "DPMSCapable(dpy) ==> True");
 
   if (!DPMSGetVersion(dpy, &major, &minor))
     {
-      fprintf(stderr, "%s: DPMSGetVersion(dpy, ...) ==> False\n", blurb());
-      fprintf(stderr, "%s: server didn't report XDPMS version numbers?\n",
-	      blurb());
+      DL(0, "DPMSGetVersion(dpy, ...) ==> False");
+      DL(0, "server didn't report XDPMS version numbers?");
     }
   else
-    fprintf(stderr, "%s: DPMSGetVersion(dpy, ...) ==> %d, %d\n", blurb(),
-	    major, minor);
+    DL(0, "DPMSGetVersion(dpy, ...) ==> %d, %d", major, minor);
 
   if (!DPMSGetTimeouts(dpy, &standby, &suspend, &off))
     {
-      fprintf(stderr, "%s: DPMSGetTimeouts(dpy, ...) ==> False\n", blurb());
-      fprintf(stderr, "%s: server didn't report DPMS timeouts?\n", blurb());
+      DL(0, "DPMSGetTimeouts(dpy, ...) ==> False");
+      DL(0, "server didn't report DPMS timeouts?");
     }
   else
-    fprintf(stderr,
-	    "%s: DPMSGetTimeouts(dpy, ...)\n"
-	    "\t ==> standby = %d, suspend = %d, off = %d\n",
-	    blurb(), standby, suspend, off);
+    DL(0, "DPMSGetTimeouts(dpy, ...) ==> standby = %d, suspend = %d, off = %d", standby, suspend, off);
 
   while (1)
     {
       if (!DPMSInfo(dpy, &state, &onoff))
 	{
-	  fprintf(stderr, "%s: DPMSInfo(dpy, ...) ==> False\n", blurb());
-	  fprintf(stderr, "%s: couldn't read DPMS state?\n", blurb());
+      DL(0, "DPMSInfo(dpy, ...) ==> False");
+      DL(0, "couldn't read DPMS state?");
 	  onoff = 0;
 	  state = -1;
 	}
       else
 	{
-	  fprintf(stderr, "%s: DPMSInfo(dpy, ...) ==> %s, %s\n", blurb(),
-		  (state == DPMSModeOn ? "DPMSModeOn" :
-		   state == DPMSModeStandby ? "DPMSModeStandby" :
-		   state == DPMSModeSuspend ? "DPMSModeSuspend" :
-		   state == DPMSModeOff ? "DPMSModeOff" : "???"),
-		  (onoff == 1 ? "On" : onoff == 0 ? "Off" : "???"));
+      DL(0, "DPMSInfo(dpy, ...) ==> %s, %s",
+         (state == DPMSModeOn ? "DPMSModeOn" :
+          state == DPMSModeStandby ? "DPMSModeStandby" :
+          state == DPMSModeSuspend ? "DPMSModeSuspend" :
+          state == DPMSModeOff ? "DPMSModeOff" : "???"),
+         (onoff == 1 ? "On" : onoff == 0 ? "Off" : "???"));
 	}
 
       if (state == DPMSModeStandby ||
@@ -127,7 +118,7 @@ main (int argc, char **argv)
 	  state == DPMSModeOff)
 	{
 	  int st;
-	  fprintf(stderr, "%s: monitor is off; turning it on\n", blurb());
+      DL(0, "monitor is off; turning it on");
 
           XSync (dpy, False);
           error_handler_hit_p = False;
@@ -137,8 +128,7 @@ main (int argc, char **argv)
           XSync (dpy, False);
           if (error_handler_hit_p) st = -666;
 
-	  fprintf (stderr, "%s: DPMSForceLevel (dpy, DPMSModeOn) ==> %s\n",
-		   blurb(), (st == -666 ? "X Error" : st ? "Ok" : "Error"));
+      DL(0, "DPMSForceLevel (dpy, DPMSModeOn) ==> %s", (st == -666 ? "X Error" : st ? "Ok" : "Error"));
 	}
 
       sleep (delay);
