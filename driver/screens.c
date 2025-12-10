@@ -817,7 +817,6 @@ describe_monitor_layout (monitor **monitors)
   if (monitors && *monitors && monitors[0]->err)   /* deferred error msg */
     {
       char *token = strtok (monitors[0]->err, "\n");
-      const char *b = blurb();
       while (token)
         {
           DL(0, "   %s", token);

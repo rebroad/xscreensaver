@@ -144,6 +144,7 @@ static void
 connect_to_server (saver_info *si)
 {
   saver_preferences *p = &si->prefs;
+  int verbose_p = p->verbose_p;
   Widget toplevel_shell;
   Window daemon_window;
   XrmOptionDescRec options;
@@ -245,6 +246,7 @@ static void
 initialize_randr (saver_info *si)
 {
   saver_preferences *p = &si->prefs;
+  int verbose_p = p->verbose_p;
 
 #ifdef HAVE_RANDR
   if (XRRQueryExtension (si->dpy,
