@@ -128,7 +128,7 @@ send_xscreensaver_command (Display *dpy, Atom command, long arg,
           goto DONE;
         }
 
-      fprintf (stderr, "%s: %s\n", progname, err);
+      DL(0, "%s", err);
       status = -1;
       goto DONE;
     }
@@ -149,7 +149,7 @@ send_xscreensaver_command (Display *dpy, Atom command, long arg,
           if (error_ret)
             *error_ret = strdup (err);
           else
-            fprintf (stderr, "%s: %s\n", progname, err);
+            DL(0, "%s", err);
 
           status = -1;
           goto DONE;
@@ -163,7 +163,7 @@ send_xscreensaver_command (Display *dpy, Atom command, long arg,
           if (error_ret)
             *error_ret = strdup (err);
           else
-            fprintf (stderr, "%s: %s\n", progname, err);
+            DL(0, "%s", err);
 
           status = -1;
           goto DONE;
@@ -253,9 +253,9 @@ send_xscreensaver_command (Display *dpy, Atom command, long arg,
 	      fflush (stdout);
 
               if (dataP)
-                fprintf (stderr, "bad status format on root window\n");
+                DL(0, "bad status format on root window");
               else
-                fprintf (stderr, "no saver status on root window\n");
+                DL(0, "no saver status on root window");
 
 	      if (dataP) XFree (dataP);
               status = -1;
@@ -305,7 +305,7 @@ send_xscreensaver_command (Display *dpy, Atom command, long arg,
           if (error_ret)
             *error_ret = strdup (err);
           else
-            fprintf (stderr, "%s: %s\n", progname, err);
+            DL(0, "%s", err);
           status = -1;
           goto DONE;
 	}
@@ -445,10 +445,7 @@ xscreensaver_command_response (Display *dpy, Window window,
               if (ret < 0)
                 {
                   /* Error messages go to stderr */
-                  if (verbose_p)
-                    DL(0, "%s", (char *) msg+1);
-                  else
-                    fprintf (stderr, "%s\n", err);
+                  DL(0, "%s", (char *) msg+1);
                 }
               else
                 {
@@ -518,8 +515,7 @@ xscreensaver_command_wait_for_blank (Display *dpy,
 
           if (state != 0)
             {
-              if (verbose_p > 1)
-                fprintf (stderr, "%s: screen blanked\n", progname);
+              DL(2, "screen blanked");
               break;
             }
         }
@@ -531,12 +527,12 @@ xscreensaver_command_wait_for_blank (Display *dpy,
           if (error_ret)
             *error_ret = strdup (err);
           else
-            fprintf (stderr, "%s: %s\n", progname, err);
+            DL(0, "%s", err);
           return -1;
         }
-      else if (verbose_p == 1 && now > start + 3)
+      else if (now > start + 3)
         {
-          fprintf (stderr, "%s: waiting for status change\n", progname);
+          DL(1, "waiting for status change");
           verbose_p++;
         }
 

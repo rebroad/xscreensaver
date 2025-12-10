@@ -158,12 +158,10 @@ print_available_extensions (saver_info *si)
     "XDG_SESSION_TYPE",
   };
 
-  fprintf (stderr, "%s: running on display \"%s\"\n", blurb(), 
-           DisplayString(si->dpy));
-  fprintf (stderr, "%s: vendor is %s, %d\n", blurb(),
-	   ServerVendor(si->dpy), VendorRelease(si->dpy));
+  DL(0, "running on display \"%s\"", DisplayString(si->dpy));
+  DL(0, "vendor is %s, %d", ServerVendor(si->dpy), VendorRelease(si->dpy));
 
-  fprintf (stderr, "%s: useful extensions:\n", blurb());
+  DL(0, "useful extensions:");
   for (i = 0; i < countof(exts); i++)
     {
       int op = 0, event = 0, error = 0;
@@ -203,22 +201,21 @@ print_available_extensions (saver_info *si)
     }
 
 # if !defined(HAVE_GL)
-  fprintf (stderr, "%s:   OpenGL disabled at compile time\n", blurb());
+  DL(0, "  OpenGL disabled at compile time");
 # elif defined(HAVE_EGL)
-  fprintf (stderr, "%s:   Using EGL\n", blurb());
+  DL(0, "  Using EGL");
 # else
-  fprintf (stderr, "%s:   Using GLX\n", blurb());
+  DL(0, "  Using GLX");
 # endif
 
 # ifdef HAVE_LIBSYSTEMD
-  fprintf (stderr, "%s:   libsystemd\n", blurb());
+  DL(0, "  libsystemd");
 # endif
 # ifdef HAVE_LIBELOGIND
-  fprintf (stderr, "%s:   libelogind\n", blurb());
+  DL(0, "  libelogind");
 # endif
 # if !defined(HAVE_LIBSYSTEMD) && !defined(HAVE_LIBELOGIND)
-  fprintf (stderr, "%s:   libsystemd/libelogind disabled at compile time\n",
-           blurb());
+  DL(0, "  libsystemd/libelogind disabled at compile time");
 # endif
 
   for (i = 0; i < countof(envs); i++)
@@ -226,7 +223,7 @@ print_available_extensions (saver_info *si)
       const char *key = envs[i];
       char *val = getenv (key);
       if (!val) continue;
-      fprintf (stderr, "%s: %s = \"%s\"\n", blurb(), key, val);
+      DL(0, "%s = \"%s\"", key, val);
     }
 
   for (i = 0; i < si->nscreens; i++)
@@ -253,8 +250,8 @@ print_available_extensions (saver_info *si)
 
       if (colormapped_depths)
 	{
-	  fprintf (stderr, "%s: screen %d colormapped depths:", blurb(),
-                   ssi->real_screen_number);
+      BLURB();
+      fprintf (stderr, "screen %d colormapped depths:", ssi->real_screen_number);
 	  for (j = 0; j < 32; j++)
 	    if (colormapped_depths & (1 << j))
 	      fprintf (stderr, " %d", j);
@@ -262,8 +259,8 @@ print_available_extensions (saver_info *si)
 	}
       if (non_mapped_depths)
 	{
-	  fprintf (stderr, "%s: screen %d non-colormapped depths:",
-                   blurb(), ssi->real_screen_number);
+      BLURB();
+      fprintf (stderr, "screen %d non-colormapped depths:", ssi->real_screen_number);
 	  for (j = 0; j < 32; j++)
 	    if (non_mapped_depths & (1 << j))
 	      fprintf (stderr, " %d", j);

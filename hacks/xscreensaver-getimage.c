@@ -230,13 +230,13 @@ x_ehandler (Display *dpy, XErrorEvent *error)
 {
   if (error->error_code == BadWindow || error->error_code == BadDrawable)
     {
-      fprintf (stderr, "%s: target %s 0x%lx unexpectedly deleted\n", blurb(),
-               (error->error_code == BadWindow ? "window" : "pixmap"),
-               (unsigned long) error->resourceid);
+      DL(0, "target %s 0x%lx unexpectedly deleted",
+         (error->error_code == BadWindow ? "window" : "pixmap"),
+         (unsigned long) error->resourceid);
     }
   else
     {
-      fprintf (stderr, "\nX error in %s:\n", blurb());
+      DL(0, "X error:");
       XmuPrintDefaultErrorMessage (dpy, error, stderr);
     }
   exit (-1);
@@ -357,9 +357,7 @@ compute_image_scaling (int src_w, int src_h,
                        ? dest_w / (double) dest_h
                        : dest_h / (double) dest_w);
           r *= r2;
-          if (verbose_p)
-            fprintf (stderr, "%s: weird aspect: scaling by %.1f\n",
-                     blurb(), r2);
+          DL(1, "weird aspect: scaling by %.1f", r2);
         }
 
       tw = src_w * r;
@@ -371,9 +369,7 @@ compute_image_scaling (int src_w, int src_h,
       if (pct < 95 || pct > 105)  /* don't scale if it's close */
 #endif
         {
-          if (verbose_p)
-            fprintf (stderr, "%s: scaling image by %d%% (%dx%d -> %dx%d)\n",
-                     blurb(), pct, src_w, src_h, tw, th);
+          DL(1, "scaling image by %d%% (%dx%d -> %dx%d)", pct, src_w, src_h, tw, th);
           src_w = tw;
           src_h = th;
         }
@@ -397,9 +393,8 @@ compute_image_scaling (int src_w, int src_h,
   *scaled_to_x_ret = destx;
   *scaled_to_y_ret = desty;
 
-  if (verbose_p)
-    fprintf (stderr, "%s: displaying %dx%d+%d+%d at %dx%d+%d+%d\n",
-             blurb(), src_w, src_h, srcx, srcy, dest_w, dest_h, destx, desty);
+  DL(1, "displaying %dx%d+%d+%d at %dx%d+%d+%d",
+     src_w, src_h, srcx, srcy, dest_w, dest_h, destx, desty);
 }
 
 
@@ -442,10 +437,8 @@ scale_ximage (Screen *screen, Visual *visual,
 
   if (!ximage2->data)
     {
-      fprintf (stderr, "%s: out of memory scaling %dx%d image to %dx%d\n",
-               blurb(),
-               ximage->width, ximage->height,
-               ximage2->width, ximage2->height);
+      DL(0, "out of memory scaling %dx%d image to %dx%d",
+         ximage->width, ximage->height, ximage2->width, ximage2->height);
       if (ximage->data) free (ximage->data);
       if (ximage2->data) free (ximage2->data);
       ximage->data = 0;
@@ -516,9 +509,9 @@ read_file_gdk (Screen *screen, Window window, Drawable drawable,
 
   if (!pb)
     {
-      fprintf (stderr, "%s: unable to load \"%s\"\n", blurb(), filename);
+      DL(0, "unable to load \"%s\"", filename);
       if (gerr && gerr->message && *gerr->message)
-        fprintf (stderr, "%s: reason: %s\n", blurb(), gerr->message);
+        DL(0, "reason: %s", gerr->message);
       return False;
     }
   else
@@ -535,9 +528,8 @@ read_file_gdk (Screen *screen, Window window, Drawable drawable,
         g_object_unref (opb);
         w = gdk_pixbuf_get_width (pb);
         h = gdk_pixbuf_get_height (pb);
-        if (verbose_p && (w != ow || h != oh))
-          fprintf (stderr, "%s: rotated %dx%d to %dx%d\n",
-                   blurb(), ow, oh, w, h);
+        if (w != ow || h != oh)
+          DL(1, "rotated %dx%d to %dx%d", ow, oh, w, h);
       }
 # endif
 
@@ -555,7 +547,7 @@ read_file_gdk (Screen *screen, Window window, Drawable drawable,
               h = h2;
             }
           else
-            fprintf (stderr, "%s: out of memory when scaling?\n", blurb());
+            DL(0, "out of memory when scaling?");
         }
 
       if (srcx > 0) w -= srcx;
@@ -598,7 +590,7 @@ read_file_gdk (Screen *screen, Window window, Drawable drawable,
 
         if (!image->data)
           {
-            fprintf (stderr, "%s: out of memory (%d x %d)\n", blurb(), w, h);
+            DL(0, "out of memory (%d x %d)", w, h);
             return False;
           }
 
@@ -719,9 +711,7 @@ allocate_cubic_colormap (Screen *screen, Visual *visual, Colormap cmap,
         if (XAllocColor (dpy, cmap, &colors[i + j]))
           allocated++;
 
-    if (verbose_p)
-      fprintf (stderr, "%s: allocated %d of %d colors for cubic map\n",
-               blurb(), allocated, cells);
+    DL(1, "allocated %d of %d colors for cubic map", allocated, cells);
   }
 }
 
@@ -791,9 +781,7 @@ remap_image (Screen *screen, Colormap cmap, XImage *image, Bool verbose_p)
     colors[i].pixel = i;
   XQueryColors (dpy, cmap, colors, cells);
 
-  if (verbose_p)
-    fprintf(stderr, "%s: building color cube for %d bit image\n",
-            blurb(), image->depth);
+  DL(1, "building color cube for %d bit image", image->depth);
 
   for (i = 0; i < cells; i++)
     {
@@ -830,9 +818,7 @@ remap_image (Screen *screen, Colormap cmap, XImage *image, Bool verbose_p)
       map[i] = find_closest_pixel (colors, cells, r, g, b);
     }
 
-  if (verbose_p)
-    fprintf(stderr, "%s: remapping colors in %d bit image\n",
-            blurb(), image->depth);
+  DL(1, "remapping colors in %d bit image", image->depth);
 
   for (y = 0; y < image->height; y++)
     for (x = 0; x < image->width; x++)
@@ -860,7 +846,7 @@ jpg_output_message (j_common_ptr cinfo)
   getimg_jpg_error_mgr *err = (getimg_jpg_error_mgr *) cinfo->err;
   char buf[JMSG_LENGTH_MAX];
   cinfo->err->format_message (cinfo, buf);
-  fprintf (stderr, "%s: %s: %s\n", blurb(), err->filename, buf);
+  DL(0, "%s: %s", err->filename, buf);
 }
 
 
@@ -899,14 +885,14 @@ read_jpeg_ximage (Screen *screen, Visual *visual, Drawable drawable,
 
   if (! (depth >= 15 || depth == 12 || depth == 8))
     {
-      fprintf (stderr, "%s: unsupported depth: %d\n", blurb(), depth);
+      DL(0, "unsupported depth: %d", depth);
       goto FAIL;
     }
 
   in = fopen (filename, "rb");
   if (!in)
     {
-      fprintf (stderr, "%s: %s: unreadable\n", blurb(), filename);
+      DL(0, "%s: unreadable", filename);
       goto FAIL;
     }
 
@@ -938,8 +924,7 @@ read_jpeg_ximage (Screen *screen, Visual *visual, Drawable drawable,
                                           1);
   if (!ximage || !ximage->data || !scanbuf)
     {
-      fprintf (stderr, "%s: out of memory loading %dx%d file %s\n",
-               blurb(), ximage->width, ximage->height, filename);
+      DL(0, "out of memory loading %dx%d file %s", ximage->width, ximage->height, filename);
       goto FAIL;
     }
 
@@ -1043,8 +1028,7 @@ read_file_jpeglib (Screen *screen, Window window, Drawable drawable,
   if ((class == PseudoColor || class == DirectColor) &&
       (depth != 8 && depth != 12))
     {
-      fprintf (stderr, "%s: Pseudo/DirectColor depth %d unsupported\n",
-               blurb(), depth);
+      DL(0, "Pseudo/DirectColor depth %d unsupported", depth);
       return False;
     }
 
@@ -1106,8 +1090,7 @@ display_file (Screen *screen, Window window, Drawable drawable,
               const char *filename, Bool verbose_p,
               XRectangle *geom_ret)
 {
-  if (verbose_p)
-    fprintf (stderr, "%s: loading \"%s\"\n", blurb(), filename);
+  DL(1, "loading \"%s\"", filename);
 
 # if defined(HAVE_GDK_PIXBUF)
   if (read_file_gdk (screen, window, drawable, filename, verbose_p, geom_ret))
@@ -1212,7 +1195,7 @@ get_filename_1 (Screen *screen, Window window,
   if (verbose_p)
     {
       int i;
-      fprintf (stderr, "%s: executing:", blurb());
+      BLURB(); fprintf (stderr, "executing:");
       for (i = 0; i < ac; i++)
         fprintf (stderr, " %s", av[i]);
       fprintf (stderr, "\n");
@@ -1305,9 +1288,7 @@ get_filename_1 (Screen *screen, Window window,
 
         if (stat (outfile_full, &st))
           {
-            if (verbose_p)
-              fprintf (stderr, "%s: file does not exist: \"%s\"\n",
-                       blurb(), outfile_full);
+            DL(1, "file does not exist: \"%s\"", outfile_full);
             if (outfile_full != outfile)
               free (outfile);
             outfile = 0;
@@ -1367,8 +1348,7 @@ display_video (Screen *screen, Window window, Drawable drawable,
 
   if (!filename)
     {
-      if (verbose_p)
-        fprintf (stderr, "%s: video grab failed\n", blurb());
+      DL(1, "video grab failed");
       return False;
     }
 
@@ -1382,7 +1362,7 @@ display_video (Screen *screen, Window window, Drawable drawable,
       perror (buf);
     }
   else if (verbose_p)
-    fprintf (stderr, "%s: rm %s\n", blurb(), filename);
+    DL(1, "rm %s", filename);
 
   if (filename) free (filename);
   return status;
@@ -1444,8 +1424,7 @@ copy_default_colormap_contents (Screen *screen,
   allocate_writable_colors (screen, to_cmap, pixels, &got_cells);
 
   if (verbose_p && got_cells != max_cells)
-    fprintf(stderr, "%s: got only %d of %d cells\n", blurb(),
-	    got_cells, max_cells);
+    DL(1, "got only %d of %d cells", got_cells, max_cells);
 
   if (got_cells <= 0)					 /* we're screwed */
     ;
@@ -1470,8 +1449,7 @@ copy_default_colormap_contents (Screen *screen,
     }
 
 
-  if (verbose_p)
-    fprintf(stderr, "%s: installing copy of default colormap\n", blurb());
+  DL(1, "installing copy of default colormap");
 
   free (old_colors);
   free (new_colors);
@@ -1533,10 +1511,8 @@ MapNotify_event_p (Display *dpy, XEvent *event, XPointer window)
 static void
 raise_window (Display *dpy, Window window, Bool dont_wait, Bool verbose_p)
 {
-  if (verbose_p)
-    fprintf(stderr, "%s: raising window 0x%0lX (%s)\n",
-            blurb(), (unsigned long) window,
-            (dont_wait ? "not waiting" : "waiting"));
+  DL(1, "raising window 0x%0lX (%s)", (unsigned long) window,
+     (dont_wait ? "not waiting" : "waiting"));
 
   if (! dont_wait)
     {
@@ -1639,14 +1615,12 @@ grab_screen_image (Screen *screen, Window window, Bool cache_p, Bool verbose_p)
 
   if (verbose_p)
     {
-      fprintf (stderr, "%s: window 0x%0lX"
-               " root: %d saver: %d map: %d wait: %.1f\n",
-               blurb(), (unsigned long) window,
-               root_p, saver_p, mapped_p, unmap_time);
+      DL(1, "window 0x%0lX root: %d saver: %d map: %d wait: %.1f",
+         (unsigned long) window, root_p, saver_p, mapped_p, unmap_time);
 
       if (xgwa.visual->class != TrueColor)
         {
-          fprintf(stderr, "%s: ", blurb());
+          BLURB();
           describe_visual (stderr, screen, xgwa.visual, False);
           fprintf (stderr, "\n");
         }
@@ -1657,23 +1631,18 @@ grab_screen_image (Screen *screen, Window window, Bool cache_p, Bool verbose_p)
       mapped_p &&
       !top_level_window_p (screen, window))
     {
-      if (verbose_p)
-        fprintf (stderr, "%s: not a top-level window: 0x%0lX: not grabbing\n",
-                 blurb(), (unsigned long) window);
+      DL(1, "not a top-level window: 0x%0lX: not grabbing", (unsigned long) window);
       return None;
     }
 
   if (unmap_time > 0)
     {
-      if (verbose_p)
-        fprintf (stderr, "%s: unmapping 0x%0lX\n", blurb(),
-                 (unsigned long) window);
+      DL(1, "unmapping 0x%0lX", (unsigned long) window);
       XUnmapWindow (dpy, window);
       if (xgwa.visual->class != TrueColor)
         install_screen_colormaps (screen);
       XSync (dpy, True);
-      if (verbose_p)
-        fprintf (stderr, "%s: sleeping %.02f\n", blurb(), unmap_time);
+      DL(1, "sleeping %.02f", unmap_time);
       /* wait for everyone to swap in and handle exposes */
       usleep ((unsigned long) (unmap_time * 1000000));
     }
@@ -1690,9 +1659,7 @@ grab_screen_image (Screen *screen, Window window, Bool cache_p, Bool verbose_p)
     {
       /* Wayland or macOS: Grab screen via external program. */
 
-      if (verbose_p)
-        fprintf (stderr, "%s: grabbing via \"%s\"\n", blurb(),
-                 GETIMAGE_SCREEN_PROGRAM);
+      DL(1, "grabbing via \"%s\"", GETIMAGE_SCREEN_PROGRAM);
       filename = get_desktop_filename (screen, window, verbose_p);
 
       /* We can raise the window before parsing the file. */
@@ -1703,8 +1670,7 @@ grab_screen_image (Screen *screen, Window window, Bool cache_p, Bool verbose_p)
       if (!filename)
         {
           /* if (verbose_p) */
-          fprintf (stderr, "%s: screenshot via \"%s\" failed\n", blurb(),
-                   GETIMAGE_SCREEN_PROGRAM);
+          DL(0, "screenshot via \"%s\" failed", GETIMAGE_SCREEN_PROGRAM);
           return None;
         }
 
@@ -1744,13 +1710,11 @@ grab_screen_image (Screen *screen, Window window, Bool cache_p, Bool verbose_p)
           sprintf (buf, "%s: rm %.100s", blurb(), filename);
           perror (buf);
         }
-      else if (verbose_p)
-        fprintf (stderr, "%s: rm %s\n", blurb(), filename);
+      else
+        DL(1, "rm %s", filename);
 
-      if (verbose_p)
-        fprintf (stderr, "%s: screenshot %dx%d+%d+%d via \"%s\"\n", blurb(),
-                 xgwa.width, xgwa.height, xgwa.x, xgwa.y, 
-                 GETIMAGE_SCREEN_PROGRAM);
+      DL(1, "screenshot %dx%d+%d+%d via \"%s\"",
+         xgwa.width, xgwa.height, xgwa.x, xgwa.y, GETIMAGE_SCREEN_PROGRAM);
     }
 # endif /* USE_EXTERNAL_SCREEN_GRABBER */
 # ifndef HAVE_MACOS_X11
@@ -1761,8 +1725,7 @@ grab_screen_image (Screen *screen, Window window, Bool cache_p, Bool verbose_p)
       XGCValues gcv;
       GC gc;
 
-      if (verbose_p)
-        fprintf (stderr, "%s: grabbing via XCopyArea\n", blurb());
+      DL(1, "grabbing via XCopyArea");
 
       screenshot = XCreatePixmap (dpy, window, xgwa.width, xgwa.height,
                                   xgwa.depth);
@@ -1795,9 +1758,8 @@ grab_screen_image (Screen *screen, Window window, Bool cache_p, Bool verbose_p)
   if (xgwa.colormap && xgwa.visual->class != TrueColor)
     XInstallColormap (dpy, xgwa.colormap);
 
-  if (verbose_p)
-    fprintf (stderr, "%s: grabbed screenshot to %s window\n", blurb(), 
-             (root_p ? "real root" : saver_p ? "saver" : "top-level"));
+  DL(1, "grabbed screenshot to %s window",
+     (root_p ? "real root" : saver_p ? "saver" : "top-level"));
 
   return screenshot;
 }
@@ -1820,8 +1782,7 @@ display_desktop (Screen *screen, Window window, Drawable drawable,
   GC gc;
   XGCValues gcv;
 
-  if (verbose_p)
-    fprintf (stderr, "%s: grabbing desktop image\n", blurb());
+  DL(1, "grabbing desktop image");
 
   root = XRootWindowOfScreen (screen);  /* not vroot */
 
@@ -1833,9 +1794,7 @@ display_desktop (Screen *screen, Window window, Drawable drawable,
   /* Otherwise, grab a new one. */
   if (! screenshot)
     {
-      if (verbose_p)
-        fprintf (stderr, "%s: no saved screenshot on 0x%lx\n", blurb(),
-                 window);
+      DL(1, "no saved screenshot on 0x%lx", window);
       screenshot = grab_screen_image (screen, window, cache_p, verbose_p);
     }
 
@@ -1933,21 +1892,14 @@ get_image (Screen *screen,
 
   if (file && stat (file, &st))
     {
-      fprintf (stderr, "%s: file \"%s\" does not exist\n", blurb(), file);
+      DL(0, "file \"%s\" does not exist", file);
       file = 0;
     }
 
-  if (verbose_p)
-    {
-      fprintf (stderr, "%s: grabDesktopImages:  %s\n",
-               blurb(), desk_p ? "True" : "False");
-      fprintf (stderr, "%s: grabVideoFrames:    %s\n",
-               blurb(), video_p ? "True" : "False");
-      fprintf (stderr, "%s: chooseRandomImages: %s\n",
-               blurb(), image_p ? "True" : "False");
-      fprintf (stderr, "%s: imageDirectory:     %s\n",
-               blurb(), (file ? file : dir ? dir : ""));
-    }
+  DL(1, "grabDesktopImages:  %s", desk_p ? "True" : "False");
+  DL(1, "grabVideoFrames:    %s", video_p ? "True" : "False");
+  DL(1, "chooseRandomImages: %s", image_p ? "True" : "False");
+  DL(1, "imageDirectory:     %s", (file ? file : dir ? dir : ""));
 
 # if !(defined(HAVE_GDK_PIXBUF) || defined(HAVE_JPEGLIB))
   image_p = False;    /* can't load images from files... */
@@ -1957,10 +1909,8 @@ get_image (Screen *screen,
 
   if (file)
     {
-      fprintf (stderr,
-               "%s: image file loading not available at compile-time\n",
-               blurb());
-      fprintf (stderr, "%s: can't load \"%s\"\n", blurb(), file);
+      DL(0, "image file loading not available at compile-time");
+      DL(0, "can't load \"%s\"", file);
       file = 0;
     }
 # endif /* !(HAVE_GDK_PIXBUF || HAVE_JPEGLIB) */
@@ -1973,10 +1923,8 @@ get_image (Screen *screen,
     }
   else if (!dir || !*dir)
     {
-      if (verbose_p && image_p)
-        fprintf (stderr,
-                 "%s: no imageDirectory: turning off chooseRandomImages\n",
-                 blurb());
+      if (image_p)
+        DL(1, "no imageDirectory: turning off chooseRandomImages");
       image_p = False;
     }
 
@@ -2028,8 +1976,7 @@ get_image (Screen *screen,
       if (!file)
         {
           which = GRAB_BARS;
-          if (verbose_p)
-            fprintf (stderr, "%s: no image files found\n", blurb());
+          DL(1, "no image files found");
         }
     }
 
@@ -2045,8 +1992,7 @@ get_image (Screen *screen,
         unsigned int bw, d, w = 0, h = 0;
 
       COLORBARS:
-        if (verbose_p)
-          fprintf (stderr, "%s: drawing colorbars\n", blurb());
+        DL(1, "drawing colorbars");
         XGetWindowAttributes (dpy, window, &xgwa);
         XGetGeometry (dpy, drawable, &root, &xx, &yy, &w, &h, &bw, &d);
         colorbars (screen, xgwa.visual, drawable, xgwa.colormap,
@@ -2347,8 +2293,7 @@ main (int argc, char **argv)
         {
           if (window)
             {
-              fprintf (stderr, "%s: both %s and %s specified?\n",
-                       blurb(), argv[i], window_str);
+              DL(0, "both %s and %s specified?", argv[i], window_str);
               goto LOSE;
             }
           window_str = argv[i];
@@ -2361,8 +2306,7 @@ main (int argc, char **argv)
         WID:
           if (drawable)
             {
-              fprintf (stderr, "%s: both %s and %s specified?\n",
-                       blurb(), drawable_str, argv[i]);
+              DL(0, "both %s and %s specified?", drawable_str, argv[i]);
               goto LOSE;
             }
           else if (window)
@@ -2388,11 +2332,9 @@ main (int argc, char **argv)
       else
         {
           if (argv[i][0] == '-')
-            fprintf (stderr, "\n%s: unknown option \"%s\"\n",
-                     blurb(), argv[i]);
+            DL(0, "unknown option \"%s\"", argv[i]);
           else
-            fprintf (stderr, "\n%s: unparsable window/pixmap ID: \"%s\"\n",
-                     blurb(), argv[i]);
+            DL(0, "unparsable window/pixmap ID: \"%s\"", argv[i]);
         LOSE:
 # ifdef __GNUC__
           __extension__   /* don't warn about "string length is greater than
@@ -2406,7 +2348,7 @@ main (int argc, char **argv)
 
   if (window == 0)
     {
-      fprintf (stderr, "\n%s: no window ID specified!\n", blurb());
+      fprintf (stderr, "\n"); DL(0, "no window ID specified!");
       goto LOSE;
     }
 

@@ -53,37 +53,29 @@ screen_count (Display *dpy)
 
   if (!XineramaQueryExtension (dpy, &event_number, &error_number))
     {
-      fprintf(stderr, "%s: XineramaQueryExtension(dpy, ...)    ==> False\n",
-              blurb());
+      DL(0, "XineramaQueryExtension(dpy, ...)    ==> False");
       goto DONE;
     }
   else
-    fprintf(stderr,   "%s: XineramaQueryExtension(dpy, ...)    ==> %d, %d\n",
-            blurb(), event_number, error_number);
+    DL(0, "XineramaQueryExtension(dpy, ...)    ==> %d, %d", event_number, error_number);
 
   if (!XineramaIsActive(dpy))
     {
-      fprintf(stderr, "%s: XineramaIsActive(dpy)               ==> False\n",
-              blurb());
+      DL(0, "XineramaIsActive(dpy)               ==> False");
       goto DONE;
     }
   else
     {
       int major, minor;
       XineramaScreenInfo *xsi;
-      fprintf(stderr, "%s: XineramaIsActive(dpy)               ==> True\n",
-              blurb());
+      DL(0, "XineramaIsActive(dpy)               ==> True");
       if (!XineramaQueryVersion(dpy, &major, &minor))
         {
-          fprintf(stderr,
-                  "%s: XineramaQueryVersion(dpy, ...)      ==> False\n",
-                  blurb());
+          DL(0, "XineramaQueryVersion(dpy, ...)      ==> False");
           goto DONE;
         }
       else
-        fprintf(stderr,
-                "%s: XineramaQueryVersion(dpy, ...)      ==> %d, %d\n",
-                blurb(), major, minor);
+        DL(0, "XineramaQueryVersion(dpy, ...)      ==> %d, %d", major, minor);
 
       xsi = XineramaQueryScreens (dpy, &xn);
       if (xsi) XFree (xsi);
@@ -91,8 +83,8 @@ screen_count (Display *dpy)
 
  DONE:
   fprintf (stderr, "\n");
-  fprintf (stderr, "%s: X client screens: %d\n", blurb(), n);
-  fprintf (stderr, "%s: Xinerama screens: %d\n", blurb(), xn);
+  DL(0, "X client screens: %d", n);
+  DL(0, "Xinerama screens: %d", xn);
   fprintf (stderr, "\n");
 
   if (xn > n) return xn;
@@ -115,28 +107,20 @@ main (int argc, char **argv)
 
   if (!XF86VidModeQueryExtension(dpy, &event_number, &error_number))
     {
-      fprintf(stderr, "%s: XF86VidModeQueryExtension(dpy, ...) ==> False\n",
-	      blurb());
-      fprintf(stderr,
-              "%s: server does not support the XF86VidMode extension\n",
-	      blurb());
+      DL(0, "XF86VidModeQueryExtension(dpy, ...) ==> False");
+      DL(0, "server does not support the XF86VidMode extension");
       exit(1);
     }
   else
-    fprintf(stderr, "%s: XF86VidModeQueryExtension(dpy, ...) ==> %d, %d\n",
-            blurb(), event_number, error_number);
+    DL(0, "XF86VidModeQueryExtension(dpy, ...) ==> %d, %d", event_number, error_number);
 
   if (!XF86VidModeQueryVersion(dpy, &major, &minor))
     {
-      fprintf(stderr, "%s: XF86VidModeQueryVersion(dpy, ...) ==> False\n",
-              blurb());
-      fprintf(stderr,
-              "%s: server didn't report XF86VidMode version numbers?\n",
-	      blurb());
+      DL(0, "XF86VidModeQueryVersion(dpy, ...) ==> False");
+      DL(0, "server didn't report XF86VidMode version numbers?");
     }
   else
-    fprintf(stderr, "%s: XF86VidModeQueryVersion(dpy, ...)   ==> %d, %d\n",
-            blurb(), major, minor);
+    DL(0, "XF86VidModeQueryVersion(dpy, ...)   ==> %d, %d", major, minor);
 
   nscreens = screen_count (dpy);
 
@@ -166,16 +150,13 @@ main (int argc, char **argv)
         }
 
       if (! result)
-        fprintf(stderr, "%s: XF86VidModeGetViewPort(dpy, %d, ...) ==> %d\n",
-                blurb(), i, result);
+        DL(0, "XF86VidModeGetViewPort(dpy, %d, ...) ==> %d", i, result);
 
       result = XF86VidModeGetModeLine (dpy, i, &dot, &ml);
       if (! result)
-        fprintf(stderr, "%s: XF86VidModeGetModeLine(dpy, %d, ...) ==> %d\n",
-                blurb(), i, result);
+        DL(0, "XF86VidModeGetModeLine(dpy, %d, ...) ==> %d", i, result);
 
-      fprintf (stderr, "%s:   screen %d: %dx%d; viewport: %dx%d+%d+%d\n",
-               blurb(), i,
+      DL(0, "  screen %d: %dx%d; viewport: %dx%d+%d+%d", i,
                DisplayWidth (dpy, i), DisplayHeight (dpy, i),
                ml.hdisplay, ml.vdisplay, x, y
                );

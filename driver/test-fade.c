@@ -112,36 +112,30 @@ main (int argc, char **argv)
 
 
   if (!XQueryExtension (dpy, XF86_VIDMODE_NAME, &op, &event, &error))
-    fprintf(stderr, "%s: no " XF86_VIDMODE_NAME " extension\n", blurb());
+    DL(0, "no " XF86_VIDMODE_NAME " extension");
   else
     {
 # ifdef HAVE_XF86VMODE_GAMMA
       if (!XF86VidModeQueryVersion (dpy, &major, &minor))
-        fprintf(stderr, "%s: unable to get " XF86_VIDMODE_NAME " version\n",
-                blurb());
+        DL(0, "unable to get " XF86_VIDMODE_NAME " version");
       else
-        fprintf(stderr, "%s: " XF86_VIDMODE_NAME " version %d.%d\n",
-                blurb(), major, minor);
+        DL(0, "" XF86_VIDMODE_NAME " version %d.%d", major, minor);
 # else /* !HAVE_XF86VMODE_GAMMA */
-      fprintf(stderr, "%s: no support for display's " XF86_VIDMODE_NAME
-              " extension\n", blurb());
+      DL(0, "no support for display's " XF86_VIDMODE_NAME " extension");
 # endif /* !HAVE_XF86VMODE_GAMMA */
     }
 
   if (!XQueryExtension (dpy, RANDR_NAME, &op, &event, &error))
-    fprintf(stderr, "%s: no " RANDR_NAME " extension\n", blurb());
+    DL(0, "no " RANDR_NAME " extension");
   else
     {
 # ifdef HAVE_RANDR
       if (!XRRQueryVersion (dpy, &major, &minor))
-        fprintf(stderr, "%s: unable to get " RANDR_NAME " version\n",
-                blurb());
+        DL(0, "unable to get " RANDR_NAME " version");
       else
-        fprintf(stderr, "%s: " RANDR_NAME " version %d.%d\n",
-                blurb(), major, minor);
+        DL(0, "" RANDR_NAME " version %d.%d", major, minor);
 # else /* !HAVE_RANDR */
-      fprintf(stderr, "%s: no support for display's " RANDR_NAME
-              " extension\n", blurb());
+      DL(0, "no support for display's " RANDR_NAME " extension");
 # endif /* !HAVE_RANDR */
     }
 
@@ -151,7 +145,7 @@ main (int argc, char **argv)
                             &logo_clipmask, True);
   XGetGeometry (dpy, logo, &root, &x, &y, &logo_width, &logo_height, &bw, &d);
 
-  fprintf (stderr, "\n%s: grabbing shared screenshot\n", blurb());
+  fprintf (stderr, "\n"); DL(0, "grabbing shared screenshot");
   screenshot = screenshot_grab (dpy, root, True, True);
   fprintf (stderr, "\n");
 
@@ -177,22 +171,21 @@ main (int argc, char **argv)
           XClearWindow (dpy, windows[nwindows]);
           if (screenshot)
             {
-              fprintf (stderr, "%s: saving screenshot 0x%0lX on 0x%lX\n",
-                       blurb(), (unsigned long) screenshot, windows[nwindows]);
+              DL(0, "saving screenshot 0x%0lX on 0x%lX",
+                 (unsigned long) screenshot, windows[nwindows]);
               screenshot_save (dpy, windows[nwindows], screenshot);
             }
           nwindows++;
         }
   }
 
-  fprintf (stderr, "\n%s: fading %d screen%s\n\n",
-           blurb(), ScreenCount(dpy), ScreenCount(dpy) == 1 ? "" : "s");
+  DL(0, "fading %d screen%s", ScreenCount(dpy), ScreenCount(dpy) == 1 ? "" : "s");
 
   while (1)
     {
       XSync (dpy, False);
 
-      fprintf(stderr, "%s: fading out\n\n", blurb());
+      DL(0, "fading out");
       fflush(stderr);
       fade_screens (app, dpy, windows, nwindows, seconds,
                     True,  /* out_p */
@@ -201,7 +194,7 @@ main (int argc, char **argv)
       for (i = 0; i < nwindows; i++)
         XMapRaised (dpy, windows[i]);
       XSync (dpy, False);
-      fprintf(stderr, "%s: out done\n\n", blurb());
+      DL(0, "out done");
       fflush(stderr);
 
       for (i = 0; i < nwindows; i++)
@@ -214,7 +207,7 @@ main (int argc, char **argv)
 
       if (delay) sleep (delay);
 
-      fprintf(stderr, "%s: fading in\n\n", blurb());
+      DL(0, "fading in");
       fflush(stderr);
       fade_screens (app, dpy, windows, nwindows,
                     seconds * ratio,
@@ -227,7 +220,7 @@ main (int argc, char **argv)
                     False, /* from_desktop_p */
                     &state, NULL, NULL);  /* interrupted_ratio and reversed_p: not needed for test */
       XSync (dpy, False);
-      fprintf(stderr, "%s: in done\n\n", blurb());
+      DL(0, "in done");
       fflush(stderr);
 
       if (delay) sleep (delay);

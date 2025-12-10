@@ -820,7 +820,7 @@ describe_monitor_layout (monitor **monitors)
       const char *b = blurb();
       while (token)
         {
-          fprintf (stderr, "%s:    %s\n", b, token);
+          DL(0, "   %s", token);
           token = strtok (0, "\n");
         }
       free (monitors[0]->err);
@@ -828,64 +828,65 @@ describe_monitor_layout (monitor **monitors)
     }
 
   if (count == 0)
-    fprintf (stderr, "%s: no screens!\n", blurb());
+    DL(0, "no screens!");
   else
     {
       int i;
-      fprintf (stderr, "%s:    screens in use: %d\n", blurb(), good_count);
+      DL(0, "   screens in use: %d", good_count);
       for (i = 0; i < count; i++)
         {
           monitor *m = monitors[i];
           if (m->sanity != S_SANE) continue;
-          fprintf (stderr, "%s:     %3d/%d: %dx%d+%d+%d",
-                   blurb(), m->id, screen_number (m->screen),
-                   m->width, m->height, m->x, m->y);
-          if (m->desc && *m->desc) fprintf (stderr, " (%s)", m->desc);
-          fprintf (stderr, "\n");
+          BLURB();
+          fprintf(stderr, "    %3d/%d: %dx%d+%d+%d",
+                  m->id, screen_number (m->screen),
+                  m->width, m->height, m->x, m->y);
+          if (m->desc && *m->desc) fprintf(stderr, " (%s)", m->desc);
+          fprintf(stderr, "\n");
         }
       if (bad_count > 0)
         {
-          fprintf (stderr, "%s:    rejected screens: %d\n", blurb(), bad_count);
+          DL(0, "   rejected screens: %d", bad_count);
           for (i = 0; i < count; i++)
             {
               monitor *m = monitors[i];
               monitor *e = monitors[m->enemy];
               if (m->sanity == S_SANE) continue;
-              fprintf (stderr, "%s:     %3d/%d: %dx%d+%d+%d",
-                       blurb(), m->id, screen_number (m->screen),
-                       m->width, m->height, m->x, m->y);
-              if (m->desc && *m->desc) fprintf (stderr, " (%s)", m->desc);
-              fprintf (stderr, " -- ");
+              BLURB();
+              fprintf(stderr, "    %3d/%d: %dx%d+%d+%d",
+                      m->id, screen_number (m->screen),
+                      m->width, m->height, m->x, m->y);
+              if (m->desc && *m->desc) fprintf(stderr, " (%s)", m->desc);
+              fprintf(stderr, " -- ");
               switch (m->sanity)
                 {
                 case S_SANE: abort(); break;
                 case S_ENCLOSED:
-                  fprintf (stderr, "enclosed by %d (%dx%d+%d+%d)\n",
-                           e->id, e->width, e->height, e->x, e->y);
+                  fprintf(stderr, "enclosed by %d (%dx%d+%d+%d)\n",
+                          e->id, e->width, e->height, e->x, e->y);
                   break;
                 case S_DUPLICATE:
-                  fprintf (stderr, "duplicate of %d\n", e->id);
+                  fprintf(stderr, "duplicate of %d\n", e->id);
                   break;
                 case S_OVERLAP:
-                  fprintf (stderr, "overlaps %d (%dx%d+%d+%d)\n",
-                           e->id, e->width, e->height, e->x, e->y);
+                  fprintf(stderr, "overlaps %d (%dx%d+%d+%d)\n",
+                          e->id, e->width, e->height, e->x, e->y);
                   break;
                 case S_OFFSCREEN:
-                  fprintf (stderr, "off screen (%dx%d)\n",
-                           WidthOfScreen (e->screen),
-                           HeightOfScreen (e->screen));
+                  fprintf(stderr, "off screen (%dx%d)\n",
+                          WidthOfScreen (e->screen),
+                          HeightOfScreen (e->screen));
                   break;
                 case S_DISABLED:
-                  fprintf (stderr, "output disabled\n");
+                  fprintf(stderr, "output disabled\n");
                   break;
                 }
             }
         }
 
       if (implausible_p)
-        fprintf (stderr,
-                 "%s: implausible single screen aspect ratio %.2f\n",
-                 blurb(),
-                 monitors[0]->width / (double) monitors[0]->height);
+        DL(0,
+           "implausible single screen aspect ratio %.2f",
+           monitors[0]->width / (double) monitors[0]->height);
     }
 }

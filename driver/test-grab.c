@@ -86,7 +86,7 @@ main (int argc, char **argv)
         kbd_sync_p = mouse_sync_p = False;
       else
         {
-          fprintf (stderr, "%s: unknown option: %s\n", blurb(), oa);
+          DL(0, "unknown option: %s", oa);
           fprintf (stderr, "usage: %s "
                             "[--sync | --async]"
                    "\n\t\t   [--kbd]   [--kbd-sync   | --kbd-async]"

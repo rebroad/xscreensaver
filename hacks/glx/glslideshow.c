@@ -986,8 +986,7 @@ slideshow_handle_event (ModeInfo *mi, XEvent *event)
       event->xany.type == VisibilityNotify)
     {
       ss->redisplay_needed_p = True;
-      if (verbose_p)
-        fprintf (stderr, "%s: exposure\n", blurb());
+      DL(1, "exposure");
       return False;
     }
   else if (screenhack_event_helper (MI_DISPLAY(mi), MI_WINDOW(mi), event))

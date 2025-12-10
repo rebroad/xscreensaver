@@ -94,8 +94,7 @@ wl_handle_name (void *data, struct wl_output *wl_output, const char *name)
   dpms_output *out = (dpms_output *) data;
   if (out->name) free (out->name);
   out->name = strdup (name);
-  if (verbose_p > 2)
-    fprintf (stderr, "%s: wayland: dpms: output %s\n", blurb(), name);
+  DL(3, "wayland: dpms: output %s", name);
 }
 
 /* Even though we don't use any of these callback functions, they have to
@@ -142,10 +141,8 @@ wlr_handle_mode (void *data,
 {
   dpms_output *out = (dpms_output *) data;
   out->wlr_mode = mode;
-  if (verbose_p > 2)
-    fprintf (stderr, "%s: wayland: dpms: output %s is %s\n", blurb(),
-             out->name,
-             (out->wlr_mode == ZWLR_OUTPUT_POWER_V1_MODE_ON ? "on" : "off"));
+  DL(3, "wayland: dpms: output %s is %s", out->name,
+     (out->wlr_mode == ZWLR_OUTPUT_POWER_V1_MODE_ON ? "on" : "off"));
 }
 
 static void
@@ -153,9 +150,7 @@ wlr_handle_failed (void *data, struct zwlr_output_power_v1 *wlr_output_power)
 {
   dpms_output *out = (dpms_output *) data;
   out->wlr_failed = True;
-  if (verbose_p > 2)
-    fprintf (stderr, "%s: wayland: dpms: output %s is FAILED?\n", blurb(),
-             out->name);
+  DL(3, "wayland: dpms: output %s is FAILED?", out->name);
 }
 
 
@@ -170,10 +165,8 @@ kde_handle_mode (void *data, struct org_kde_kwin_dpms *dpms, uint32_t mode)
 {
   dpms_output *out = (dpms_output *) data;
   out->kde_mode = mode;
-  if (verbose_p > 2)
-    fprintf (stderr, "%s: wayland: dpms: output %s is %s\n", blurb(),
-             out->name,
-             (out->kde_mode == ORG_KDE_KWIN_DPMS_MODE_ON      ? "on"      :
+  DL(3, "wayland: dpms: output %s is %s", out->name,
+     (out->kde_mode == ORG_KDE_KWIN_DPMS_MODE_ON      ? "on"      :
               out->kde_mode == ORG_KDE_KWIN_DPMS_MODE_STANDBY ? "standby" :
               out->kde_mode == ORG_KDE_KWIN_DPMS_MODE_SUSPEND ? "suspend" :
               out->kde_mode == ORG_KDE_KWIN_DPMS_MODE_OFF     ? "off"     :
@@ -220,8 +213,7 @@ handle_global (void *data, struct wl_registry *reg,
       dpms_output *out = (dpms_output *) calloc (sizeof (*out), 1);
       wl_list_insert (&state->outputs, &out->link);
 
-      if (verbose_p > 2)
-        fprintf (stderr, "%s: wayland: dpms: found: %s\n", blurb(), iface);
+      DL(3, "wayland: dpms: found: %s", iface);
 
       /* First listener: properties of the wl_output object. */
       out->wl_output = wl_registry_bind (reg, name, &wl_output_interface,
@@ -246,16 +238,14 @@ handle_global (void *data, struct wl_registry *reg,
     }
   else if (!strcmp (iface, zwlr_output_power_manager_v1_interface.name))
     {
-      if (verbose_p)
-        fprintf (stderr, "%s: wayland: dpms: found: %s\n", blurb(), iface);
+      DL(1, "wayland: dpms: found: %s", iface);
       state->wlr_mgr =
         wl_registry_bind (reg, name, &zwlr_output_power_manager_v1_interface,
                           version);
     }
   else if (!strcmp (iface, org_kde_kwin_dpms_manager_interface.name))
     {
-      if (verbose_p)
-        fprintf (stderr, "%s: wayland: dpms: found: %s\n", blurb(), iface);
+      DL(1, "wayland: dpms: found: %s", iface);
       state->kde_mgr =
         wl_registry_bind (reg, name, &org_kde_kwin_dpms_manager_interface,
                           version);
@@ -307,10 +297,8 @@ wayland_dpms_init (wayland_dpy *dpy)
 
   if (!state->wlr_mgr && !state->kde_mgr)
     {
-      fprintf (stderr,
-               "%s: wayland: dpms: server doesn't implement \"%s\" or \"%s\"\n",
-               blurb(),
-               zwlr_output_power_manager_v1_interface.name,
+      DL(0, "wayland: dpms: server doesn't implement \"%s\" or \"%s\"",
+         zwlr_output_power_manager_v1_interface.name,
                org_kde_kwin_dpms_manager_interface.name);
       wayland_dpms_free (state);
       return NULL;
@@ -401,9 +389,7 @@ wayland_monitor_power_on (wayland_dpms *state, Bool on_p)
       else
         abort();
 
-      if (verbose_p > 2)
-        fprintf (stderr, "%s: wayland: dpms: set output %s to %s\n", blurb(),
-                 out->name, (on_p ? "on" : "off"));
+      DL(3, "wayland: dpms: set output %s to %s", out->name, (on_p ? "on" : "off"));
     }
 
   wayland_dpy_process_events (state->parent, True);
