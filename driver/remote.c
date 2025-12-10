@@ -439,20 +439,12 @@ xscreensaver_command_response (Display *dpy, Window window,
 	      sprintf (err, "%s: %s\n", progname, (char *) msg+1);
 
 	      if (error_ret)
-		*error_ret = strdup (err);
+            *error_ret = strdup (err);
 	      else if (verbose_p || ret != 0)
-            {
-              if (ret < 0)
-                {
-                  /* Error messages go to stderr */
-                  DL(0, "%s", (char *) msg+1);
-                }
-              else
-                {
-                  /* Success messages go to stdout, no blurb/DL */
-                  fprintf (stdout, "%s\n", err);
-                }
-            }
+            if (ret < 0)
+              DL(0, "%s", (char *) msg+1);
+            else
+              fprintf (stdout, "%s\n", err);
 
 	      XFree (msg);
 	      return ret;
