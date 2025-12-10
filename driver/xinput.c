@@ -438,7 +438,7 @@ print_xinput_event (Display *dpy, XEvent *xev, XIC ic, const char *desc)
         XQueryPointer (dpy, DefaultRootWindow (dpy),
                        &root_ret, &child_ret, &root_x, &root_y,
                        &win_x, &win_y, &mask);
-        DL(2,
+        DL(0,
            "XI_RawMotion       %4d, %-4d  %7.02f, %-7.02f%s",
            root_x, root_y, re->raw_values[0], re->raw_values[1],
            (desc ? desc : ""));
