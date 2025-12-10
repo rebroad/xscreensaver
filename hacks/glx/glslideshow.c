@@ -396,10 +396,9 @@ image_loaded_cb (const char *filename, XRectangle *geom,
       if (s) memmove (img->title, s+1, strlen (s));
     }
 
-  if (verbose_p)
-    fprintf (stderr, "%s: loaded   img %2d: \"%s\" (%d steps)\n",
-             blurb(), img->id, (img->title ? img->title : "(null)"),
-             img->steps + 1);
+  DL(1, "loaded   img %2d: \"%s\" (%d steps)",
+     img->id, (img->title ? img->title : "(null)"),
+     img->steps + 1);
  DONE:
 
   img->loaded_p = True;
@@ -436,9 +435,8 @@ destroy_image (ModeInfo *mi, image *img)
 
   if (!freed_p) abort();
 
-  if (verbose_p)
-    fprintf (stderr, "%s: unloaded img %2d: \"%s\"\n",
-             blurb(), img->id, (img->title ? img->title : "(null)"));
+  DL(1, "unloaded img %2d: \"%s\"",
+     img->id, (img->title ? img->title : "(null)"));
 
   if (img->loader)
     {
@@ -1776,18 +1774,14 @@ init_slideshow (ModeInfo *mi)
 
   if (debug_p) verbose_p = True;
 
-  if (verbose_p)
-    fprintf (stderr,
-             "%s: tr: %d, pan: %d; fade: %d; img: %d; zoom: %d%%\n",
-             blurb(), transition_seconds, pan_seconds, fade_seconds,
+  DL(1, "tr: %d, pan: %d; fade: %d; img: %d; zoom: %d%%\n",
+             transition_seconds, pan_seconds, fade_seconds,
              image_seconds, zoom);
 
   sanity_check (mi);
 
-  if (verbose_p)
-    fprintf (stderr,
-             "%s: tr: %d, pan: %d; fade: %d; img: %d; zoom: %d%%\n",
-             blurb(), transition_seconds, pan_seconds, fade_seconds,
+  DL(1, "tr: %d, pan: %d; fade: %d; img: %d; zoom: %d%%\n",
+             transition_seconds, pan_seconds, fade_seconds,
              image_seconds, zoom);
 
   glDisable (GL_LIGHTING);
@@ -1844,9 +1838,8 @@ draw_slideshow (ModeInfo *mi)
        reality it will be close to 0. */
     return;
 
-  if (verbose_p && ss->now - ss->prev_frame_time > 1)
-    fprintf (stderr, "%s: static screen for %.1f secs\n",
-             blurb(), ss->now - ss->prev_frame_time);
+  if (ss->now - ss->prev_frame_time > 1)
+    DL(1, "static screen for %.1f secs", ss->now - ss->prev_frame_time);
 
   draw_sprites (mi);
 
