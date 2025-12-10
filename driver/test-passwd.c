@@ -37,12 +37,12 @@ test_auth_conv (void *closure,
   xscreensaver_auth_test_mode();
 
 # define DIALOG()                                                       \
-  fprintf (stderr, "\n%s: page %d\n", blurb(), page++);                 \
+  DL(0, "page %d", page++);                                             \
   xscreensaver_auth_conv (closure, nmsgs, msg, resp);                   \
   if (*resp)                                                            \
     for (i = 0; i < nmsgs; i++)                                         \
-      fprintf (stderr, "%s: resp %d = \"%s\"\n", blurb(), i,            \
-               ((*resp)[i].response ? (*resp)[i].response : ""));       \
+      DL(0, "resp %d = \"%s\"", i,                                      \
+         ((*resp)[i].response ? (*resp)[i].response : ""));             \
   nmsgs = 0
 
 

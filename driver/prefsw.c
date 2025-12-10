@@ -233,8 +233,7 @@ handle_entry (XrmDatabase *db, const char *key, const char *value,
 	return 0;
       }
 
-  /* fprintf(stderr, "%s: %s:%d: unknown option \"%s\"\n",
-	  blurb(), filename, line, key); */
+  /* DL(0, "%s:%d: unknown option \"%s\"", filename, line, key); */
   return 1;
 }
 
@@ -474,8 +473,7 @@ write_init_file (Display *dpy,
   stop_the_insanity (p);
 
 
-  if (verbose_p)
-    fprintf (stderr, "%s: writing \"%s\"\n", blurb(), name);
+  DL(1, "writing \"%s\"", name);
 
   unlink (tmp_name);
   out = fopen(tmp_name, "w");
@@ -647,7 +645,7 @@ write_init_file (Display *dpy,
       CHECK("authWarningSlack") type = pref_int, i = p->auth_warning_slack;
       else
         {
-          fprintf (stderr, "%s: internal error: key %s\n", blurb(), pr);
+          DL(0, "internal error: key %s", pr);
           abort();
         }
 # undef CHECK
@@ -1018,8 +1016,8 @@ merge_system_screenhacks (Display *dpy, saver_preferences *p,
           made_space--;
 
 #if 0
-          fprintf (stderr, "%s: noticed new hack: %s\n", blurb(),
-                   (nh->name ? nh->name : make_hack_name (dpy, nh->command)));
+          DL(0, "noticed new hack: %s",
+             (nh->name ? nh->name : make_hack_name (dpy, nh->command)));
 #endif
         }
     }

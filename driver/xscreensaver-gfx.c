@@ -96,9 +96,7 @@ maybe_reload_init_file (saver_info *si)
   if (init_file_changed_p (p))
     {
       Bool ov = p->verbose_p;
-      if (p->verbose_p)
-	fprintf (stderr, "%s: file \"%s\" has changed, reloading\n",
-		 blurb(), init_file_name());
+      DL(1, "file \"%s\" has changed, reloading", init_file_name());
 
       load_init_file (si->dpy, p);
 
@@ -121,17 +119,16 @@ saver_ehandler (Display *dpy, XErrorEvent *error)
 
   fprintf (stderr, "\n"
 	   "#######################################"
-	   "#######################################\n\n"
-	   "%s: X Error!  PLEASE REPORT THIS BUG.\n",
-	   blurb());
+       "#######################################\n\n");
+  DL(0, "X Error!  PLEASE REPORT THIS BUG.");
 
   for (i = 0; i < si->nscreens; i++)
     {
       saver_screen_info *ssi = &si->screens[i];
-      fprintf (stderr, "%s: screen %d/%d: 0x%x, 0x%x\n",
-               blurb(), ssi->real_screen_number, ssi->number,
-               (unsigned int) RootWindowOfScreen (si->screens[i].screen),
-               (unsigned int) si->screens[i].screensaver_window);
+      DL(0, "screen %d/%d: 0x%x, 0x%x",
+         ssi->real_screen_number, ssi->number,
+         (unsigned int) RootWindowOfScreen (si->screens[i].screen),
+         (unsigned int) si->screens[i].screensaver_window);
     }
 
   fprintf (stderr, "\n"
@@ -198,9 +195,7 @@ connect_to_server (saver_info *si)
     }
   else
     {
-      if (p->verbose_p)
-        fprintf (stderr, "%s: xscreensaver does not seem to be running!\n",
-                 blurb());
+      DL(1, "xscreensaver does not seem to be running!");
 
       /* Under normal circumstances, that window should have been created by
          the "xscreensaver" process.  But if for some reason someone has run
@@ -260,8 +255,7 @@ initialize_randr (saver_info *si)
 
       si->using_randr_extension = TRUE;
 
-      if (p->verbose_p)
-	fprintf (stderr, "%s: selecting RANDR events\n", blurb());
+      DL(1, "selecting RANDR events");
       for (i = 0; i < nscreens; i++)
 #  ifdef RRScreenChangeNotifyMask                 /* randr.h 1.5, 2002/09/29 */
         XRRSelectInput (si->dpy, RootWindow (si->dpy, i),
@@ -447,7 +441,7 @@ debug_multiscreen_timer (XtPointer closure, XtIntervalId *id)
     {
       if (p->verbose_p)
         {
-          fprintf (stderr, "%s: new layout:\n", blurb());
+          DL(1, "new layout:");
           describe_monitor_layout (si->monitor_layout);
         }
       resize_screensaver_window (si);
@@ -510,9 +504,9 @@ main_loop (saver_info *si, Bool init_p)
   if (! p->verbose_p)
     ;
   else if (si->demoing_p)
-    fprintf (stderr, "%s: demoing %d\n", blurb(), si->selection_mode);
+    DL(1, "demoing %d", si->selection_mode);
   else
-    fprintf (stderr, "%s: blanking\n", blurb());
+    DL(1, "blanking");
 
   blank_screen (si);
 
@@ -563,9 +557,8 @@ main_loop (saver_info *si, Bool init_p)
           if (p->verbose_p)
             {
               int screen = XRRRootToScreen (si->dpy, event.xrr_event.window);
-              fprintf (stderr, "%s: %d: screen change event: %s\n",
-                       blurb(), screen,
-                       (changed_p ? "new layout:" : "layout unchanged"));
+              DL(1, "%d: screen change event: %s", screen,
+                 (changed_p ? "new layout:" : "layout unchanged"));
               if (changed_p)
                 describe_monitor_layout (si->monitor_layout);
             }
@@ -725,7 +718,7 @@ main (int argc, char **argv)
       else
         {
         FAIL:
-          fprintf (stderr, "\n%s: unknown option: %s\n", blurb(), oa);
+          DL(0, "unknown option: %s", oa);
           goto HELP;
         }
     }

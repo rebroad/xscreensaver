@@ -137,8 +137,7 @@ oom_assassin_immunity (void)
   sprintf (fn, "/proc/%d/oom_score_adj", pid);
   if (stat(fn, &st) != 0)
     {
-      if (verbose_p)
-        fprintf (stderr, "%s: OOM: %s does not exist\n", blurb(), fn);
+      DL(1, "OOM: %s does not exist", fn);
       return;
     }
   fd = fopen (fn, "w");
@@ -146,8 +145,7 @@ oom_assassin_immunity (void)
   if (fputs (OOM_VAL "\n", fd) <= 0) goto FAIL;
   if (fclose (fd) != 0) goto FAIL;
 
-  if (verbose_p)
-    fprintf (stderr, "%s: OOM: echo " OOM_VAL " > %s\n", blurb(), fn);
+  DL(1, "OOM: echo " OOM_VAL " > %s", fn);
   return;
 
  FAIL:
@@ -320,7 +318,7 @@ main (int argc, char **argv)
         }
       else
         {
-          fprintf (stderr, "\n%s: unknown option: %s\n", blurb(), oa);
+          DL(0, "unknown option: %s", oa);
           goto HELP;
         }
     }
@@ -397,14 +395,12 @@ main (int argc, char **argv)
                               xscreensaver_auth_conv,
                               xscreensaver_auth_finished))
     {
-      if (verbose_p)
-        fprintf (stderr, "%s: authentication succeeded\n", blurb());
+      DL(1, "authentication succeeded");
       exit (200);
     }
   else
     {
-      if (verbose_p)
-        fprintf (stderr, "%s: authentication failed\n", blurb());
+      DL(1, "authentication failed");
       exit (-1);
     }
 

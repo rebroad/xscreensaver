@@ -112,8 +112,7 @@ screenshot_grab (Display *dpy, Window window, Bool full_screen_p,
 
   if (visual_class (win_xgwa.screen, win_xgwa.visual) != TrueColor)
     {
-      if (verbose_p)
-        fprintf (stderr, "%s: no screenshot, not TrueColor\n", blurb());
+      DL(1, "no screenshot, not TrueColor");
       return None;
     }
 
@@ -181,7 +180,7 @@ screenshot_grab (Display *dpy, Window window, Bool full_screen_p,
       if (verbose_p)
         {
           int i;
-          fprintf (stderr, "%s: screenshot: executing:", blurb());
+          BLURB(); fprintf (stderr, "screenshot: executing:");
           for (i = 0; i < ac; i++)
             fprintf (stderr, " %s", av[i]);
           fprintf (stderr, "\n");
@@ -211,8 +210,7 @@ screenshot_grab (Display *dpy, Window window, Bool full_screen_p,
           if (exit_status & 0x80) exit_status |= ~0xFF;
           if (exit_status != 0)
             {
-              fprintf (stderr, "%s: screenshot: %s exited with %d\n",
-                       blurb(), av[0], exit_status);
+              DL(0, "screenshot: %s exited with %d", av[0], exit_status);
               if (pixmap) XFreePixmap (dpy, pixmap);
               return None;
             }
@@ -259,13 +257,12 @@ screenshot_grab (Display *dpy, Window window, Bool full_screen_p,
       *late = 0;
 
     if (verbose_p || !pixmap || *late)
-      fprintf (stderr, "%s: %s screenshot 0x%lx %dx%d"
-               " for window 0x%lx %dx%d+%d+%d%s\n", blurb(),
-               (pixmap ? "saved" : "failed to save"),
-               (unsigned long) pixmap, win_xgwa.width, win_xgwa.height,
-               (unsigned long) window,
-               owin_xgwa.width, owin_xgwa.height, owin_xgwa.x, owin_xgwa.y,
-               late);
+      DL(0, "%s screenshot 0x%lx %dx%d for window 0x%lx %dx%d+%d+%d%s",
+         (pixmap ? "saved" : "failed to save"),
+         (unsigned long) pixmap, win_xgwa.width, win_xgwa.height,
+         (unsigned long) window,
+         owin_xgwa.width, owin_xgwa.height, owin_xgwa.x, owin_xgwa.y,
+         (*late ? " (late)" : ""));
   }
 
   return pixmap;
@@ -419,14 +416,10 @@ screenshot_load (Display *dpy, Window window, Bool verbose_p)
              from.x, from.y, from.w, from.h, to.x, to.y);
   XFreeGC (dpy, gc);
 
-  if (verbose_p)
-    fprintf (stderr, "%s: loaded screenshot 0x%lx"
-             " for window 0x%lx %dx%d+%d+%d"
-             " from saved 0x%lx %dx%d\n", blurb(),
-             (unsigned long) p2,
-             (unsigned long) window,
-             win_xgwa.width, win_xgwa.height, win_xgwa.x, win_xgwa.y,
-             (unsigned long) screenshot, root.w, root.h);
+  DL(1, "loaded screenshot 0x%lx for window 0x%lx %dx%d+%d+%d from saved 0x%lx %dx%d",
+     (unsigned long) p2, (unsigned long) window,
+     win_xgwa.width, win_xgwa.height, win_xgwa.x, win_xgwa.y,
+     (unsigned long) screenshot, root.w, root.h);
 
   return p2;
 }

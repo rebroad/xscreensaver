@@ -124,7 +124,7 @@ pam_try_unlock (void *closure,
 
   if (!user)
     {
-      fprintf (stderr, "%s: PAM: unable to get current user\n", blurb());
+      DL(0, "PAM: unable to get current user");
       return False;
     }
 
@@ -136,31 +136,25 @@ pam_try_unlock (void *closure,
   /* Initialize PAM.
    */
   status = pam_start (service, user, &pc, &pamh);
-  if (verbose_p)
-    fprintf (stderr, "%s: PAM: pam_start (\"%s\", \"%s\", ...) ==> %d (%s)\n",
-             blurb(), service, user,
-             status, PAM_STRERROR (pamh, status));
+  DL(1, "PAM: pam_start (\"%s\", \"%s\", ...) ==> %d (%s)",
+     service, user, status, PAM_STRERROR (pamh, status));
   if (status != PAM_SUCCESS) goto DONE;
 
   {
     char *tty = getenv ("DISPLAY");
     if (!tty || !*tty) tty = ":0.0";
     status = pam_set_item (pamh, PAM_TTY, tty);
-    if (verbose_p)
-      fprintf (stderr, "%s:   pam_set_item (p, PAM_TTY, \"%s\") ==> %d (%s)\n",
-               blurb(), tty, status, PAM_STRERROR(pamh, status));
+    DL(1, "  pam_set_item (p, PAM_TTY, \"%s\") ==> %d (%s)",
+       tty, status, PAM_STRERROR(pamh, status));
   }
 
   PAM_NO_DELAY(pamh);
 
-  if (verbose_p)
-    fprintf (stderr, "%s:   pam_authenticate (...) ...\n", blurb());
+  DL(1, "  pam_authenticate (...) ...");
 
   status = pam_authenticate (pamh, 0);
 
-  if (verbose_p)
-    fprintf (stderr, "%s:   pam_authenticate (...) ==> %d (%s)\n",
-             blurb(), status, PAM_STRERROR(pamh, status));
+  DL(1, "  pam_authenticate (...) ==> %d (%s)", status, PAM_STRERROR(pamh, status));
 
   if (status == PAM_SUCCESS)  /* So far so good... */
     {
@@ -171,16 +165,12 @@ pam_try_unlock (void *closure,
        */
       status = pam_acct_mgmt (pamh, 0);
 
-      if (verbose_p)
-        fprintf (stderr, "%s:   pam_acct_mgmt (...) ==> %d (%s)\n",
-                 blurb(), status, PAM_STRERROR(pamh, status));
+      DL(1, "pam_acct_mgmt (...) ==> %d (%s)\n", status, PAM_STRERROR(pamh, status));
 
       if (status == PAM_NEW_AUTHTOK_REQD)
         {
           status = pam_chauthtok (pamh, PAM_CHANGE_EXPIRED_AUTHTOK);
-          if (verbose_p)
-            fprintf (stderr, "%s: pam_chauthtok (...) ==> %d (%s)\n",
-                     blurb(), status, PAM_STRERROR(pamh, status));
+          DL(1, "pam_chauthtok (...) ==> %d (%s)\n", status, PAM_STRERROR(pamh, status));
         }
     }
 
@@ -201,9 +191,7 @@ pam_try_unlock (void *closure,
       status2 = pam_setcred (pamh, PAM_REINITIALIZE_CRED);
 # endif
 
-      if (verbose_p)
-        fprintf (stderr, "%s:   pam_setcred (...) ==> %d (%s)\n",
-                 blurb(), status2, PAM_STRERROR(pamh, status2));
+      DL(1, "  pam_setcred (...) ==> %d (%s)", status2, PAM_STRERROR(pamh, status2));
     }
 
  DONE:
@@ -211,10 +199,8 @@ pam_try_unlock (void *closure,
     {
       int status2 = pam_end (pamh, status);
       pamh = 0;
-      if (verbose_p)
-        fprintf (stderr, "%s: pam_end (...) ==> %d (%s)\n",
-                 blurb(), status2,
-                 (status2 == PAM_SUCCESS ? "Success" : "Failure"));
+      DL(1, "pam_end (...) ==> %d (%s)", status2,
+         (status2 == PAM_SUCCESS ? "Success" : "Failure"));
     }
 
   return (status == PAM_SUCCESS);
@@ -244,10 +230,10 @@ pam_priv_init (void)
   if (stat (dir, &st) == 0 && S_ISDIR(st.st_mode))
     {
       if (stat (file, &st) != 0)
-        fprintf (stderr,
-                 "%s: PAM: warning: %s does not exist.\n"
-                 "%s: PAM: password authentication is unlikely to work.\n",
-                 blurb(), file, blurb());
+        {
+          DL(0, "PAM: warning: %s does not exist.", file);
+          DL(0, "PAM: password authentication is unlikely to work.");
+        }
     }
   else if (stat (file2, &st) == 0)
     {
@@ -265,20 +251,16 @@ pam_priv_init (void)
           fclose (f);
           if (!ok)
             {
-              fprintf (stderr,
-                  "%s: PAM: warning: %s does not list the `%s' service.\n"
-                  "%s: PAM: password authentication is unlikely to work.\n",
-                       blurb(), file2, PAM_SERVICE_NAME, blurb());
+              DL(0, "PAM: warning: %s does not list the `%s' service.", file2, PAM_SERVICE_NAME);
+              DL(0, "PAM: password authentication is unlikely to work.");
             }
         }
       /* else warn about file2 existing but being unreadable? */
     }
   else
     {
-      fprintf (stderr,
-               "%s: PAM: warning: neither %s nor %s exist.\n"
-               "%s: PAM: password authentication is unlikely to work.\n",
-               blurb(), file2, file, blurb());
+      DL(0, "PAM: warning: neither %s nor %s exist.", file2, file);
+      DL(0, "PAM: password authentication is unlikely to work.");
     }
 
   /* Return true anyway, just in case. */
@@ -313,7 +295,10 @@ pam_conversation (int nmsgs,
   if (!pam_responses || !messages) abort();
 
   if (verbose_p)
-    fprintf (stderr, "%s:     pam_conversation (", blurb());
+    {
+      BLURB();
+      fprintf (stderr, "    pam_conversation (");
+    }
 
   for (i = 0; i < nmsgs; ++i)
     {
@@ -359,9 +344,7 @@ pam_conversation (int nmsgs,
   if (messages) free (messages);
   if (authresp) free (authresp);
 
-  if (verbose_p)
-    fprintf (stderr, "%s:     pam_conversation (...) ==> PAM_SUCCESS\n",
-             blurb());
+  DL(1, "    pam_conversation (...) ==> PAM_SUCCESS");
 
   *resp = pam_responses;
   return PAM_SUCCESS;

@@ -38,7 +38,7 @@ handle_event (int fd, uint32_t mask, void *data)
 
   if ((mask & WL_EVENT_HANGUP) || (mask & WL_EVENT_ERROR))
     {
-      fprintf (stderr, "%s: Wayland connection closed\n", blurb());
+      DL(0, "Wayland connection closed");
       if (state->atexit_cb)
         (*state->atexit_cb) (state->atexit_closure);
       exit (1);
@@ -72,8 +72,7 @@ wayland_dpy_connect (void)
       return NULL;
     }
 
-  if (verbose_p)
-    fprintf (stderr, "%s: wayland: server connected\n", blurb());
+  DL(1, "wayland: server connected");
 
   state->event_loop = wl_event_loop_create();
 
@@ -137,8 +136,7 @@ wayland_dpy_close (wayland_dpy *state)
   if (state->event_loop)
     wl_event_loop_destroy (state->event_loop);
   free (state);
-  if (verbose_p)
-    fprintf (stderr, "%s: wayland: disconnected\n", blurb());
+  DL(1, "wayland: disconnected");
 }
 
 void

@@ -135,9 +135,7 @@ lock_init (void)
 
       if (methods[i].initted_p)
         any_ok = True;
-      else if (verbose_p)
-        fprintf (stderr, "%s: %s: passwords initialization failed\n",
-                 blurb(), methods[i].name);
+      DL(1, "%s: passwords initialization failed", methods[i].name);
     }
   return any_ok;
 }
@@ -162,8 +160,7 @@ try_valid_p (void *closure,
 
   memset (&message, 0, sizeof(message));
 
-  if (verbose_p)
-    fprintf (stderr, "%s: %s: non-PAM password auth\n", blurb(), name);
+  DL(1, "%s: non-PAM password auth", name);
 
   /* Call the auth_conv function with "Password:", then feed the result
      into valid_p() */

@@ -72,10 +72,7 @@ Bool monitor_powered_on_p (saver_info *si)
   if (si->wayland_dpms)
     return wayland_monitor_powered_on_p (si->wayland_dpms);
 # endif
-  if (verbose_p > 1)
-    fprintf (stderr,
-             "%s: DPMS disabled at compile time, assuming monitor on\n",
-             blurb());
+  DL(2, "DPMS disabled at compile time, assuming monitor on");
   return True;
 }
 
@@ -86,10 +83,8 @@ void monitor_power_on (saver_info *si, Bool on_p)
     wayland_monitor_power_on (si->wayland_dpms, on_p);
   else
 # endif
-  if (verbose_p > 1)
-    fprintf (stderr,
-             "%s: DPMS disabled at compile time, not turning monitor %s\n",
-             blurb(), (on ? "on" : "off"));
+  DL(2, "DPMS disabled at compile time, not turning monitor %s",
+     (on ? "on" : "off"));
   return;
 }
 
@@ -253,8 +248,8 @@ sync_server_dpms_settings_1 (Display *dpy, struct saver_preferences *p)
 
   if (change_count > 3)
     {
-      fprintf (stderr, "%s: WARNING: some other program keeps changing"
-               " the DPMS settings. That's bad.\n", blurb());
+      DL(0, "WARNING: some other program keeps changing"
+         " the DPMS settings. That's bad.");
       change_count = 0;
     }
 }
@@ -279,18 +274,14 @@ monitor_powered_on_p (saver_info *si)
   if (!DPMSQueryExtension(si->dpy, &event_number, &error_number))
     {
       /* Server doesn't know -- assume the monitor is on. */
-      if (verbose_p > 1)
-        fprintf (stderr, "%s: DPMSQueryExtension failed, assuming monitor on\n",
-                 blurb());
+      DL(2, "DPMSQueryExtension failed, assuming monitor on");
       result = True;
     }
 
   else if (!DPMSCapable(si->dpy))
     {
       /* Server says the monitor doesn't do power management -- so it's on. */
-      if (verbose_p > 1)
-        fprintf (stderr, "%s: DPMSCapable false; assuming monitor on\n",
-                 blurb());
+      DL(2, "DPMSCapable false; assuming monitor on");
       result = True;
     }
 
@@ -300,9 +291,7 @@ monitor_powered_on_p (saver_info *si)
       if (!onoff)
         {
           /* Server says DPMS is disabled -- so the monitor is on. */
-          if (verbose_p > 1)
-            fprintf (stderr, "%s: DPMSInfo disabled; assuming monitor on\n",
-                     blurb());
+          DL(2, "DPMSInfo disabled; assuming monitor on");
           result = True;
         }
       else
@@ -343,9 +332,8 @@ monitor_power_on (saver_info *si, Bool on_p)
       else if (si->wayland_dpy)
         {
           if (verbose_p > 1 || (verbose_p && !warned_p))
-            fprintf (stderr,
-                     "%s: wayland: unable to power %s monitor\n",
-                     blurb(), (on_p ? "on" : "off"));
+            DL(2, "wayland: unable to power %s monitor",
+               (on_p ? "on" : "off"));
           warned_p = True;
           return;
         }
@@ -354,10 +342,8 @@ monitor_power_on (saver_info *si, Bool on_p)
       if (!DPMSQueryExtension(si->dpy, &event_number, &error_number) ||
           !DPMSCapable(si->dpy))
         {
-          if (verbose_p > 1 || (verbose_p && !warned_p))
-            fprintf (stderr,
-                     "%s: unable to power %s monitor: no DPMS extension\n",
-                     blurb(), (on_p ? "on" : "off"));
+          DL(warned_p ? 2 : 1, "unable to power %s monitor: no DPMS extension",
+               (on_p ? "on" : "off"));
           warned_p = True;
           return;
         }

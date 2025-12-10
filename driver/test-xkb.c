@@ -51,7 +51,7 @@ main (int argc, char **argv)
       if (0) ;
       else
         {
-          fprintf (stderr, "%s: unknown option: %s\n", blurb(), oa);
+          DL(0, "unknown option: %s", oa);
           exit (1);
         }
     }

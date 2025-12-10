@@ -88,7 +88,7 @@ init_xinput (Display *dpy, int *opcode_ret)
 
   if (!XQueryExtension (dpy, "XInputExtension", &xi_opcode, &ev, &err))
     {
-      fprintf (stderr, "%s: XInput extension missing\n", blurb());
+      DL(0, "XInput extension missing");
       return False;
     }
 
@@ -96,13 +96,12 @@ init_xinput (Display *dpy, int *opcode_ret)
   minor = 2;
   if (XIQueryVersion (dpy, &major, &minor) != Success)
     {
-      fprintf (stderr, "%s: server only supports XInput %d.%d\n",
-               blurb(), major, minor);
+      DL(0, "server only supports XInput %d.%d",
+         major, minor);
       return False;
     }
 
-  if (verbose_p)
-    fprintf (stderr, "%s: XInput version %d.%d\n", blurb(), major, minor);
+  DL(1, "XInput version %d.%d", major, minor);
 
   memset (mask1, 0, sizeof(mask1));
 
@@ -129,7 +128,7 @@ init_xinput (Display *dpy, int *opcode_ret)
   if (XISelectEvents (dpy, RootWindow (dpy, 0), evmasks, countof(evmasks))
       != Success)
     {
-      fprintf (stderr, "%s: XISelectEvents failed\n", blurb());
+      DL(0, "XISelectEvents failed");
       return False;
     }
 
@@ -330,21 +329,21 @@ print_kbd_event (XKeyEvent *xkey, XComposeStatus *compose, XIC ic,
       if (*mods) mods++;
       if (!*mods) strcat (mods, "0");
 
-      fprintf (stderr, "%s: %s    0x%02X %s %s \"%s\"%s\n", blurb(),
-               (x11_p
-                ? (xkey->type == KeyPress
-                   ? "X11 KeyPress    "
-                   : "X11 KeyRelease  ")
-                : (xkey->type == KeyPress
-                   ? "XI_RawKeyPress  "
-                   : "XI_RawKeyRelease")),
-               xkey->keycode, mods, ks, c,
-               (desc ? desc : ""));
+      DL(0, "%s    0x%02X %s %s \"%s\"%s",
+         (x11_p
+          ? (xkey->type == KeyPress
+             ? "X11 KeyPress    "
+             : "X11 KeyRelease  ")
+          : (xkey->type == KeyPress
+             ? "XI_RawKeyPress  "
+             : "XI_RawKeyRelease")),
+         xkey->keycode, mods, ks, c,
+         (desc ? desc : ""));
     }
   else			/* Log only that the KeyPress happened. */
     {
-      fprintf (stderr, "%s: X11 Key%s\n", blurb(),
-               (xkey->type == KeyPress ? "Press  " : "Release"));
+      DL(0, "X11 Key%s",
+         (xkey->type == KeyPress ? "Press  " : "Release"));
     }
 }
 
@@ -365,16 +364,16 @@ print_xinput_event (Display *dpy, XEvent *xev, XIC ic, const char *desc)
 
   case ButtonPress:
   case ButtonRelease:
-    fprintf (stderr, "%s: X11 Button%s   %d %d\n", blurb(),
-             (xev->xany.type == ButtonPress ? "Press  " : "Release"),
-             xev->xbutton.button, xev->xbutton.state);
+    DL(0, "X11 Button%s   %d %d",
+       (xev->xany.type == ButtonPress ? "Press  " : "Release"),
+       xev->xbutton.button, xev->xbutton.state);
     break;
 
   case MotionNotify:
-    fprintf (stderr, "%s: X11 MotionNotify   %4d, %-4d"
-             "                   %s\n",
-             blurb(), xev->xmotion.x_root, xev->xmotion.y_root,
-             (desc ? desc : ""));
+    DL(0, "X11 MotionNotify   %4d, %-4d"
+       "                   %s",
+       xev->xmotion.x_root, xev->xmotion.y_root,
+       (desc ? desc : ""));
     break;
   default:
     break;
@@ -400,7 +399,7 @@ print_xinput_event (Display *dpy, XEvent *xev, XIC ic, const char *desc)
                                         (XIDeviceEvent *) re,
                                         &ev2);
         if (!ok)
-          fprintf (stderr, "%s: unable to translate XInput2 event\n", blurb());
+          DL(0, "unable to translate XInput2 event");
         else
           {
             static XComposeStatus compose = { 0, };
@@ -409,8 +408,8 @@ print_xinput_event (Display *dpy, XEvent *xev, XIC ic, const char *desc)
         break;
       }
     else
-      fprintf (stderr, "%s: XI RawKey%s\n", blurb(),
-               (re->evtype == XI_RawKeyPress ? "Press  " : "Release"));
+      DL(0, "XI RawKey%s",
+         (re->evtype == XI_RawKeyPress ? "Press  " : "Release"));
     break;
 
   case XI_RawButtonPress:
@@ -423,9 +422,9 @@ print_xinput_event (Display *dpy, XEvent *xev, XIC ic, const char *desc)
         XQueryPointer (dpy, DefaultRootWindow (dpy),
                        &root_ret, &child_ret, &root_x, &root_y,
                        &win_x, &win_y, &mask);
-        fprintf (stderr, "%s: XI _RawButton%s %4d, %-4d\n", blurb(),
-                 (re->evtype == XI_RawButtonPress ? "Press  " : "Release"),
-                 root_x, root_y);
+        DL(0, "XI _RawButton%s %4d, %-4d",
+           (re->evtype == XI_RawButtonPress ? "Press  " : "Release"),
+           root_x, root_y);
       }
     break;
 
@@ -439,27 +438,26 @@ print_xinput_event (Display *dpy, XEvent *xev, XIC ic, const char *desc)
         XQueryPointer (dpy, DefaultRootWindow (dpy),
                        &root_ret, &child_ret, &root_x, &root_y,
                        &win_x, &win_y, &mask);
-        fprintf (stderr,
-                 "%s: XI_RawMotion       %4d, %-4d  %7.02f, %-7.02f%s\n",
-                 blurb(), root_x, root_y, re->raw_values[0], re->raw_values[1],
-                 (desc ? desc : ""));
+        DL(2,
+           "XI_RawMotion       %4d, %-4d  %7.02f, %-7.02f%s",
+           root_x, root_y, re->raw_values[0], re->raw_values[1],
+           (desc ? desc : ""));
       }
     break;
 
   /* Touch-screens, possibly trackpads or tablets. */
   case XI_RawTouchBegin:
-    fprintf (stderr, "%s: XI RawTouchBegin\n", blurb());
+    DL(0, "XI RawTouchBegin");
     break;
   case XI_RawTouchEnd:
-    fprintf (stderr, "%s: XI RawTouchEnd\n", blurb());
+    DL(0, "XI RawTouchEnd");
     break;
   case XI_RawTouchUpdate:
-    if (verbose_p > 1)
-      fprintf (stderr, "%s: XI RawTouchUpdate\n", blurb());
+    DL(2, "XI RawTouchUpdate");
     break;
 
   default:
-    fprintf (stderr, "%s: unknown XInput event %d\n", blurb(), re->type);
+    DL(0, "unknown XInput event %d", re->type);
     break;
   }
 }

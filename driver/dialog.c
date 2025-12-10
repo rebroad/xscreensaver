@@ -733,7 +733,7 @@ choose_asterisk (window_state *ws)
       if (XftCharExists (ws->dpy, ws->label_font, (FcChar32) *uc))
         break;
       if (debug_p)
-        fprintf (stderr, "%s: char U+%0lX does not exist\n", blurb(), *uc);
+        DL(0, "char U+%0lX does not exist", *uc);
 # endif
       uc++;
     }
@@ -797,16 +797,15 @@ splash_pick_window_position (Display *dpy, Position *xP, Position *yP,
 
   if (!m)
     {
-      if (verbose_p)
-        fprintf (stderr, "%s: mouse is not on any monitor?\n", blurb());
+      DL(1, "mouse is not on any monitor?");
       m = monitors[0];
     }
-  else if (verbose_p)
-    fprintf (stderr,
-             "%s: mouse is at %d,%d on monitor %d %dx%d+%d+%d \"%s\"\n",
-             blurb(), root_x, root_y, m->id,
-             m->width, m->height, m->x, m->y,
-             (m->desc ? m->desc : ""));
+  else
+    DL(1,
+       "mouse is at %d,%d on monitor %d %dx%d+%d+%d \"%s\"\n",
+       root_x, root_y, m->id,
+       m->width, m->height, m->x, m->y,
+       (m->desc ? m->desc : ""));
 
   *xP = m->x + m->width/2;
   *yP = m->y + m->height/2;
@@ -854,7 +853,7 @@ read_init_file_simple (window_state *ws)
   fn = (char *) malloc (strlen(home) + 40);
   sprintf (fn, "%s/.xscreensaver", home);
   if (debug_p)
-    fprintf (stderr, "%s: reading %s\n", blurb(), fn);
+    DL(0, "reading %s", fn);
   parse_init_file (fn, init_line_handler, ws);
   free (fn);
 }
@@ -931,8 +930,7 @@ get_keyboard_layout (window_state *ws)
       if (! XkbQueryExtension (ws->dpy, 0, &ws->xkb_opcode, 0, 0, 0))
         {
           ws->xkb_opcode = -1;  /* Only try once */
-          if (verbose_p)
-            fprintf (stderr, "%s: XkbQueryExtension failed\n", blurb());
+          DL(1, "XkbQueryExtension failed");
           return;
         }
 
@@ -940,30 +938,26 @@ get_keyboard_layout (window_state *ws)
                              XkbMapNotifyMask | XkbStateNotifyMask,
                              XkbMapNotifyMask | XkbStateNotifyMask))
         {
-          if (verbose_p)
-            fprintf (stderr, "%s: XkbSelectEvents failed\n", blurb());
+          DL(1, "XkbSelectEvents failed");
         }
     }
 
   if (XkbGetState (ws->dpy, XkbUseCoreKbd, &state))
     {
-      if (verbose_p)
-        fprintf (stderr, "%s: XkbGetState failed\n", blurb());
+      DL(1, "XkbGetState failed");
       return;
     }
   desc = XkbGetKeyboard (ws->dpy, XkbAllComponentsMask, XkbUseCoreKbd);
   if (!desc || !desc->names)
     {
-      if (verbose_p)
-        fprintf (stderr, "%s: XkbGetKeyboard failed\n", blurb());
+      DL(1, "XkbGetKeyboard failed");
       goto DONE;
     }
   name = desc->names->groups[state.group];
   namestr = (name ? XGetAtomName (ws->dpy, name) : 0);
   if (!namestr)
     {
-      if (verbose_p)
-        fprintf (stderr, "%s: XkbGetKeyboard returned null layout\n", blurb());
+      DL(1, "XkbGetKeyboard returned null layout");
       goto DONE;
     }
 
@@ -971,9 +965,8 @@ get_keyboard_layout (window_state *ws)
     free (ws->kbd_layout_label);
   ws->kbd_layout_label = namestr;
 
-  if (verbose_p)
-    fprintf (stderr, "%s: kbd layout: %s\n", blurb(),
-             namestr ? namestr : "null");
+  DL(1, "kbd layout: %s",
+     namestr ? namestr : "null");
 
  DONE:
   if (desc) XFree (desc);
@@ -1016,9 +1009,8 @@ create_window (window_state *ws, int w, int h)
   if (ws->ic)
     XSetICFocus (ws->ic);
 
-  if (verbose_p)
-    fprintf (stderr, "%s: %s input method\n", blurb(),
-             ws->ic ? "attached" : "failed to attach");
+  DL(1, "%s input method",
+     ws->ic ? "attached" : "failed to attach");
 
   if (ow)
     {
@@ -1065,8 +1057,7 @@ window_init (Widget root_widget, int splash_p)
     get_string_resource (ws->dpy, "dialogTheme", "DialogTheme");
   if (!ws->dialog_theme || !*ws->dialog_theme)
     ws->dialog_theme = strdup ("default");
-  if (verbose_p)
-    fprintf (stderr, "%s: theme: %s\n", blurb(), ws->dialog_theme);
+  DL(1, "theme: %s", ws->dialog_theme);
 
   ws->newlogin_cmd = get_str (ws, "newLoginCommand", "NewLoginCommand");
   ws->date_format = get_str (ws, "dateFormat", "DateFormat"); 
@@ -1228,19 +1219,19 @@ describe_window (Display *dpy, Window w)
   char *name = 0;
   if (XGetClassHint (dpy, w, &ch))
     {
-      fprintf (stderr, "0x%lx \"%s\", \"%s\"\n", (unsigned long) w,
-               ch.res_class, ch.res_name);
+      DL(0, "0x%lx \"%s\", \"%s\"\n", (unsigned long) w,
+         ch.res_class, ch.res_name);
       XFree (ch.res_class);
       XFree (ch.res_name);
     }
   else if (XFetchName (dpy, w, &name) && name)
     {
-      fprintf (stderr, "0x%lx \"%s\"\n", (unsigned long) w, name);
+      DL(0, "0x%lx \"%s\"\n", (unsigned long) w, name);
       XFree (name);
     }
   else
     {
-      fprintf (stderr, "0x%lx (untitled)\n", (unsigned long) w);
+      DL(0, "0x%lx (untitled)", (unsigned long) w);
     }
 }
 #endif /* DEBUG_STACKING */
@@ -1254,7 +1245,7 @@ window_occluded_p (Display *dpy, Window window)
   int screen;
 
 # ifdef DEBUG_STACKING
-  fprintf (stderr, "\n");
+  DL(0, "");
 # endif
 
   for (screen = 0; screen < ScreenCount (dpy); screen++)
@@ -1268,7 +1259,7 @@ window_occluded_p (Display *dpy, Window window)
       if (! XQueryTree (dpy, root, &root2, &parent, &kids, &nkids))
         {
 # ifdef DEBUG_STACKING
-          fprintf (stderr, "%s: XQueryTree failed\n", blurb());
+          DL(0, "XQueryTree failed");
 # endif
         continue;
         }
@@ -1279,7 +1270,8 @@ window_occluded_p (Display *dpy, Window window)
             {
               saw_our_window_p = True;
 # ifdef DEBUG_STACKING
-              fprintf (stderr, "%s: our window:    ", blurb());
+              BLURB();
+              fprintf (stderr, "our window:    ");
               describe_window (dpy, kids[i]);
 # endif
             }
@@ -1287,7 +1279,8 @@ window_occluded_p (Display *dpy, Window window)
             {
               saw_later_window_p = True;
 # ifdef DEBUG_STACKING
-              fprintf (stderr, "%s: higher window: ", blurb());
+              BLURB();
+              fprintf (stderr, "higher window: ");
               describe_window (dpy, kids[i]);
 # endif
               break;
@@ -1295,7 +1288,8 @@ window_occluded_p (Display *dpy, Window window)
           else
             {
 # ifdef DEBUG_STACKING
-              fprintf (stderr, "%s: lower window:  ", blurb());
+              BLURB();
+              fprintf (stderr, "lower window:  ");
               describe_window (dpy, kids[i]);
 # endif
             }
@@ -1313,7 +1307,7 @@ window_occluded_p (Display *dpy, Window window)
 
   /* Window doesn't exist? */
 # ifdef DEBUG_STACKING
-  fprintf (stderr, "%s: our window isn't on the screen\n", blurb());
+  DL(0, "our window isn't on the screen");
 # endif
   return False;
 }
@@ -1894,14 +1888,12 @@ window_draw (window_state *ws)
         wc.y = ws->y;
         wc.width  = window_width;
         wc.height = window_height;
-        if (verbose_p)
-          fprintf (stderr, "%s: reshaping window %dx%d+%d+%d\n", blurb(),
-                   wc.width, wc.height, wc.x, wc.y);
+        DL(1, "reshaping window %dx%d+%d+%d",
+           wc.width, wc.height, wc.x, wc.y);
         XConfigureWindow (ws->dpy, ws->window, CWX|CWY|CWWidth|CWHeight, &wc);
 # else
-        if (verbose_p)
-          fprintf (stderr, "%s: re-creating window: %s\n", blurb(),
-                   size_changed_p ? "size changed" : "occluded");
+        DL(1, "re-creating window: %s",
+           size_changed_p ? "size changed" : "occluded");
         create_window (ws, window_width, window_height);
 # endif
         XMapRaised (ws->dpy, ws->window);
@@ -1926,7 +1918,7 @@ window_draw (window_state *ws)
       if (now > last)
         {
           double fps = count / (double) (now - last);
-          fprintf (stderr, "%s: FPS: %0.1f\n", blurb(), fps);
+          DL(0, "FPS: %0.1f", fps);
           count = 0;
           last = now;
         }
@@ -1964,8 +1956,7 @@ destroy_window (window_state *ws)
     }
 
   while (XCheckMaskEvent (ws->dpy, PointerMotionMask, &event))
-    if (verbose_p)
-      fprintf (stderr, "%s: discarding MotionNotify event\n", blurb());
+    DL(1, "discarding MotionNotify event");
 
   if (ws->window)
     {
@@ -2095,9 +2086,8 @@ persistent_auth_status_failure (window_state *ws,
         ((((unsigned long) data[1] & 0xFFFFFFFFL) << 32) |
           ((unsigned long) data[2] & 0xFFFFFFFFL));
 
-      if (verbose_p)
-        fprintf (stderr, "%s: previous auth failures: %d @ %lu\n",
-                 blurb(), count, (unsigned long) tt);
+      DL(1, "previous auth failures: %d @ %lu",
+         count, (unsigned long) tt);
     }
 
   if (dataP)
@@ -2106,8 +2096,7 @@ persistent_auth_status_failure (window_state *ws,
   if (clear_p)
     {
       XDeleteProperty (dpy, w, prop);
-      if (verbose_p)
-        fprintf (stderr, "%s: deleted auth failure property\n", blurb());
+      DL(1, "deleted auth failure property");
     }
   else if (increment_p)
     {
@@ -2126,9 +2115,8 @@ persistent_auth_status_failure (window_state *ws,
 
       XChangeProperty (dpy, w, prop, XA_INTEGER, 32,
                        PropModeReplace, (unsigned char *) vv, 3);
-      if (verbose_p)
-        fprintf (stderr, "%s: saved auth failure: %d @ %lu\n",
-                 blurb(), count, (unsigned long) tt);
+      DL(1, "saved auth failure: %d @ %lu",
+         count, (unsigned long) tt);
     }
 
   if (count_ret) *count_ret = count;
@@ -2572,23 +2560,20 @@ gui_main_loop (window_state *ws, Bool splash_p, Bool notification_p)
       /* Likewise, receiving this event would be ideal, but we don't. */
       case VisibilityNotify:
         refresh_p = True;
-        if (verbose_p > 1)
-          fprintf (stderr, "%s: VisibilityNotify\n", blurb());
+        DL(2, "VisibilityNotify");
         break;
 
       /* When another override-redirect window is raised above us,
          we receive several ConfigureNotify events on the root window. */
       case ConfigureNotify:
-        if (verbose_p > 1)
-          fprintf (stderr, "%s: ConfigureNotify\n", blurb());
+        DL(2, "ConfigureNotify");
         break;
 
       case MappingNotify:
         /* This event is supposed to be sent when the keymap is changed.
            You would think that typing XK_ISO_Next_Group to change the
            keyboard layout would count as such.  It does not. */
-        if (verbose_p)
-          fprintf (stderr, "%s: MappingNotify\n", blurb());
+        DL(1, "MappingNotify");
         XRefreshKeyboardMapping (&xev.xmapping);
         get_keyboard_layout (ws);
         refresh_p = True;
@@ -2607,8 +2592,7 @@ gui_main_loop (window_state *ws, Bool splash_p, Bool notification_p)
       if (xev.xany.type == ws->xkb_opcode)
         {
           XkbEvent *xkb = (XkbEvent *) &xev;
-          if (verbose_p)
-            fprintf (stderr, "%s: XKB event %d\n", blurb(), xkb->any.xkb_type);
+          DL(1, "XKB event %d", xkb->any.xkb_type);
           /* Possibly the only event of interest here is XkbStateNotify = 2. */
           get_keyboard_layout (ws);
           refresh_p = True;
@@ -2625,11 +2609,11 @@ gui_main_loop (window_state *ws, Bool splash_p, Bool notification_p)
                         notification_p ? "notification" : "authentication");
     switch (ws->auth_state) {
     case AUTH_FINISHED:
-      fprintf (stderr, "%s: %s input finished\n", blurb(), kind); break;
+      DL(0, "%s input finished", kind); break;
     case AUTH_CANCEL:
-      fprintf (stderr, "%s: %s canceled\n", blurb(), kind); break;
+      DL(0, "%s canceled", kind); break;
     case AUTH_TIME:
-      fprintf (stderr, "%s: %s timed out\n", blurb(), kind); break;
+      DL(0, "%s timed out", kind); break;
     default: break;
     }
   }
@@ -2826,10 +2810,9 @@ xscreensaver_auth_finished (void *closure, Bool authenticated_p)
 
       if (sec < warning_slack)
         {
-          if (verbose_p)
-            fprintf (stderr, "%s: ignoring recent unlock failures:"
-                     " %d within %d sec\n",
-                     blurb(), unlock_failures, warning_slack);
+          DL(1, "ignoring recent unlock failures:"
+             " %d within %d sec",
+             unlock_failures, warning_slack);
           goto END;
         }
       else if (days  > 1) sprintf (ago, _("%d days ago"), days);
