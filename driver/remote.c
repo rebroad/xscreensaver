@@ -440,11 +440,12 @@ xscreensaver_command_response (Display *dpy, Window window,
 
 	      if (error_ret)
             *error_ret = strdup (err);
-	      else if (verbose_p || ret != 0)
+          else if (verbose_p || ret != 0) {
             if (ret < 0)
               DL(0, "%s", (char *) msg+1);
             else
               fprintf (stdout, "%s\n", err);
+          }
 
 	      XFree (msg);
 	      return ret;
