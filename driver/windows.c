@@ -570,17 +570,46 @@ blank_screen (saver_info *si)
 
       DL(1, "fading...");
 
+      /* Read the current state to determine if we should allow fade reversal.
+         Fade reversal should only occur when NOT LOCKED (i.e., when BLANKED). */
+      Atom current_state = 0;
+      Window w = RootWindow (si->dpy, 0);  /* always screen 0 */
+      Atom type;
+      int format;
+      unsigned long nitems, bytesafter;
+      unsigned char *dataP = 0;
+      if (XGetWindowProperty (si->dpy, w,
+                              XA_SCREENSAVER_STATUS,
+                              0, 999, False, XA_INTEGER,
+                              &type, &format, &nitems, &bytesafter,
+                              &dataP)
+          == Success
+          && type == XA_INTEGER
+          && nitems >= 3
+          && dataP)
+        {
+          PROP32 *data = (PROP32 *) dataP;
+          current_state = (Atom) data[0];
+        }
+      if (dataP) XFree (dataP);
+
       /* This will take several seconds to complete. */
       si->interrupted_fade_ratio = 0.0;
       Bool fade_reversed_p = False;
+
+      /* Only allow fade reversal if state is not LOCKED (i.e., if it's BLANKED).
+         When LOCKED, we should not reverse the fade even if user activity is detected. */
+      Bool is_locked = (current_state == XA_LOCK || current_state == XA_AUTH);
+      double *interrupted_ratio_ptr = (is_locked ? NULL : &si->interrupted_fade_ratio);
+      Bool *reversed_ptr = (is_locked ? NULL : &fade_reversed_p);
       user_active_p = fade_screens (si->app, si->dpy,
                                     current_windows, si->nscreens,
                                     p->fade_seconds / 1000.0,
                                     True,  /* out_p */
                                     True,  /* from_desktop_p */
                                     &si->fade_state,
-                                    &si->interrupted_fade_ratio,
-                                    &fade_reversed_p);
+                                    interrupted_ratio_ptr,
+                                    reversed_ptr);
       free (current_windows);
 
       if (user_active_p)

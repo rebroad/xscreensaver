@@ -531,18 +531,19 @@ user_active_p (XtAppContext app, Display *dpy, Bool fade_out_p)
    */
   if (XCheckIfEvent (dpy, &event, &user_event_p, (XPointer) &motion_p))
     {
-      XIRawEvent *re = 0;
-      if (event.xany.type == GenericEvent && !event.xcookie.data)
+      if (verbose_p)
         {
-          XGetEventData (dpy, &event.xcookie);
-          re = event.xcookie.data;
+          XIRawEvent *re = 0;
+          if (event.xany.type == GenericEvent && !event.xcookie.data)
+            {
+              XGetEventData (dpy, &event.xcookie);
+              re = event.xcookie.data;
+            }
+          DL(0, "user input %d %d\n",
+                   event.xany.type,
+                   (re ? re->evtype : -1));
         }
-      debug_log ("[FADE] user activity detected during fade: type=%d evtype=%d, putting event back",
-                 event.xany.type,
-                 (re ? re->evtype : -1));
       XPutBackEvent (dpy, &event);
-      XFlush (dpy);  /* Ensure event is available to main process immediately TODO needed? */
-      debug_log ("[FADE] event put back and flushed");
       return True;
     }
 
@@ -2065,7 +2066,9 @@ randr_gamma_fade (XtAppContext app, Display *dpy,
           goto FAIL;
 
         /* Check for user activity during fade-out INTO screensaver (from_desktop_p).
-           If detected, reverse direction and fade back to full brightness. */
+           If detected, reverse direction and fade back to full brightness.
+           This only occurs when reversed_p is not NULL (i.e., when state is NOT LOCKED).
+           When LOCKED, reversed_p is NULL and fade reversal is disabled. */
         if (out_p && from_desktop_p && reversed_p && !(*reversed_p) && user_active_p (app, dpy, True))
           {
             /* Reverse direction: switch from fade-out to fade-in */
@@ -2102,6 +2105,7 @@ randr_gamma_fade (XtAppContext app, Display *dpy,
 
   if (out_p && (!reversed_p || !(*reversed_p)) && status != 1)
     {
+      if (interrupted_ratio) *interrupted_ratio = 0.0;
       for (screen = 0; screen < nwindows; screen++)
         {
           debug_log ("[FADE] RANDR fade-out: clearing and map-raising saver window 0x%lx", (unsigned long) saver_windows[screen]);
