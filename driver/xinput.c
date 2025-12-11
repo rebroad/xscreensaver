@@ -370,7 +370,7 @@ print_xinput_event (Display *dpy, XEvent *xev, XIC ic, const char *desc)
     break;
 
   case MotionNotify:
-    DL(0, "X11 MotionNotify   %4d, %-4d"
+    DL(1, "X11 MotionNotify   %4d, %-4d"
        "                   %s",
        xev->xmotion.x_root, xev->xmotion.y_root,
        (desc ? desc : ""));
