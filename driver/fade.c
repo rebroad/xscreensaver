@@ -5,7 +5,7 @@
  * the above copyright notice appear in all copies and that both that
  * copyright notice and this permission notice appear in supporting
  * documentation.  No representations are made about the suitability of this
- * software for any purpose.  It is provided "as is" without express or 
+ * software for any purpose.  It is provided "as is" without express or
  * implied warranty.
  */
 
@@ -46,7 +46,7 @@
    The fade process goes like this:
 
      Screen saver activates:
-  
+
        - Desktop is visible
        - Save screenshot for later
        - Fade out:
@@ -54,9 +54,9 @@
          - Fade from desktop to black
          - Erase saver windows to black and raise them
          - Destroy temp windows
-  
+
      Screen saver deactivates:
-  
+
        - Saver graphics are visible
        - Fade out:
          - Get a screenshot of the current screenhack
@@ -453,7 +453,7 @@ fade_screens (XtAppContext app, Display *dpy,
 
    I'm told that this trick also works with XInside's AcceleratedX when using
    the Matrox Millennium card (which also allows multiple PseudoColor and
-   TrueColor visuals to co-exist and display properly at the same time.)  
+   TrueColor visuals to co-exist and display properly at the same time.)
 
    This trick works ok on the 24-bit Indy video hardware, but doesn't work at
    all on the O2 24-bit hardware.  I guess the higher-end hardware is too
@@ -515,7 +515,7 @@ colormap_fade (XtAppContext app, Display *dpy,
                        ? DefaultColormapOfScreen(sc)
                        : window_cmaps[i]);
       for (j = 0; j < ncolors; j++)
-	screen_colors[j].pixel = j;
+        screen_colors[j].pixel = j;
       XQueryColors (dpy, cmap, screen_colors, ncolors);
 
       screen_colors += ncolors;
@@ -529,14 +529,14 @@ colormap_fade (XtAppContext app, Display *dpy,
     {
       fade_cmaps = (Colormap *) calloc(sizeof(Colormap), ncmaps);
       for (i = 0; i < nscreens; i++)
-	{
-	  Visual *v = DefaultVisual(dpy, i);
-	  Screen *s = ScreenOfDisplay(dpy, i);
-	  if (has_writable_cells (s, v))
-	    for (j = 0; j < cmaps_per_screen; j++)
-	      fade_cmaps[(i * cmaps_per_screen) + j] =
-		XCreateColormap (dpy, RootWindowOfScreen (s), v, AllocAll);
-	}
+        {
+          Visual *v = DefaultVisual(dpy, i);
+          Screen *s = ScreenOfDisplay(dpy, i);
+          if (has_writable_cells (s, v))
+            for (j = 0; j < cmaps_per_screen; j++)
+              fade_cmaps[(i * cmaps_per_screen) + j] =
+            XCreateColormap (dpy, RootWindowOfScreen (s), v, AllocAll);
+        }
     }
 
   /* Run the animation at the maximum frame rate in the time allotted. */
@@ -638,10 +638,10 @@ colormap_fade (XtAppContext app, Display *dpy,
   if (out_p)
     {
       for (i = 0; i < nwindows; i++)
-	{
+        {
           XClearWindow (dpy, saver_windows[i]);
-	  XMapRaised (dpy, saver_windows[i]);
-	}
+          XMapRaised (dpy, saver_windows[i]);
+        }
       XSync(dpy, False);
     }
 
@@ -653,7 +653,7 @@ colormap_fade (XtAppContext app, Display *dpy,
     {
       Colormap cmap = window_cmaps[i];
       if (!cmap || !out_p)
-	cmap = DefaultColormap(dpy, i);
+        cmap = DefaultColormap(dpy, i);
       XInstallColormap (dpy, cmap);
     }
 
@@ -663,9 +663,9 @@ colormap_fade (XtAppContext app, Display *dpy,
   for (i = 0; i < ncmaps; i++)
     if (fade_cmaps[i])
       {
-	XUninstallColormap(dpy, fade_cmaps[i]);
-	XFreeColormap(dpy, fade_cmaps[i]);
-	fade_cmaps[i] = 0;
+        XUninstallColormap(dpy, fade_cmaps[i]);
+        XFreeColormap(dpy, fade_cmaps[i]);
+        fade_cmaps[i] = 0;
       }
   free (window_cmaps);
   free(fade_cmaps);
@@ -707,7 +707,7 @@ static void sgi_whack_gamma(Display *dpy, int screen,
  */
 static int
 sgi_gamma_fade (XtAppContext app, Display *dpy,
-		Window *saver_windows, int nwindows,
+                Window *saver_windows, int nwindows,
                 double seconds, Bool out_p)
 {
   int nscreens = ScreenCount(dpy);
@@ -727,44 +727,44 @@ sgi_gamma_fade (XtAppContext app, Display *dpy,
   for (screen = 0; screen < nscreens; screen++)
     {
       if (!XSGIvcQueryGammaMap(dpy, screen, info[screen].gamma_map,
-			       &info[screen].gamma_size,
-			       &info[screen].gamma_precision,
-			       &info[screen].alpha_p))
-	goto FAIL;
+                               &info[screen].gamma_size,
+                               &info[screen].gamma_precision,
+                               &info[screen].alpha_p))
+        goto FAIL;
 
       if (!XSGIvcQueryGammaColors(dpy, screen, info[screen].gamma_map,
-				  XSGIVC_COMPONENT_RED,
-				  &info[screen].nred, &info[screen].red1))
-	goto FAIL;
+                              XSGIVC_COMPONENT_RED,
+                              &info[screen].nred, &info[screen].red1))
+        goto FAIL;
       if (! XSGIvcQueryGammaColors(dpy, screen, info[screen].gamma_map,
-				   XSGIVC_COMPONENT_GREEN,
-				   &info[screen].ngreen, &info[screen].green1))
-	goto FAIL;
+                                   XSGIVC_COMPONENT_GREEN,
+                                   &info[screen].ngreen, &info[screen].green1))
+        goto FAIL;
       if (!XSGIvcQueryGammaColors(dpy, screen, info[screen].gamma_map,
-				  XSGIVC_COMPONENT_BLUE,
-				  &info[screen].nblue, &info[screen].blue1))
-	goto FAIL;
+                                  XSGIVC_COMPONENT_BLUE,
+                                  &info[screen].nblue, &info[screen].blue1))
+        goto FAIL;
 
       if (info[screen].gamma_precision == 8)    /* Scale it up to 16 bits. */
-	{
-	  int j;
-	  for(j = 0; j < info[screen].nred; j++)
-	    info[screen].red1[j]   =
-	      ((info[screen].red1[j]   << 8) | info[screen].red1[j]);
-	  for(j = 0; j < info[screen].ngreen; j++)
-	    info[screen].green1[j] =
-	      ((info[screen].green1[j] << 8) | info[screen].green1[j]);
-	  for(j = 0; j < info[screen].nblue; j++)
-	    info[screen].blue1[j]  =
-	      ((info[screen].blue1[j]  << 8) | info[screen].blue1[j]);
-	}
+        {
+          int j;
+          for(j = 0; j < info[screen].nred; j++)
+            info[screen].red1[j]   =
+              ((info[screen].red1[j]   << 8) | info[screen].red1[j]);
+          for(j = 0; j < info[screen].ngreen; j++)
+            info[screen].green1[j] =
+              ((info[screen].green1[j] << 8) | info[screen].green1[j]);
+          for(j = 0; j < info[screen].nblue; j++)
+            info[screen].blue1[j]  =
+              ((info[screen].blue1[j]  << 8) | info[screen].blue1[j]);
+        }
 
       info[screen].red2   = (unsigned short *)
-	malloc(sizeof(*info[screen].red2)   * (info[screen].nred+1));
+        malloc(sizeof(*info[screen].red2)   * (info[screen].nred+1));
       info[screen].green2 = (unsigned short *)
-	malloc(sizeof(*info[screen].green2) * (info[screen].ngreen+1));
+        malloc(sizeof(*info[screen].green2) * (info[screen].ngreen+1));
       info[screen].blue2  = (unsigned short *)
-	malloc(sizeof(*info[screen].blue2)  * (info[screen].nblue+1));
+        malloc(sizeof(*info[screen].blue2)  * (info[screen].nblue+1));
     }
 
 #ifdef GETTIMEOFDAY_TWO_ARGS
@@ -779,8 +779,8 @@ sgi_gamma_fade (XtAppContext app, Display *dpy,
   if (!out_p)
     {
       for (screen = 0; screen < nscreens; screen++)
-	sgi_whack_gamma(dpy, screen, &info[screen], 0.0);
-      
+        sgi_whack_gamma(dpy, screen, &info[screen], 0.0);
+
       for (screen = 0; screen < nwindows; screen++)
         {
           XUnmapWindow (dpy, saver_windows[screen]);
@@ -803,7 +803,7 @@ sgi_gamma_fade (XtAppContext app, Display *dpy,
         if (!out_p) ratio = 1-ratio;
 
         for (screen = 0; screen < nwindows; screen++)
-	  sgi_whack_gamma (dpy, screen, &info[screen], ratio);
+          sgi_whack_gamma (dpy, screen, &info[screen], ratio);
 
         if (error_handler_hit_p)
           goto FAIL;
@@ -830,10 +830,11 @@ sgi_gamma_fade (XtAppContext app, Display *dpy,
   if (out_p)
     {
       for (screen = 0; screen < nwindows; screen++)
-	{
+        {
+          debug_log ("[FADE] SGI fade-out: clearing and map-raising saver window 0x%lx", (unsigned long) saver_windows[screen]);
           XClearWindow (dpy, saver_windows[screen]);
-	  XMapRaised (dpy, saver_windows[screen]);
-	}
+          XMapRaised (dpy, saver_windows[screen]);
+        }
       XSync(dpy, False);
     }
 
@@ -883,11 +884,11 @@ sgi_whack_gamma (Display *dpy, int screen, struct screen_sgi_gamma_info *info,
     }
 
   XSGIvcStoreGammaColors16(dpy, screen, info->gamma_map, info->nred,
-			   XSGIVC_MComponentRed, info->red2);
+                           XSGIVC_MComponentRed, info->red2);
   XSGIvcStoreGammaColors16(dpy, screen, info->gamma_map, info->ngreen,
-			   XSGIVC_MComponentGreen, info->green2);
+                           XSGIVC_MComponentGreen, info->green2);
   XSGIvcStoreGammaColors16(dpy, screen, info->gamma_map, info->nblue,
-			   XSGIVC_MComponentBlue, info->blue2);
+                           XSGIVC_MComponentBlue, info->blue2);
   XSync(dpy, False);
 }
 
@@ -1013,7 +1014,7 @@ xf86_gamma_fade (XtAppContext app, Display *dpy,
   if (!out_p)
     {
       for (screen = 0; screen < nscreens; screen++)
-	xf86_whack_gamma(dpy, screen, &info[screen], 0.0);
+        xf86_whack_gamma(dpy, screen, &info[screen], 0.0);
       for (screen = 0; screen < nwindows; screen++)
         {
           XUnmapWindow (dpy, saver_windows[screen]);
@@ -1063,10 +1064,10 @@ xf86_gamma_fade (XtAppContext app, Display *dpy,
   if (out_p)
     {
       for (screen = 0; screen < nwindows; screen++)
-	{
+        {
           XClearWindow (dpy, saver_windows[screen]);
-	  XMapRaised (dpy, saver_windows[screen]);
-	}
+          XMapRaised (dpy, saver_windows[screen]);
+        }
       XSync(dpy, False);
     }
 
@@ -1147,12 +1148,12 @@ xf86_check_gamma_extension (Display *dpy)
   if (!safe_XF86VidModeQueryVersion (dpy, &major, &minor))
     return 0;  /* unable to get version number? */
 
-  if (major < XF86_VIDMODE_GAMMA_MIN_MAJOR || 
+  if (major < XF86_VIDMODE_GAMMA_MIN_MAJOR ||
       (major == XF86_VIDMODE_GAMMA_MIN_MAJOR &&
        minor < XF86_VIDMODE_GAMMA_MIN_MINOR))
     return 0;  /* extension is too old for gamma. */
 
-  if (major < XF86_VIDMODE_GAMMA_RAMP_MIN_MAJOR || 
+  if (major < XF86_VIDMODE_GAMMA_RAMP_MIN_MAJOR ||
       (major == XF86_VIDMODE_GAMMA_RAMP_MIN_MAJOR &&
        minor < XF86_VIDMODE_GAMMA_RAMP_MIN_MINOR))
     return 1;  /* extension is too old for gamma ramps. */
@@ -1283,7 +1284,7 @@ randr_check_gamma_extension (Display *dpy)
   int event, error, major, minor;
   if (! XRRQueryExtension (dpy, &event, &error))
     return 0;
-  
+
   if (! XRRQueryVersion (dpy, &major, &minor)) {
     if (verbose_p > 1) fprintf (stderr, "%s: no randr ext\n", blurb());
     return 0;
@@ -1336,7 +1337,7 @@ randr_gamma_fade (XtAppContext app, Display *dpy,
   /* Add up the virtual screens on each X screen. */
   for (screen = 0; screen < xsc; screen++)
     {
-      XRRScreenResources *res = 
+      XRRScreenResources *res =
         XRRGetScreenResources (dpy, RootWindow (dpy, screen));
       nscreens += res->noutput;
       XRRFreeScreenResources (res);
@@ -1397,7 +1398,7 @@ randr_gamma_fade (XtAppContext app, Display *dpy,
   if (!out_p)
     {
       for (screen = 0; screen < nscreens; screen++)
-	randr_whack_gamma(dpy, screen, &info[screen], 0.0);
+        randr_whack_gamma(dpy, screen, &info[screen], 0.0);
       for (screen = 0; screen < nwindows; screen++)
         {
           XUnmapWindow (dpy, saver_windows[screen]);
@@ -1452,10 +1453,10 @@ randr_gamma_fade (XtAppContext app, Display *dpy,
   if (out_p)
     {
       for (screen = 0; screen < nwindows; screen++)
-	{
+        {
           XClearWindow (dpy, saver_windows[screen]);
-	  XMapRaised (dpy, saver_windows[screen]);
-	}
+          XMapRaised (dpy, saver_windows[screen]);
+        }
       XSync(dpy, False);
     }
 
@@ -1517,8 +1518,6 @@ randr_whack_gamma (Display *dpy, int screen, randr_gamma_info *info,
   XSync (dpy, False);
   XSetErrorHandler (old_handler);
   XSync (dpy, False);
-
-  return 0;
 }
 
 #endif /* HAVE_RANDR_12 */
@@ -2038,14 +2037,14 @@ xshm_fade (XtAppContext app, Display *dpy,
   if (out_p)
     {
       for (screen = 0; screen < nwindows; screen++)
-	{
+        {
           XClearWindow (dpy, saver_windows[screen]);
-	  XMapRaised (dpy, saver_windows[screen]);
+          XMapRaised (dpy, saver_windows[screen]);
           /* Doing this here triggers the same KDE 5 compositor bug that
              defer_XDestroyWindow is to work around. */
           /* if (info[screen].window)
             XUnmapWindow (dpy, info[screen].window); */
-	}
+        }
     }
 
   XSync (dpy, False);
@@ -2057,10 +2056,10 @@ xshm_fade (XtAppContext app, Display *dpy,
   if (!out_p)
     {
       for (screen = 0; screen < nwindows; screen++)
-	{
+        {
           XUnmapWindow (dpy, saver_windows[screen]);
           XClearWindow (dpy, saver_windows[screen]);
-	}
+        }
     }
 
   if (info)
@@ -2163,7 +2162,7 @@ xshm_whack (Display *dpy, XShmSegmentInfo *shm_info,
 {
   unsigned char *inbits  = (unsigned char *) info->src->data;
   unsigned char *outbits = (unsigned char *) info->intermediate->data;
-  unsigned char *end = (outbits + 
+  unsigned char *end = (outbits +
                         info->intermediate->bytes_per_line *
                         info->intermediate->height);
   unsigned char ramp[256];
