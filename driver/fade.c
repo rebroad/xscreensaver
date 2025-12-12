@@ -118,7 +118,16 @@
 #include "doubletime.h"
 #include "screenshot.h"
 
+/* Since gamma fading doesn't work on the Raspberry Pi, probably the single
+   most popular desktop Linux system these days, let's not use this fade
+   method even if the extension exists (which it does).
+ */
 #undef HAVE_XF86VMODE_GAMMA
+
+/* I'm not sure that the RANDR fade method brings anything to the party
+   that the XF86 method does  See below.
+ */
+#undef HAVE_RANDR_12
 
 #ifndef HAVE_XINPUT
 # error The XInput2 extension is required
@@ -367,8 +376,6 @@ query_brightness (Display *dpy, RROutput output)
 #else
 /* Dummy type and function when RANDR not available */
 typedef void randr_gamma_info;
-static double query_actual_gamma_ratio (Display *dpy, randr_gamma_info *ginfo) { return -1.0; }
-static double query_brightness (Display *dpy, RROutput output) { (void)dpy; (void)output; return -1.0; }
 #endif
 
 /* Helper to log fade progress at 5% intervals */

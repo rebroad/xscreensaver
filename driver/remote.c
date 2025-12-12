@@ -436,7 +436,7 @@ xscreensaver_command_response (Display *dpy, Window window,
 	  else
 	    {
 	      int ret = (msg[0] == '+' ? 0 : -1);
-	      sprintf (err, "%s: %s\n", progname, (char *) msg+1);
+          sprintf (err, "%s: %s", progname, (char *) msg+1);
 
 	      if (error_ret)
             *error_ret = strdup (err);
