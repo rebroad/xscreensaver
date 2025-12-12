@@ -802,7 +802,7 @@ splash_pick_window_position (Display *dpy, Position *xP, Position *yP,
     }
   else
     DL(1,
-       "mouse is at %d,%d on monitor %d %dx%d+%d+%d \"%s\"\n",
+       "mouse is at %d,%d on monitor %d %dx%d+%d+%d \"%s\"",
        root_x, root_y, m->id,
        m->width, m->height, m->x, m->y,
        (m->desc ? m->desc : ""));

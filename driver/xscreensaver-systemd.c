@@ -1453,8 +1453,10 @@ xscreensaver_systemd_loop (void)
         if (verbose_p) {
           struct inhibit_entry *entry;
           SLIST_FOREACH (entry, &inhibit_head, entries) {
-            char ct[100];
-            ctime_r (&entry->start_time, ct);
+            char ct[50];  /* Large enough for any locale's month/day names */
+            struct tm tm;
+            localtime_r (&entry->start_time, &tm);
+            strftime (ct, sizeof(ct), "%a %b %d %H:%M:%S %Y", &tm);
             DL(1, "inhibited by \"%s\" since %s", remove_dir (entry->appname), ct);
           }
         }
