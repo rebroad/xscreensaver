@@ -36,6 +36,7 @@
 #include <time.h>
 #include <sys/time.h>
 #include <pwd.h>
+#include <errno.h>
 
 #ifdef HAVE_UNISTD_H
 # include <unistd.h>
@@ -1004,6 +1005,134 @@ double_time (void)
 }
 
 
+static long
+window_cardinal (Display *dpy, Window win, Atom atom)
+{
+  Atom actual_type = None;
+  int actual_format = 0;
+  unsigned long nitems = 0, bytes_after = 0;
+  unsigned char *data = 0;
+  long value = -1;
+  if (XGetWindowProperty (dpy, win, atom,
+                          0, 1, False, XA_CARDINAL,
+                          &actual_type, &actual_format,
+                          &nitems, &bytes_after, &data) == Success &&
+      data)
+    {
+      value = (long) *((unsigned long *) data);
+      XFree (data);
+    }
+  return value;
+}
+
+static void
+log_window_debug (window_state *ws, const char *where)
+{
+  if (!verbose_p || !ws || !ws->window)
+    return;
+
+  Display *dpy = ws->dpy;
+  char *name = 0;
+  if (XFetchName (dpy, ws->window, &name) && name && *name)
+    DL(1, "[%s] window 0x%lx name=\"%s\"",
+       where, (unsigned long) ws->window, name);
+  else
+    DL(1, "[%s] window 0x%lx", where, (unsigned long) ws->window);
+  if (name) XFree (name);
+
+  DL(1, "[%s] _NET_WM_BYPASS_COMPOSITOR=%ld",
+     where,
+     window_cardinal (dpy, ws->window, XA_NET_WM_BYPASS_COMPOSITOR));
+  DL(1, "[%s] _NET_WM_WINDOW_OPACITY=%ld",
+     where,
+     window_cardinal (dpy, ws->window, XA_NET_WM_WINDOW_OPACITY));
+
+  /* Dump stacking info: find how many sibling windows are above us. */
+  Window root = 0, parent = 0, *children = 0;
+  unsigned int nchildren = 0;
+  if (XQueryTree (dpy, ws->window, &root, &parent, &children, &nchildren))
+    {
+      if (children) XFree (children);
+      if (!parent) parent = root;
+
+      Window root2 = 0, parent2 = 0, *siblings = 0;
+      unsigned int nsiblings = 0;
+      if (XQueryTree (dpy, parent, &root2, &parent2,
+                      &siblings, &nsiblings) && siblings)
+        {
+          int idx = -1;
+          for (unsigned int i = 0; i < nsiblings; i++)
+            if (siblings[i] == ws->window)
+              { idx = i; break; }
+          if (idx >= 0)
+            {
+              unsigned int above = nsiblings - idx - 1;
+              DL(1, "[%s] stacking index %d/%u (%u above)",
+                 where, idx, nsiblings, above);
+
+              int reported = 0;
+              for (int j = nsiblings - 1; j >= 0 && reported < 4; j--, reported++)
+                {
+                  char *sname = 0;
+                  if (XFetchName (dpy, siblings[j], &sname) &&
+                      sname && *sname)
+                    DL(2, "[%s] top[%d]: 0x%lx \"%s\"",
+                       where, reported,
+                       (unsigned long) siblings[j], sname);
+                  else
+                    DL(2, "[%s] top[%d]: 0x%lx",
+                       where, reported,
+                       (unsigned long) siblings[j]);
+                  if (sname) XFree (sname);
+                }
+            }
+          XFree (siblings);
+        }
+    }
+}
+
+static void
+run_and_log_command (const char *tag, const char *cmd)
+{
+  FILE *fp = popen (cmd, "r");
+  if (!fp)
+    {
+      DL(1, "[%s] failed \"%s\": %s", tag, cmd, strerror(errno));
+      return;
+    }
+
+  char buf[512];
+  while (fgets (buf, sizeof(buf), fp))
+    {
+      size_t L = strlen(buf);
+      if (L && buf[L-1] == '\n')
+        buf[L-1] = 0;
+      DL(1, "[%s] %s", tag, buf);
+    }
+  pclose (fp);
+}
+
+static void
+log_external_window_info (window_state *ws, const char *where)
+{
+  if (!verbose_p || !ws || !ws->window)
+    return;
+
+  const char *display = DisplayString (ws->dpy);
+  unsigned long win = (unsigned long) ws->window;
+  char cmd[512];
+
+  snprintf (cmd, sizeof(cmd),
+            "DISPLAY=%s xwininfo -root -tree | grep -i 0x%lx",
+            display, win);
+  run_and_log_command (where, cmd);
+
+  snprintf (cmd, sizeof(cmd),
+            "DISPLAY=%s xprop -id 0x%lx",
+            display, win);
+  run_and_log_command (where, cmd);
+}
+
 static void
 create_window (window_state *ws, int w, int h)
 {
@@ -1030,6 +1159,24 @@ create_window (window_state *ws, int w, int h)
   XSetWindowBackground (ws->dpy, ws->window, ws->background);
   XSetWindowColormap (ws->dpy, ws->window, ws->cmap);
   xscreensaver_set_wm_atoms (ws->dpy, ws->window, w, h, 0);
+
+  /* Override the window type: use SPLASH for splash, DIALOG for auth.
+     Some compositors treat NOTIFICATION specially (hide/stack differently),
+     so be explicit here. */
+  {
+    Atom types[2];
+    int n = 0;
+    if (ws->splash_p)
+      types[n++] = XA_NET_WM_WINDOW_TYPE_SPLASH;
+    else
+      {
+        types[n++] = XA_NET_WM_WINDOW_TYPE_DIALOG;
+        types[n++] = XA_NET_WM_WINDOW_TYPE_NORMAL;
+      }
+    XChangeProperty (ws->dpy, ws->window, XA_NET_WM_WINDOW_TYPE,
+                     XA_ATOM, 32, PropModeReplace,
+                     (unsigned char *) types, n);
+  }
 
   /* Reset bypass_cleared_p when window is recreated, so we can clear
      BYPASS_COMPOSITOR again if needed during fade */
@@ -1069,6 +1216,17 @@ create_window (window_state *ws, int w, int h)
     {
       XMapRaised (ws->dpy, ws->window);
     }
+
+  if (verbose_p)
+    {
+      XWindowAttributes xgwa;
+      XGetWindowAttributes (ws->dpy, ws->window, &xgwa);
+      DL(1, "[create_window] geom %dx%d+%d+%d",
+         xgwa.width, xgwa.height, xgwa.x, xgwa.y);
+    }
+
+  log_window_debug (ws, "create_window");
+  log_external_window_info (ws, "create_window");
 }
 
 
@@ -2076,6 +2234,8 @@ window_draw (window_state *ws)
             ws->bypass_cleared_p = True;
             DL(1, "deleted BYPASS_COMPOSITOR to enable compositor opacity");
             XSync (dpy, False);
+            log_window_debug (ws, "fade-start");
+            log_external_window_info (ws, "fade-start");
           }
 
         /* _NET_WM_WINDOW_OPACITY is a CARD32: 0 (transparent) to 0xffffffff (opaque) */
