@@ -10,6 +10,7 @@ Conflicts=org.gnome.ScreenSaver org.cinnamon.ScreenSaver org.mate.ScreenSaver or
 
 [Service]
 ExecStart=/usr/bin/xscreensaver
+ExecStop=/usr/bin/xscreensaver-command --exit
 Restart=on-failure
 OOMScoreAdjust=-1000
 
