@@ -41,6 +41,10 @@
 # include <unistd.h>
 #endif
 
+#ifdef HAVE_XRENDER
+# include <X11/extensions/Xrender.h>
+#endif
+
 #ifdef HAVE_UNAME
 # include <sys/utsname.h>
 #endif /* HAVE_UNAME */
@@ -251,6 +255,11 @@ struct window_state {
   line_button_state help_button_state;
 
   Bool bypass_cleared_p;  /* True if we've cleared BYPASS_COMPOSITOR for opacity */
+
+  /* ARGB visual for true transparency during fade */
+  Visual *argb_visual;
+  int argb_depth;
+  Bool argb_available_p;
 };
 
 
@@ -666,9 +675,13 @@ get_font (window_state *ws, const char *name)
 static unsigned long
 get_color (window_state *ws, const char *name, const char *rclass)
 {
+  unsigned long pixel;
   resource_keys (ws, &name, &rclass);
-  return get_pixel_resource (ws->dpy, DefaultColormapOfScreen (ws->screen),
-                             (char *) name, (char *) rclass);
+  pixel = get_pixel_resource (ws->dpy, ws->cmap,
+                              (char *) name, (char *) rclass);
+  if (ws->argb_available_p)
+    pixel |= 0xff000000;
+  return pixel;
 }
 
 static void
@@ -680,8 +693,8 @@ get_xft_color (window_state *ws, XftColor *ret,
   s = get_string_resource (ws->dpy, (char *) name, (char *) rclass);
   if (!s || !*s) s = "black";
   XftColorAllocName (ws->dpy,
-                     DefaultVisualOfScreen(ws->screen),
-                     DefaultColormapOfScreen (ws->screen),
+                     ws->argb_visual,
+                     ws->cmap,
                      s, ret);
 }
 
@@ -696,15 +709,15 @@ dim_xft_color (window_state *ws, const XftColor *in, Pixel bg, XftColor *out)
   XRenderColor rc;
   XColor xc;
   xc.pixel = bg;
-  XQueryColor (ws->dpy, DefaultColormapOfScreen (ws->screen), &xc);
+  XQueryColor (ws->dpy, ws->cmap, &xc);
   rc.red   = dim * in->color.red   + (1-dim) * xc.red;
   rc.green = dim * in->color.green + (1-dim) * xc.green;
   rc.blue  = dim * in->color.blue  + (1-dim) * xc.blue;
   rc.alpha = in->color.alpha;
 # endif
   if (! XftColorAllocValue (ws->dpy,
-                            DefaultVisualOfScreen(ws->screen),
-                            DefaultColormapOfScreen (ws->screen),
+                            ws->argb_visual,
+                            ws->cmap,
                             &rc, out))
     abort();
 }
@@ -997,15 +1010,21 @@ create_window (window_state *ws, int w, int h)
   unsigned long attrmask;
   Window ow = ws->window;
 
-  attrmask = CWOverrideRedirect | CWEventMask;
+  /* Use ARGB visual if available for true transparency support.
+     When using a non-default visual, we must specify colormap, border,
+     and background explicitly. */
+  attrmask = CWOverrideRedirect | CWEventMask | CWColormap | CWBorderPixel;
   attrs.override_redirect = True;
   attrs.event_mask = ExposureMask | VisibilityChangeMask;
+  attrs.colormap = ws->cmap;
+  attrs.border_pixel = 0;
+
   ws->window = XCreateWindow (ws->dpy,
                               RootWindowOfScreen(ws->screen),
                               ws->x, ws->y, w, h, 0,
-                              DefaultDepthOfScreen (ws->screen),
+                              ws->argb_depth,
                               InputOutput,
-                              DefaultVisualOfScreen(ws->screen),
+                              ws->argb_visual,
                               attrmask, &attrs);
   XSetWindowBackground (ws->dpy, ws->window, ws->background);
   XSetWindowColormap (ws->dpy, ws->window, ws->cmap);
@@ -1014,6 +1033,12 @@ create_window (window_state *ws, int w, int h)
   /* Reset bypass_cleared_p when window is recreated, so we can clear
      BYPASS_COMPOSITOR again if needed during fade */
   ws->bypass_cleared_p = False;
+  if (ws->argb_available_p)
+    {
+      XDeleteProperty (ws->dpy, ws->window, XA_NET_WM_BYPASS_COMPOSITOR);
+      ws->bypass_cleared_p = True;
+      DL(1, "ARGB window: deleted BYPASS_COMPOSITOR to allow compositing");
+    }
 
   /* An input method is necessary for dead keys to work.
    */
@@ -1058,9 +1083,72 @@ window_init (Widget root_widget, int splash_p)
 
   splash_pick_window_position (ws->dpy, &ws->cx, &ws->cy, &ws->screen);
 
+  /* Try to find a 32-bit ARGB visual for true transparency.
+     We only use visuals that advertise an alpha channel via XRender.
+     If not found, fall back to the default visual. */
+  {
+#ifdef HAVE_XRENDER
+    XVisualInfo template, *visinfo = 0;
+    int n_visuals = 0;
+    int chosen = -1;
+    XRenderPictFormat *chosen_fmt = 0;
+    template.screen = XScreenNumberOfScreen(ws->screen);
+    template.depth = 32;
+    template.class = TrueColor;
+    visinfo = XGetVisualInfo (dpy,
+                              VisualScreenMask | VisualDepthMask |
+                              VisualClassMask,
+                              &template, &n_visuals);
+    if (visinfo && n_visuals > 0)
+      {
+        int i;
+        for (i = 0; i < n_visuals; i++)
+          {
+            XRenderPictFormat *fmt =
+              XRenderFindVisualFormat (dpy, visinfo[i].visual);
+            if (fmt && fmt->type == PictTypeDirect &&
+                fmt->direct.alphaMask)
+              {
+                chosen = i;
+                chosen_fmt = fmt;
+                break;
+              }
+          }
+      }
+    if (chosen >= 0)
+      {
+        ws->argb_visual = visinfo[chosen].visual;
+        ws->argb_depth  = visinfo[chosen].depth;
+        ws->argb_available_p = True;
+        DL(1, "found ARGB visual (id 0x%lx, alpha mask 0x%x)",
+           XVisualIDFromVisual(ws->argb_visual),
+           chosen_fmt ? chosen_fmt->direct.alphaMask : 0);
+      }
+    else
+      {
+        ws->argb_visual = DefaultVisualOfScreen (ws->screen);
+        ws->argb_depth = DefaultDepthOfScreen (ws->screen);
+        ws->argb_available_p = False;
+        DL(1, "no ARGB visual with alpha, using default visual");
+      }
+#else  /* !HAVE_XRENDER */
+      {
+        ws->argb_visual = DefaultVisualOfScreen (ws->screen);
+        ws->argb_depth = DefaultDepthOfScreen (ws->screen);
+        ws->argb_available_p = False;
+        DL(1, "built without Xrender; ARGB visual disabled");
+      }
+#endif /* HAVE_XRENDER */
+#ifdef HAVE_XRENDER
+    if (visinfo)
+      XFree (visinfo);
+#endif
+  }
+
+  /* Create colormap for the selected visual */
   ws->cmap = XCreateColormap (dpy,
-                              RootWindowOfScreen (ws->screen), /* Old skool */
-                              DefaultVisualOfScreen (ws->screen),
+                              RootWindowOfScreen (ws->screen),
+                              ws->argb_visual,
                               AllocNone);
 
   {
@@ -1183,7 +1271,7 @@ window_init (Widget root_widget, int splash_p)
     int x, y;
     unsigned int bw, d;
     Window root = RootWindowOfScreen(ws->screen);
-    Visual *visual = DefaultVisualOfScreen (ws->screen);
+    Visual *visual = ws->argb_visual;
     int logo_size = (ws->heading_font->ascent > 24 ? 2 : 1);
     ws->logo_pixmap = xscreensaver_logo (ws->screen, visual, root, ws->cmap,
                                          ws->background, 
@@ -1360,8 +1448,8 @@ window_draw (window_state *ws)
   Display *dpy = ws->dpy;
   Screen *screen = ws->screen;
   Window root = RootWindowOfScreen (screen);
-  Visual *visual = DefaultVisualOfScreen(screen);
-  int depth = DefaultDepthOfScreen (screen);
+  Visual *visual = ws->argb_visual;
+  int depth = ws->argb_depth;
   XWindowAttributes xgwa;
 
 # define MIN_COLUMNS 22   /* Set window width based on headingFont ascent. */
@@ -1996,41 +2084,74 @@ window_draw (window_state *ws)
         XSync (dpy, False);  /* Ensure property is set before next frame */
       }
 
-    /* Software-based fade: modify pixel values directly.
-       This works regardless of compositor support, like fade.c does.
-       We multiply each pixel's RGB bytes by the opacity ratio. */
-    if (opacity < 1.0)
+    /* Ensure alpha channel is set correctly when using ARGB visuals, and
+       fall back to software dimming when no compositor is available. */
+    if (ws->argb_available_p || opacity < 1.0)
       {
         XImage *img = XGetImage (dpy, dbuf, 0, 0, window_width, window_height,
                                  AllPlanes, ZPixmap);
         if (img)
           {
-            unsigned char *bits = (unsigned char *) img->data;
-            unsigned char *end = bits + img->bytes_per_line * img->height;
-            unsigned char ramp[256];
-            int i;
+            Bool need_alpha = (ws->argb_available_p &&
+                               img->depth == 32 && img->bits_per_pixel == 32);
+            Bool need_dim = (!ws->argb_available_p && opacity < 1.0);
 
-            /* Build lookup table: ramp[i] = i * opacity */
-            for (i = 0; i < 256; i++)
-              ramp[i] = (unsigned char)(i * opacity);
-
-            /* Apply to every byte in the image */
-            while (bits < end)
+            if (need_alpha)
               {
-                *bits = ramp[*bits];
-                bits++;
+                /* ARGB visual: set alpha channel for true transparency.
+                   The pixel format is ARGB32: alpha in the high byte.
+                   We iterate over each 32-bit pixel and set the alpha byte. */
+                unsigned int x, y;
+                unsigned char alpha = (unsigned char)(opacity * 255.0);
+
+                DL(2, "ARGB fade: setting alpha=%d for opacity=%.2f",
+                   alpha, opacity);
+
+                for (y = 0; y < window_height; y++)
+                  {
+                    unsigned char *row = (unsigned char *)img->data + y * img->bytes_per_line;
+                    for (x = 0; x < window_width; x++)
+                      {
+                        /* For ARGB32, alpha is in byte 3 (MSB) on little-endian,
+                           or byte 0 on big-endian. The X server reports byte order. */
+                        int pixel_offset = x * 4;
+                        if (img->byte_order == LSBFirst)
+                          row[pixel_offset + 3] = alpha;  /* Little-endian: BGRA layout */
+                        else
+                          row[pixel_offset + 0] = alpha;  /* Big-endian: ARGB layout */
+                      }
+                  }
+              }
+            else if (need_dim)
+              {
+                /* No ARGB: dim RGB values as fallback */
+                unsigned char *bits = (unsigned char *) img->data;
+                unsigned char *end = bits + img->bytes_per_line * img->height;
+                unsigned char ramp[256];
+                int i;
+
+                /* Build lookup table: ramp[i] = i * opacity */
+                for (i = 0; i < 256; i++)
+                  ramp[i] = (unsigned char)(i * opacity);
+
+                /* Apply to every byte in the image */
+                while (bits < end)
+                  {
+                    *bits = ramp[*bits];
+                    bits++;
+                  }
               }
 
-            /* Put the faded image to the window */
-            XFreeGC (dpy, gc);
-            gc = XCreateGC (dpy, ws->window, 0, &gcv);
-            XPutImage (dpy, ws->window, gc, img, 0, 0, 0, 0,
-                       window_width, window_height);
-            XSync (dpy, False);
-            XFreeGC (dpy, gc);
+            /* Write the modified image back to the pixmap so the final blit
+               uses the updated alpha or brightness data. */
+            {
+              GC pix_gc = XCreateGC (dpy, dbuf, 0, &gcv);
+              XPutImage (dpy, dbuf, pix_gc, img, 0, 0, 0, 0,
+                         window_width, window_height);
+              XFreeGC (dpy, pix_gc);
+            }
+
             XDestroyImage (img);
-            XFreePixmap (dpy, dbuf);
-            goto done_drawing;
           }
       }
   }
@@ -2043,7 +2164,6 @@ window_draw (window_state *ws)
   XFreeGC (dpy, gc);
   XFreePixmap (dpy, dbuf);
 
- done_drawing:
   free (lines);
 
   if (verbose_p > 1)
@@ -2112,17 +2232,17 @@ destroy_window (window_state *ws)
   if (ws->button_font)   XftFontClose (ws->dpy, ws->button_font);
   if (ws->hostname_font) XftFontClose (ws->dpy, ws->hostname_font);
 
-  XftColorFree (ws->dpy, DefaultVisualOfScreen (ws->screen),
-                DefaultColormapOfScreen (ws->screen),
+  XftColorFree (ws->dpy, ws->argb_visual,
+                ws->cmap,
                 &ws->xft_foreground);
-  XftColorFree (ws->dpy, DefaultVisualOfScreen (ws->screen),
-                DefaultColormapOfScreen (ws->screen),
+  XftColorFree (ws->dpy, ws->argb_visual,
+                ws->cmap,
                 &ws->xft_button_foreground);
-  XftColorFree (ws->dpy, DefaultVisualOfScreen (ws->screen),
-                DefaultColormapOfScreen (ws->screen),
+  XftColorFree (ws->dpy, ws->argb_visual,
+                ws->cmap,
                 &ws->xft_text_foreground);
-  XftColorFree (ws->dpy, DefaultVisualOfScreen (ws->screen),
-                DefaultColormapOfScreen (ws->screen),
+  XftColorFree (ws->dpy, ws->argb_visual,
+                ws->cmap,
                 &ws->xft_error_foreground);
   if (ws->xftdraw) XftDrawDestroy (ws->xftdraw);
 
