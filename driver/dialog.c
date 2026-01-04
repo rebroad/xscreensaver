@@ -2200,19 +2200,15 @@ handle_keypress (window_state *ws, XKeyEvent *event, Bool filter_p)
 
   decoded[decoded_size] = 0;
 
-  /* Add 10% to the time remaining every time a key is pressed, but don't
-     go past the max duration. */
-  {
-    double now = double_time();
-    double remain = ws->end_time - now;
-    remain *= 1.1;
-    if (remain > ws->passwd_timeout) remain = ws->passwd_timeout;
-    if (remain < 3) remain = 3;
-    ws->end_time = now + remain;
-  }
-
   if (decoded_size == 1)		/* Handle single-char commands */
     {
+      /* When a key is pressed, set the remaining time to halfway between
+         the current remaining time and the maximum timeout. */
+      double now = double_time();
+      double remain = ws->end_time - now;
+      remain = (remain + ws->passwd_timeout) / 2.0;
+      ws->end_time = now + remain;
+
       switch (*decoded)
         {
         case '\010': case '\177':			/* Backspace */
