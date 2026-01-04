@@ -135,6 +135,9 @@
 /* Define this if you have the JPEG Group's JPEG library. */
 #undef HAVE_JPEGLIB
 
+/* Define this to use jwxyz X11 emulation (for Android/Web/iOS builds). */
+#undef HAVE_JWXYZ
+
 /* Define this to emulate OpenGL 1.3 in terms of OpenGLES 1.x. */
 #undef HAVE_JWZGLES
 
@@ -335,6 +338,9 @@
 
 /* Define this if you have the XML library. */
 #undef HAVE_XML
+
+/* Define if the Xrender extension is available */
+#undef HAVE_XRENDER
 
 /* Define this if you have the X Shared Memory Extension. */
 #undef HAVE_XSHM_EXTENSION

@@ -1418,7 +1418,8 @@ if test "$have_xrender_hdr" = yes; then
                  -lXext -lX11)
 fi
 if test "$have_xrender" = yes; then
-  AC_DEFINE(HAVE_XRENDER)
+  AC_DEFINE([HAVE_XRENDER], [1],
+            [Define if the Xrender extension is available])
 fi
 
 
