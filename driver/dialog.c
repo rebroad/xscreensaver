@@ -159,6 +159,7 @@ struct window_state {
   Colormap cmap;
 
   int splash_p;
+  double splash_grace_deadline;
   auth_state auth_state;
   int xi_opcode;
   int xkb_opcode;
@@ -1035,9 +1036,11 @@ create_window (window_state *ws, int w, int h)
   ws->bypass_cleared_p = False;
   if (ws->argb_available_p)
     {
-      XDeleteProperty (ws->dpy, ws->window, XA_NET_WM_BYPASS_COMPOSITOR);
-      ws->bypass_cleared_p = True;
-      DL(1, "ARGB window: deleted BYPASS_COMPOSITOR to allow compositing");
+      long disable_bypass = 2;  /* request compositor effects */
+      XChangeProperty (ws->dpy, ws->window, XA_NET_WM_BYPASS_COMPOSITOR,
+                       XA_CARDINAL, 32, PropModeReplace,
+                       (unsigned char *) &disable_bypass, 1);
+      DL(1, "ARGB window: requested compositor (BYPASS=2)");
     }
 
   /* An input method is necessary for dead keys to work.
@@ -1062,6 +1065,10 @@ create_window (window_state *ws, int w, int h)
       XMapRaised (ws->dpy, ws->window);
       XDestroyWindow (ws->dpy, ow);
     }
+  else
+    {
+      XMapRaised (ws->dpy, ws->window);
+    }
 }
 
 
@@ -1078,6 +1085,10 @@ window_init (Widget root_widget, int splash_p)
   if (!ws) abort();
 
   ws->splash_p = splash_p;
+  if (splash_p)
+    ws->splash_grace_deadline = double_time() + 0.5;  /* ignore initial input */
+  else
+    ws->splash_grace_deadline = 0;
   ws->dpy = dpy;
   ws->app = XtWidgetToApplicationContext (root_widget);
 
@@ -2088,28 +2099,29 @@ window_draw (window_state *ws)
        fall back to software dimming only when the compositor path is not
        available.  This keeps the contents bright so the composited fade can
        show the hack underneath instead of fading to black. */
-    if ((ws->argb_available_p && opacity < 1.0) ||
+    if (ws->argb_available_p ||
         (!ws->argb_available_p && !compositor_available_p && opacity < 1.0))
       {
         XImage *img = XGetImage (dpy, dbuf, 0, 0, window_width, window_height,
                                  AllPlanes, ZPixmap);
         if (img)
           {
-            Bool need_alpha = (ws->argb_available_p &&
-                               img->depth == 32 && img->bits_per_pixel == 32);
+            Bool can_alpha = (ws->argb_available_p &&
+                              img->depth == 32 && img->bits_per_pixel == 32);
             Bool need_dim = (!ws->argb_available_p &&
                              !compositor_available_p &&
                              opacity < 1.0);
 
-            if (need_alpha)
+            if (can_alpha)
               {
                 /* ARGB visual: set alpha channel for true transparency.
                    The pixel format is ARGB32: alpha in the high byte.
                    We iterate over each 32-bit pixel and set the alpha byte. */
                 unsigned int x, y;
-                unsigned char alpha = (unsigned char)(opacity * 255.0);
+                double clamped = (opacity < 0 ? 0 : (opacity > 1 ? 1 : opacity));
+                unsigned char alpha = (unsigned char)(clamped * 255.0);
 
-                DL(2, "ARGB fade: setting alpha=%d for opacity=%.2f",
+                DL(2, "ARGB alpha: setting alpha=%d for opacity=%.2f",
                    alpha, opacity);
 
                 for (y = 0; y < window_height; y++)
@@ -2599,10 +2611,26 @@ static Bool
 handle_event (window_state *ws, XEvent *xev, Bool filter_p)
 {
   Bool refresh_p = False;
+  double now = double_time();
+  Bool splash_ignored =
+    (ws->splash_p &&
+     ws->splash_grace_deadline > 0 &&
+     now < ws->splash_grace_deadline);
+  if (splash_ignored && verbose_p)
+    DL(2, "splash: ignoring %s event for %.0f ms grace",
+       (xev->xany.type == KeyPress ? "key" :
+        xev->xany.type == ButtonPress ? "button" :
+        xev->xany.type == MotionNotify ? "motion" : "other"),
+       (ws->splash_grace_deadline - now) * 1000);
+
   switch (xev->xany.type) {
   case KeyPress:
     if (ws->splash_p)
-      ws->auth_state = AUTH_CANCEL;
+      {
+        if (splash_ignored)
+          break;
+        ws->auth_state = AUTH_CANCEL;
+      }
     else
       {
         handle_keypress (ws, &xev->xkey, filter_p);
@@ -2628,7 +2656,8 @@ handle_event (window_state *ws, XEvent *xev, Bool filter_p)
              handle_button (ws, xev, &ws->unlock_button_state) ||
              handle_button (ws, xev, &ws->demo_button_state) ||
              handle_button (ws, xev, &ws->help_button_state)))
-        if (ws->splash_p && xev->xany.type == ButtonRelease)
+        if (ws->splash_p && !splash_ignored &&
+            xev->xany.type == ButtonRelease)
           ws->auth_state = AUTH_CANCEL;
     refresh_p = True;
     }
