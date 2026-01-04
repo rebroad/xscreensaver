@@ -250,6 +250,8 @@ struct window_state {
   line_button_state unlock_button_state;
   line_button_state demo_button_state;
   line_button_state help_button_state;
+
+  Bool bypass_cleared_p;  /* True if we've cleared BYPASS_COMPOSITOR for opacity */
 };
 
 
@@ -994,6 +996,10 @@ create_window (window_state *ws, int w, int h)
   XSetWindowBackground (ws->dpy, ws->window, ws->background);
   XSetWindowColormap (ws->dpy, ws->window, ws->cmap);
   xscreensaver_set_wm_atoms (ws->dpy, ws->window, w, h, 0);
+
+  /* Reset bypass_cleared_p when window is recreated, so we can clear
+     BYPASS_COMPOSITOR again if needed during fade */
+  ws->bypass_cleared_p = False;
 
   /* An input method is necessary for dead keys to work.
    */
@@ -1898,6 +1904,124 @@ window_draw (window_state *ws)
 # endif
         XMapRaised (ws->dpy, ws->window);
         XInstallColormap (ws->dpy, ws->cmap);
+
+        /* If we're in the fade period, set BYPASS_COMPOSITOR=2 again
+           since create_window() sets it back to 1 */
+        {
+          double now = double_time();
+          double remain = ws->end_time - now;
+          if (remain <= 1.0 && ws->bypass_cleared_p)
+            {
+              XDeleteProperty (ws->dpy, ws->window, XA_NET_WM_BYPASS_COMPOSITOR);
+              DL(1, "re-deleted BYPASS_COMPOSITOR after window recreation");
+            }
+        }
+      }
+  }
+
+  /* Fade out the dialog/splash during the last second before it disappears.
+     We use compositor-based transparency via _NET_WM_WINDOW_OPACITY,
+     the same approach GTK's gtk_widget_set_opacity() uses. */
+  {
+    double now = double_time();
+    double remain = ws->end_time - now;
+    double opacity = 1.0;
+    unsigned long cardinal;
+    static Bool compositor_checked_p = False;
+    static Bool compositor_available_p = False;
+
+    /* Check once if compositor is available */
+    if (!compositor_checked_p)
+      {
+        Atom cm_atom = XInternAtom (dpy, "_NET_WM_CM_S0", False);
+        Window cm_owner = XGetSelectionOwner (dpy, cm_atom);
+        compositor_available_p = (cm_owner != None);
+        compositor_checked_p = True;
+        if (compositor_available_p)
+          DL(1, "compositor detected, will use _NET_WM_WINDOW_OPACITY for fade");
+        else
+          DL(1, "no compositor detected, will use software brightness fade");
+      }
+
+    if (remain <= 1.0 && remain > 0.0)
+      opacity = remain;  /* Fade from 1.0 to 0.0 over the last second */
+    else if (remain <= 0.0)
+      opacity = 0.0;
+
+    /* Log opacity during fade for debugging */
+    if (remain <= 1.0 && remain > 0.0)
+      DL(1, "fade: opacity=%.2f remain=%.2f cardinal=0x%lx",
+         opacity, remain, (unsigned long)(opacity * 0xffffffffUL));
+
+    /* Use compositor-based opacity via _NET_WM_WINDOW_OPACITY.
+       This is the same approach GTK's gtk_widget_set_opacity() uses. */
+    if (compositor_available_p)
+      {
+        /* Delete BYPASS_COMPOSITOR when fading so compositor can apply effects.
+           xscreensaver_set_wm_atoms() sets it to 1 (bypass), but we want
+           the compositor to apply opacity. Deleting it lets the compositor
+           use its default behavior. */
+        if (remain <= 1.0 && !ws->bypass_cleared_p)
+          {
+            XDeleteProperty (dpy, ws->window, XA_NET_WM_BYPASS_COMPOSITOR);
+            ws->bypass_cleared_p = True;
+            DL(1, "deleted BYPASS_COMPOSITOR to enable compositor opacity");
+            XSync (dpy, False);
+          }
+
+        /* _NET_WM_WINDOW_OPACITY is a CARD32: 0 (transparent) to 0xffffffff (opaque) */
+        cardinal = (unsigned long)(opacity * 0xffffffffUL);
+
+        /* Following GTK's approach: delete property when fully opaque,
+           set property otherwise */
+        if (cardinal == 0xffffffffUL)
+          XDeleteProperty (dpy, ws->window, XA_NET_WM_WINDOW_OPACITY);
+        else
+          {
+            XChangeProperty (dpy, ws->window, XA_NET_WM_WINDOW_OPACITY,
+                             XA_CARDINAL, 32, PropModeReplace,
+                             (unsigned char *) &cardinal, 1);
+            DL(2, "set _NET_WM_WINDOW_OPACITY=0x%lx", cardinal);
+          }
+        XSync (dpy, False);  /* Ensure property is set before next frame */
+      }
+
+    /* Software-based fade: modify pixel values directly.
+       This works regardless of compositor support, like fade.c does.
+       We multiply each pixel's RGB bytes by the opacity ratio. */
+    if (opacity < 1.0)
+      {
+        XImage *img = XGetImage (dpy, dbuf, 0, 0, window_width, window_height,
+                                 AllPlanes, ZPixmap);
+        if (img)
+          {
+            unsigned char *bits = (unsigned char *) img->data;
+            unsigned char *end = bits + img->bytes_per_line * img->height;
+            unsigned char ramp[256];
+            int i;
+
+            /* Build lookup table: ramp[i] = i * opacity */
+            for (i = 0; i < 256; i++)
+              ramp[i] = (unsigned char)(i * opacity);
+
+            /* Apply to every byte in the image */
+            while (bits < end)
+              {
+                *bits = ramp[*bits];
+                bits++;
+              }
+
+            /* Put the faded image to the window */
+            XFreeGC (dpy, gc);
+            gc = XCreateGC (dpy, ws->window, 0, &gcv);
+            XPutImage (dpy, ws->window, gc, img, 0, 0, 0, 0,
+                       window_width, window_height);
+            XSync (dpy, False);
+            XFreeGC (dpy, gc);
+            XDestroyImage (img);
+            XFreePixmap (dpy, dbuf);
+            goto done_drawing;
+          }
       }
   }
 
@@ -1908,6 +2032,8 @@ window_draw (window_state *ws)
   XSync (dpy, False);
   XFreeGC (dpy, gc);
   XFreePixmap (dpy, dbuf);
+
+ done_drawing:
   free (lines);
 
   if (verbose_p > 1)
@@ -2492,6 +2618,11 @@ gui_main_loop (window_state *ws, Bool splash_p, Bool notification_p)
             XtAppProcessEvent (ws->app, m);
           else
             {
+              /* Force refresh during fade period (last 1 second) */
+              double remain = ws->end_time - double_time();
+              if (remain <= 1.0 && remain > 0.0)
+                refresh_p = True;
+
               if (refresh_p)
                 {
                   /* Redraw when outstanding events have been processed. */
