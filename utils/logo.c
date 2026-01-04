@@ -52,6 +52,24 @@ xscreensaver_logo (Screen *screen, Visual *visual,
 
   XGetGeometry (dpy, drawable, &root, &x, &y, &w, &h, &bw, &depth);
 
+  /* Override depth to match the visual we're going to render with, so that
+     callers using ARGB visuals get a depth-32 pixmap instead of inheriting
+     the root depth (typically 24).  Without this, XCopyArea from the logo
+     into a 32bpp pixmap/window will raise BadMatch. */
+  if (visual)
+    {
+      XVisualInfo templ, *info = 0;
+      int ninfo = 0;
+      templ.visualid = XVisualIDFromVisual (visual);
+      templ.screen = XScreenNumberOfScreen (screen);
+      info = XGetVisualInfo (dpy,
+                             VisualIDMask | VisualScreenMask,
+                             &templ, &ninfo);
+      if (info && ninfo > 0)
+        depth = info[0].depth;
+      if (info) XFree (info);
+    }
+
   image = minixpm_to_ximage (dpy, visual, cmap, depth, background_color,
                              (size == 0 ? logo_50_xpm  :
                               size == 1 ? logo_180_xpm : logo_360_xpm),
