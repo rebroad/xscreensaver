@@ -59,6 +59,8 @@
 #include <stdio.h>
 #include <ctype.h>
 #include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
 
 #ifndef ESRCH
 # include <errno.h>
@@ -75,6 +77,90 @@ extern const char *blurb (void);
 
 static void nice_process (int nice_level);
 
+#if defined(__ELF__) || (defined(__linux__) && !defined(__ANDROID__))
+/* Check if a file is a valid ELF executable.
+   Returns 1 if valid or not an ELF file (e.g., script), 0 if corrupted ELF.
+   Only compiled on systems that use ELF format.
+ */
+static int
+is_valid_elf_executable (const char *path)
+{
+  int fd;
+  unsigned char header[64];  /* Enough to read ELF header */
+  ssize_t nread;
+  struct stat st;
+  unsigned short e_phnum;  /* Number of program headers */
+
+  /* Check if file exists and is readable */
+  if (stat (path, &st) != 0)
+    return 1;  /* Let execvp handle the error */
+
+  /* Check if it's a regular file */
+  if (!S_ISREG (st.st_mode))
+    return 1;  /* Not a regular file, but not our problem */
+
+  /* Check if it's executable */
+  if (access (path, X_OK) != 0)
+    return 1;  /* Not executable, but let execvp handle it */
+
+  /* Open and read ELF header */
+  fd = open (path, O_RDONLY);
+  if (fd < 0)
+    return 1;  /* Can't read, but let execvp handle it */
+
+  nread = read (fd, header, sizeof(header));
+  close (fd);
+
+  if (nread < 4)
+    return 1;  /* Too small to be ELF, might be script */
+
+  /* Check ELF magic: 0x7f 'E' 'L' 'F' */
+  if (header[0] != 0x7f || header[1] != 'E' ||
+      header[2] != 'L' || header[3] != 'F')
+    return 1;  /* Not an ELF file - might be a script, which is OK */
+
+  /* It's an ELF file - validate the header structure */
+  if (nread < 56)  /* Need at least 56 bytes for 64-bit ELF header */
+    {
+      /* File too small to be valid ELF */
+      return 0;
+    }
+
+  /* Check ELF class (32-bit vs 64-bit) */
+  if (header[4] != 1 && header[4] != 2)  /* 1=32-bit, 2=64-bit */
+    return 0;  /* Invalid ELF class */
+
+  /* Read number of program headers from ELF header */
+  if (header[4] == 1)  /* 32-bit ELF */
+    {
+      /* e_phnum is at offset 44 in 32-bit ELF header */
+      if (nread < 48)
+        return 0;
+      e_phnum = (unsigned short)(header[44] | (header[45] << 8));
+    }
+  else  /* 64-bit ELF */
+    {
+      /* e_phnum is at offset 56 in 64-bit ELF header */
+      if (nread < 58)
+        return 0;
+      e_phnum = (unsigned short)(header[56] | (header[57] << 8));
+    }
+
+  /* Sanity check: reasonable number of program headers (typically < 20) */
+  if (e_phnum > 100)
+    {
+      fprintf (stderr, "%s: %s: corrupted ELF file (too many program headers: %d)\n",
+               blurb(), path, e_phnum);
+      return 0;
+    }
+
+  return 1;  /* Valid ELF file */
+}
+#else
+/* On non-ELF systems, always return 1 (skip validation) */
+#define is_valid_elf_executable(path) 1
+#endif
+
 
 static void
 exec_simple_command (const char *command)
@@ -88,6 +174,14 @@ exec_simple_command (const char *command)
       token = strtok(0, " \t");
     }
   av[ac] = 0;
+
+  /* Validate the binary before executing it */
+  if (av[0] && !is_valid_elf_executable (av[0]))
+    {
+      fprintf (stderr, "%s: %s: not a valid executable (corrupted ELF file?)\n",
+               blurb(), av[0]);
+      exit (2);
+    }
 
   execvp (av[0], av);	/* shouldn't return. */
 }
