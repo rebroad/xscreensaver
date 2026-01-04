@@ -19,7 +19,6 @@ TARFILES	= README README.hacking INSTALL \
 TAR		= gnutar
 TAR_ARGS	= --owner=0 --group=0 --posix --no-acls --no-xattrs --no-selinux
 
-
 # Using $(MAKE) directly means the shell executes things even with "make -n"
 MAKE2 = $(MAKE)
 
@@ -61,6 +60,12 @@ clean::
 distclean:: clean
 	@$(MAKE_SUBDIR2)
 	-rm -f config.h Makefile config.status config.cache config.log TAGS *~ "#"* intltool-extract intltool-merge intltool-update
+
+# Ensure config.h gets regenerated when configure.ac or config.h.in changes.
+config.h: $(srcdir)/configure.ac $(srcdir)/config.h.in config.status
+    @echo "Regenerating config.h from configure.ac..."
+    $(SHELL) ./config.status config.h
+
 
 # Delegation rules for building specific targets in subdirectories
 # These rules always delegate to ensure proper dependency checking in subdirectories
