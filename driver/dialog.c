@@ -2085,8 +2085,11 @@ window_draw (window_state *ws)
       }
 
     /* Ensure alpha channel is set correctly when using ARGB visuals, and
-       fall back to software dimming when no compositor is available. */
-    if (ws->argb_available_p || opacity < 1.0)
+       fall back to software dimming only when the compositor path is not
+       available.  This keeps the contents bright so the composited fade can
+       show the hack underneath instead of fading to black. */
+    if ((ws->argb_available_p && opacity < 1.0) ||
+        (!ws->argb_available_p && !compositor_available_p && opacity < 1.0))
       {
         XImage *img = XGetImage (dpy, dbuf, 0, 0, window_width, window_height,
                                  AllPlanes, ZPixmap);
@@ -2094,7 +2097,9 @@ window_draw (window_state *ws)
           {
             Bool need_alpha = (ws->argb_available_p &&
                                img->depth == 32 && img->bits_per_pixel == 32);
-            Bool need_dim = (!ws->argb_available_p && opacity < 1.0);
+            Bool need_dim = (!ws->argb_available_p &&
+                             !compositor_available_p &&
+                             opacity < 1.0);
 
             if (need_alpha)
               {

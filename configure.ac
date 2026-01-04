@@ -1399,6 +1399,29 @@ elif test "$with_xf86vmode" != no; then
 fi
 
 
+# ###############################################################################
+# #
+# #      Check for the Xrender extension (ARGB visuals, etc.)
+# #
+# ###############################################################################
+
+have_xrender=no
+AC_CHECK_X_HEADER(X11/extensions/Xrender.h,
+                  [have_xrender_hdr=yes],
+                  [have_xrender_hdr=no],
+                  [#include <X11/Xlib.h>])
+if test "$have_xrender_hdr" = yes; then
+  AC_CHECK_X_LIB(Xrender, XRenderFindVisualFormat,
+                 [have_xrender=yes;
+                  SAVER_LIBS="$SAVER_LIBS -lXrender"],
+                 [have_xrender=no],
+                 -lXext -lX11)
+fi
+if test "$have_xrender" = yes; then
+  AC_DEFINE(HAVE_XRENDER)
+fi
+
+
 ###############################################################################
 #
 #       Check for the XINERAMA server extension.
