@@ -1521,7 +1521,76 @@ window_occluded_p (Display *dpy, Window window)
       }
 # endif
 
-      for (i = 0; i < nkids; i++)
+      int start_idx = 0;
+
+# ifdef DEBUG_STACKING
+      /* For concise logging: show first entry, skip to first not-untitled,
+         then show last 10 "lower" entries before "our" and "higher". */
+      int first_named_idx = -1;
+      int our_idx = -1;
+
+      if (hash_changed_p)
+        {
+          /* First pass: find our window index and first named window */
+          for (i = 0; i < nkids; i++)
+            {
+              if (kids[i] == window)
+                {
+                  start_idx = i;
+                  our_idx = i;
+                }
+
+              if (first_named_idx < 0)
+                {
+                  XClassHint ch;
+                  char *name = 0;
+                  if (XGetClassHint (dpy, kids[i], &ch))
+                    {
+                      first_named_idx = i;
+                      XFree (ch.res_class);
+                      XFree (ch.res_name);
+                    }
+                  else if (XFetchName (dpy, kids[i], &name) && name)
+                    {
+                      first_named_idx = i;
+                      XFree (name);
+                    }
+                }
+            }
+
+          /* Show first entry */
+          if (nkids > 0)
+            describe_window (dpy, kids[0], "lower");
+
+          /* Skip to first not-untitled entry (if different from first) */
+          if (first_named_idx > 0)
+            {
+              if (first_named_idx > 1)
+                DL(0, "... (skipped %d untitled entries) ...", first_named_idx - 1);
+              describe_window (dpy, kids[first_named_idx], "lower");
+            }
+
+          /* Show last 10 "lower" entries before "our" */
+          if (our_idx >= 0)
+            {
+              int start_idx = (our_idx > 10) ? (our_idx - 10) : 0;
+              /* Calculate how many we're skipping between what we've shown and start_idx */
+              int last_shown = (first_named_idx >= 0 && first_named_idx > 0) ? first_named_idx : 0;
+              if (start_idx > last_shown + 1)
+                {
+                  int skipped = start_idx - (last_shown + 1);
+                  DL(0, "... (skipped %d lower entries) ...", skipped);
+                }
+              for (i = start_idx; i < our_idx; i++)
+                {
+                  if (i != 0 && i != first_named_idx)  /* Don't duplicate first or first_named */
+                    describe_window (dpy, kids[i], "lower");
+                }
+            }
+        }
+# endif
+
+      for (i = start_idx; i < nkids; i++)
         {
           if (kids[i] == window)
             {
@@ -1552,13 +1621,13 @@ window_occluded_p (Display *dpy, Window window)
 # endif
                   break;
                 }
-            }
-          else
-            {
+              else
+                {
 # ifdef DEBUG_STACKING
-              if (hash_changed_p)
-                describe_window (dpy, kids[i], "lower");
+                  if (hash_changed_p)
+                    describe_window (dpy, kids[i], "cow");
 # endif
+                }
             }
         }
 
