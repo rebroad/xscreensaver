@@ -34,7 +34,7 @@ int verbose_p = 0;
 int logging_to_file_p = 0;
 int running_under_systemd_p = 0;
 
-/* #define BLURB_CENTISECONDS */
+#define BLURB_CENTISECONDS
 
 const char *
 blurb (void)
@@ -80,12 +80,15 @@ blurb (void)
   buf[i++] = '0' + (tm.tm_sec >= 10 ? tm.tm_sec/10 : 0);
   buf[i++] = '0' + (tm.tm_sec % 10);
 
-# ifdef BLURB_CENTISECONDS
+# if defined(BLURB_CENTISECONDS) || defined(BLURB_MILLISECONDS)
   {
-    int c = now.tv_usec / 10000;
+    int ms = now.tv_usec / 1000;
     buf[i++] = '.';
-    buf[i++] = '0' + (c >= 10 ? c/10 : 0);
-    buf[i++] = '0' + (c % 10);
+    buf[i++] = '0' + (ms >= 100 ? ms/100 : 0);
+    buf[i++] = '0' + ((ms % 100) >= 10 ? (ms % 100)/10 : 0);
+# if defined(BLURB_MILLISECONDS)
+    buf[i++] = '0' + (ms % 10);
+# endif
   }
 # endif
 

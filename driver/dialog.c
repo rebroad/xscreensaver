@@ -1155,9 +1155,86 @@ create_window (window_state *ws, int w, int h)
   /* Always map the window. For splash dialogs, map without raising to avoid taking focus. */
   if (ws->splash_p)
     {
-      /* For splash dialog, map without raising to avoid taking focus */
+      /* For splash dialog, save current focus and restore it after mapping to prevent taking focus */
+      Window current_focus;
+      int revert_to;
+      XGetInputFocus (ws->dpy, &current_focus, &revert_to);
+
+      /* Log initial focus state */
+      if (current_focus == None)
+        DL(1, "splash focus: initial focus is None");
+      else if (current_focus == PointerRoot)
+        DL(1, "splash focus: initial focus is PointerRoot");
+      else
+        DL(1, "splash focus: initial focus is window 0x%lx (revert_to=%d)",
+           (unsigned long)current_focus, revert_to);
+
+      /* Map without raising to avoid taking focus */
       XMapWindow (ws->dpy, ws->window);
-      XSetInputFocus (ws->dpy, None, RevertToNone, CurrentTime);
+      XSync (ws->dpy, False);
+
+      /* Restore focus and verify */
+      if (current_focus != None && current_focus != PointerRoot)
+        XSetInputFocus (ws->dpy, current_focus, revert_to, CurrentTime);
+      else
+        XSetInputFocus (ws->dpy, None, RevertToNone, CurrentTime);
+      XSync (ws->dpy, False);
+
+      /* Check and log focus state */
+      {
+        Window check_focus;
+        int check_revert;
+        XGetInputFocus (ws->dpy, &check_focus, &check_revert);
+        if (check_focus == ws->window)
+          {
+            DL(1, "splash focus: ERROR - focus is on splash window 0x%lx!",
+               (unsigned long)ws->window);
+            /* Try to restore again */
+            if (current_focus != None && current_focus != PointerRoot)
+              {
+                XSetInputFocus (ws->dpy, current_focus, revert_to, CurrentTime);
+                XSync (ws->dpy, False);
+                XGetInputFocus (ws->dpy, &check_focus, &check_revert);
+                if (check_focus == ws->window)
+                  DL(1, "splash focus: ERROR - focus STILL on splash after second restore!");
+                else
+                  DL(1, "splash focus: restored to 0x%lx (second attempt)",
+                     (unsigned long)current_focus);
+              }
+          }
+        else if (check_focus != current_focus)
+          {
+            DL(1, "splash focus: WARNING - focus is 0x%lx (expected 0x%lx)",
+               (unsigned long)check_focus, (unsigned long)current_focus);
+          }
+        else
+          {
+            DL(1, "splash focus: OK - focus correctly at 0x%lx",
+               (unsigned long)current_focus);
+          }
+      }
+
+      /* Check again after delay */
+      usleep(10000);
+      {
+        Window check_focus;
+        int check_revert;
+        XGetInputFocus (ws->dpy, &check_focus, &check_revert);
+        if (check_focus == ws->window)
+          {
+            DL(1, "splash focus: WARNING - focus stolen after 10ms, restoring");
+            if (current_focus != None && current_focus != PointerRoot)
+              XSetInputFocus (ws->dpy, current_focus, revert_to, CurrentTime);
+            else
+              XSetInputFocus (ws->dpy, None, RevertToNone, CurrentTime);
+            XSync (ws->dpy, False);
+          }
+        else if (check_focus != current_focus)
+          {
+            DL(1, "splash focus: WARNING - focus changed to 0x%lx after delay",
+               (unsigned long)check_focus);
+          }
+      }
     }
   else
     {
@@ -1809,7 +1886,7 @@ window_occluded_p (Display *dpy, Window window)
               describe_window (dpy, kids[first_named_idx], "lower");
             }
 
-          /* Show last 10 "lower" entries before "our" */
+          /* Show last 10 "lower" entries before "our", plus any 1x1 windows (in correct order) */
           if (our_idx >= 0)
             {
               int start_idx = (our_idx > 10) ? (our_idx - 10) : 0;
@@ -1820,10 +1897,29 @@ window_occluded_p (Display *dpy, Window window)
                   int skipped = start_idx - (last_shown + 1);
                   DL(0, "... (skipped %d lower entries) ...", skipped);
                 }
-              for (i = start_idx; i < our_idx; i++)
+
+              /* Single pass: iterate through windows in order, showing:
+                 - First window (already shown above)
+                 - First named window (already shown above)
+                 - Last 10 non-1x1 windows
+                 - All 1x1 windows (regardless of position) */
+              for (i = 0; i < our_idx; i++)
                 {
-                  if (i != 0 && i != first_named_idx)  /* Don't duplicate first or first_named */
-                    describe_window (dpy, kids[i], "lower");
+                  if (i == 0 || i == first_named_idx)
+                    continue;  /* Already shown above */
+
+                  XWindowAttributes xwa;
+                  Bool is_1x1 = False;
+                  if (XGetWindowAttributes (dpy, kids[i], &xwa))
+                    {
+                      is_1x1 = (xwa.width == 1 && xwa.height == 1);
+                    }
+
+                  /* Show if: 1x1 window (anywhere), or non-1x1 window in last 10 */
+                  if (is_1x1 || i >= start_idx)
+                    {
+                      describe_window (dpy, kids[i], "lower");
+                    }
                 }
             }
         }
@@ -2487,7 +2583,7 @@ window_draw (window_state *ws)
         compositor_checked_p = True;
       }
 
-    occluded_p = (!ws->splash_p && !size_changed_p &&
+    occluded_p = (!size_changed_p &&
                   window_occluded_p (ws->dpy, ws->window));
 
     if (size_changed_p || occluded_p)
