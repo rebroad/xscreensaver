@@ -2045,8 +2045,15 @@ window_draw (window_state *ws)
 
     /* Log opacity during fade for debugging */
     if (remain <= 1.0 && remain > 0.0)
-      DL(1, "fade: opacity=%.2f remain=%.2f cardinal=0x%lx",
-         opacity, remain, (unsigned long)(opacity * 0xffffffffUL));
+      {
+        static double last_log = 0;
+        if (now - last_log > 0.2)
+          {
+            DL(1, "fade: opacity=%.2f card=0x%lx splash_p=%d visual_depth=%d",
+               opacity, (unsigned long)(opacity * 0xffffffffUL), ws->splash_p, ws->visual_depth);
+            last_log = now;
+          }
+      }
 
     /* Use compositor-based opacity via _NET_WM_WINDOW_OPACITY.
        This is the same approach GTK's gtk_widget_set_opacity() uses. */
@@ -2109,16 +2116,16 @@ window_draw (window_state *ws)
                 bits++;
               }
 
-            /* Put the faded image to the window */
-            XFreeGC (dpy, gc);
-            gc = XCreateGC (dpy, ws->window, 0, &gcv);
-            XPutImage (dpy, ws->window, gc, img, 0, 0, 0, 0,
-                       window_width, window_height);
-            XSync (dpy, False);
-            XFreeGC (dpy, gc);
+            /* Write the modified image back to the pixmap so the final blit
+               uses the updated alpha or brightness data. */
+            {
+              GC pix_gc = XCreateGC (dpy, dbuf, 0, &gcv);
+              XPutImage (dpy, dbuf, pix_gc, img, 0, 0, 0, 0,
+                         window_width, window_height);
+              XFreeGC (dpy, pix_gc);
+            }
+
             XDestroyImage (img);
-            XFreePixmap (dpy, dbuf);
-            goto done_drawing;
           }
       }
   }
@@ -2131,7 +2138,6 @@ window_draw (window_state *ws)
   XFreeGC (dpy, gc);
   XFreePixmap (dpy, dbuf);
 
- done_drawing:
   free (lines);
 
   if (verbose_p > 1)
