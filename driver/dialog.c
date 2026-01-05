@@ -1498,6 +1498,14 @@ window_occluded_p (Display *dpy, Window window)
         {
           last_hash = current_hash;
         }
+      else {
+        static double last_log = 0;
+        double now = double_time();
+        if (now - last_log > 0.2) {
+          DL(0, "window tree hash unchanged");
+          last_log = now;
+        }
+      }
 # endif
 
       for (i = 0; i < nkids; i++)
