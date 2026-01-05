@@ -1058,6 +1058,7 @@ create_window (window_state *ws, int w, int h)
 # ifdef DEBUG_STACKING
   /* Register window label after setting window type, so auto-registration
      sees the correct type and doesn't override our label. */
+  DL(0, "calling register_window_label for window 0x%lx as \"%s\"", (unsigned long)ws->window, ws->splash_p ? "splash-dialog" : "password-dialog");
   register_window_label (ws->window, ws->splash_p ? "splash-dialog" : "password-dialog");
 # endif
 
