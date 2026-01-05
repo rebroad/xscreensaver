@@ -1323,27 +1323,32 @@ window_init (Widget root_widget, int splash_p)
 }
 
 
+#define DEBUG_STACKING
 #ifdef DEBUG_STACKING
 static void
 describe_window (Display *dpy, Window w)
 {
   XClassHint ch;
   char *name = 0;
+  XWindowAttributes xwa;
+  XGetWindowAttributes (dpy, w, &xwa);
   if (XGetClassHint (dpy, w, &ch))
     {
-      DL(0, "0x%lx \"%s\", \"%s\"\n", (unsigned long) w,
-         ch.res_class, ch.res_name);
+      DL(0, "0x%lx (%dx%d+%d+%d) \"%s\", \"%s\"", (unsigned long) w,
+         xwa.width, xwa.height, xwa.x, xwa.y, ch.res_class, ch.res_name);
       XFree (ch.res_class);
       XFree (ch.res_name);
     }
   else if (XFetchName (dpy, w, &name) && name)
     {
-      DL(0, "0x%lx \"%s\"\n", (unsigned long) w, name);
+      DL(0, "0x%lx (%dx%d+%d+%d) \"%s\"", (unsigned long) w,
+         xwa.width, xwa.height, xwa.x, xwa.y, name);
       XFree (name);
     }
   else
     {
-      DL(0, "0x%lx (untitled)", (unsigned long) w);
+      DL(0, "0x%lx (%dx%d+%d+%d) (untitled)", (unsigned long) w,
+         xwa.width, xwa.height, xwa.x, xwa.y);
     }
 }
 #endif /* DEBUG_STACKING */
@@ -1382,20 +1387,33 @@ window_occluded_p (Display *dpy, Window window)
             {
               saw_our_window_p = True;
 # ifdef DEBUG_STACKING
-              BLURB();
-              fprintf (stderr, "our window:    ");
+              fprintf (stderr, "xscreensaver-auth: our window: ");
               describe_window (dpy, kids[i]);
+              fprintf (stderr, "\n");
 # endif
             }
           else if (saw_our_window_p)
             {
-              saw_later_window_p = True;
+              /* Ignore the Composite Overlay Window, which is always on top. */
+              char *name = 0;
+              Bool is_cow = False;
+              if (XFetchName (dpy, kids[i], &name) && name)
+                {
+                  if (!strcmp(name, "Composite Overlay Window"))
+                    is_cow = True;
+                  XFree (name);
+                }
+
+              if (!is_cow)
+                {
+                  saw_later_window_p = True;
 # ifdef DEBUG_STACKING
-              BLURB();
-              fprintf (stderr, "higher window: ");
-              describe_window (dpy, kids[i]);
+                  fprintf (stderr, "xscreensaver-auth: higher window: ");
+                  describe_window (dpy, kids[i]);
+                  fprintf (stderr, "\n");
 # endif
-              break;
+                  break;
+                }
             }
           else
             {
@@ -2043,6 +2061,8 @@ window_draw (window_state *ws)
         create_window (ws, window_width, window_height);
 # endif
         XMapRaised (ws->dpy, ws->window);
+        XSync (ws->dpy, False);
+        usleep(10000);  /* 10ms delay to allow compositor to see the window */
         XInstallColormap (ws->dpy, ws->cmap);
 
         /* If we're in the fade period, or if the window is transparent,
