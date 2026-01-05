@@ -1028,6 +1028,17 @@ create_window (window_state *ws, int w, int h)
   XSetWindowBackground (ws->dpy, ws->window, ws->background);
   xscreensaver_set_wm_atoms (ws->dpy, ws->window, w, h, 0);
 
+  /* Delete BYPASS_COMPOSITOR immediately after xscreensaver_set_wm_atoms sets it,
+     if we're using a 32-bit visual or need transparency, so the compositor
+     never sees the bypass property set. This is better than deleting it later
+     because the compositor processes window properties when the window is first mapped. */
+  if (ws->visual_depth == 32 || ws->dialog_opacity < 1.0)
+    {
+      XDeleteProperty (ws->dpy, ws->window, XA_NET_WM_BYPASS_COMPOSITOR);
+      ws->bypass_cleared_p = True;
+      DL(1, "deleted BYPASS_COMPOSITOR immediately after window creation");
+    }
+
   /* Override window type to DIALOG for password dialog (not splash).
      The screensaver window uses NOTIFICATION, so we need a different type
      to avoid stacking conflicts. Also find the screensaver window and set
@@ -2253,17 +2264,17 @@ window_draw (window_state *ws)
             }
         }
 
-        /* If we're in the fade period, or if the window is transparent,
-           clear BYPASS_COMPOSITOR again since create_window() sets it back to 1.
-         */
+        /* If we're in the fade period, clear BYPASS_COMPOSITOR if it wasn't
+           already cleared in create_window(). We delete it in create_window()
+           for 32-bit visuals, but we also need to delete it during fade. */
         {
           double now = double_time();
           double remain = ws->end_time - now;
-          if (ws->visual_depth == 32 || remain < 1.0)
+          if (remain < 1.0 && !ws->bypass_cleared_p)
             {
               XDeleteProperty (ws->dpy, ws->window, XA_NET_WM_BYPASS_COMPOSITOR);
               ws->bypass_cleared_p = True;
-              DL(1, "re-deleted BYPASS_COMPOSITOR after window recreation");
+              DL(1, "deleted BYPASS_COMPOSITOR for fade period");
             }
         }
       }
