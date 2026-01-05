@@ -680,7 +680,7 @@ get_color (window_state *ws, const char *name, const char *rclass)
   unsigned long pixel;
   resource_keys (ws, &name, &rclass);
   pixel = get_pixel_resource (ws->dpy, ws->cmap,
-                              (char *) name, (char *) rclass);
+                             (char *) name, (char *) rclass);
   if (ws->argb_available_p)
     pixel |= 0xff000000;
   return pixel;
@@ -1183,11 +1183,12 @@ create_window (window_state *ws, int w, int h)
   ws->bypass_cleared_p = False;
   if (ws->argb_available_p)
     {
-      long disable_bypass = 2;  /* request compositor effects */
+      /*long disable_bypass = 2;  /* request compositor effects */
       XChangeProperty (ws->dpy, ws->window, XA_NET_WM_BYPASS_COMPOSITOR,
                        XA_CARDINAL, 32, PropModeReplace,
                        (unsigned char *) &disable_bypass, 1);
-      DL(1, "ARGB window: requested compositor (BYPASS=2)");
+      DL(1, "ARGB window: requested compositor (BYPASS=2), splash_p: %d", ws->splash_p);*/
+      DL(1, "ARGB window, splash_p: %d", ws->splash_p);
     }
 
   /* An input method is necessary for dead keys to work.
@@ -1211,10 +1212,6 @@ create_window (window_state *ws, int w, int h)
     {
       XMapRaised (ws->dpy, ws->window);
       XDestroyWindow (ws->dpy, ow);
-    }
-  else
-    {
-      XMapRaised (ws->dpy, ws->window);
     }
 
   if (verbose_p)
@@ -1294,20 +1291,18 @@ window_init (Widget root_widget, int splash_p)
            chosen_fmt ? chosen_fmt->direct.alphaMask : 0);
       }
     else
-      {
-        ws->argb_visual = DefaultVisualOfScreen (ws->screen);
-        ws->argb_depth = DefaultDepthOfScreen (ws->screen);
-        ws->argb_available_p = False;
-        DL(1, "no ARGB visual with alpha, using default visual");
-      }
-#else  /* !HAVE_XRENDER */
-      {
-        ws->argb_visual = DefaultVisualOfScreen (ws->screen);
-        ws->argb_depth = DefaultDepthOfScreen (ws->screen);
-        ws->argb_available_p = False;
-        DL(1, "built without Xrender; ARGB visual disabled");
-      }
 #endif /* HAVE_XRENDER */
+      {
+        ws->argb_visual = DefaultVisualOfScreen (ws->screen);
+        ws->argb_depth = DefaultDepthOfScreen (ws->screen);
+        ws->argb_available_p = False;
+#ifdef HAVE_XRENDER
+        DL(1, "no ARGB visual with alpha, using default visual");
+#else
+        DL(1, "built without Xrender; ARGB visual disabled");
+#endif
+      }
+
 #ifdef HAVE_XRENDER
     if (visinfo)
       XFree (visinfo);
@@ -1316,7 +1311,7 @@ window_init (Widget root_widget, int splash_p)
 
   /* Create colormap for the selected visual */
   ws->cmap = XCreateColormap (dpy,
-                              RootWindowOfScreen (ws->screen),
+                              RootWindowOfScreen (ws->screen), /* Old skool */
                               ws->argb_visual,
                               AllocNone);
 
@@ -2299,7 +2294,7 @@ window_draw (window_state *ws)
                       }
                   }
               }
-            else if (need_dim)
+            else if (!ws->splash_p && need_dim)
               {
                 /* No ARGB: dim RGB values as fallback */
                 unsigned char *bits = (unsigned char *) img->data;
