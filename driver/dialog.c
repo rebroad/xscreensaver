@@ -999,6 +999,10 @@ get_keyboard_layout (window_state *ws)
 # endif /* HAVE_XKB */
 }
 
+#ifdef DEBUG_STACKING
+/* Forward declaration for window labeling */
+static void register_window_label (Window w, const char *label);
+#endif
 
 static void
 create_window (window_state *ws, int w, int h)
@@ -1326,7 +1330,7 @@ window_init (Widget root_widget, int splash_p)
 #define DEBUG_STACKING
 #ifdef DEBUG_STACKING
 static void
-describe_window (Display *dpy, Window w)
+describe_window (Display *dpy, Window w, const char *prefix)
 {
   XClassHint ch;
   char *name = 0;
@@ -1334,20 +1338,20 @@ describe_window (Display *dpy, Window w)
   XGetWindowAttributes (dpy, w, &xwa);
   if (XGetClassHint (dpy, w, &ch))
     {
-      DL(0, "0x%lx (%dx%d+%d+%d) \"%s\", \"%s\"", (unsigned long) w,
+      DL(0, "%s: 0x%lx (%dx%d+%d+%d) \"%s\", \"%s\"", prefix, (unsigned long) w,
          xwa.width, xwa.height, xwa.x, xwa.y, ch.res_class, ch.res_name);
       XFree (ch.res_class);
       XFree (ch.res_name);
     }
   else if (XFetchName (dpy, w, &name) && name)
     {
-      DL(0, "0x%lx (%dx%d+%d+%d) \"%s\"", (unsigned long) w,
+      DL(0, "%s: 0x%lx (%dx%d+%d+%d) \"%s\"", prefix, (unsigned long) w,
          xwa.width, xwa.height, xwa.x, xwa.y, name);
       XFree (name);
     }
   else
     {
-      DL(0, "0x%lx (%dx%d+%d+%d) (untitled)", (unsigned long) w,
+      DL(0, "%s: 0x%lx (%dx%d+%d+%d) (untitled)", prefix, (unsigned long) w,
          xwa.width, xwa.height, xwa.x, xwa.y);
     }
 }
@@ -1387,9 +1391,7 @@ window_occluded_p (Display *dpy, Window window)
             {
               saw_our_window_p = True;
 # ifdef DEBUG_STACKING
-              fprintf (stderr, "xscreensaver-auth: our window: ");
-              describe_window (dpy, kids[i]);
-              fprintf (stderr, "\n");
+              describe_window (dpy, kids[i], "our");
 # endif
             }
           else if (saw_our_window_p)
@@ -1408,9 +1410,7 @@ window_occluded_p (Display *dpy, Window window)
                 {
                   saw_later_window_p = True;
 # ifdef DEBUG_STACKING
-                  fprintf (stderr, "xscreensaver-auth: higher window: ");
-                  describe_window (dpy, kids[i]);
-                  fprintf (stderr, "\n");
+                  describe_window (dpy, kids[i], "higher");
 # endif
                   break;
                 }
@@ -1418,9 +1418,7 @@ window_occluded_p (Display *dpy, Window window)
           else
             {
 # ifdef DEBUG_STACKING
-              BLURB();
-              fprintf (stderr, "lower window:  ");
-              describe_window (dpy, kids[i]);
+              describe_window (dpy, kids[i], "lower");
 # endif
             }
         }
@@ -2061,9 +2059,41 @@ window_draw (window_state *ws)
         create_window (ws, window_width, window_height);
 # endif
         XMapRaised (ws->dpy, ws->window);
-        XSync (ws->dpy, False);
-        usleep(10000);  /* 10ms delay to allow compositor to see the window */
         XInstallColormap (ws->dpy, ws->cmap);
+        XSync (ws->dpy, False);
+        usleep(50000);  /* 50ms delay to allow compositor to see the window */
+
+        /* Diagnostic: Check window visibility state after mapping */
+        {
+          XWindowAttributes xwa;
+          Atom actual_type;
+          int actual_format;
+          unsigned long nitems, bytes_after;
+          unsigned char *prop_data = NULL;
+          unsigned long opacity_val = 0xffffffffUL;
+
+          if (XGetWindowAttributes (ws->dpy, ws->window, &xwa))
+            {
+              DL(1, "window mapped: visible=%d map_state=%d depth=%d visual=0x%lx",
+                 xwa.map_state == IsViewable, xwa.map_state, xwa.depth,
+                 (unsigned long)XVisualIDFromVisual(xwa.visual));
+            }
+
+          if (XGetWindowProperty (ws->dpy, ws->window, XA_NET_WM_WINDOW_OPACITY,
+                                  0, 1, False, XA_CARDINAL,
+                                  &actual_type, &actual_format, &nitems,
+                                  &bytes_after, &prop_data) == Success && prop_data)
+            {
+              opacity_val = *((unsigned long *)prop_data);
+              XFree (prop_data);
+              DL(1, "_NET_WM_WINDOW_OPACITY=0x%lx (%.2f%%)",
+                 opacity_val, (opacity_val / (double)0xffffffffUL) * 100.0);
+            }
+          else
+            {
+              DL(1, "_NET_WM_WINDOW_OPACITY not set (fully opaque)");
+            }
+        }
 
         /* If we're in the fade period, or if the window is transparent,
            clear BYPASS_COMPOSITOR again since create_window() sets it back to 1.
