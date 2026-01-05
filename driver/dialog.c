@@ -1033,6 +1033,10 @@ create_window (window_state *ws, int w, int h)
   if (ws->visual_depth == 32 || ws->dialog_opacity < 1.0)
     ws->bypass_cleared_p = True;
 
+# ifdef DEBUG_STACKING
+  register_window_label (ws->window, ws->splash_p ? "splash-dialog" : "password-dialog");
+# endif
+
   /* Override window type to DIALOG for password dialog (not splash).
      The screensaver window uses NOTIFICATION, so we need a different type
      to avoid stacking conflicts. Also find the screensaver window and set
@@ -1406,6 +1410,190 @@ window_init (Widget root_widget, int splash_p)
 
 #define DEBUG_STACKING
 #ifdef DEBUG_STACKING
+/* Track window labels for debugging */
+#define MAX_WINDOW_LABELS 100
+static struct {
+  Window w;
+  char *label;  /* Owned by this structure - freed when window is unregistered */
+} window_labels[MAX_WINDOW_LABELS];
+static int window_label_count = 0;
+
+static void
+register_window_label (Window w, const char *label)
+{
+  if (window_label_count < MAX_WINDOW_LABELS)
+    {
+      /* Check if window is already registered and update it */
+      int i;
+      for (i = 0; i < window_label_count; i++)
+        {
+          if (window_labels[i].w == w)
+            {
+              free (window_labels[i].label);
+              window_labels[i].label = strdup (label);
+              DL(0, "updated window 0x%lx label to \"%s\"", (unsigned long)w, label);
+              return;
+            }
+        }
+
+      window_labels[window_label_count].w = w;
+      window_labels[window_label_count].label = strdup (label);
+      window_label_count++;
+      DL(0, "registered window 0x%lx as \"%s\"", (unsigned long)w, label);
+    }
+}
+
+static const char *
+get_window_label (Window w)
+{
+  int i;
+  for (i = 0; i < window_label_count; i++)
+    {
+      if (window_labels[i].w == w)
+        return window_labels[i].label;
+    }
+  return NULL;
+}
+
+/* Auto-register XScreenSaver windows based on their properties */
+static void
+auto_register_xscreensaver_window (Display *dpy, Window w)
+{
+  if (get_window_label (w))
+    return;  /* Already registered */
+
+  XClassHint ch;
+  char *name = 0;
+  XWindowAttributes xwa;
+  Atom actual_type;
+  int actual_format;
+  unsigned long nitems, bytes_after;
+  unsigned char *prop_data = NULL;
+  Atom *atoms = NULL;
+  const char *label = NULL;
+  Window root, parent, *children;
+  unsigned int nchildren;
+
+  if (!XGetWindowAttributes (dpy, w, &xwa))
+    return;
+
+  /* Check if it's an XScreenSaver window */
+  if (XGetClassHint (dpy, w, &ch))
+    {
+      if (ch.res_class && !strcmp(ch.res_class, "XScreenSaver"))
+        {
+          /* Check for hack name property first */
+          char *hack_name_prop = NULL;
+          if (XGetWindowProperty (dpy, w, XA_SCREENSAVER_HACK_NAME,
+                                 0, 255, False, XA_STRING,
+                                 &actual_type, &actual_format, &nitems,
+                                 &bytes_after, &prop_data) == Success && prop_data)
+            {
+              hack_name_prop = (char *)prop_data;
+            }
+
+          /* Check window type */
+          if (XGetWindowProperty (dpy, w, XA_NET_WM_WINDOW_TYPE,
+                                 0, 10, False, XA_ATOM,
+                                 &actual_type, &actual_format, &nitems,
+                                 &bytes_after, &prop_data) == Success && prop_data)
+            {
+              atoms = (Atom *)prop_data;
+              if (nitems > 0)
+                {
+                  if (atoms[0] == XA_NET_WM_WINDOW_TYPE_NOTIFICATION)
+                    {
+                      if (xwa.width == 1 && xwa.height == 1)
+                        label = "screensaver-daemon";
+                      else if (hack_name_prop)
+                        {
+                          /* Use hack name + " hack" */
+                          char hack_label[256];
+                          snprintf (hack_label, sizeof(hack_label), "%s hack", hack_name_prop);
+                          register_window_label (w, hack_label);
+                          if (prop_data)
+                            XFree (prop_data);
+                          if (hack_name_prop)
+                            XFree (hack_name_prop);
+                          return;  /* Already registered */
+                        }
+                      else
+                        label = "screensaver-main";
+                    }
+                  else if (atoms[0] == XA_NET_WM_WINDOW_TYPE_DIALOG)
+                    label = "screensaver-error-dialog";
+                }
+              XFree (prop_data);
+            }
+
+          if (hack_name_prop)
+            XFree (hack_name_prop);
+
+          /* If no type hint, check by size */
+          if (!label)
+            {
+              if (xwa.width == 1 && xwa.height == 1)
+                label = "screensaver-daemon";
+              else if (XFetchName (dpy, w, &name) && name && strstr(name, "Error"))
+                label = "screensaver-error-dialog";
+              else
+                label = "screensaver-unknown";
+              if (name)
+                XFree (name);
+            }
+        }
+      XFree (ch.res_class);
+      XFree (ch.res_name);
+    }
+  else if (XFetchName (dpy, w, &name) && name)
+    {
+      if (strstr(name, "XScreenSaver"))
+        {
+          if (xwa.width == 1 && xwa.height == 1)
+            label = "screensaver-daemon";
+          else
+            label = "screensaver-unknown";
+        }
+      XFree (name);
+    }
+  else
+    {
+      /* Untitled window - check if it's a child of a screensaver window
+         or matches screensaver dimensions (might be compositor overlay) */
+      if (XQueryTree (dpy, w, &root, &parent, &children, &nchildren))
+        {
+          if (children)
+            XFree (children);
+
+          /* Check if parent is a screensaver window */
+          if (parent != root)
+            {
+              XClassHint parent_ch;
+              if (XGetClassHint (dpy, parent, &parent_ch))
+                {
+                  if (parent_ch.res_class && !strcmp(parent_ch.res_class, "XScreenSaver"))
+                    {
+                      if (xwa.width > 1000 && xwa.height > 1000)
+                        label = "screensaver-compositor-overlay";
+                      else
+                        label = "screensaver-child";
+                    }
+                  XFree (parent_ch.res_class);
+                  XFree (parent_ch.res_name);
+                }
+            }
+          else if (xwa.width > 1000 && xwa.height > 1000)
+            {
+              /* Large untitled window at root level - might be compositor overlay */
+              label = "compositor-overlay";
+            }
+        }
+    }
+
+  if (label)
+    register_window_label (w, label);
+}
+
 static void
 describe_window (Display *dpy, Window w, const char *prefix)
 {
@@ -1413,6 +1601,20 @@ describe_window (Display *dpy, Window w, const char *prefix)
   char *name = 0;
   XWindowAttributes xwa;
   char type_hint[100] = "";
+  const char *label = get_window_label (w);
+  char label_str[200] = "";
+
+  /* Auto-register XScreenSaver windows if not already registered */
+  if (!label)
+    {
+      auto_register_xscreensaver_window (dpy, w);
+      label = get_window_label (w);
+    }
+
+  if (label)
+    {
+      snprintf (label_str, sizeof(label_str), " [%s]", label);
+    }
 
   XGetWindowAttributes (dpy, w, &xwa);
 
@@ -1446,23 +1648,23 @@ describe_window (Display *dpy, Window w, const char *prefix)
     unsigned long visual_id = (unsigned long)XVisualIDFromVisual(xwa.visual);
     if (XGetClassHint (dpy, w, &ch))
       {
-        DL(0, "%s: 0x%lx (%dx%d+%d+%d) \"%s\", \"%s\"%s visual=0x%lx depth=%d",
+        DL(0, "%s: 0x%lx (%dx%d+%d+%d) \"%s\", \"%s\"%s%s visual=0x%lx depth=%d",
            prefix, (unsigned long) w,
-           xwa.width, xwa.height, xwa.x, xwa.y, ch.res_class, ch.res_name, type_hint,
+           xwa.width, xwa.height, xwa.x, xwa.y, ch.res_class, ch.res_name, type_hint, label_str,
            visual_id, xwa.depth);
         XFree (ch.res_class);
         XFree (ch.res_name);
       }
     else if (XFetchName (dpy, w, &name) && name)
       {
-        DL(0, "%s: 0x%lx (%dx%d+%d+%d) \"%s\"%s visual=0x%lx depth=%d", prefix, (unsigned long) w,
-           xwa.width, xwa.height, xwa.x, xwa.y, name, type_hint, visual_id, xwa.depth);
+        DL(0, "%s: 0x%lx (%dx%d+%d+%d) \"%s\"%s%s visual=0x%lx depth=%d", prefix, (unsigned long) w,
+           xwa.width, xwa.height, xwa.x, xwa.y, name, type_hint, label_str, visual_id, xwa.depth);
         XFree (name);
       }
     else
       {
-        DL(0, "%s: 0x%lx (%dx%d+%d+%d) (untitled)%s visual=0x%lx depth=%d", prefix, (unsigned long) w,
-           xwa.width, xwa.height, xwa.x, xwa.y, type_hint, visual_id, xwa.depth);
+        DL(0, "%s: 0x%lx (%dx%d+%d+%d) (untitled)%s%s visual=0x%lx depth=%d", prefix, (unsigned long) w,
+           xwa.width, xwa.height, xwa.x, xwa.y, type_hint, label_str, visual_id, xwa.depth);
       }
   }
 }

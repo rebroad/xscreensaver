@@ -1037,6 +1037,29 @@ spawn_screenhack (saver_screen_info *ssi)
       XChangeProperty (si->dpy, ssi->screensaver_window, XA_NET_WM_PID,
                        XA_CARDINAL, 32, PropModeReplace,
                        (unsigned char *) &ssi->pid, 1);
+
+      /* Extract hack name from command (e.g., "hextrail" from "hextrail --root --fps") */
+      {
+        char *hack_name = strdup (hack->command);
+        char *space = strchr (hack_name, ' ');
+        if (space)
+          *space = '\0';
+        /* Remove path if present (e.g., "/usr/bin/hextrail" -> "hextrail") */
+        {
+          char *slash = strrchr (hack_name, '/');
+          if (slash)
+            {
+              char *tmp = strdup (slash + 1);
+              free (hack_name);
+              hack_name = tmp;
+            }
+        }
+        XChangeProperty (si->dpy, ssi->screensaver_window, XA_SCREENSAVER_HACK_NAME,
+                         XA_STRING, 8, PropModeReplace,
+                         (unsigned char *) hack_name,
+                         strlen (hack_name));
+        free (hack_name);
+      }
     }
 
  DONE:
