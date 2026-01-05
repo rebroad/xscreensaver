@@ -1437,24 +1437,29 @@ describe_window (Display *dpy, Window w, const char *prefix)
         XFree (prop_data);
       }
   }
-  if (XGetClassHint (dpy, w, &ch))
-    {
-      DL(0, "%s: 0x%lx (%dx%d+%d+%d) \"%s\", \"%s\"%s", prefix, (unsigned long) w,
-         xwa.width, xwa.height, xwa.x, xwa.y, ch.res_class, ch.res_name, type_hint);
-      XFree (ch.res_class);
-      XFree (ch.res_name);
-    }
-  else if (XFetchName (dpy, w, &name) && name)
-    {
-      DL(0, "%s: 0x%lx (%dx%d+%d+%d) \"%s\"%s", prefix, (unsigned long) w,
-         xwa.width, xwa.height, xwa.x, xwa.y, name, type_hint);
-      XFree (name);
-    }
-  else
-    {
-      DL(0, "%s: 0x%lx (%dx%d+%d+%d) (untitled)%s", prefix, (unsigned long) w,
-         xwa.width, xwa.height, xwa.x, xwa.y, type_hint);
-    }
+  {
+    unsigned long visual_id = (unsigned long)XVisualIDFromVisual(xwa.visual);
+    if (XGetClassHint (dpy, w, &ch))
+      {
+        DL(0, "%s: 0x%lx (%dx%d+%d+%d) \"%s\", \"%s\"%s visual=0x%lx depth=%d",
+           prefix, (unsigned long) w,
+           xwa.width, xwa.height, xwa.x, xwa.y, ch.res_class, ch.res_name, type_hint,
+           visual_id, xwa.depth);
+        XFree (ch.res_class);
+        XFree (ch.res_name);
+      }
+    else if (XFetchName (dpy, w, &name) && name)
+      {
+        DL(0, "%s: 0x%lx (%dx%d+%d+%d) \"%s\"%s visual=0x%lx depth=%d", prefix, (unsigned long) w,
+           xwa.width, xwa.height, xwa.x, xwa.y, name, type_hint, visual_id, xwa.depth);
+        XFree (name);
+      }
+    else
+      {
+        DL(0, "%s: 0x%lx (%dx%d+%d+%d) (untitled)%s visual=0x%lx depth=%d", prefix, (unsigned long) w,
+           xwa.width, xwa.height, xwa.x, xwa.y, type_hint, visual_id, xwa.depth);
+      }
+  }
 }
 #endif /* DEBUG_STACKING */
 
