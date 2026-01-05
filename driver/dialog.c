@@ -2013,7 +2013,23 @@ window_draw (window_state *ws)
                        xgwa.y == ws->y &&
                        xgwa.width  == window_width &&
                        xgwa.height == window_height);
-    occluded_p = (!size_changed_p && 
+
+    /* Only check occlusion if we don't have a compositor, as compositors
+       often report confusing stacking order via XQueryTree. */
+    static Bool compositor_checked_p = False;
+    static Bool compositor_available_p = False;
+    if (!compositor_checked_p)
+      {
+        char atom_name[20];
+        sprintf (atom_name, "_NET_WM_CM_S%d",
+                 XScreenNumberOfScreen (ws->screen));
+        Atom cm_atom = XInternAtom (dpy, atom_name, False);
+        Window cm_owner = XGetSelectionOwner (dpy, cm_atom);
+        compositor_available_p = (cm_owner != None);
+        compositor_checked_p = True;
+      }
+
+    occluded_p = (!size_changed_p && !compositor_available_p &&
                   window_occluded_p (ws->dpy, ws->window));
 
     if (size_changed_p || occluded_p)
@@ -2108,10 +2124,10 @@ window_draw (window_state *ws)
         if ((ws->visual_depth == 32 || ws->dialog_opacity < 1.0 || remain <= 1.0) &&
             !ws->bypass_cleared_p)
           {
-            XDeleteProperty (dpy, ws->window, XA_NET_WM_BYPASS_COMPOSITOR);
+            XDeleteProperty (ws->dpy, ws->window, XA_NET_WM_BYPASS_COMPOSITOR);
             ws->bypass_cleared_p = True;
             DL(1, "deleted BYPASS_COMPOSITOR to enable compositor transparency/opacity");
-            XSync (dpy, False);
+            XSync (ws->dpy, False);
           }
 
         /* _NET_WM_WINDOW_OPACITY is a CARD32: 0 (transparent) to 0xffffffff (opaque) */
