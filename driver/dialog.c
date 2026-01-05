@@ -1488,11 +1488,14 @@ window_occluded_p (Display *dpy, Window window)
         }
 
 # ifdef DEBUG_STACKING
-      /* Compute hash of window tree: XOR all window IDs together */
+      /* Compute hash of window tree: include order by using a rolling hash.
+         This detects both window addition/removal AND stacking order changes. */
       current_hash = 0;
       for (i = 0; i < nkids; i++)
-        current_hash ^= (unsigned long)kids[i];
-      current_hash ^= (unsigned long)nkids;  /* Include count in hash */
+        {
+          /* Rolling hash: hash = hash * 31 + window_id (order-sensitive) */
+          current_hash = current_hash * 31UL + (unsigned long)kids[i];
+        }
       hash_changed_p = (current_hash != last_hash);
       if (hash_changed_p)
         {
@@ -2396,8 +2399,9 @@ window_draw (window_state *ws)
     double now_log = double_time();
     if (now_log - last_draw_log > 1.0)
       {
-        DL(1, "window_draw finished: %dx%d @ %d,%d opacity=%.2f visual=%d",
-           window_width, window_height, ws->x, ws->y, ws->dialog_opacity, ws->visual_depth);
+        DL(1, "window_draw finished: %dx%d @ %d,%d opacity=%.2f depth=%d visual_id=0x%lx",
+           window_width, window_height, ws->x, ws->y, ws->dialog_opacity, ws->visual_depth,
+           (unsigned long)XVisualIDFromVisual(ws->visual));
         last_draw_log = now_log;
       }
   }
