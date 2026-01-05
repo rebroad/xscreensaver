@@ -213,6 +213,7 @@ AUTH_OBJS_1	= dialog.o passwd.o setuid.o \
 		  $(UTILS_BIN)/usleep.o \
 		  $(UTILS_BIN)/doubletime.o \
 		  $(UTILS_BIN)/resources.o \
+		  $(UTILS_BIN)/visual.o \
 		  $(UTILS_BIN)/logo.o \
 		  $(UTILS_BIN)/minixpm.o
 AUTH_LIBS	= $(LIBS_PRE) $(XFT_LIBS) $(XINPUT_LIBS) $(XINERAMA_LIBS) \

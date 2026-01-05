@@ -677,14 +677,24 @@ get_color (window_state *ws, const char *name, const char *rclass)
                           (char *) name, (char *) rclass);
   if (ws->visual_depth == 32)
     {
-      XColor xc;
-      xc.pixel = p;
-      XQueryColor (ws->dpy, ws->cmap, &xc);
-      unsigned long a = (unsigned long)(ws->dialog_opacity * 255.0);
-      unsigned long r = (xc.red   >> 8);
-      unsigned long g = (xc.green >> 8);
-      unsigned long b = (xc.blue  >> 8);
-      p = (a << 24) | (r << 16) | (g << 8) | b;
+      unsigned long r_mask, g_mask, b_mask, a_mask;
+      visual_rgb_masks (ws->screen, ws->visual, &r_mask, &g_mask, &b_mask);
+      a_mask = ~(r_mask | g_mask | b_mask) & 0xFFFFFFFF;
+
+      if (a_mask)
+        {
+          int a_shift = 0;
+          unsigned long am = a_mask;
+          while (am && !(am & 1)) { am >>= 1; a_shift++; }
+          int a_bits = 0;
+          while (am & 1) { am >>= 1; a_bits++; }
+
+          unsigned long a_val = (unsigned long)(ws->dialog_opacity * 0xFFFF);
+          if (a_bits < 16) a_val >>= (16 - a_bits);
+          else if (a_bits > 16) a_val <<= (a_bits - 16);
+
+          p = (p & ~a_mask) | ((a_val << a_shift) & a_mask);
+        }
     }
   return p;
 }
@@ -1098,6 +1108,11 @@ window_init (Widget root_widget, int splash_p)
   ws->visual = find_32bit_visual (ws->dpy, XScreenNumberOfScreen (ws->screen));
   if (ws->visual) {
       ws->visual_depth = 32;
+      unsigned long rm, gm, bm, am;
+      visual_rgb_masks (ws->screen, ws->visual, &rm, &gm, &bm);
+      am = ~(rm | gm | bm) & 0xFFFFFFFF;
+      DL(1, "using 32-bit visual: 0x%lx (masks: R=0x%lx G=0x%lx B=0x%lx A=0x%lx)",
+         (unsigned long)XVisualIDFromVisual(ws->visual), rm, gm, bm, am);
   } else {
       ws->visual = DefaultVisualOfScreen (ws->screen);
       ws->visual_depth = DefaultDepthOfScreen (ws->screen);
@@ -1243,6 +1258,57 @@ window_init (Widget root_widget, int splash_p)
                                          &ws->logo_pixels, &ws->logo_npixels,
                                          &ws->logo_clipmask, logo_size);
     if (!ws->logo_pixmap) abort();
+
+    /* Fix logo pixels if we are using a 32-bit visual. */
+    if (ws->visual_depth == 32)
+      {
+        unsigned long r_mask, g_mask, b_mask, a_mask;
+        visual_rgb_masks (ws->screen, ws->visual, &r_mask, &g_mask, &b_mask);
+        a_mask = ~(r_mask | g_mask | b_mask) & 0xFFFFFFFF;
+
+        if (a_mask)
+          {
+            int a_shift = 0;
+            unsigned long am = a_mask;
+            while (am && !(am & 1)) { am >>= 1; a_shift++; }
+            int a_bits = 0;
+            while (am & 1) { am >>= 1; a_bits++; }
+
+            unsigned long a_val = (unsigned long)(ws->dialog_opacity * 0xFFFF);
+            if (a_bits < 16) a_val >>= (16 - a_bits);
+            else if (a_bits > 16) a_val <<= (a_bits - 16);
+            unsigned long alpha_bits = (a_val << a_shift) & a_mask;
+
+            int k;
+            for (k = 0; k < ws->logo_npixels; k++)
+              ws->logo_pixels[k] = (ws->logo_pixels[k] & ~a_mask) | alpha_bits;
+
+            /* Since the logo pixmap was already created with potentially
+               transparent pixels, we need to re-create it or fix it.
+               Actually, it's easier to just fix the pixmap contents. */
+            XGCValues gcv2;
+            GC gc2 = XCreateGC (dpy, ws->logo_pixmap, 0, &gcv2);
+            XImage *img = XGetImage (dpy, ws->logo_pixmap, 0, 0,
+                                     ws->logo_width, ws->logo_height,
+                                     AllPlanes, ZPixmap);
+            if (img)
+              {
+                int ix, iy;
+                for (iy = 0; iy < ws->logo_height; iy++)
+                  for (ix = 0; ix < ws->logo_width; ix++)
+                    {
+                      unsigned long p = XGetPixel (img, ix, iy);
+                      p = (p & ~a_mask) | alpha_bits;
+                      XPutPixel (img, ix, iy, p);
+                    }
+                XPutImage (dpy, ws->logo_pixmap, gc2, img, 0, 0, 0, 0,
+                           ws->logo_width, ws->logo_height);
+                XDestroyImage (img);
+              }
+            XFreeGC (dpy, gc2);
+          }
+      }
+
     XGetGeometry (dpy, ws->logo_pixmap, &root, &x, &y,
                   &ws->logo_width, &ws->logo_height, &bw, &d);
   }
@@ -1471,15 +1537,28 @@ window_draw (window_state *ws)
 
     if (depth == 32)
       {
-        XColor xc;
-        xc.pixel = ws->background;
-        XQueryColor (dpy, ws->cmap, &xc);
-        unsigned long a = (unsigned long)(current_opacity * 255.0);
-        unsigned long r = (xc.red   >> 8);
-        unsigned long g = (xc.green >> 8);
-        unsigned long b = (xc.blue  >> 8);
-        unsigned long bg_pixel = (a << 24) | (r << 16) | (g << 8) | b;
-        XSetForeground (dpy, gc, bg_pixel);
+        unsigned long r_mask, g_mask, b_mask, a_mask;
+        visual_rgb_masks (ws->screen, ws->visual, &r_mask, &g_mask, &b_mask);
+        a_mask = ~(r_mask | g_mask | b_mask) & 0xFFFFFFFF;
+
+        if (a_mask)
+          {
+            int a_shift = 0;
+            unsigned long am = a_mask;
+            while (am && !(am & 1)) { am >>= 1; a_shift++; }
+            int a_bits = 0;
+            while (am & 1) { am >>= 1; a_bits++; }
+
+            unsigned long a_val = (unsigned long)(current_opacity * 0xFFFF);
+            if (a_bits < 16) a_val >>= (16 - a_bits);
+            else if (a_bits > 16) a_val <<= (a_bits - 16);
+
+            unsigned long bg_pixel = (ws->background & ~a_mask) |
+                                     ((a_val << a_shift) & a_mask);
+            XSetForeground (dpy, gc, bg_pixel);
+          }
+        else
+          XSetForeground (dpy, gc, ws->background);
       }
     else
       XSetForeground (dpy, gc, ws->background);
@@ -1490,6 +1569,10 @@ window_draw (window_state *ws)
   if (ws->xftdraw)
     XftDrawDestroy (ws->xftdraw);
   ws->xftdraw = XftDrawCreate (dpy, dbuf, visual, ws->cmap);
+  if (!ws->xftdraw) {
+    DL(1, "XftDrawCreate failed!");
+    abort();
+  }
 
   lines[i].text  = ws->heading_label;			/* XScreenSaver */
   lines[i].font  = ws->heading_font;
@@ -2137,6 +2220,17 @@ window_draw (window_state *ws)
   XSync (dpy, False);
   XFreeGC (dpy, gc);
   XFreePixmap (dpy, dbuf);
+
+  {
+    static double last_draw_log = 0;
+    double now_log = double_time();
+    if (now_log - last_draw_log > 1.0)
+      {
+        DL(1, "window_draw finished: %dx%d @ %d,%d opacity=%.2f visual=%d",
+           window_width, window_height, ws->x, ws->y, ws->dialog_opacity, ws->visual_depth);
+        last_draw_log = now_log;
+      }
+  }
 
   free (lines);
 
