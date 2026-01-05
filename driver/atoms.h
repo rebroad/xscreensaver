@@ -26,7 +26,8 @@ extern Atom XA_SCREENSAVER, XA_SCREENSAVER_VERSION, XA_SCREENSAVER_RESPONSE,
 extern void init_xscreensaver_atoms (Display *dpy);
 extern void xscreensaver_set_wm_atoms (Display *, Window,
                                        int width, int height,
-                                       Window for_window);
+									   Window for_window,
+									   int set_bypass_compositor);
 
 /* You might think that to store an array of 32-bit quantities onto a
    server-side property, you would pass an array of 32-bit data quantities

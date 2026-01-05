@@ -320,7 +320,7 @@ initialize_screensaver_window_1 (saver_screen_info *ssi)
                        0, ssi->current_depth, InputOutput,
                        ssi->current_visual, attrmask, &attrs);
       xscreensaver_set_wm_atoms (si->dpy, ssi->screensaver_window,
-                                 ssi->width, ssi->height, 0);
+                                 ssi->width, ssi->height, 0, 1);
 
       if (horked_window)
         {
@@ -1111,7 +1111,7 @@ screenhack_obituary (saver_screen_info *ssi,
   changes.height = font->ascent + font->descent + pad * 2;
   XConfigureWindow (si->dpy, window, attrmask, &changes);
   xscreensaver_set_wm_atoms (si->dpy, window, changes.width, changes.height,
-                             ssi->screensaver_window);
+                             ssi->screensaver_window, 1);
   XMapRaised (si->dpy, window);
   XClearWindow (si->dpy, window);
 

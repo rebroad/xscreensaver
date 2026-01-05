@@ -1026,18 +1026,12 @@ create_window (window_state *ws, int w, int h)
                               ws->visual,
                               attrmask, &attrs);
   XSetWindowBackground (ws->dpy, ws->window, ws->background);
-  xscreensaver_set_wm_atoms (ws->dpy, ws->window, w, h, 0);
-
-  /* Delete BYPASS_COMPOSITOR immediately after xscreensaver_set_wm_atoms sets it,
-     if we're using a 32-bit visual or need transparency, so the compositor
-     never sees the bypass property set. This is better than deleting it later
-     because the compositor processes window properties when the window is first mapped. */
+  /* Don't set BYPASS_COMPOSITOR if we're using a 32-bit visual or need transparency,
+     so the compositor can apply transparency effects. */
+  xscreensaver_set_wm_atoms (ws->dpy, ws->window, w, h, 0,
+                             (ws->visual_depth == 32 || ws->dialog_opacity < 1.0) ? 0 : 1); // TODO maybe never bypass?
   if (ws->visual_depth == 32 || ws->dialog_opacity < 1.0)
-    {
-      XDeleteProperty (ws->dpy, ws->window, XA_NET_WM_BYPASS_COMPOSITOR);
-      ws->bypass_cleared_p = True;
-      DL(1, "deleted BYPASS_COMPOSITOR immediately after window creation");
-    }
+    ws->bypass_cleared_p = True;
 
   /* Override window type to DIALOG for password dialog (not splash).
      The screensaver window uses NOTIFICATION, so we need a different type
@@ -2265,8 +2259,10 @@ window_draw (window_state *ws)
         }
 
         /* If we're in the fade period, clear BYPASS_COMPOSITOR if it wasn't
-           already cleared in create_window(). We delete it in create_window()
-           for 32-bit visuals, but we also need to delete it during fade. */
+           already prevented from being set in create_window(). We prevent it
+           from being set for 32-bit visuals or static transparency, but we may
+           need to delete it here if we're fading and it was set (e.g., non-32-bit
+           visual that starts fading). */
         {
           double now = double_time();
           double remain = ws->end_time - now;
@@ -2331,12 +2327,11 @@ window_draw (window_state *ws)
        This is the same approach GTK's gtk_widget_set_opacity() uses. */
     if (compositor_available_p)
       {
-        /* Delete BYPASS_COMPOSITOR when using 32-bit visuals or fading so compositor can apply effects.
-           xscreensaver_set_wm_atoms() sets it to 1 (bypass), but we want
-           the compositor to apply opacity. Deleting it lets the compositor
-           use its default behavior. */
-        if ((ws->visual_depth == 32 || ws->dialog_opacity < 1.0 || remain <= 1.0) &&
-            !ws->bypass_cleared_p)
+        /* Delete BYPASS_COMPOSITOR during fade if it wasn't already prevented from being set.
+           We prevent it from being set in create_window() for 32-bit visuals or static transparency,
+           but we may need to delete it here if we're fading and it was set (e.g., non-32-bit visual
+           that starts fading). */
+        if (remain <= 1.0 && !ws->bypass_cleared_p)
           {
             XDeleteProperty (ws->dpy, ws->window, XA_NET_WM_BYPASS_COMPOSITOR);
             ws->bypass_cleared_p = True;
