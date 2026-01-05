@@ -1028,6 +1028,78 @@ create_window (window_state *ws, int w, int h)
   XSetWindowBackground (ws->dpy, ws->window, ws->background);
   xscreensaver_set_wm_atoms (ws->dpy, ws->window, w, h, 0);
 
+  /* Override window type to DIALOG for password dialog (not splash).
+     The screensaver window uses NOTIFICATION, so we need a different type
+     to avoid stacking conflicts. Also find the screensaver window and set
+     _WM_TRANSIENT_FOR so the dialog appears above it. */
+  if (!ws->splash_p)
+    {
+      Atom va[4];
+      va[0] = XA_NET_WM_WINDOW_TYPE_DIALOG;
+      va[1] = XA_KDE_NET_WM_WINDOW_TYPE_OVERRIDE;
+      XChangeProperty (ws->dpy, ws->window, XA_NET_WM_WINDOW_TYPE, XA_ATOM, 32,
+                       PropModeReplace, (unsigned char *) va, 2);
+
+      /* Find the screensaver window (NOTIFICATION type, "XScreenSaver" class)
+         and set _WM_TRANSIENT_FOR so the dialog appears above it. */
+      {
+        Window root = RootWindowOfScreen (ws->screen);
+        Window root2 = 0, parent = 0, *kids = 0;
+        unsigned int nkids = 0;
+        Window screensaver_window = 0;
+
+        if (XQueryTree (ws->dpy, root, &root2, &parent, &kids, &nkids))
+          {
+            int i;
+            for (i = 0; i < nkids && !screensaver_window; i++)
+              {
+                Atom actual_type;
+                int actual_format;
+                unsigned long nitems, bytes_after;
+                unsigned char *prop_data = NULL;
+                Atom *atoms = NULL;
+                XClassHint ch;
+
+                /* Check if this window has NOTIFICATION type */
+                if (XGetWindowProperty (ws->dpy, kids[i], XA_NET_WM_WINDOW_TYPE,
+                                       0, 10, False, XA_ATOM,
+                                       &actual_type, &actual_format, &nitems,
+                                       &bytes_after, &prop_data) == Success && prop_data)
+                  {
+                    atoms = (Atom *)prop_data;
+                    if (nitems > 0 && atoms[0] == XA_NET_WM_WINDOW_TYPE_NOTIFICATION)
+                      {
+                        /* Check if it's the screensaver window by class */
+                        if (XGetClassHint (ws->dpy, kids[i], &ch))
+                          {
+                            if (ch.res_class && !strcmp(ch.res_class, "XScreenSaver"))
+                              screensaver_window = kids[i];
+                            XFree (ch.res_class);
+                            XFree (ch.res_name);
+                          }
+                      }
+                    XFree (prop_data);
+                  }
+              }
+            if (kids)
+              XFree ((char *) kids);
+          }
+
+        if (screensaver_window)
+          {
+            va[0] = screensaver_window;
+            XChangeProperty (ws->dpy, ws->window, XA_WM_TRANSIENT_FOR, XA_WINDOW, 32,
+                             PropModeReplace, (unsigned char *) va, 1);
+            DL(1, "set _WM_TRANSIENT_FOR to screensaver window 0x%lx",
+               (unsigned long)screensaver_window);
+          }
+        else
+          {
+            DL(1, "could not find screensaver window for _WM_TRANSIENT_FOR");
+          }
+      }
+    }
+
   /* Reset bypass_cleared_p when window is recreated, so we can clear
      BYPASS_COMPOSITOR again if needed during fade */
   ws->bypass_cleared_p = False;
@@ -1335,24 +1407,53 @@ describe_window (Display *dpy, Window w, const char *prefix)
   XClassHint ch;
   char *name = 0;
   XWindowAttributes xwa;
+  char type_hint[100] = "";
+
   XGetWindowAttributes (dpy, w, &xwa);
+
+  /* Try to get window type hint to distinguish windows */
+  {
+    Atom actual_type;
+    int actual_format;
+    unsigned long nitems, bytes_after;
+    unsigned char *prop_data = NULL;
+    Atom *atoms = NULL;
+
+    if (XGetWindowProperty (dpy, w, XA_NET_WM_WINDOW_TYPE,
+                            0, 10, False, XA_ATOM,
+                            &actual_type, &actual_format, &nitems,
+                            &bytes_after, &prop_data) == Success && prop_data)
+      {
+        atoms = (Atom *)prop_data;
+        if (nitems > 0)
+          {
+            if (atoms[0] == XA_NET_WM_WINDOW_TYPE_DIALOG)
+              strcpy(type_hint, " [DIALOG]");
+            else if (atoms[0] == XA_NET_WM_WINDOW_TYPE_SPLASH)
+              strcpy(type_hint, " [SPLASH]");
+            else if (atoms[0] == XA_NET_WM_WINDOW_TYPE_NOTIFICATION)
+              strcpy(type_hint, " [NOTIFICATION]");
+          }
+        XFree (prop_data);
+      }
+  }
   if (XGetClassHint (dpy, w, &ch))
     {
-      DL(0, "%s: 0x%lx (%dx%d+%d+%d) \"%s\", \"%s\"", prefix, (unsigned long) w,
-         xwa.width, xwa.height, xwa.x, xwa.y, ch.res_class, ch.res_name);
+      DL(0, "%s: 0x%lx (%dx%d+%d+%d) \"%s\", \"%s\"%s", prefix, (unsigned long) w,
+         xwa.width, xwa.height, xwa.x, xwa.y, ch.res_class, ch.res_name, type_hint);
       XFree (ch.res_class);
       XFree (ch.res_name);
     }
   else if (XFetchName (dpy, w, &name) && name)
     {
-      DL(0, "%s: 0x%lx (%dx%d+%d+%d) \"%s\"", prefix, (unsigned long) w,
-         xwa.width, xwa.height, xwa.x, xwa.y, name);
+      DL(0, "%s: 0x%lx (%dx%d+%d+%d) \"%s\"%s", prefix, (unsigned long) w,
+         xwa.width, xwa.height, xwa.x, xwa.y, name, type_hint);
       XFree (name);
     }
   else
     {
-      DL(0, "%s: 0x%lx (%dx%d+%d+%d) (untitled)", prefix, (unsigned long) w,
-         xwa.width, xwa.height, xwa.x, xwa.y);
+      DL(0, "%s: 0x%lx (%dx%d+%d+%d) (untitled)%s", prefix, (unsigned long) w,
+         xwa.width, xwa.height, xwa.x, xwa.y, type_hint);
     }
 }
 #endif /* DEBUG_STACKING */
@@ -1364,9 +1465,10 @@ static Bool
 window_occluded_p (Display *dpy, Window window)
 {
   int screen;
-
 # ifdef DEBUG_STACKING
-  DL(0, "");
+  static unsigned long last_hash = 0;
+  unsigned long current_hash = 0;
+  Bool hash_changed_p = False;
 # endif
 
   for (screen = 0; screen < ScreenCount (dpy); screen++)
@@ -1385,13 +1487,27 @@ window_occluded_p (Display *dpy, Window window)
         continue;
         }
 
+# ifdef DEBUG_STACKING
+      /* Compute hash of window tree: XOR all window IDs together */
+      current_hash = 0;
+      for (i = 0; i < nkids; i++)
+        current_hash ^= (unsigned long)kids[i];
+      current_hash ^= (unsigned long)nkids;  /* Include count in hash */
+      hash_changed_p = (current_hash != last_hash);
+      if (hash_changed_p)
+        {
+          last_hash = current_hash;
+        }
+# endif
+
       for (i = 0; i < nkids; i++)
         {
           if (kids[i] == window)
             {
               saw_our_window_p = True;
 # ifdef DEBUG_STACKING
-              describe_window (dpy, kids[i], "our");
+              if (hash_changed_p)
+                describe_window (dpy, kids[i], "our");
 # endif
             }
           else if (saw_our_window_p)
@@ -1410,7 +1526,8 @@ window_occluded_p (Display *dpy, Window window)
                 {
                   saw_later_window_p = True;
 # ifdef DEBUG_STACKING
-                  describe_window (dpy, kids[i], "higher");
+                  if (hash_changed_p)
+                    describe_window (dpy, kids[i], "higher");
 # endif
                   break;
                 }
@@ -1418,7 +1535,8 @@ window_occluded_p (Display *dpy, Window window)
           else
             {
 # ifdef DEBUG_STACKING
-              describe_window (dpy, kids[i], "lower");
+              if (hash_changed_p)
+                describe_window (dpy, kids[i], "lower");
 # endif
             }
         }
@@ -1435,7 +1553,8 @@ window_occluded_p (Display *dpy, Window window)
 
   /* Window doesn't exist? */
 # ifdef DEBUG_STACKING
-  DL(0, "our window isn't on the screen");
+  if (hash_changed_p)
+    DL(0, "our window isn't on the screen");
 # endif
   return False;
 }
@@ -2074,11 +2193,32 @@ window_draw (window_state *ws)
 
           if (XGetWindowAttributes (ws->dpy, ws->window, &xwa))
             {
-              DL(1, "window mapped: visible=%d map_state=%d depth=%d visual=0x%lx",
-                 xwa.map_state == IsViewable, xwa.map_state, xwa.depth,
-                 (unsigned long)XVisualIDFromVisual(xwa.visual));
+              const char *map_state_str = (xwa.map_state == IsUnmapped ? "Unmapped" :
+                                           xwa.map_state == IsUnviewable ? "Unviewable" :
+                                           "Viewable");
+              DL(1, "window mapped: %s depth=%d visual=0x%lx override_redirect=%d",
+                 map_state_str, xwa.depth,
+                 (unsigned long)XVisualIDFromVisual(xwa.visual),
+                 xwa.override_redirect);
             }
 
+          /* Check BYPASS_COMPOSITOR */
+          if (XGetWindowProperty (ws->dpy, ws->window, XA_NET_WM_BYPASS_COMPOSITOR,
+                                  0, 1, False, XA_CARDINAL,
+                                  &actual_type, &actual_format, &nitems,
+                                  &bytes_after, &prop_data) == Success && prop_data)
+            {
+              unsigned long bypass_val = *((unsigned long *)prop_data);
+              XFree (prop_data);
+              DL(1, "_NET_WM_BYPASS_COMPOSITOR=%lu %s",
+                 bypass_val, bypass_val ? "(bypass enabled)" : "(bypass disabled)");
+            }
+          else
+            {
+              DL(1, "_NET_WM_BYPASS_COMPOSITOR not set (compositor can apply effects)");
+            }
+
+          /* Check opacity */
           if (XGetWindowProperty (ws->dpy, ws->window, XA_NET_WM_WINDOW_OPACITY,
                                   0, 1, False, XA_CARDINAL,
                                   &actual_type, &actual_format, &nitems,
@@ -2086,8 +2226,10 @@ window_draw (window_state *ws)
             {
               opacity_val = *((unsigned long *)prop_data);
               XFree (prop_data);
-              DL(1, "_NET_WM_WINDOW_OPACITY=0x%lx (%.2f%%)",
-                 opacity_val, (opacity_val / (double)0xffffffffUL) * 100.0);
+              double opacity_pct = (opacity_val / (double)0xffffffffUL) * 100.0;
+              DL(1, "_NET_WM_WINDOW_OPACITY=0x%08lx (%.1f%%) %s",
+                 opacity_val, opacity_pct,
+                 opacity_pct < 1.0 ? "*** TRANSPARENT ***" : "");
             }
           else
             {
@@ -2151,8 +2293,9 @@ window_draw (window_state *ws)
         static double last_log = 0;
         if (now - last_log > 0.2)
           {
-            DL(1, "fade: opacity=%.2f card=0x%lx splash_p=%d visual_depth=%d",
-               opacity, (unsigned long)(opacity * 0xffffffffUL), ws->splash_p, ws->visual_depth);
+            unsigned long card_val = (unsigned long)(opacity * 0xffffffffUL);
+            DL(1, "fade: opacity=%.2f card=0x%08lx splash_p=%d visual_depth=%d",
+               opacity, card_val, ws->splash_p, ws->visual_depth);
             last_log = now;
           }
       }
