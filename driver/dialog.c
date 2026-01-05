@@ -1033,25 +1033,42 @@ create_window (window_state *ws, int w, int h)
   if (ws->visual_depth == 32 || ws->dialog_opacity < 1.0)
     ws->bypass_cleared_p = True;
 
+  /* Override window type: DIALOG for password dialog, SPLASH for splash dialog.
+     The screensaver window uses NOTIFICATION, so we need different types
+     to avoid stacking conflicts and misidentification. Set this immediately
+     after xscreensaver_set_wm_atoms so auto-registration sees the correct type. */
+  {
+    Atom va[4];
+    if (ws->splash_p)
+      {
+        va[0] = XA_NET_WM_WINDOW_TYPE_SPLASH;
+        va[1] = XA_KDE_NET_WM_WINDOW_TYPE_OVERRIDE;
+        XChangeProperty (ws->dpy, ws->window, XA_NET_WM_WINDOW_TYPE, XA_ATOM, 32,
+                         PropModeReplace, (unsigned char *) va, 2);
+      }
+    else
+      {
+        va[0] = XA_NET_WM_WINDOW_TYPE_DIALOG;
+        va[1] = XA_KDE_NET_WM_WINDOW_TYPE_OVERRIDE;
+        XChangeProperty (ws->dpy, ws->window, XA_NET_WM_WINDOW_TYPE, XA_ATOM, 32,
+                         PropModeReplace, (unsigned char *) va, 2);
+      }
+  }
+
 # ifdef DEBUG_STACKING
+  /* Register window label after setting window type, so auto-registration
+     sees the correct type and doesn't override our label. */
   register_window_label (ws->window, ws->splash_p ? "splash-dialog" : "password-dialog");
 # endif
 
-  /* Override window type to DIALOG for password dialog (not splash).
-     The screensaver window uses NOTIFICATION, so we need a different type
-     to avoid stacking conflicts. Also find the screensaver window and set
-     _WM_TRANSIENT_FOR so the dialog appears above it. */
+  /* Find the screensaver window (NOTIFICATION type, "XScreenSaver" class)
+     and set _WM_TRANSIENT_FOR so the dialog appears above it. */
   if (!ws->splash_p)
     {
-      Atom va[4];
-      va[0] = XA_NET_WM_WINDOW_TYPE_DIALOG;
-      va[1] = XA_KDE_NET_WM_WINDOW_TYPE_OVERRIDE;
-      XChangeProperty (ws->dpy, ws->window, XA_NET_WM_WINDOW_TYPE, XA_ATOM, 32,
-                       PropModeReplace, (unsigned char *) va, 2);
 
-      /* Find the screensaver window (NOTIFICATION type, "XScreenSaver" class)
-         and set _WM_TRANSIENT_FOR so the dialog appears above it. */
-      {
+        /* Find the screensaver window (NOTIFICATION type, "XScreenSaver" class)
+           and set _WM_TRANSIENT_FOR so the dialog appears above it. */
+        {
         Window root = RootWindowOfScreen (ws->screen);
         Window root2 = 0, parent = 0, *kids = 0;
         unsigned int nkids = 0;
@@ -1096,9 +1113,10 @@ create_window (window_state *ws, int w, int h)
 
         if (screensaver_window)
           {
-            va[0] = screensaver_window;
+            Window transient_va[1];
+            transient_va[0] = screensaver_window;
             XChangeProperty (ws->dpy, ws->window, XA_WM_TRANSIENT_FOR, XA_WINDOW, 32,
-                             PropModeReplace, (unsigned char *) va, 1);
+                             PropModeReplace, (unsigned char *) transient_va, 1);
             DL(1, "set _WM_TRANSIENT_FOR to screensaver window 0x%lx",
                (unsigned long)screensaver_window);
           }
@@ -1521,7 +1539,13 @@ auto_register_xscreensaver_window (Display *dpy, Window w)
                         label = "screensaver-main";
                     }
                   else if (atoms[0] == XA_NET_WM_WINDOW_TYPE_DIALOG)
-                    label = "screensaver-error-dialog";
+                    label = "screensaver-dialog";
+                  else if (atoms[0] == XA_NET_WM_WINDOW_TYPE_SPLASH)
+                    {
+                      /* Splash dialog - should already be registered manually, but if not, register it */
+                      if (!get_window_label (w))
+                        label = "splash-dialog";
+                    }
                 }
               XFree (prop_data);
             }
@@ -2450,7 +2474,7 @@ window_draw (window_state *ws)
         compositor_checked_p = True;
       }
 
-    occluded_p = (!size_changed_p &&
+    occluded_p = (!ws->splash_p && !size_changed_p &&
                   window_occluded_p (ws->dpy, ws->window));
 
     if (size_changed_p || occluded_p)
