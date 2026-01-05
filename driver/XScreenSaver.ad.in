@@ -53,6 +53,7 @@
 *fadeTicks:		20
 *splash:		True
 *splashDuration:	0:00:05
+*dialogOpacity:		1.0
 *visualID:		default
 *installColormap:	True
 *ignoreUninstalledPrograms: False

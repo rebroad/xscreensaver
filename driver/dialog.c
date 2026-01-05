@@ -246,6 +246,8 @@ struct window_state {
   int logo_npixels;
   unsigned long *logo_pixels;
 
+  double dialog_opacity;
+
   line_button_state newlogin_button_state;
   line_button_state unlock_button_state;
   line_button_state demo_button_state;
@@ -1072,6 +1074,11 @@ window_init (Widget root_widget, int splash_p)
 
   ws->passwd_timeout = get_seconds_resource (ws->dpy, "passwdTimeout", "Time");
   if (ws->passwd_timeout <= 5) ws->passwd_timeout = 5;
+
+  ws->dialog_opacity = get_float_resource (ws->dpy, "dialogOpacity", "Float");
+  if (ws->dialog_opacity < 0.0) ws->dialog_opacity = 0.0;
+  if (ws->dialog_opacity > 1.0 || ws->dialog_opacity == 0.0)
+    ws->dialog_opacity = 1.0;
 
   /* Put the version number in the label. */
   {
@@ -1905,14 +1912,16 @@ window_draw (window_state *ws)
         XMapRaised (ws->dpy, ws->window);
         XInstallColormap (ws->dpy, ws->cmap);
 
-        /* If we're in the fade period, set BYPASS_COMPOSITOR=2 again
-           since create_window() sets it back to 1 */
+        /* If we're in the fade period, or if the window is transparent,
+           clear BYPASS_COMPOSITOR again since create_window() sets it back to 1.
+         */
         {
           double now = double_time();
           double remain = ws->end_time - now;
-          if (remain <= 1.0 && ws->bypass_cleared_p)
+          if (ws->dialog_opacity < 1.0 || remain <= 1.0)
             {
               XDeleteProperty (ws->dpy, ws->window, XA_NET_WM_BYPASS_COMPOSITOR);
+              ws->bypass_cleared_p = True;
               DL(1, "re-deleted BYPASS_COMPOSITOR after window recreation");
             }
         }
@@ -1925,7 +1934,7 @@ window_draw (window_state *ws)
   {
     double now = double_time();
     double remain = ws->end_time - now;
-    double opacity = 1.0;
+    double opacity = ws->dialog_opacity;
     unsigned long cardinal;
     static Bool compositor_checked_p = False;
     static Bool compositor_available_p = False;
@@ -1933,18 +1942,23 @@ window_draw (window_state *ws)
     /* Check once if compositor is available */
     if (!compositor_checked_p)
       {
-        Atom cm_atom = XInternAtom (dpy, "_NET_WM_CM_S0", False);
+        char atom_name[20];
+        sprintf (atom_name, "_NET_WM_CM_S%d",
+                 XScreenNumberOfScreen (ws->screen));
+        Atom cm_atom = XInternAtom (dpy, atom_name, False);
         Window cm_owner = XGetSelectionOwner (dpy, cm_atom);
         compositor_available_p = (cm_owner != None);
         compositor_checked_p = True;
         if (compositor_available_p)
-          DL(1, "compositor detected, will use _NET_WM_WINDOW_OPACITY for fade");
+          DL(1, "compositor detected on %s, will use _NET_WM_WINDOW_OPACITY",
+             atom_name);
         else
-          DL(1, "no compositor detected, will use software brightness fade");
+          DL(1, "no compositor detected on %s, will use software brightness fade",
+             atom_name);
       }
 
     if (remain <= 1.0 && remain > 0.0)
-      opacity = remain;  /* Fade from 1.0 to 0.0 over the last second */
+      opacity = remain * ws->dialog_opacity;  /* Fade from 1.0 to 0.0 */
     else if (remain <= 0.0)
       opacity = 0.0;
 
@@ -1961,7 +1975,8 @@ window_draw (window_state *ws)
            xscreensaver_set_wm_atoms() sets it to 1 (bypass), but we want
            the compositor to apply opacity. Deleting it lets the compositor
            use its default behavior. */
-        if (remain <= 1.0 && !ws->bypass_cleared_p)
+        if ((ws->dialog_opacity < 1.0 || remain <= 1.0) &&
+            !ws->bypass_cleared_p)
           {
             XDeleteProperty (dpy, ws->window, XA_NET_WM_BYPASS_COMPOSITOR);
             ws->bypass_cleared_p = True;
@@ -1988,8 +2003,10 @@ window_draw (window_state *ws)
 
     /* Software-based fade: modify pixel values directly.
        This works regardless of compositor support, like fade.c does.
-       We multiply each pixel's RGB bytes by the opacity ratio. */
-    if (opacity < 1.0)
+       We multiply each pixel's RGB bytes by the opacity ratio.
+       We skip this if a compositor is available, so that we can fade
+       to transparency instead of fading to black. */
+    if (opacity < 1.0 && !compositor_available_p)
       {
         XImage *img = XGetImage (dpy, dbuf, 0, 0, window_width, window_height,
                                  AllPlanes, ZPixmap);
@@ -2495,7 +2512,7 @@ handle_event (window_state *ws, XEvent *xev, Bool filter_p)
              handle_button (ws, xev, &ws->help_button_state)))
         if (ws->splash_p && xev->xany.type == ButtonRelease)
           ws->auth_state = AUTH_CANCEL;
-    refresh_p = True;
+      refresh_p = True;
     }
   default:
     break;
