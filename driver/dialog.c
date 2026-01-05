@@ -677,24 +677,10 @@ get_color (window_state *ws, const char *name, const char *rclass)
                           (char *) name, (char *) rclass);
   if (ws->visual_depth == 32)
     {
-      unsigned long r_mask, g_mask, b_mask, a_mask;
-      visual_rgb_masks (ws->screen, ws->visual, &r_mask, &g_mask, &b_mask);
-      a_mask = ~(r_mask | g_mask | b_mask) & 0xFFFFFFFF;
-
-      if (a_mask)
-        {
-          int a_shift = 0;
-          unsigned long am = a_mask;
-          while (am && !(am & 1)) { am >>= 1; a_shift++; }
-          int a_bits = 0;
-          while (am & 1) { am >>= 1; a_bits++; }
-
-          unsigned long a_val = (unsigned long)(ws->dialog_opacity * 0xFFFF);
-          if (a_bits < 16) a_val >>= (16 - a_bits);
-          else if (a_bits > 16) a_val <<= (a_bits - 16);
-
-          p = (p & ~a_mask) | ((a_val << a_shift) & a_mask);
-        }
+      /* Ensure alpha matches dialog_opacity for the requested color.
+         Most X11 visuals use the top 8 bits for alpha. */
+      unsigned long a = (unsigned long)(ws->dialog_opacity * 255.0);
+      p = (p & 0x00FFFFFF) | (a << 24);
     }
   return p;
 }
@@ -1033,6 +1019,13 @@ create_window (window_state *ws, int w, int h)
                               attrmask, &attrs);
   xscreensaver_set_wm_atoms (ws->dpy, ws->window, w, h, 0);
 
+  /* Set window type to DIALOG to help some compositors render 32-bit windows correctly */
+  if (ws->visual_depth == 32)
+    {
+      XChangeProperty (ws->dpy, ws->window, XA_NET_WM_WINDOW_TYPE, XA_ATOM, 32,
+                       PropModeReplace, (unsigned char *) &XA_NET_WM_WINDOW_TYPE_DIALOG, 1);
+    }
+
   /* Reset bypass_cleared_p when window is recreated, so we can clear
      BYPASS_COMPOSITOR again if needed during fade */
   ws->bypass_cleared_p = False;
@@ -1262,51 +1255,33 @@ window_init (Widget root_widget, int splash_p)
     /* Fix logo pixels if we are using a 32-bit visual. */
     if (ws->visual_depth == 32)
       {
-        unsigned long r_mask, g_mask, b_mask, a_mask;
-        visual_rgb_masks (ws->screen, ws->visual, &r_mask, &g_mask, &b_mask);
-        a_mask = ~(r_mask | g_mask | b_mask) & 0xFFFFFFFF;
+        unsigned long a = (unsigned long)(ws->dialog_opacity * 255.0);
+        unsigned long alpha_bits = (a << 24);
 
-        if (a_mask)
+        int k;
+        for (k = 0; k < ws->logo_npixels; k++)
+          ws->logo_pixels[k] = (ws->logo_pixels[k] & 0x00FFFFFF) | alpha_bits;
+
+        XGCValues gcv2;
+        GC gc2 = XCreateGC (dpy, ws->logo_pixmap, 0, &gcv2);
+        XImage *img = XGetImage (dpy, ws->logo_pixmap, 0, 0,
+                                 ws->logo_width, ws->logo_height,
+                                 AllPlanes, ZPixmap);
+        if (img)
           {
-            int a_shift = 0;
-            unsigned long am = a_mask;
-            while (am && !(am & 1)) { am >>= 1; a_shift++; }
-            int a_bits = 0;
-            while (am & 1) { am >>= 1; a_bits++; }
-
-            unsigned long a_val = (unsigned long)(ws->dialog_opacity * 0xFFFF);
-            if (a_bits < 16) a_val >>= (16 - a_bits);
-            else if (a_bits > 16) a_val <<= (a_bits - 16);
-            unsigned long alpha_bits = (a_val << a_shift) & a_mask;
-
-            int k;
-            for (k = 0; k < ws->logo_npixels; k++)
-              ws->logo_pixels[k] = (ws->logo_pixels[k] & ~a_mask) | alpha_bits;
-
-            /* Since the logo pixmap was already created with potentially
-               transparent pixels, we need to re-create it or fix it.
-               Actually, it's easier to just fix the pixmap contents. */
-            XGCValues gcv2;
-            GC gc2 = XCreateGC (dpy, ws->logo_pixmap, 0, &gcv2);
-            XImage *img = XGetImage (dpy, ws->logo_pixmap, 0, 0,
-                                     ws->logo_width, ws->logo_height,
-                                     AllPlanes, ZPixmap);
-            if (img)
-              {
-                int ix, iy;
-                for (iy = 0; iy < ws->logo_height; iy++)
-                  for (ix = 0; ix < ws->logo_width; ix++)
-                    {
-                      unsigned long p = XGetPixel (img, ix, iy);
-                      p = (p & ~a_mask) | alpha_bits;
-                      XPutPixel (img, ix, iy, p);
-                    }
-                XPutImage (dpy, ws->logo_pixmap, gc2, img, 0, 0, 0, 0,
-                           ws->logo_width, ws->logo_height);
-                XDestroyImage (img);
-              }
-            XFreeGC (dpy, gc2);
+            int ix, iy;
+            for (iy = 0; iy < ws->logo_height; iy++)
+              for (ix = 0; ix < ws->logo_width; ix++)
+                {
+                  unsigned long p = XGetPixel (img, ix, iy);
+                  p = (p & 0x00FFFFFF) | alpha_bits;
+                  XPutPixel (img, ix, iy, p);
+                }
+            XPutImage (dpy, ws->logo_pixmap, gc2, img, 0, 0, 0, 0,
+                       ws->logo_width, ws->logo_height);
+            XDestroyImage (img);
           }
+        XFreeGC (dpy, gc2);
       }
 
     XGetGeometry (dpy, ws->logo_pixmap, &root, &x, &y,
@@ -1323,6 +1298,9 @@ window_init (Widget root_widget, int splash_p)
     XSelectInput (ws->dpy, root, 
                   xgwa.your_event_mask | SubstructureNotifyMask);
   }
+
+  XMapRaised (ws->dpy, ws->window);
+  XSync (ws->dpy, False);
 
 
   ws->newlogin_button_state.cmd = ws->newlogin_cmd;
@@ -1537,28 +1515,9 @@ window_draw (window_state *ws)
 
     if (depth == 32)
       {
-        unsigned long r_mask, g_mask, b_mask, a_mask;
-        visual_rgb_masks (ws->screen, ws->visual, &r_mask, &g_mask, &b_mask);
-        a_mask = ~(r_mask | g_mask | b_mask) & 0xFFFFFFFF;
-
-        if (a_mask)
-          {
-            int a_shift = 0;
-            unsigned long am = a_mask;
-            while (am && !(am & 1)) { am >>= 1; a_shift++; }
-            int a_bits = 0;
-            while (am & 1) { am >>= 1; a_bits++; }
-
-            unsigned long a_val = (unsigned long)(current_opacity * 0xFFFF);
-            if (a_bits < 16) a_val >>= (16 - a_bits);
-            else if (a_bits > 16) a_val <<= (a_bits - 16);
-
-            unsigned long bg_pixel = (ws->background & ~a_mask) |
-                                     ((a_val << a_shift) & a_mask);
-            XSetForeground (dpy, gc, bg_pixel);
-          }
-        else
-          XSetForeground (dpy, gc, ws->background);
+        unsigned long a = (unsigned long)(current_opacity * 255.0);
+        unsigned long bg_pixel = (ws->background & 0x00FFFFFF) | (a << 24);
+        XSetForeground (dpy, gc, bg_pixel);
       }
     else
       XSetForeground (dpy, gc, ws->background);
@@ -2142,16 +2101,16 @@ window_draw (window_state *ws)
        This is the same approach GTK's gtk_widget_set_opacity() uses. */
     if (compositor_available_p)
       {
-        /* Delete BYPASS_COMPOSITOR when fading so compositor can apply effects.
+        /* Delete BYPASS_COMPOSITOR when using 32-bit visuals or fading so compositor can apply effects.
            xscreensaver_set_wm_atoms() sets it to 1 (bypass), but we want
            the compositor to apply opacity. Deleting it lets the compositor
            use its default behavior. */
-        if ((ws->dialog_opacity < 1.0 || remain <= 1.0) &&
+        if ((ws->visual_depth == 32 || ws->dialog_opacity < 1.0 || remain <= 1.0) &&
             !ws->bypass_cleared_p)
           {
             XDeleteProperty (dpy, ws->window, XA_NET_WM_BYPASS_COMPOSITOR);
             ws->bypass_cleared_p = True;
-            DL(1, "deleted BYPASS_COMPOSITOR to enable compositor opacity");
+            DL(1, "deleted BYPASS_COMPOSITOR to enable compositor transparency/opacity");
             XSync (dpy, False);
           }
 
