@@ -699,8 +699,12 @@ get_xft_color (window_state *ws, XftColor *ret,
                      s, ret);
   if (ws->visual_depth == 32)
     {
-      ret->color.alpha = (unsigned short)(ws->dialog_opacity * 0xFFFF);
-      /* Re-allocate with alpha */
+      double a = ws->dialog_opacity;
+      ret->color.red   = (unsigned short)(ret->color.red   * a);
+      ret->color.green = (unsigned short)(ret->color.green * a);
+      ret->color.blue  = (unsigned short)(ret->color.blue  * a);
+      ret->color.alpha = (unsigned short)(a * 0xFFFF);
+      /* Re-allocate with premultiplied alpha */
       XftColorFree (ws->dpy, ws->visual, ws->cmap, ret);
       XftColorAllocValue (ws->dpy, ws->visual, ws->cmap, &ret->color, ret);
     }
@@ -1006,7 +1010,7 @@ create_window (window_state *ws, int w, int h)
   attrmask = CWOverrideRedirect | CWEventMask | CWBackPixel | CWBorderPixel | CWColormap;
   attrs.override_redirect = True;
   attrs.event_mask = ExposureMask | VisibilityChangeMask;
-  attrs.background_pixel = 0;
+  attrs.background_pixel = ws->background;
   attrs.border_pixel = 0;
   attrs.colormap = ws->cmap;
 
@@ -2053,7 +2057,7 @@ window_draw (window_state *ws)
         {
           double now = double_time();
           double remain = ws->end_time - now;
-          if (ws->dialog_opacity < 1.0 || remain <= 1.0)
+          if (remain < 1.0)
             {
               XDeleteProperty (ws->dpy, ws->window, XA_NET_WM_BYPASS_COMPOSITOR);
               ws->bypass_cleared_p = True;
@@ -2113,12 +2117,10 @@ window_draw (window_state *ws)
        This is the same approach GTK's gtk_widget_set_opacity() uses. */
     if (compositor_available_p)
       {
-        /* Delete BYPASS_COMPOSITOR when using 32-bit visuals or fading so compositor can apply effects.
-           xscreensaver_set_wm_atoms() sets it to 1 (bypass), but we want
-           the compositor to apply opacity. Deleting it lets the compositor
-           use its default behavior. */
-        if ((ws->visual_depth == 32 || ws->dialog_opacity < 1.0 || remain <= 1.0) &&
-            !ws->bypass_cleared_p)
+        /* Delete BYPASS_COMPOSITOR only when we actually need transparency (opacity < 1.0).
+           This keeps the window unredirected (bypass=1) at full opacity, which
+           improves visibility on Mutter and matches the author's original logic. */
+        if (opacity < 1.0 && !ws->bypass_cleared_p)
           {
             XDeleteProperty (ws->dpy, ws->window, XA_NET_WM_BYPASS_COMPOSITOR);
             ws->bypass_cleared_p = True;
