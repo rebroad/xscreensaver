@@ -1061,7 +1061,6 @@ create_window (window_state *ws, int w, int h)
 # ifdef DEBUG_STACKING
   /* Register window label after setting window type, so auto-registration
      sees the correct type and doesn't override our label. */
-  DL(0, "calling register_window_label for window 0x%lx as \"%s\"", (unsigned long)ws->window, ws->splash_p ? "splash-dialog" : "password-dialog");
   register_window_label (ws->window, ws->splash_p ? "splash-dialog" : "password-dialog");
 # endif
 
@@ -2572,19 +2571,7 @@ window_draw (window_state *ws)
                        xgwa.width  == window_width &&
                        xgwa.height == window_height);
 
-    /* Only check occlusion if we don't have a compositor, as compositors
-       often report confusing stacking order via XQueryTree. */
-    static Bool compositor_checked_p = False;
-    if (!compositor_checked_p)
-      {
-        char atom_name[20];
-        sprintf (atom_name, "_NET_WM_CM_S%d",
-                 XScreenNumberOfScreen (ws->screen));
-        compositor_checked_p = True;
-      }
-
-    occluded_p = (!size_changed_p &&
-                  window_occluded_p (ws->dpy, ws->window));
+    occluded_p = (window_occluded_p (ws->dpy, ws->window));
 
     if (size_changed_p || occluded_p)
       {
