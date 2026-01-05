@@ -2017,19 +2017,15 @@ window_draw (window_state *ws)
     /* Only check occlusion if we don't have a compositor, as compositors
        often report confusing stacking order via XQueryTree. */
     static Bool compositor_checked_p = False;
-    static Bool compositor_available_p = False;
     if (!compositor_checked_p)
       {
         char atom_name[20];
         sprintf (atom_name, "_NET_WM_CM_S%d",
                  XScreenNumberOfScreen (ws->screen));
-        Atom cm_atom = XInternAtom (dpy, atom_name, False);
-        Window cm_owner = XGetSelectionOwner (dpy, cm_atom);
-        compositor_available_p = (cm_owner != None);
         compositor_checked_p = True;
       }
 
-    occluded_p = (!size_changed_p && !compositor_available_p &&
+    occluded_p = (!size_changed_p &&
                   window_occluded_p (ws->dpy, ws->window));
 
     if (size_changed_p || occluded_p)
