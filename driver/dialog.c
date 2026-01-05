@@ -1136,6 +1136,8 @@ find_32bit_visual (Display *dpy, int screen_no)
   XVisualInfo *vi_out;
   int nitems;
   Visual *visual = NULL;
+  int i;
+  Screen *screen = ScreenOfDisplay (dpy, screen_no);
 
   vi_template.screen = screen_no;
   vi_template.depth = 32;
@@ -1145,8 +1147,29 @@ find_32bit_visual (Display *dpy, int screen_no)
                            &vi_template, &nitems);
   if (vi_out)
     {
-      if (nitems > 0)
+      /* Prefer a visual with an alpha channel (non-zero alpha mask).
+         All 32-bit TrueColor visuals should have alpha, but we check anyway.
+         If multiple visuals exist, we prefer one with standard ARGB layout. */
+      for (i = 0; i < nitems; i++)
+        {
+          unsigned long rm, gm, bm, am;
+          visual_rgb_masks (screen, vi_out[i].visual, &rm, &gm, &bm);
+          am = ~(rm | gm | bm) & 0xFFFFFFFF;
+
+          /* Prefer visuals with alpha channel in high bits (0xff000000) */
+          if (am != 0)
+            {
+              visual = vi_out[i].visual;
+              /* If this has standard ARGB layout (alpha in high bits), use it */
+              if (am == 0xff000000UL)
+                break;
+            }
+        }
+
+      /* If no visual with alpha found, use the first one anyway */
+      if (!visual && nitems > 0)
         visual = vi_out[0].visual;
+
       XFree (vi_out);
     }
   return visual;
@@ -2396,12 +2419,15 @@ window_draw (window_state *ws)
 
   {
     static double last_draw_log = 0;
+    static unsigned int draw_count = 0;
     double now_log = double_time();
+    draw_count++;
     if (now_log - last_draw_log > 1.0)
       {
-        DL(1, "window_draw finished: %dx%d @ %d,%d opacity=%.2f depth=%d visual_id=0x%lx",
+        DL(1, "window_draw finished: %dx%d @ %d,%d opacity=%.2f depth=%d visual_id=0x%lx (draws=%u)",
            window_width, window_height, ws->x, ws->y, ws->dialog_opacity, ws->visual_depth,
-           (unsigned long)XVisualIDFromVisual(ws->visual));
+           (unsigned long)XVisualIDFromVisual(ws->visual), draw_count);
+        draw_count = 0;
         last_draw_log = now_log;
       }
   }
