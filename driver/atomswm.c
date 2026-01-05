@@ -23,6 +23,7 @@
 #include <X11/Xatom.h>
 
 #include "atoms.h"
+#include "blurb.h"
 
 #ifdef HAVE_UNAME
 # include <sys/utsname.h>	/* for uname() */
