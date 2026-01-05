@@ -154,6 +154,8 @@ struct window_state {
   Dimension min_height;
   Window window;
   Colormap cmap;
+  Visual *visual;
+  int visual_depth;
 
   int splash_p;
   auth_state auth_state;
@@ -666,12 +668,25 @@ get_font (window_state *ws, const char *name)
   return f;
 }
 
-static unsigned long
+static Pixel
 get_color (window_state *ws, const char *name, const char *rclass)
 {
+  Pixel p;
   resource_keys (ws, &name, &rclass);
-  return get_pixel_resource (ws->dpy, DefaultColormapOfScreen (ws->screen),
-                             (char *) name, (char *) rclass);
+  p = get_pixel_resource (ws->dpy, ws->cmap,
+                          (char *) name, (char *) rclass);
+  if (ws->visual_depth == 32)
+    {
+      XColor xc;
+      xc.pixel = p;
+      XQueryColor (ws->dpy, ws->cmap, &xc);
+      unsigned long a = (unsigned long)(ws->dialog_opacity * 255.0);
+      unsigned long r = (xc.red   >> 8);
+      unsigned long g = (xc.green >> 8);
+      unsigned long b = (xc.blue  >> 8);
+      p = (a << 24) | (r << 16) | (g << 8) | b;
+    }
+  return p;
 }
 
 static void
@@ -683,9 +698,16 @@ get_xft_color (window_state *ws, XftColor *ret,
   s = get_string_resource (ws->dpy, (char *) name, (char *) rclass);
   if (!s || !*s) s = "black";
   XftColorAllocName (ws->dpy,
-                     DefaultVisualOfScreen(ws->screen),
-                     DefaultColormapOfScreen (ws->screen),
+                     ws->visual,
+                     ws->cmap,
                      s, ret);
+  if (ws->visual_depth == 32)
+    {
+      ret->color.alpha = (unsigned short)(ws->dialog_opacity * 0xFFFF);
+      /* Re-allocate with alpha */
+      XftColorFree (ws->dpy, ws->visual, ws->cmap, ret);
+      XftColorAllocValue (ws->dpy, ws->visual, ws->cmap, &ret->color, ret);
+    }
 }
 
 static void
@@ -699,15 +721,15 @@ dim_xft_color (window_state *ws, const XftColor *in, Pixel bg, XftColor *out)
   XRenderColor rc;
   XColor xc;
   xc.pixel = bg;
-  XQueryColor (ws->dpy, DefaultColormapOfScreen (ws->screen), &xc);
+  XQueryColor (ws->dpy, ws->cmap, &xc);
   rc.red   = dim * in->color.red   + (1-dim) * xc.red;
   rc.green = dim * in->color.green + (1-dim) * xc.green;
   rc.blue  = dim * in->color.blue  + (1-dim) * xc.blue;
   rc.alpha = in->color.alpha;
 # endif
   if (! XftColorAllocValue (ws->dpy,
-                            DefaultVisualOfScreen(ws->screen),
-                            DefaultColormapOfScreen (ws->screen),
+                            ws->visual,
+                            ws->cmap,
                             &rc, out))
     abort();
 }
@@ -985,18 +1007,20 @@ create_window (window_state *ws, int w, int h)
   unsigned long attrmask;
   Window ow = ws->window;
 
-  attrmask = CWOverrideRedirect | CWEventMask;
+  attrmask = CWOverrideRedirect | CWEventMask | CWBackPixel | CWBorderPixel | CWColormap;
   attrs.override_redirect = True;
   attrs.event_mask = ExposureMask | VisibilityChangeMask;
+  attrs.background_pixel = 0;
+  attrs.border_pixel = 0;
+  attrs.colormap = ws->cmap;
+
   ws->window = XCreateWindow (ws->dpy,
                               RootWindowOfScreen(ws->screen),
                               ws->x, ws->y, w, h, 0,
-                              DefaultDepthOfScreen (ws->screen),
+                              ws->visual_depth,
                               InputOutput,
-                              DefaultVisualOfScreen(ws->screen),
+                              ws->visual,
                               attrmask, &attrs);
-  XSetWindowBackground (ws->dpy, ws->window, ws->background);
-  XSetWindowColormap (ws->dpy, ws->window, ws->cmap);
   xscreensaver_set_wm_atoms (ws->dpy, ws->window, w, h, 0);
 
   /* Reset bypass_cleared_p when window is recreated, so we can clear
@@ -1028,6 +1052,30 @@ create_window (window_state *ws, int w, int h)
 }
 
 
+static Visual *
+find_32bit_visual (Display *dpy, int screen_no)
+{
+  XVisualInfo vi_template;
+  XVisualInfo *vi_out;
+  int nitems;
+  Visual *visual = NULL;
+
+  vi_template.screen = screen_no;
+  vi_template.depth = 32;
+  vi_template.class = TrueColor;
+
+  vi_out = XGetVisualInfo (dpy, VisualScreenMask | VisualDepthMask | VisualClassMask,
+                           &vi_template, &nitems);
+  if (vi_out)
+    {
+      if (nitems > 0)
+        visual = vi_out[0].visual;
+      XFree (vi_out);
+    }
+  return visual;
+}
+
+
 /* Loads resources and creates and returns the global window state.
  */
 static window_state *
@@ -1046,9 +1094,18 @@ window_init (Widget root_widget, int splash_p)
 
   splash_pick_window_position (ws->dpy, &ws->cx, &ws->cy, &ws->screen);
 
+  /* Find a 32-bit visual for transparency support. */
+  ws->visual = find_32bit_visual (ws->dpy, XScreenNumberOfScreen (ws->screen));
+  if (ws->visual) {
+      ws->visual_depth = 32;
+  } else {
+      ws->visual = DefaultVisualOfScreen (ws->screen);
+      ws->visual_depth = DefaultDepthOfScreen (ws->screen);
+  }
+
   ws->cmap = XCreateColormap (dpy,
-                              RootWindowOfScreen (ws->screen), /* Old skool */
-                              DefaultVisualOfScreen (ws->screen),
+                              RootWindowOfScreen (ws->screen),
+                              ws->visual,
                               AllocNone);
 
   {
@@ -1176,7 +1233,7 @@ window_init (Widget root_widget, int splash_p)
     int x, y;
     unsigned int bw, d;
     Window root = RootWindowOfScreen(ws->screen);
-    Visual *visual = DefaultVisualOfScreen (ws->screen);
+    Visual *visual = ws->visual;
     int logo_size = (ws->heading_font->ascent > 24 ? 2 : 1);
     ws->logo_pixmap = xscreensaver_logo (ws->screen, visual, root, ws->cmap,
                                          ws->background, 
@@ -1353,8 +1410,8 @@ window_draw (window_state *ws)
   Display *dpy = ws->dpy;
   Screen *screen = ws->screen;
   Window root = RootWindowOfScreen (screen);
-  Visual *visual = DefaultVisualOfScreen(screen);
-  int depth = DefaultDepthOfScreen (screen);
+  Visual *visual = ws->visual;
+  int depth = ws->visual_depth;
   XWindowAttributes xgwa;
 
 # define MIN_COLUMNS 22   /* Set window width based on headingFont ascent. */
@@ -1403,12 +1460,38 @@ window_draw (window_state *ws)
 
   dbuf = XCreatePixmap (dpy, root, window_width, window_height, depth);
   gc = XCreateGC (dpy, dbuf, 0, &gcv);
-  XSetForeground (dpy, gc, ws->background);
+
+  {
+    double current_opacity = ws->dialog_opacity;
+    double now_time = double_time();
+    double remain = ws->end_time - now_time;
+
+    if (remain <= 1.0 && remain > 0.0)
+      current_opacity = remain * ws->dialog_opacity;
+    else if (remain <= 0.0)
+      current_opacity = 0.0;
+
+    if (depth == 32)
+      {
+        XColor xc;
+        xc.pixel = ws->background;
+        XQueryColor (dpy, ws->cmap, &xc);
+        unsigned long a = (unsigned long)(current_opacity * 255.0);
+        unsigned long r = (xc.red   >> 8);
+        unsigned long g = (xc.green >> 8);
+        unsigned long b = (xc.blue  >> 8);
+        unsigned long bg_pixel = (a << 24) | (r << 16) | (g << 8) | b;
+        XSetForeground (dpy, gc, bg_pixel);
+      }
+    else
+      XSetForeground (dpy, gc, ws->background);
+  }
+
   XFillRectangle (dpy, dbuf, gc, 0, 0, window_width, window_height);
 
   if (ws->xftdraw)
     XftDrawDestroy (ws->xftdraw);
-  ws->xftdraw = XftDrawCreate (dpy, dbuf, visual, xgwa.colormap);
+  ws->xftdraw = XftDrawCreate (dpy, dbuf, visual, ws->cmap);
 
   lines[i].text  = ws->heading_label;			/* XScreenSaver */
   lines[i].font  = ws->heading_font;
@@ -2119,17 +2202,17 @@ destroy_window (window_state *ws)
   if (ws->button_font)   XftFontClose (ws->dpy, ws->button_font);
   if (ws->hostname_font) XftFontClose (ws->dpy, ws->hostname_font);
 
-  XftColorFree (ws->dpy, DefaultVisualOfScreen (ws->screen),
-                DefaultColormapOfScreen (ws->screen),
+  XftColorFree (ws->dpy, ws->visual,
+                ws->cmap,
                 &ws->xft_foreground);
-  XftColorFree (ws->dpy, DefaultVisualOfScreen (ws->screen),
-                DefaultColormapOfScreen (ws->screen),
+  XftColorFree (ws->dpy, ws->visual,
+                ws->cmap,
                 &ws->xft_button_foreground);
-  XftColorFree (ws->dpy, DefaultVisualOfScreen (ws->screen),
-                DefaultColormapOfScreen (ws->screen),
+  XftColorFree (ws->dpy, ws->visual,
+                ws->cmap,
                 &ws->xft_text_foreground);
-  XftColorFree (ws->dpy, DefaultVisualOfScreen (ws->screen),
-                DefaultColormapOfScreen (ws->screen),
+  XftColorFree (ws->dpy, ws->visual,
+                ws->cmap,
                 &ws->xft_error_foreground);
   if (ws->xftdraw) XftDrawDestroy (ws->xftdraw);
 
