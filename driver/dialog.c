@@ -93,6 +93,7 @@ extern Bool debug_p;
 
 #undef DEBUG_METRICS
 #undef DEBUG_STACKING
+#define DEBUG_STACKING  /* Enable window stacking debug logging */
 
 #define LOCK_FAILURE_ATOM "_XSCREENSAVER_AUTH_FAILURES"
 
@@ -1007,6 +1008,8 @@ static void register_window_label (Window w, const char *label);
 static void
 create_window (window_state *ws, int w, int h)
 {
+  DL(0, "create_window: called with w=%d h=%d splash_p=%d window=0x%lx",
+     w, h, ws->splash_p, (unsigned long)ws->window);
   XSetWindowAttributes attrs;
   unsigned long attrmask;
   Window ow = ws->window;
@@ -1025,6 +1028,7 @@ create_window (window_state *ws, int w, int h)
                               InputOutput,
                               ws->visual,
                               attrmask, &attrs);
+  DL(0, "create_window: created window 0x%lx", (unsigned long)ws->window);
   XSetWindowBackground (ws->dpy, ws->window, ws->background);
   /* Don't set BYPASS_COMPOSITOR if we're using a 32-bit visual or need transparency,
      so the compositor can apply transparency effects. */
@@ -1041,6 +1045,7 @@ create_window (window_state *ws, int w, int h)
     Atom va[4];
     if (ws->splash_p)
       {
+        DL(0, "create_window: setting window type to SPLASH for window 0x%lx", (unsigned long)ws->window);
         va[0] = XA_NET_WM_WINDOW_TYPE_SPLASH;
         va[1] = XA_KDE_NET_WM_WINDOW_TYPE_OVERRIDE;
         XChangeProperty (ws->dpy, ws->window, XA_NET_WM_WINDOW_TYPE, XA_ATOM, 32,
@@ -1048,6 +1053,7 @@ create_window (window_state *ws, int w, int h)
       }
     else
       {
+        DL(0, "create_window: setting window type to DIALOG for window 0x%lx", (unsigned long)ws->window);
         va[0] = XA_NET_WM_WINDOW_TYPE_DIALOG;
         va[1] = XA_KDE_NET_WM_WINDOW_TYPE_OVERRIDE;
         XChangeProperty (ws->dpy, ws->window, XA_NET_WM_WINDOW_TYPE, XA_ATOM, 32,
@@ -1060,6 +1066,9 @@ create_window (window_state *ws, int w, int h)
      sees the correct type and doesn't override our label. */
   DL(0, "calling register_window_label for window 0x%lx as \"%s\"", (unsigned long)ws->window, ws->splash_p ? "splash-dialog" : "password-dialog");
   register_window_label (ws->window, ws->splash_p ? "splash-dialog" : "password-dialog");
+  DL(0, "create_window: register_window_label returned");
+# else
+  DL(0, "create_window: DEBUG_STACKING not defined, skipping register_window_label");
 # endif
 
   /* Find the screensaver window (NOTIFICATION type, "XScreenSaver" class)
@@ -1427,7 +1436,6 @@ window_init (Widget root_widget, int splash_p)
 }
 
 
-#define DEBUG_STACKING
 #ifdef DEBUG_STACKING
 /* Track window labels for debugging */
 #define MAX_WINDOW_LABELS 100
