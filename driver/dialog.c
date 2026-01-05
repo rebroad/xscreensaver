@@ -1228,6 +1228,9 @@ window_init (Widget root_widget, int splash_p)
 
   get_keyboard_layout (ws);
 
+  ws->x = ws->y = 0;
+  create_window (ws, 1, 1);
+
   /* Load the logo pixmap, based on font size */
   {
     int x, y;
@@ -1235,17 +1238,14 @@ window_init (Widget root_widget, int splash_p)
     Window root = RootWindowOfScreen(ws->screen);
     Visual *visual = ws->visual;
     int logo_size = (ws->heading_font->ascent > 24 ? 2 : 1);
-    ws->logo_pixmap = xscreensaver_logo (ws->screen, visual, root, ws->cmap,
-                                         ws->background, 
+    ws->logo_pixmap = xscreensaver_logo (ws->screen, visual, ws->window, ws->cmap,
+                                         ws->background,
                                          &ws->logo_pixels, &ws->logo_npixels,
                                          &ws->logo_clipmask, logo_size);
     if (!ws->logo_pixmap) abort();
     XGetGeometry (dpy, ws->logo_pixmap, &root, &x, &y,
                   &ws->logo_width, &ws->logo_height, &bw, &d);
   }
-
-  ws->x = ws->y = 0;
-  create_window (ws, 1, 1);
 
   /* Select SubstructureNotifyMask on the root window so that we know
      when another process has mapped a window, so that we can make our
@@ -1408,8 +1408,6 @@ static void
 window_draw (window_state *ws)
 {
   Display *dpy = ws->dpy;
-  Screen *screen = ws->screen;
-  Window root = RootWindowOfScreen (screen);
   Visual *visual = ws->visual;
   int depth = ws->visual_depth;
   XWindowAttributes xgwa;
@@ -1458,7 +1456,7 @@ window_draw (window_state *ws)
   window_width = text_right + ws->internal_padding + ext_border;
   window_height = window_width * 3;  /* reduced later */
 
-  dbuf = XCreatePixmap (dpy, root, window_width, window_height, depth);
+  dbuf = XCreatePixmap (dpy, ws->window, window_width, window_height, depth);
   gc = XCreateGC (dpy, dbuf, 0, &gcv);
 
   {
