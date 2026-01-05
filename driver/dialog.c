@@ -1021,14 +1021,8 @@ create_window (window_state *ws, int w, int h)
                               InputOutput,
                               ws->visual,
                               attrmask, &attrs);
+  XSetWindowBackground (ws->dpy, ws->window, ws->background);
   xscreensaver_set_wm_atoms (ws->dpy, ws->window, w, h, 0);
-
-  /* Set window type to DIALOG to help some compositors render 32-bit windows correctly */
-  if (ws->visual_depth == 32)
-    {
-      XChangeProperty (ws->dpy, ws->window, XA_NET_WM_WINDOW_TYPE, XA_ATOM, 32,
-                       PropModeReplace, (unsigned char *) &XA_NET_WM_WINDOW_TYPE_DIALOG, 1);
-    }
 
   /* Reset bypass_cleared_p when window is recreated, so we can clear
      BYPASS_COMPOSITOR again if needed during fade */
@@ -2057,7 +2051,7 @@ window_draw (window_state *ws)
         {
           double now = double_time();
           double remain = ws->end_time - now;
-          if (remain < 1.0)
+          if (ws->visual_depth == 32 || remain < 1.0)
             {
               XDeleteProperty (ws->dpy, ws->window, XA_NET_WM_BYPASS_COMPOSITOR);
               ws->bypass_cleared_p = True;
@@ -2117,10 +2111,12 @@ window_draw (window_state *ws)
        This is the same approach GTK's gtk_widget_set_opacity() uses. */
     if (compositor_available_p)
       {
-        /* Delete BYPASS_COMPOSITOR only when we actually need transparency (opacity < 1.0).
-           This keeps the window unredirected (bypass=1) at full opacity, which
-           improves visibility on Mutter and matches the author's original logic. */
-        if (opacity < 1.0 && !ws->bypass_cleared_p)
+        /* Delete BYPASS_COMPOSITOR when using 32-bit visuals or fading so compositor can apply effects.
+           xscreensaver_set_wm_atoms() sets it to 1 (bypass), but we want
+           the compositor to apply opacity. Deleting it lets the compositor
+           use its default behavior. */
+        if ((ws->visual_depth == 32 || ws->dialog_opacity < 1.0 || remain <= 1.0) &&
+            !ws->bypass_cleared_p)
           {
             XDeleteProperty (ws->dpy, ws->window, XA_NET_WM_BYPASS_COMPOSITOR);
             ws->bypass_cleared_p = True;
