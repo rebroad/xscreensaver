@@ -166,12 +166,10 @@ typedef struct {
   int _selected_list_element;	/* don't use this: call
                                    selected_list_element() instead */
 
-  int previewed_list_element;	/* list element currently being previewed,
-                                   or -1 if none */
-
   Bool multi_screen_p;		/* Is there more than one monitor */
 
-  saver_preferences prefs;
+  saver_preferences prefs;	/* PREVIEW config - what the UI shows and uses */
+  saver_preferences applied_prefs; /* APPLIED config - what gets saved and used when screensaver starts */
 
 } state;
 
@@ -334,8 +332,10 @@ static void sensitize_demo_widgets (state *, Bool sensitive_p);
 static void kill_gnome_screensaver (state *);
 static void kill_kde_screensaver (state *);
 static void update_apply_button_sensitivity (state *);
+static void update_list_sensitivity (state *);
 static void run_hack_with_save (state *, int list_elt, Bool report_errors_p, Bool save_p);
 static void force_list_select_item (state *, GtkWidget *, int, Bool);
+static void copy_prefs_settings (saver_preferences *dst, saver_preferences *src);
 
 /* Some pathname utilities */
 
@@ -1033,6 +1033,66 @@ selected_list_element (state *s)
 }
 
 
+/* Copy settings from src to dst (excluding pointers like screenhacks which are shared).
+ */
+static void
+copy_prefs_settings (saver_preferences *dst, saver_preferences *src)
+{
+  /* Copy all scalar fields and strings, but not pointers to arrays. */
+  dst->mode = src->mode;
+  dst->selected_hack = src->selected_hack;
+  dst->timeout = src->timeout;
+  dst->lock_timeout = src->lock_timeout;
+  dst->cycle = src->cycle;
+  dst->passwd_timeout = src->passwd_timeout;
+  dst->pointer_hysteresis = src->pointer_hysteresis;
+  dst->lock_p = src->lock_p;
+  dst->fade_p = src->fade_p;
+  dst->unfade_p = src->unfade_p;
+  dst->fade_seconds = src->fade_seconds;
+  dst->splash_p = src->splash_p;
+  dst->splash_duration = src->splash_duration;
+  dst->dpms_enabled_p = src->dpms_enabled_p;
+  dst->dpms_quickoff_p = src->dpms_quickoff_p;
+  dst->dpms_standby = src->dpms_standby;
+  dst->dpms_suspend = src->dpms_suspend;
+  dst->dpms_off = src->dpms_off;
+  dst->grab_desktop_p = src->grab_desktop_p;
+  dst->grab_video_p = src->grab_video_p;
+  dst->random_image_p = src->random_image_p;
+  dst->tmode = src->tmode;
+
+  /* Copy string fields (free old, duplicate new) */
+  if (dst->text_literal) { free (dst->text_literal); dst->text_literal = 0; }
+  if (src->text_literal) dst->text_literal = strdup (src->text_literal);
+  if (dst->text_file) { free (dst->text_file); dst->text_file = 0; }
+  if (src->text_file) dst->text_file = strdup (src->text_file);
+  if (dst->text_program) { free (dst->text_program); dst->text_program = 0; }
+  if (src->text_program) dst->text_program = strdup (src->text_program);
+  if (dst->text_url) { free (dst->text_url); dst->text_url = 0; }
+  if (src->text_url) dst->text_url = strdup (src->text_url);
+  if (dst->image_directory) { free (dst->image_directory); dst->image_directory = 0; }
+  if (src->image_directory) dst->image_directory = strdup (src->image_directory);
+
+  /* Copy hack-specific settings (visual, command, enabled_p) for all hacks */
+  if (src->screenhacks && dst->screenhacks &&
+      src->screenhacks_count == dst->screenhacks_count)
+    {
+      int i;
+      for (i = 0; i < src->screenhacks_count; i++)
+        {
+          if (src->screenhacks[i] && dst->screenhacks[i])
+            {
+              if (dst->screenhacks[i]->visual) { free (dst->screenhacks[i]->visual); dst->screenhacks[i]->visual = 0; }
+              if (src->screenhacks[i]->visual) dst->screenhacks[i]->visual = strdup (src->screenhacks[i]->visual);
+              if (dst->screenhacks[i]->command) { free (dst->screenhacks[i]->command); dst->screenhacks[i]->command = 0; }
+              if (src->screenhacks[i]->command) dst->screenhacks[i]->command = strdup (src->screenhacks[i]->command);
+              dst->screenhacks[i]->enabled_p = src->screenhacks[i]->enabled_p;
+            }
+        }
+    }
+}
+
 /* Write the settings to disk; call this only when changes have been made.
  */
 static int
@@ -1076,65 +1136,107 @@ run_this_cb (GtkButton *button, gpointer user_data)
   int list_elt = selected_list_element (s);
   if (list_elt < 0) return;
   if (s->debug_p) DL(0, "preview button");
-  /* Don't auto-save - just preview. User must click Apply to configure. */
-  s->previewed_list_element = list_elt;
+  /* Just preview - UI already uses prefs (PREVIEW config) */
   run_hack (s, list_elt, TRUE);
   update_apply_button_sensitivity (s);
 }
 
 
-/* The "Apply" button - saves the previewed hack as the configured hack. */
+/* The "Apply" button - copies PREVIEW config to APPLIED config and saves it. */
 G_MODULE_EXPORT void
 apply_button_cb (GtkButton *button, gpointer user_data)
 {
   XScreenSaverWindow *win = XSCREENSAVER_WINDOW (user_data);
   state *s = &win->state;
   if (s->debug_p) DL(0, "apply button");
-  if (s->previewed_list_element < 0) return;
-  /* Make sure the previewed hack is selected before saving. */
-  int current_sel = selected_list_element (s);
-  if (current_sel != s->previewed_list_element)
-    {
-      /* Select the previewed hack first. */
-      force_list_select_item (s, win->list, s->previewed_list_element, FALSE);
-    }
-  /* Save the current configuration, which will use the selected hack. */
+
+  /* Flush any pending UI changes to prefs (PREVIEW config) */
   flush_dialog_changes_and_save (s);
-  /* Update button sensitivity - now previewed matches configured. */
+
+  /* Copy PREVIEW config to APPLIED config */
+  copy_prefs_settings (&s->applied_prefs, &s->prefs);
+
+  /* Save APPLIED config to disk */
+  demo_write_init_file (s, &s->applied_prefs);
+
+  /* Tell the xscreensaver daemon to wake up and reload the init file */
+  if (s->debug_p)
+    DL(0, "command: DEACTIVATE");
+  if (s->dpy)
+    xscreensaver_command (s->dpy, XA_DEACTIVATE, 0, 0, 0);
+
+  /* Update button sensitivity - now PREVIEW matches APPLIED */
   update_apply_button_sensitivity (s);
 }
 
 
-/* Update the Apply button sensitivity based on whether the previewed hack
-   matches the configured hack. */
+/* Update the Apply button sensitivity based on whether PREVIEW config
+   differs from APPLIED config. */
 static void
 update_apply_button_sensitivity (state *s)
 {
   XScreenSaverWindow *win = XSCREENSAVER_WINDOW (s->window);
-  saver_preferences *p = &s->prefs;
+  saver_preferences *preview = &s->prefs;
+  saver_preferences *applied = &s->applied_prefs;
   Bool should_enable = FALSE;
 
-  if (s->previewed_list_element >= 0)
-    {
-      /* There is a previewed hack. Check if it matches the configured hack. */
-      int configured_list_elt = -1;
+  /* Flush any pending UI changes to preview config first */
+  flush_dialog_changes_and_save (s);
 
-      if (p->mode == ONE_HACK)
+  /* Compare PREVIEW vs APPLIED configs */
+  if (preview->mode != applied->mode)
+    should_enable = TRUE;
+  else if (preview->selected_hack != applied->selected_hack)
+    should_enable = TRUE;
+  else if (preview->timeout != applied->timeout ||
+           preview->cycle != applied->cycle ||
+           preview->lock_timeout != applied->lock_timeout ||
+           preview->lock_p != applied->lock_p ||
+           preview->fade_p != applied->fade_p ||
+           preview->unfade_p != applied->unfade_p ||
+           preview->fade_seconds != applied->fade_seconds ||
+           preview->dpms_enabled_p != applied->dpms_enabled_p ||
+           preview->dpms_quickoff_p != applied->dpms_quickoff_p ||
+           preview->dpms_standby != applied->dpms_standby ||
+           preview->dpms_suspend != applied->dpms_suspend ||
+           preview->dpms_off != applied->dpms_off ||
+           preview->grab_desktop_p != applied->grab_desktop_p ||
+           preview->grab_video_p != applied->grab_video_p ||
+           preview->random_image_p != applied->random_image_p ||
+           preview->tmode != applied->tmode)
+    should_enable = TRUE;
+  else
+    {
+      /* Compare string fields */
+      if (strcmp (preview->text_literal ? preview->text_literal : "",
+                  applied->text_literal ? applied->text_literal : "") != 0 ||
+          strcmp (preview->text_file ? preview->text_file : "",
+                  applied->text_file ? applied->text_file : "") != 0 ||
+          strcmp (preview->text_program ? preview->text_program : "",
+                  applied->text_program ? applied->text_program : "") != 0 ||
+          strcmp (preview->text_url ? preview->text_url : "",
+                  applied->text_url ? applied->text_url : "") != 0 ||
+          strcmp (preview->image_directory ? preview->image_directory : "",
+                  applied->image_directory ? applied->image_directory : "") != 0)
+        should_enable = TRUE;
+      else if (preview->screenhacks && applied->screenhacks &&
+               preview->screenhacks_count == applied->screenhacks_count)
         {
-          /* In ONE_HACK mode, the configured hack is p->selected_hack. */
-          if (p->selected_hack >= 0 && p->selected_hack < s->prefs.screenhacks_count)
+          /* Compare hack-specific settings */
+          int i;
+          for (i = 0; i < preview->screenhacks_count && !should_enable; i++)
             {
-              configured_list_elt = s->hack_number_to_list_elt[p->selected_hack];
+              if (preview->screenhacks[i] && applied->screenhacks[i])
+                {
+                  if (preview->screenhacks[i]->enabled_p != applied->screenhacks[i]->enabled_p ||
+                      strcmp (preview->screenhacks[i]->visual ? preview->screenhacks[i]->visual : "",
+                              applied->screenhacks[i]->visual ? applied->screenhacks[i]->visual : "") != 0 ||
+                      strcmp (preview->screenhacks[i]->command ? preview->screenhacks[i]->command : "",
+                              applied->screenhacks[i]->command ? applied->screenhacks[i]->command : "") != 0)
+                    should_enable = TRUE;
+                }
             }
         }
-      else
-        {
-          /* In other modes, the configured hack is the currently selected one. */
-          configured_list_elt = selected_list_element (s);
-        }
-
-      /* Enable Apply button only if previewed hack differs from configured hack. */
-      should_enable = (s->previewed_list_element != configured_list_elt);
     }
 
   gtk_widget_set_sensitive (win->applybutton, should_enable);
@@ -1594,17 +1696,14 @@ flush_dialog_changes_and_save (state *s)
 
   if (changed)
     {
+      /* Changes are now in prefs (PREVIEW config) - UI updates immediately.
+         Don't save to disk here - user must click Apply to save. */
       if (s->dpy)
-        sync_server_dpms_settings_1 (s->dpy, p);
-      demo_write_init_file (s, p);
+        sync_server_dpms_settings_1 (s->dpy, p);  /* Update DPMS immediately for preview */
+      update_apply_button_sensitivity (s);
 
-      /* Tell the xscreensaver daemon to wake up and reload the init file,
-         in case the timeout has changed.  Without this, it would wait
-         until the *old* timeout had expired before reloading. */
-      if (s->debug_p)
-        DL(0, "command: DEACTIVATE");
-      if (s->dpy)
-        xscreensaver_command (s->dpy, XA_DEACTIVATE, 0, 0, 0);
+      /* Note: We don't call demo_write_init_file here anymore.
+         Only Apply button saves to disk. */
     }
 
   s->saving_p = FALSE;
@@ -1732,17 +1831,18 @@ mode_menu_item_cb (GtkWidget *widget, gpointer user_data)
   if (new_mode == ONE_HACK)
     p->selected_hack = s->list_elt_to_hack_number[list_elt];
 
+  /* Update PREVIEW config with new mode */
   {
-    saver_mode old_mode = p->mode;
     p->mode = new_mode;
     populate_demo_window (s, list_elt);
     populate_popup_window (s);
     force_list_select_item (s, list, list_elt, TRUE);
-    p->mode = old_mode;  /* put it back, so the init file gets written */
   }
 
-  pref_changed_cb (widget, user_data);
+  /* UI updates immediately with PREVIEW config */
+  update_list_sensitivity (s);
   update_apply_button_sensitivity (s);
+  /* Don't call pref_changed_cb here - user must click Apply to save mode change. */
 }
 
 
@@ -1850,13 +1950,17 @@ list_select_changed_cb (GtkTreeSelection *selection, gpointer data)
      in the list, in case both windows are currently visible. */
   populate_popup_window (s);
 
-  /* When a hack is selected, treat it as previewed for Apply button purposes.
-     Don't auto-save - user must click Apply to configure it. */
-  s->previewed_list_element = list_elt;
-  update_apply_button_sensitivity (s);
+#if 0
+  /* Run the hack in the preview window to show it. */
+  saver_preferences *p = &s->prefs;  /* Use PREVIEW config */
+  if (p->mode != BLANK_ONLY && p->mode != DONT_BLANK &&
+      p->mode != LOCK_ONLY && list_elt >= 0)
+    {
+      run_hack (s, list_elt, FALSE);  /* FALSE = don't report errors */
+    }
+#endif
 
-  /* Note: We no longer call flush_dialog_changes_and_save here because
-     selecting a hack should only preview it, not configure it. */
+  update_apply_button_sensitivity (s);
 }
 
 
@@ -2627,7 +2731,7 @@ static void
 update_list_sensitivity (state *s)
 {
   XScreenSaverWindow *win = XSCREENSAVER_WINDOW (s->window);
-  saver_preferences *p = &s->prefs;
+  saver_preferences *p = &s->prefs;  /* Use PREVIEW config for UI */
   Bool sensitive = (p->mode == RANDOM_HACKS ||
                     p->mode == RANDOM_HACKS_SAME ||
                     p->mode == ONE_HACK);
@@ -3286,7 +3390,6 @@ initialize_sort_map (state *s)
 static int
 maybe_reload_init_file (state *s)
 {
-  saver_preferences *p = &s->prefs;
   XScreenSaverWindow *win = XSCREENSAVER_WINDOW (s->window);
   int status = 0;
 
@@ -3294,7 +3397,7 @@ maybe_reload_init_file (state *s)
   if (reentrant_lock) return 0;
   reentrant_lock = TRUE;
 
-  if (init_file_changed_p (p))
+  if (init_file_changed_p (&s->applied_prefs))
     {
       const char *f = init_file_name();
       char *b;
@@ -3307,7 +3410,11 @@ maybe_reload_init_file (state *s)
       warning_dialog (s->window, _("Warning"), b);
       free (b);
 
-      load_init_file (s->dpy, p);
+      /* Reload into applied_prefs, then copy to prefs */
+      load_init_file (s->dpy, &s->applied_prefs);
+      copy_prefs_settings (&s->prefs, &s->applied_prefs);
+      s->prefs.screenhacks = s->applied_prefs.screenhacks;
+      s->prefs.screenhacks_count = s->applied_prefs.screenhacks_count;
       initialize_sort_map (s);
 
       list_elt = selected_list_element (s);
@@ -5472,7 +5579,14 @@ xscreensaver_window_realize (GtkWidget *self, gpointer user_data)
     init_xscreensaver_atoms (s->dpy);
 
   hack_environment (s);  /* must be before initialize_sort_map() */
-  load_init_file (s->dpy, p);
+  /* Load into applied_prefs first, then copy to prefs (PREVIEW) */
+  load_init_file (s->dpy, &s->applied_prefs);
+  /* Copy applied_prefs to prefs so they start the same */
+  copy_prefs_settings (&s->prefs, &s->applied_prefs);
+  /* Share the screenhacks array pointer */
+  s->prefs.screenhacks = s->applied_prefs.screenhacks;
+  s->prefs.screenhacks_count = s->applied_prefs.screenhacks_count;
+  p = &s->prefs;  /* Update local pointer to use preview prefs */
   initialize_sort_map (s);
 
   s->gl_visual = get_best_gl_visual (s);
@@ -5554,7 +5668,6 @@ xscreensaver_window_realize (GtkWidget *self, gpointer user_data)
 static void
 xscreensaver_window_init (XScreenSaverWindow *win)
 {
-  state *s = &win->state;
   gtk_widget_init_template (GTK_WIDGET (win));
   g_signal_connect (win, "destroy",
                     G_CALLBACK (xscreensaver_window_destroy), win);
@@ -5564,7 +5677,7 @@ xscreensaver_window_init (XScreenSaverWindow *win)
                     G_CALLBACK (xscreensaver_window_resize_cb),win);
   g_signal_connect (win->preview, "configure-event",
                     G_CALLBACK (preview_resize_cb),win);
-  s->previewed_list_element = -1;  /* No hack previewed initially */
+  /* PREVIEW and APPLIED configs are already initialized and copied */
 }
 
 
