@@ -138,6 +138,7 @@ typedef struct {
   Bool initializing_p;		/* flag for breaking recursion loops */
   Bool flushing_p;		/* flag for breaking recursion loops */
   Bool saving_p;		/* flag for breaking recursion loops */
+  Bool unsaved_changes_p;	/* whether there are unsaved changes */
   Bool locking_supported_p;	/* Whether locking is possible */
   Bool dpms_supported_p;	/* Whether XDPMS is available */
   Bool dpms_partial_p;		/* Whether DPMS only supports "Off" */
@@ -247,6 +248,8 @@ G_DEFINE_TYPE (XScreenSaverApp, xscreensaver_app, GTK_TYPE_APPLICATION)
   W(fade_label)			\
   W(demo)			\
   W(settings)			\
+  W(savebutton)			\
+  W(loadbutton)			\
 
 /* The widgets we reference from the prefs.ui file.
  */
@@ -313,14 +316,25 @@ static void populate_demo_window (state *, int list_elt);
 static void populate_prefs_page (state *);
 static void populate_popup_window (state *);
 
-static Bool flush_dialog_changes_and_save (state *);
-static Bool flush_popup_changes_and_save (state *);
+static Bool flush_dialog_changes (state *);
+static Bool flush_popup_changes (state *);
 static Bool validate_image_directory (state *, const char *path);
 
 static int maybe_reload_init_file (state *);
 static void await_xscreensaver (state *);
 static Bool xscreensaver_running_p (state *);
 static void sensitize_menu_items (state *s, Bool force_p);
+
+/* Forward declarations for functions used by save/load buttons */
+static int selected_list_element (state *);
+static int demo_write_init_file (state *, saver_preferences *);
+static void populate_hack_list (state *);
+static void initialize_sort_map (state *);
+static void force_list_select_item (state *, GtkWidget *, int, Bool);
+
+/* Exported callbacks */
+G_MODULE_EXPORT void save_button_cb (GtkWidget *, gpointer);
+G_MODULE_EXPORT void load_button_cb (GtkWidget *, gpointer);
 
 static void schedule_preview (state *, const char *cmd);
 static void kill_preview_subproc (state *, Bool reset_p);
@@ -698,7 +712,7 @@ run_cmd (state *s, Atom command, int arg)
   int status;
 
   if (!s->dpy) return;
-  flush_dialog_changes_and_save (s);
+  flush_dialog_changes (s);
 
   if (s->debug_p)
     DL(0, "command: %s %d", XGetAtomName (s->dpy, command), arg);
@@ -731,7 +745,7 @@ run_hack (state *s, int list_elt, Bool report_errors_p)
   if (list_elt < 0) return;
   hack_number = s->list_elt_to_hack_number[list_elt];
 
-  flush_dialog_changes_and_save (s);
+  flush_dialog_changes (s);
   schedule_preview (s, 0);
 
   if (s->debug_p)
@@ -835,6 +849,138 @@ fork_and_exec (state *s, int argc, char **argv)
 
  ****************************************************************************/
 
+/* Update the sensitivity of Save and Load buttons based on unsaved_changes_p */
+static void
+update_save_load_buttons (state *s)
+{
+  XScreenSaverWindow *win = XSCREENSAVER_WINDOW (s->window);
+  gtk_widget_set_sensitive (GTK_WIDGET (win->savebutton), s->unsaved_changes_p);
+  gtk_widget_set_sensitive (GTK_WIDGET (win->loadbutton), s->unsaved_changes_p);
+}
+
+
+/* Save button callback - saves current settings to disk */
+G_MODULE_EXPORT void
+save_button_cb (GtkWidget *widget, gpointer user_data)
+{
+  XScreenSaverWindow *win = XSCREENSAVER_WINDOW (user_data);
+  state *s = &win->state;
+  saver_preferences *p = &s->prefs;
+  Bool changed;
+
+  if (s->debug_p)
+    {
+      DL(0, "save_button_cb: entered");
+      DL(0, "save_button_cb: unsaved_changes_p = %d", s->unsaved_changes_p);
+      DL(0, "save_button_cb: initializing_p = %d, saving_p = %d",
+         s->initializing_p, s->saving_p);
+    }
+
+  /* Flush any pending UI changes to the prefs struct */
+  changed = flush_dialog_changes (s);
+  if (s->debug_p)
+    {
+      DL(0, "save_button_cb: flush_dialog_changes returned %d", changed);
+      DL(0, "save_button_cb: unsaved_changes_p after flush = %d", s->unsaved_changes_p);
+    }
+
+  /* Save if there are unsaved changes, even if flush_dialog_changes returned FALSE
+     (which might happen if changes were already flushed previously) */
+  if (changed || s->unsaved_changes_p)
+    {
+      if (s->debug_p)
+        DL(0, "save_button_cb: attempting to write init file");
+      /* Write to disk */
+      int result = demo_write_init_file (s, p);
+      if (s->debug_p)
+        DL(0, "save_button_cb: demo_write_init_file returned %d", result);
+      if (result == 0)
+        {
+          /* Success - clear unsaved changes flag */
+          if (s->debug_p)
+            DL(0, "save_button_cb: successfully wrote init file");
+          s->unsaved_changes_p = FALSE;
+          update_save_load_buttons (s);
+
+          /* Tell the xscreensaver daemon to wake up and reload the init file,
+             in case the timeout has changed.  Without this, it would wait
+             until the *old* timeout had expired before reloading. */
+          if (s->debug_p)
+            DL(0, "command: DEACTIVATE");
+          if (s->dpy)
+            xscreensaver_command (s->dpy, XA_DEACTIVATE, 0, 0, 0);
+        }
+      else
+        {
+          if (s->debug_p)
+            DL(0, "save_button_cb: failed to write init file");
+        }
+    }
+  else
+    {
+      /* No changes to save */
+      if (s->debug_p)
+        DL(0, "save_button_cb: no changes detected, clearing unsaved_changes_p");
+      s->unsaved_changes_p = FALSE;
+      update_save_load_buttons (s);
+    }
+  if (s->debug_p)
+    DL(0, "save_button_cb: exiting");
+}
+
+
+/* Load button callback - reloads settings from disk */
+G_MODULE_EXPORT void
+load_button_cb (GtkWidget *widget, gpointer user_data)
+{
+  XScreenSaverWindow *win = XSCREENSAVER_WINDOW (user_data);
+  state *s = &win->state;
+  saver_preferences *p = &s->prefs;
+  int list_elt;
+  GtkWidget *list;
+
+  if (s->debug_p) DL(0, "load button clicked");
+
+  /* Set initializing flag to prevent flush_dialog_changes from running
+     during the reload process */
+  s->initializing_p = TRUE;
+
+  /* Reload from disk */
+  load_init_file (s->dpy, p);
+  initialize_sort_map (s);
+
+  /* Reinitialize UI */
+  list_elt = selected_list_element (s);
+  list = win->list;
+
+  /* Clear the tree model before repopulating to ensure consistency */
+  {
+    GtkTreeView *tree_view = GTK_TREE_VIEW (list);
+    GtkListStore *model;
+    g_object_get (G_OBJECT (tree_view), "model", &model, NULL);
+    if (model)
+      {
+        gtk_list_store_clear (model);
+        g_object_unref (model);
+      }
+  }
+
+  populate_hack_list (s);
+  force_list_select_item (s, list, list_elt, TRUE);
+  populate_prefs_page (s);
+  populate_demo_window (s, list_elt);
+  populate_popup_window (s);
+  ensure_selected_item_visible (s, list);
+
+  /* Clear initializing flag */
+  s->initializing_p = FALSE;
+
+  /* Clear unsaved changes flag */
+  s->unsaved_changes_p = FALSE;
+  update_save_load_buttons (s);
+}
+
+
 /* File menu / Quit */
 G_MODULE_EXPORT void
 quit_menu_cb (GtkAction *menu_action, gpointer user_data)
@@ -842,7 +988,6 @@ quit_menu_cb (GtkAction *menu_action, gpointer user_data)
   XScreenSaverWindow *win = XSCREENSAVER_WINDOW (user_data);
   state *s = &win->state;
   if (s->debug_p) DL(0, "quit menu");
-  flush_dialog_changes_and_save (s);
   kill_preview_subproc (s, FALSE);
   g_application_quit (G_APPLICATION (
     gtk_window_get_application (GTK_WINDOW (win))));
@@ -948,7 +1093,7 @@ restart_menu_cb (GtkWidget *widget, gpointer user_data)
   char *av[10];
   if (s->debug_p) DL(0, "restart menu");
   if (!s->dpy) return;
-  flush_dialog_changes_and_save (s);
+  flush_dialog_changes (s);
   xscreensaver_command (s->dpy, XA_EXIT, 0, FALSE, NULL);
   sleep (1);
 
@@ -1024,23 +1169,42 @@ static int
 demo_write_init_file (state *s, saver_preferences *p)
 {
   XScreenSaverWindow *win = XSCREENSAVER_WINDOW (s->window);
+  const char *f = init_file_name();
 
-  if (!write_init_file (s->dpy, p, s->short_version, FALSE))
+  if (s->debug_p)
+    {
+      DL(0, "demo_write_init_file: entered");
+      DL(0, "demo_write_init_file: init_file_name = %s", f ? f : "(null)");
+      DL(0, "demo_write_init_file: dpy = %p", s->dpy);
+    }
+
+  int result = write_init_file (s->dpy, p, s->short_version, FALSE);
+  if (s->debug_p)
+    DL(0, "demo_write_init_file: write_init_file returned %d", result);
+
+  if (!result)
     {
       if (s->debug_p)
-        DL(0, "wrote %s", init_file_name());
+        DL(0, "demo_write_init_file: successfully wrote %s", f ? f : "(null)");
       return 0;
     }
   else
     {
-      const char *f = init_file_name();
+      if (s->debug_p)
+        DL(0, "demo_write_init_file: failed to write init file");
       if (!f || !*f)
-        warning_dialog (GTK_WINDOW (win), _("Error"), 
+        {
+          if (s->debug_p)
+            DL(0, "demo_write_init_file: couldn't determine init file name");
+          warning_dialog (GTK_WINDOW (win), _("Error"),
                         _("Couldn't determine init file name!\n"));
+        }
       else
         {
           char *b = (char *) malloc (strlen(f) + 1024);
           sprintf (b, _("Couldn't write %s\n"), f);
+          if (s->debug_p)
+            DL(0, "demo_write_init_file: showing error dialog: %s", b);
           warning_dialog (GTK_WINDOW (win), _("Error"), b);
           free (b);
         }
@@ -1058,7 +1222,7 @@ run_this_cb (GtkButton *button, gpointer user_data)
   int list_elt = selected_list_element (s);
   if (list_elt < 0) return;
   if (s->debug_p) DL(0, "preview button");
-  flush_dialog_changes_and_save (s);
+  flush_dialog_changes (s);
   run_hack (s, list_elt, TRUE);
 }
 
@@ -1110,7 +1274,7 @@ run_next_cb (GtkButton *button, gpointer user_data)
 
   s->preview_suppressed_p = TRUE;
 
-  flush_dialog_changes_and_save (s);
+  flush_dialog_changes (s);
   force_list_select_item (s, list_widget, list_elt, TRUE);
   populate_demo_window (s, list_elt);
   populate_popup_window (s);
@@ -1142,7 +1306,7 @@ run_prev_cb (GtkButton *button, gpointer user_data)
 
   s->preview_suppressed_p = TRUE;
 
-  flush_dialog_changes_and_save (s);
+  flush_dialog_changes (s);
   force_list_select_item (s, list_widget, list_elt, TRUE);
   populate_demo_window (s, list_elt);
   populate_popup_window (s);
@@ -1300,7 +1464,7 @@ theme_name_strip (const char *s)
    to be written right away.)
  */
 static Bool
-flush_dialog_changes_and_save (state *s)
+flush_dialog_changes (state *s)
 {
   saver_preferences *p = &s->prefs;
   saver_preferences P2, *p2 = &P2;
@@ -1310,8 +1474,24 @@ flush_dialog_changes_and_save (state *s)
   FlushForeachClosure closure;
   Bool changed = FALSE;
 
-  if (s->initializing_p) return FALSE;
-  if (s->saving_p) return FALSE;
+  if (s->debug_p)
+    {
+      DL(0, "flush_dialog_changes: entered");
+      DL(0, "flush_dialog_changes: initializing_p = %d, saving_p = %d",
+         s->initializing_p, s->saving_p);
+    }
+  if (s->initializing_p)
+    {
+      if (s->debug_p)
+        DL(0, "flush_dialog_changes: returning FALSE (initializing)");
+      return FALSE;
+    }
+  if (s->saving_p)
+    {
+      if (s->debug_p)
+        DL(0, "flush_dialog_changes: returning FALSE (already saving)");
+      return FALSE;
+    }
   s->saving_p = TRUE;
 
   *p2 = *p;
@@ -1514,22 +1694,27 @@ flush_dialog_changes_and_save (state *s)
 
   populate_prefs_page (s);
 
+  if (s->debug_p)
+    DL(0, "flush_dialog_changes: changed = %d", changed);
   if (changed)
     {
+      if (s->debug_p)
+        DL(0, "flush_dialog_changes: changes detected, setting unsaved_changes_p");
       if (s->dpy)
         sync_server_dpms_settings_1 (s->dpy, p);
-      demo_write_init_file (s, p);
-
-      /* Tell the xscreensaver daemon to wake up and reload the init file,
-         in case the timeout has changed.  Without this, it would wait
-         until the *old* timeout had expired before reloading. */
+      s->unsaved_changes_p = TRUE;
+      update_save_load_buttons (s);
+    }
+  else
+    {
       if (s->debug_p)
-        DL(0, "command: DEACTIVATE");
-      if (s->dpy)
-        xscreensaver_command (s->dpy, XA_DEACTIVATE, 0, 0, 0);
+        DL(0, "flush_dialog_changes: no changes detected");
     }
 
   s->saving_p = FALSE;
+  if (s->debug_p)
+    DL(0, "flush_dialog_changes: returning %d, unsaved_changes_p = %d",
+       changed, s->unsaved_changes_p);
 
   return changed;
 }
@@ -1554,7 +1739,7 @@ pref_changed_cb (GtkWidget *widget, gpointer user_data)
   if (! s->flushing_p)
     {
       s->flushing_p = TRUE;
-      flush_dialog_changes_and_save (s);
+      flush_dialog_changes (s);
       s->flushing_p = FALSE;
     }
   return GDK_EVENT_PROPAGATE;
@@ -1770,7 +1955,7 @@ list_select_changed_cb (GtkTreeSelection *selection, gpointer data)
      in the list, in case both windows are currently visible. */
   populate_popup_window (s);
 
-  flush_dialog_changes_and_save (s);
+  flush_dialog_changes (s);
 }
 
 
@@ -1820,7 +2005,7 @@ list_checkbox_cb (GtkCellRendererToggle *toggle,
   adj = gtk_scrolled_window_get_vadjustment (scroller);
   scroll_top = gtk_adjustment_get_value (adj);
 
-  flush_dialog_changes_and_save (s);
+  flush_dialog_changes (s);
   force_list_select_item (s, GTK_WIDGET (list), list_elt, FALSE);
   populate_demo_window (s, list_elt);
   populate_popup_window (s);
@@ -4518,7 +4703,7 @@ manual_cb (GtkButton *button, gpointer user_data)
   if (list_elt < 0) return;
   hack_number = s->list_elt_to_hack_number[list_elt];
 
-  flush_dialog_changes_and_save (s);
+  flush_dialog_changes (s);
   ensure_selected_item_visible (s, list_widget);
 
   name = strdup (p->screenhacks[hack_number]->command);
@@ -4680,7 +4865,7 @@ settings_ok_cb (GtkWidget *button, gpointer user_data)
        or we will blow away what they typed... */
     settings_sync_cmd_text (s);
 
-  flush_popup_changes_and_save (s);
+  flush_popup_changes (s);
   gtk_widget_hide (GTK_WIDGET (dialog));
   gtk_widget_unrealize (GTK_WIDGET (dialog));
 }
@@ -4864,12 +5049,11 @@ sensitize_demo_widgets (state *s, Bool sensitive_p)
    take place only when the OK button is clicked.)
  */
 static Bool
-flush_popup_changes_and_save (state *s)
+flush_popup_changes (state *s)
 {
   XScreenSaverDialog *dialog = XSCREENSAVER_DIALOG (s->dialog);
 
   Bool changed = FALSE;
-  saver_preferences *p = &s->prefs;
   int list_elt = selected_list_element (s);
 
   GtkEntry *cmd = GTK_ENTRY (dialog->cmd_text);
@@ -4922,7 +5106,8 @@ flush_popup_changes_and_save (state *s)
   changed = flush_changes (s, list_elt, -1, command, visual);
   if (changed)
     {
-      demo_write_init_file (s, p);
+      s->unsaved_changes_p = TRUE;
+      update_save_load_buttons (s);
 
       /* Do this to re-launch the hack if (and only if) the command line
          has changed. */
@@ -5401,6 +5586,10 @@ xscreensaver_window_realize (GtkWidget *self, gpointer user_data)
 
   restore_window_position (s, GTK_WINDOW (self), FALSE);
 
+  /* Initialize unsaved changes flag and button states */
+  s->unsaved_changes_p = FALSE;
+  update_save_load_buttons (s);
+
   g_timeout_add (60 * 1000, check_blanked_timer, s);
 
   /* Attach the actions and their keybindings. */
@@ -5503,7 +5692,7 @@ xscreensaver_dialog_destroy (GObject *object)
   /* Called by WM close box, but not by File / Quit */
   XScreenSaverDialog *dialog = XSCREENSAVER_DIALOG (object);
   XScreenSaverWindow *win = dialog->main;
-  flush_dialog_changes_and_save (&win->state);
+  flush_dialog_changes (&win->state);
   G_OBJECT_CLASS (xscreensaver_dialog_parent_class)->dispose (object);
 }
 
