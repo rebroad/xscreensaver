@@ -27,7 +27,7 @@ struct screenhack {
 };
 
 typedef enum {
-  RANDOM_HACKS, ONE_HACK, BLANK_ONLY, DONT_BLANK, RANDOM_HACKS_SAME
+  RANDOM_HACKS, ONE_HACK, BLANK_ONLY, DONT_BLANK, RANDOM_HACKS_SAME, LOCK_ONLY
 } saver_mode;
 
 typedef enum {

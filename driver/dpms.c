@@ -139,7 +139,7 @@ sync_server_dpms_settings_1 (Display *dpy, struct saver_preferences *p)
   Bool changed_p = False;
   static int change_count = 0;
 
-  Bool enabled_p       = (p->dpms_enabled_p && p->mode != DONT_BLANK);
+  Bool enabled_p       = (p->dpms_enabled_p && p->mode != DONT_BLANK && p->mode != LOCK_ONLY);
   Bool dpms_quickoff_p = p->dpms_quickoff_p;
   int standby_secs     = p->dpms_standby / 1000;
   int suspend_secs     = p->dpms_suspend / 1000;
@@ -394,7 +394,7 @@ brute_force_dpms (saver_info *si, time_t activity_time)
   CARD16 state;
   CARD16 target;
   time_t age = time ((time_t *) 0) - activity_time;
-  Bool enabled_p = (p->dpms_enabled_p && p->mode != DONT_BLANK);
+  Bool enabled_p = (p->dpms_enabled_p && p->mode != DONT_BLANK && p->mode != LOCK_ONLY);
 
   if (activity_time == 0)		/* Auth dialog is visible */
     target = DPMSModeOn;

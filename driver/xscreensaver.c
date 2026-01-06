@@ -850,8 +850,8 @@ static void init_line_handler (int lineno,
     }
   else if (!strcmp (key, "splash"))  splash_p  = !strcasecmp (val, "true");
   else if (!strcmp (key, "lock"))    lock_p    = !strcasecmp (val, "true");
-  else if (!strcmp (key, "mode"))    blanking_disabled_p =
-                                       !strcasecmp (val, "off");
+  else if (!strcmp (key, "mode"))
+    blanking_disabled_p = (!strcasecmp (val, "off") || !strcasecmp (val, "lock-only"));
   else if (!strcmp (key, "timeout"))
     {
       int t = parse_time (val);
@@ -2259,8 +2259,9 @@ main_loop (Display *dpy)
 
         if (current_state == BLANKED || current_state == LOCKED)
           {
-            /* Grab succeeded and state changed: launch graphics. */
-            if (! saver_gfx_pid)
+            /* Grab succeeded and state changed: launch graphics.
+               Skip launching xscreensaver-gfx if blanking is disabled. */
+            if (! saver_gfx_pid && !blanking_disabled_p)
               {
                 debug_log ("[MAIN] launching xscreensaver-gfx (state=%s)",
                            (current_state == BLANKED ? "BLANKED" : "LOCKED"));

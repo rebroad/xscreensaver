@@ -921,7 +921,7 @@ spawn_screenhack (saver_screen_info *ssi)
           new_hack = p->selected_hack;
 	  force = True;
 	}
-      else if (p->mode == BLANK_ONLY || p->mode == DONT_BLANK)
+      else if (p->mode == BLANK_ONLY || p->mode == DONT_BLANK || p->mode == LOCK_ONLY)
         {
           new_hack = -1;
         }

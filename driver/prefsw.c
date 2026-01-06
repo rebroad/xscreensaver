@@ -619,9 +619,9 @@ write_init_file (Display *dpy,
                                 s = (p->mode == ONE_HACK ? "one" :
                                      p->mode == BLANK_ONLY ? "blank" :
                                      p->mode == DONT_BLANK ? "off" :
-                                     p->mode == RANDOM_HACKS_SAME
-                                     ? "random-same"
-                                     : "random");
+                                     p->mode == RANDOM_HACKS_SAME ? "random-same" :
+                                     p->mode == LOCK_ONLY ? "lock-only" :
+                                     "random");
       CHECK("selected")         type = pref_int,  i = p->selected_hack;
 
       CHECK("textMode")         type = pref_str,
@@ -912,6 +912,7 @@ load_init_file (Display *dpy, saver_preferences *p)
     else if (s && !strcasecmp (s, "blank"))       p->mode = BLANK_ONLY;
     else if (s && !strcasecmp (s, "off"))         p->mode = DONT_BLANK;
     else if (s && !strcasecmp (s, "random-same")) p->mode = RANDOM_HACKS_SAME;
+    else if (s && !strcasecmp (s, "lock-only"))   p->mode = LOCK_ONLY;
     else                                          p->mode = RANDOM_HACKS;
     if (s) free (s);
   }

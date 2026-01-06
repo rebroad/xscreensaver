@@ -110,7 +110,7 @@ static char *defaults[] = {
 
 /* The order of the items in the mode menu. */
 static int mode_menu_order[] = {
-  DONT_BLANK, BLANK_ONLY, ONE_HACK, RANDOM_HACKS, RANDOM_HACKS_SAME };
+  DONT_BLANK, BLANK_ONLY, LOCK_ONLY, ONE_HACK, RANDOM_HACKS, RANDOM_HACKS_SAME };
 enum { COL_ENABLED, COL_NAME, COL_LAST };
 typedef enum { D_NONE, D_LAUNCH, D_GNOME, D_KDE } dialog_button;
 
@@ -3021,6 +3021,12 @@ populate_demo_window (state *s, int list_elt)
       pretty_name = strdup (_("Screen Saver Disabled"));
       schedule_preview (s, 0);
     }
+  else if (p->mode == LOCK_ONLY)
+    {
+      hack = 0;
+      pretty_name = strdup (_("Lock Only"));
+      schedule_preview (s, 0);
+    }
   else
     {
       int hack_number = (list_elt >= 0 && list_elt < s->list_count
@@ -4648,7 +4654,7 @@ populate_popup_window (state *s)
                        : -1);
     screenhack *hack = (hack_number >= 0 ? p->screenhacks[hack_number] : 0);
 
-    if (p->mode == BLANK_ONLY || p->mode == DONT_BLANK)
+    if (p->mode == BLANK_ONLY || p->mode == DONT_BLANK || p->mode == LOCK_ONLY)
       hack = 0;
 
     if (hack && dialog)
@@ -4734,7 +4740,7 @@ populate_popup_window (state *s)
     gtk_label_set_text (doc2, 
                         (s2
                          ? _(s2)
-                         : (p->mode == BLANK_ONLY || p->mode == DONT_BLANK)
+                         : (p->mode == BLANK_ONLY || p->mode == DONT_BLANK || p->mode == LOCK_ONLY)
                          ? ""
                          : _("No description available.")));
     gtk_label_set_text (doc3, (s3 ? _(s3) : ""));
