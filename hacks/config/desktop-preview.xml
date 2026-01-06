@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+
+<screensaver name="desktop-preview" _label="Desktop Preview">
+
+  <command arg="--root"/>
+
+  <number id="updateInterval" type="slider" arg="--update-interval %"
+          _label="Update interval" _low-label="Fast" _high-label="Slow"
+          low="1" high="10" default="2"/>
+
+  <boolean id="showfps" _label="Show frame rate" arg-set="--fps"/>
+
+  <xscreensaver-updater />
+
+  <_description>
+Displays a live preview of the desktop. This hack is used by
+xscreensaver-settings to preview the "Lock Only" mode.
+
+Copyright © 2025 R E Broadley.
+  </_description>
+</screensaver>
+
