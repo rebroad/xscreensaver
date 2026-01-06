@@ -316,8 +316,8 @@ static void populate_demo_window (state *, int list_elt);
 static void populate_prefs_page (state *);
 static void populate_popup_window (state *);
 
-static Bool flush_dialog_changes_and_save (state *);
-static Bool flush_popup_changes_and_save (state *);
+static Bool flush_dialog_changes (state *);
+static Bool flush_popup_changes (state *);
 static Bool validate_image_directory (state *, const char *path);
 
 static int maybe_reload_init_file (state *);
@@ -333,7 +333,6 @@ static void kill_gnome_screensaver (state *);
 static void kill_kde_screensaver (state *);
 static void update_apply_button_sensitivity (state *);
 static void update_list_sensitivity (state *);
-static void run_hack_with_save (state *, int list_elt, Bool report_errors_p, Bool save_p);
 static void force_list_select_item (state *, GtkWidget *, int, Bool);
 static void copy_prefs_settings (saver_preferences *dst, saver_preferences *src);
 
@@ -706,7 +705,7 @@ run_cmd (state *s, Atom command, int arg)
   int status;
 
   if (!s->dpy) return;
-  flush_dialog_changes_and_save (s);
+  flush_dialog_changes (s);
 
   if (s->debug_p)
     DL(0, "command: %s %d", XGetAtomName (s->dpy, command), arg);
@@ -731,12 +730,6 @@ run_cmd (state *s, Atom command, int arg)
 static void
 run_hack (state *s, int list_elt, Bool report_errors_p)
 {
-  run_hack_with_save (s, list_elt, report_errors_p, FALSE);
-}
-
-static void
-run_hack_with_save (state *s, int list_elt, Bool report_errors_p, Bool save_p)
-{
   int hack_number;
   char *err = 0;
   int status;
@@ -745,8 +738,7 @@ run_hack_with_save (state *s, int list_elt, Bool report_errors_p, Bool save_p)
   if (list_elt < 0) return;
   hack_number = s->list_elt_to_hack_number[list_elt];
 
-  if (save_p)
-    flush_dialog_changes_and_save (s);
+  flush_dialog_changes (s);
   schedule_preview (s, 0);
 
   if (s->debug_p)
@@ -857,7 +849,7 @@ quit_menu_cb (GtkAction *menu_action, gpointer user_data)
   XScreenSaverWindow *win = XSCREENSAVER_WINDOW (user_data);
   state *s = &win->state;
   if (s->debug_p) DL(0, "quit menu");
-  flush_dialog_changes_and_save (s);
+  flush_dialog_changes (s);
   kill_preview_subproc (s, FALSE);
   g_application_quit (G_APPLICATION (
     gtk_window_get_application (GTK_WINDOW (win))));
@@ -963,7 +955,7 @@ restart_menu_cb (GtkWidget *widget, gpointer user_data)
   char *av[10];
   if (s->debug_p) DL(0, "restart menu");
   if (!s->dpy) return;
-  flush_dialog_changes_and_save (s);
+  flush_dialog_changes (s);
   xscreensaver_command (s->dpy, XA_EXIT, 0, FALSE, NULL);
   sleep (1);
 
@@ -1136,7 +1128,7 @@ run_this_cb (GtkButton *button, gpointer user_data)
   int list_elt = selected_list_element (s);
   if (list_elt < 0) return;
   if (s->debug_p) DL(0, "preview button");
-  /* Just preview - UI already uses prefs (PREVIEW config) */
+  flush_dialog_changes (s);
   run_hack (s, list_elt, TRUE);
   update_apply_button_sensitivity (s);
 }
@@ -1151,7 +1143,7 @@ apply_button_cb (GtkButton *button, gpointer user_data)
   if (s->debug_p) DL(0, "apply button");
 
   /* Flush any pending UI changes to prefs (PREVIEW config) */
-  flush_dialog_changes_and_save (s);
+  flush_dialog_changes (s);
 
   /* Copy PREVIEW config to APPLIED config */
   copy_prefs_settings (&s->applied_prefs, &s->prefs);
@@ -1181,7 +1173,7 @@ update_apply_button_sensitivity (state *s)
   Bool should_enable = FALSE;
 
   /* Flush any pending UI changes to preview config first */
-  flush_dialog_changes_and_save (s);
+  flush_dialog_changes (s);
 
   /* Compare PREVIEW vs APPLIED configs */
   if (preview->mode != applied->mode)
@@ -1290,7 +1282,7 @@ run_next_cb (GtkButton *button, gpointer user_data)
 
   s->preview_suppressed_p = TRUE;
 
-  flush_dialog_changes_and_save (s);
+  flush_dialog_changes (s);
   force_list_select_item (s, list_widget, list_elt, TRUE);
   populate_demo_window (s, list_elt);
   populate_popup_window (s);
@@ -1322,7 +1314,7 @@ run_prev_cb (GtkButton *button, gpointer user_data)
 
   s->preview_suppressed_p = TRUE;
 
-  flush_dialog_changes_and_save (s);
+  flush_dialog_changes (s);
   force_list_select_item (s, list_widget, list_elt, TRUE);
   populate_demo_window (s, list_elt);
   populate_popup_window (s);
@@ -1480,7 +1472,7 @@ theme_name_strip (const char *s)
    to be written right away.)
  */
 static Bool
-flush_dialog_changes_and_save (state *s)
+flush_dialog_changes (state *s)
 {
   saver_preferences *p = &s->prefs;
   saver_preferences P2, *p2 = &P2;
@@ -1696,14 +1688,9 @@ flush_dialog_changes_and_save (state *s)
 
   if (changed)
     {
-      /* Changes are now in prefs (PREVIEW config) - UI updates immediately.
-         Don't save to disk here - user must click Apply to save. */
       if (s->dpy)
         sync_server_dpms_settings_1 (s->dpy, p);  /* Update DPMS immediately for preview */
       update_apply_button_sensitivity (s);
-
-      /* Note: We don't call demo_write_init_file here anymore.
-         Only Apply button saves to disk. */
     }
 
   s->saving_p = FALSE;
@@ -1731,7 +1718,7 @@ pref_changed_cb (GtkWidget *widget, gpointer user_data)
   if (! s->flushing_p)
     {
       s->flushing_p = TRUE;
-      flush_dialog_changes_and_save (s);
+      flush_dialog_changes (s);
       s->flushing_p = FALSE;
       update_apply_button_sensitivity (s);
     }
@@ -2010,7 +1997,7 @@ list_checkbox_cb (GtkCellRendererToggle *toggle,
   adj = gtk_scrolled_window_get_vadjustment (scroller);
   scroll_top = gtk_adjustment_get_value (adj);
 
-  flush_dialog_changes_and_save (s);
+  flush_dialog_changes (s);
   force_list_select_item (s, GTK_WIDGET (list), list_elt, FALSE);
   populate_demo_window (s, list_elt);
   populate_popup_window (s);
@@ -2291,7 +2278,8 @@ G_MODULE_EXPORT gboolean
 image_text_pref_changed_event_cb (GtkWidget *widget, GdkEvent *event,
                                   gpointer user_data)
 {
-#if 0  /* This is handled in flush_dialog_changes_and_save now */
+#if 0
+  /* This is handled in flush_dialog_changes now */
   XScreenSaverWindow *win = XSCREENSAVER_WINDOW (user_data);
   state *s = &win->state;
   saver_preferences *p = &s->prefs;
@@ -2428,9 +2416,7 @@ browse_image_dir_cb (GtkButton *button, gpointer user_data)
                     _("Please select the image directory."),
                     s->debug_p, TRUE, FALSE))
     {
-      if (validate_image_directory (s, p->image_directory))
-        demo_write_init_file (s, p);
-      else
+      if (!validate_image_directory (s, p->image_directory))
         {
           /* Don't save the bad new value into the preferences. */
           free (p->image_directory);
@@ -2452,12 +2438,11 @@ browse_text_file_cb (GtkButton *button, gpointer user_data)
   saver_preferences *p = &s->prefs;
 
   if (s->debug_p) DL(0, "textfile browse button");
-  if (file_chooser (GTK_WINDOW (win),
+  file_chooser (GTK_WINDOW (win),
                     GTK_ENTRY (win->text_file_entry),
                     &p->text_file,
                     _("Please select a text file."),
-                    s->debug_p, FALSE, FALSE))
-    demo_write_init_file (s, p);
+                    s->debug_p, FALSE, FALSE)
 }
 
 
@@ -2470,12 +2455,11 @@ browse_text_program_cb (GtkButton *button, gpointer user_data)
   saver_preferences *p = &s->prefs;
 
   if (s->debug_p) DL(0, "textprogram browse button");
-  if (file_chooser (GTK_WINDOW (win),
+  file_chooser (GTK_WINDOW (win),
                     GTK_ENTRY (win->text_program_entry),
                     &p->text_program,
                     _("Please select a text-generating program."),
-                    s->debug_p, FALSE, TRUE))
-    demo_write_init_file (s, p);
+                    s->debug_p, FALSE, TRUE)
 }
 
 
@@ -4717,7 +4701,7 @@ manual_cb (GtkButton *button, gpointer user_data)
   if (list_elt < 0) return;
   hack_number = s->list_elt_to_hack_number[list_elt];
 
-  flush_dialog_changes_and_save (s);
+  flush_dialog_changes (s);
   ensure_selected_item_visible (s, list_widget);
 
   name = strdup (p->screenhacks[hack_number]->command);
@@ -4879,7 +4863,7 @@ settings_ok_cb (GtkWidget *button, gpointer user_data)
        or we will blow away what they typed... */
     settings_sync_cmd_text (s);
 
-  flush_popup_changes_and_save (s);
+  flush_popup_changes (s);
   gtk_widget_hide (GTK_WIDGET (dialog));
   gtk_widget_unrealize (GTK_WIDGET (dialog));
 }
@@ -5063,7 +5047,7 @@ sensitize_demo_widgets (state *s, Bool sensitive_p)
    take place only when the OK button is clicked.)
  */
 static Bool
-flush_popup_changes_and_save (state *s)
+flush_popup_changes (state *s)
 {
   XScreenSaverDialog *dialog = XSCREENSAVER_DIALOG (s->dialog);
 
@@ -5121,8 +5105,6 @@ flush_popup_changes_and_save (state *s)
   changed = flush_changes (s, list_elt, -1, command, visual);
   if (changed)
     {
-      demo_write_init_file (s, p);
-
       /* Do this to re-launch the hack if (and only if) the command line
          has changed. */
       populate_demo_window (s, selected_list_element (s));
@@ -5241,7 +5223,6 @@ save_window_position (state *s, GtkWindow *win, int x, int y, Bool dialog_p)
      just not save it upon resize, and only save the positions once the
      file is written due to some other change.
    */
-  /* demo_write_init_file (s, p); */
   if (old) free (old);
 }
 
@@ -5710,7 +5691,7 @@ xscreensaver_dialog_destroy (GObject *object)
   /* Called by WM close box, but not by File / Quit */
   XScreenSaverDialog *dialog = XSCREENSAVER_DIALOG (object);
   XScreenSaverWindow *win = dialog->main;
-  flush_dialog_changes_and_save (&win->state);
+  flush_dialog_changes (&win->state);
   G_OBJECT_CLASS (xscreensaver_dialog_parent_class)->dispose (object);
 }
 
