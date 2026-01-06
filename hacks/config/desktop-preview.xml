@@ -4,6 +4,8 @@
 
   <command arg="--root"/>
 
+  <video href="https://www.youtube.com/watch?v=dQw4w9WgXcQ"/>
+
   <number id="updateInterval" type="slider" arg="--update-interval %"
           _label="Update interval" _low-label="Fast" _high-label="Slow"
           low="1" high="10" default="2"/>
