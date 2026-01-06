@@ -18,6 +18,7 @@ driver/xscreensaver.service
 driver/*.o
 hacks/[a-z]*
 !hacks/glx/
+!hacks/config/
 hacks/glx/[a-z]*
 !hacks/glx/*.?
 !hacks/*.?
