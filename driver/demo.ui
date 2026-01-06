@@ -2601,6 +2601,20 @@ Under Wayland.</property>
                   </object>
                 </child>
                 <child>
+                  <object class="GtkButton" id="applybutton">
+                    <property name="name">applybutton</property>
+                    <property name="visible">True</property>
+                    <property name="can-default">True</property>
+                    <property name="can-focus">True</property>
+                    <property name="label" translatable="yes">_Apply</property>
+                    <property name="use-underline">True</property>
+                    <property name="relief">GTK_RELIEF_NORMAL</property>
+                    <property name="focus-on-click">True</property>
+                    <property name="sensitive">False</property>
+                    <signal handler="apply_button_cb" name="clicked"/>
+                  </object>
+                </child>
+                <child>
                   <object class="GtkButton" id="closebutton">
                     <property name="name">closebutton</property>
                     <property name="visible">True</property>

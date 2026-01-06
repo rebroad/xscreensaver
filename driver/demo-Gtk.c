@@ -166,6 +166,9 @@ typedef struct {
   int _selected_list_element;	/* don't use this: call
                                    selected_list_element() instead */
 
+  int previewed_list_element;	/* list element currently being previewed,
+                                   or -1 if none */
+
   Bool multi_screen_p;		/* Is there more than one monitor */
 
   saver_preferences prefs;
@@ -248,6 +251,7 @@ G_DEFINE_TYPE (XScreenSaverApp, xscreensaver_app, GTK_TYPE_APPLICATION)
   W(fade_label)			\
   W(demo)			\
   W(settings)			\
+  W(applybutton)		\
 
 /* The widgets we reference from the prefs.ui file.
  */
@@ -329,6 +333,9 @@ static void schedule_preview_check (state *);
 static void sensitize_demo_widgets (state *, Bool sensitive_p);
 static void kill_gnome_screensaver (state *);
 static void kill_kde_screensaver (state *);
+static void update_apply_button_sensitivity (state *);
+static void run_hack_with_save (state *, int list_elt, Bool report_errors_p, Bool save_p);
+static void force_list_select_item (state *, GtkWidget *, int, Bool);
 
 /* Some pathname utilities */
 
@@ -724,6 +731,12 @@ run_cmd (state *s, Atom command, int arg)
 static void
 run_hack (state *s, int list_elt, Bool report_errors_p)
 {
+  run_hack_with_save (s, list_elt, report_errors_p, FALSE);
+}
+
+static void
+run_hack_with_save (state *s, int list_elt, Bool report_errors_p, Bool save_p)
+{
   int hack_number;
   char *err = 0;
   int status;
@@ -732,7 +745,8 @@ run_hack (state *s, int list_elt, Bool report_errors_p)
   if (list_elt < 0) return;
   hack_number = s->list_elt_to_hack_number[list_elt];
 
-  flush_dialog_changes_and_save (s);
+  if (save_p)
+    flush_dialog_changes_and_save (s);
   schedule_preview (s, 0);
 
   if (s->debug_p)
@@ -1050,6 +1064,9 @@ demo_write_init_file (state *s, saver_preferences *p)
 }
 
 
+/* Forward declarations for UI callbacks */
+G_MODULE_EXPORT void apply_button_cb (GtkButton *button, gpointer user_data);
+
 /* The "Preview" button on the main page. */
 G_MODULE_EXPORT void
 run_this_cb (GtkButton *button, gpointer user_data)
@@ -1059,8 +1076,68 @@ run_this_cb (GtkButton *button, gpointer user_data)
   int list_elt = selected_list_element (s);
   if (list_elt < 0) return;
   if (s->debug_p) DL(0, "preview button");
-  flush_dialog_changes_and_save (s);
+  /* Don't auto-save - just preview. User must click Apply to configure. */
+  s->previewed_list_element = list_elt;
   run_hack (s, list_elt, TRUE);
+  update_apply_button_sensitivity (s);
+}
+
+
+/* The "Apply" button - saves the previewed hack as the configured hack. */
+G_MODULE_EXPORT void
+apply_button_cb (GtkButton *button, gpointer user_data)
+{
+  XScreenSaverWindow *win = XSCREENSAVER_WINDOW (user_data);
+  state *s = &win->state;
+  if (s->debug_p) DL(0, "apply button");
+  if (s->previewed_list_element < 0) return;
+  /* Make sure the previewed hack is selected before saving. */
+  int current_sel = selected_list_element (s);
+  if (current_sel != s->previewed_list_element)
+    {
+      /* Select the previewed hack first. */
+      force_list_select_item (s, win->list, s->previewed_list_element, FALSE);
+    }
+  /* Save the current configuration, which will use the selected hack. */
+  flush_dialog_changes_and_save (s);
+  /* Update button sensitivity - now previewed matches configured. */
+  update_apply_button_sensitivity (s);
+}
+
+
+/* Update the Apply button sensitivity based on whether the previewed hack
+   matches the configured hack. */
+static void
+update_apply_button_sensitivity (state *s)
+{
+  XScreenSaverWindow *win = XSCREENSAVER_WINDOW (s->window);
+  saver_preferences *p = &s->prefs;
+  Bool should_enable = FALSE;
+
+  if (s->previewed_list_element >= 0)
+    {
+      /* There is a previewed hack. Check if it matches the configured hack. */
+      int configured_list_elt = -1;
+
+      if (p->mode == ONE_HACK)
+        {
+          /* In ONE_HACK mode, the configured hack is p->selected_hack. */
+          if (p->selected_hack >= 0 && p->selected_hack < s->prefs.screenhacks_count)
+            {
+              configured_list_elt = s->hack_number_to_list_elt[p->selected_hack];
+            }
+        }
+      else
+        {
+          /* In other modes, the configured hack is the currently selected one. */
+          configured_list_elt = selected_list_element (s);
+        }
+
+      /* Enable Apply button only if previewed hack differs from configured hack. */
+      should_enable = (s->previewed_list_element != configured_list_elt);
+    }
+
+  gtk_widget_set_sensitive (win->applybutton, should_enable);
 }
 
 
@@ -1557,6 +1634,7 @@ pref_changed_cb (GtkWidget *widget, gpointer user_data)
       s->flushing_p = TRUE;
       flush_dialog_changes_and_save (s);
       s->flushing_p = FALSE;
+      update_apply_button_sensitivity (s);
     }
   return GDK_EVENT_PROPAGATE;
 }
@@ -1664,6 +1742,7 @@ mode_menu_item_cb (GtkWidget *widget, gpointer user_data)
   }
 
   pref_changed_cb (widget, user_data);
+  update_apply_button_sensitivity (s);
 }
 
 
@@ -1771,7 +1850,13 @@ list_select_changed_cb (GtkTreeSelection *selection, gpointer data)
      in the list, in case both windows are currently visible. */
   populate_popup_window (s);
 
-  flush_dialog_changes_and_save (s);
+  /* When a hack is selected, treat it as previewed for Apply button purposes.
+     Don't auto-save - user must click Apply to configure it. */
+  s->previewed_list_element = list_elt;
+  update_apply_button_sensitivity (s);
+
+  /* Note: We no longer call flush_dialog_changes_and_save here because
+     selecting a hack should only preview it, not configure it. */
 }
 
 
@@ -5469,6 +5554,7 @@ xscreensaver_window_realize (GtkWidget *self, gpointer user_data)
 static void
 xscreensaver_window_init (XScreenSaverWindow *win)
 {
+  state *s = &win->state;
   gtk_widget_init_template (GTK_WIDGET (win));
   g_signal_connect (win, "destroy",
                     G_CALLBACK (xscreensaver_window_destroy), win);
@@ -5478,6 +5564,7 @@ xscreensaver_window_init (XScreenSaverWindow *win)
                     G_CALLBACK (xscreensaver_window_resize_cb),win);
   g_signal_connect (win->preview, "configure-event",
                     G_CALLBACK (preview_resize_cb),win);
+  s->previewed_list_element = -1;  /* No hack previewed initially */
 }
 
 
