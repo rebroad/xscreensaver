@@ -3026,7 +3026,7 @@ populate_demo_window (state *s, int list_elt)
     {
       hack = 0;
       pretty_name = strdup (_("Lock Only"));
-      schedule_preview (s, "xscreensaver-desktop-preview");
+      schedule_preview (s, "desktop-preview");
     }
   else
     {

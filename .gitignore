@@ -27,3 +27,43 @@ hacks/m6502.h
 hacks/glx/molecules.h
 utils/*.o
 po/POTFILES
+
+# Autotools build artifacts
+aclocal.m4
+autom4te.cache/
+config.guess
+config.sub
+config.h.in
+config.h.in~
+configure
+configure.old
+configure~
+*.dir/
+build_*/
+
+# IDE/Editor files
+*.code-workspace
+
+# Built binaries
+driver/xscreensaver
+driver/xscreensaver-*
+hacks/*[!.]
+
+# Build cache
+**/.make_memory_cache
+**/.intltool-merge-cache*
+
+# Node modules
+node_modules/
+package-lock.json
+package.json
+
+# Temporary/backup files
+*~
+*.bak
+*.part*
+
+# Test/debug directories
+*_debug*/
+*_test*/
+*_output*/

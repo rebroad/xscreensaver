@@ -98,7 +98,7 @@ UTIL_OBJS	= $(UTILS_BIN)/alpha.o $(UTILS_BIN)/colors.o \
 		  $(UTILS_BIN)/utf8wc.o $(UTILS_BIN)/font-retry.o \
 		  $(UTILS_BIN)/easing.o $(UTILS_BIN)/doubletime.o
 
-SRCS		= xscreensaver-getimage.c \
+SRCS		= xscreensaver-getimage.c desktop-preview.c \
 		  attraction.c blitspin.c bouboule.c braid.c bubbles.c \
 		  bubbles-default.c decayscreen.c deco.c drift.c flag.c \
 		  flame.c forest.c vines.c galaxy.c grav.c greynetic.c \
@@ -148,7 +148,7 @@ OBJS		= attraction.o blitspin.o bouboule.o braid.o bubbles.o \
 		  slip.o sphere.o spiral.o strange.o swirl.o xlockmore.o \
 		  fps.o goop.o starfish.o munch.o fadeplot.o \
 		  rdbomb.o coral.o mountain.o triangle.o lissie.o worm.o \
-		  rotor.o ant.o xjack.o xlyap.o xscreensaver-getimage.o \
+		  rotor.o ant.o xjack.o xlyap.o xscreensaver-getimage.o desktop-preview.o \
 		  cynosure.o moire2.o flow.o epicycle.o interference.o \
 		  truchet.o bsod.o crystal.o discrete.o distort.o kumppa.o \
 		  demon.o loop.o t3d.o penetrate.o deluxe.o compass.o \
@@ -194,7 +194,7 @@ EXES		= attraction blitspin bouboule braid decayscreen deco \
 		  celtic cwaves m6502 abstractile lcdscrub hexadrop \
 		  tessellimage binaryring glitchpeg vfeedback scooter \
 		  marbling binaryhorizon droste \
-		  xscreensaver-getimage @JPEG_EXES@
+		  xscreensaver-getimage desktop-preview @JPEG_EXES@
 JPEG_EXES	= webcollage-helper
 
 RETIRED_EXES	= ant bubbles critical flag forest hyperball hypercube laser \
@@ -562,6 +562,9 @@ GETIMG_LIBS	= $(LIBS) $(X_LIBS) $(PNG_LIBS) $(JPEG_LIBS) \
 # xscreensaver-getimage.o: XScreenSaver_ad.h
 xscreensaver-getimage: $(GETIMG_OBJS)
 	$(CC) $(LDFLAGS) -o $@ $(GETIMG_OBJS) $(GETIMG_LIBS) -lm
+
+desktop-preview:	desktop-preview.o	$(HACK_OBJS) $(GRAB)
+	$(CC_HACK) -o $@ $@.o	$(HACK_OBJS) $(GRAB) $(HACK_LIBS)
 
 
 
@@ -3552,6 +3555,20 @@ xscreensaver-getimage.o: $(UTILS_SRC)/visual.h
 xscreensaver-getimage.o: $(UTILS_SRC)/vroot.h
 xscreensaver-getimage.o: $(UTILS_SRC)/xmu.h
 xscreensaver-getimage.o: $(UTILS_SRC)/yarandom.h
+desktop-preview.o: ../config.h
+desktop-preview.o: $(srcdir)/fps.h
+desktop-preview.o: $(srcdir)/recanim.h
+desktop-preview.o: $(srcdir)/screenhackI.h
+desktop-preview.o: $(srcdir)/screenhack.h
+desktop-preview.o: $(UTILS_SRC)/colors.h
+desktop-preview.o: $(UTILS_SRC)/font-retry.h
+desktop-preview.o: $(UTILS_SRC)/grabclient.h
+desktop-preview.o: $(UTILS_SRC)/hsv.h
+desktop-preview.o: $(UTILS_SRC)/resources.h
+desktop-preview.o: $(UTILS_SRC)/usleep.h
+desktop-preview.o: $(UTILS_SRC)/visual.h
+desktop-preview.o: $(UTILS_SRC)/xft.h
+desktop-preview.o: $(UTILS_SRC)/yarandom.h
 xspirograph.o: ../config.h
 xspirograph.o: $(srcdir)/fps.h
 xspirograph.o: $(srcdir)/recanim.h
