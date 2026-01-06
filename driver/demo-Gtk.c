@@ -1025,7 +1025,41 @@ selected_list_element (state *s)
 }
 
 
-/* Copy settings from src to dst (excluding pointers like screenhacks which are shared).
+/* Deep copy a screenhacks array */
+static screenhack **
+copy_screenhack_list_local (screenhack **src_list, int count)
+{
+  int i;
+  screenhack **dst_list;
+
+  if (!src_list || count == 0)
+    return 0;
+
+  dst_list = (screenhack **) calloc (count + 1, sizeof(screenhack *));
+  if (!dst_list) abort();
+
+  for (i = 0; i < count; i++)
+    {
+      if (src_list[i])
+        {
+          screenhack *src = src_list[i];
+          screenhack *dst = (screenhack *) malloc (sizeof(screenhack));
+          if (!dst) abort();
+
+          dst->enabled_p = src->enabled_p;
+          dst->visual = src->visual ? strdup(src->visual) : 0;
+          dst->name = src->name ? strdup(src->name) : 0;
+          dst->command = src->command ? strdup(src->command) : 0;
+
+          dst_list[i] = dst;
+        }
+    }
+
+  dst_list[count] = 0;
+  return dst_list;
+}
+
+/* Copy settings from src to dst. If screenhacks arrays are shared, they will be separated.
  */
 static void
 copy_prefs_settings (saver_preferences *dst, saver_preferences *src)
@@ -1067,21 +1101,68 @@ copy_prefs_settings (saver_preferences *dst, saver_preferences *src)
   if (src->image_directory) dst->image_directory = strdup (src->image_directory);
 
   /* Copy hack-specific settings (visual, command, enabled_p) for all hacks */
-  if (src->screenhacks && dst->screenhacks &&
-      src->screenhacks_count == dst->screenhacks_count)
+  if (src->screenhacks && src->screenhacks_count > 0)
     {
-      int i;
-      for (i = 0; i < src->screenhacks_count; i++)
+      /* If arrays are shared, we need to make them separate first */
+      Bool arrays_shared = (src->screenhacks == dst->screenhacks);
+
+      if (arrays_shared || !dst->screenhacks || dst->screenhacks_count != src->screenhacks_count)
         {
-          if (src->screenhacks[i] && dst->screenhacks[i])
+          /* Free old dst array if it exists and is separate */
+          if (dst->screenhacks && !arrays_shared)
             {
-              if (dst->screenhacks[i]->visual) { free (dst->screenhacks[i]->visual); dst->screenhacks[i]->visual = 0; }
-              if (src->screenhacks[i]->visual) dst->screenhacks[i]->visual = strdup (src->screenhacks[i]->visual);
-              if (dst->screenhacks[i]->command) { free (dst->screenhacks[i]->command); dst->screenhacks[i]->command = 0; }
-              if (src->screenhacks[i]->command) dst->screenhacks[i]->command = strdup (src->screenhacks[i]->command);
-              dst->screenhacks[i]->enabled_p = src->screenhacks[i]->enabled_p;
+              int i;
+              for (i = 0; i < dst->screenhacks_count; i++)
+                {
+                  if (dst->screenhacks[i])
+                    {
+                      if (dst->screenhacks[i]->visual) free(dst->screenhacks[i]->visual);
+                      if (dst->screenhacks[i]->name) free(dst->screenhacks[i]->name);
+                      if (dst->screenhacks[i]->command) free(dst->screenhacks[i]->command);
+                      free(dst->screenhacks[i]);
+                    }
+                }
+              free(dst->screenhacks);
+            }
+
+          /* Deep copy src array into dst */
+          dst->screenhacks = copy_screenhack_list_local (src->screenhacks, src->screenhacks_count);
+          dst->screenhacks_count = src->screenhacks_count;
+        }
+      else
+        {
+          /* Arrays are separate, copy individual fields */
+          int i;
+          for (i = 0; i < src->screenhacks_count; i++)
+            {
+              if (src->screenhacks[i] && dst->screenhacks[i])
+                {
+                  if (dst->screenhacks[i]->visual) { free (dst->screenhacks[i]->visual); dst->screenhacks[i]->visual = 0; }
+                  if (src->screenhacks[i]->visual) dst->screenhacks[i]->visual = strdup (src->screenhacks[i]->visual);
+                  if (dst->screenhacks[i]->command) { free (dst->screenhacks[i]->command); dst->screenhacks[i]->command = 0; }
+                  if (src->screenhacks[i]->command) dst->screenhacks[i]->command = strdup (src->screenhacks[i]->command);
+                  dst->screenhacks[i]->enabled_p = src->screenhacks[i]->enabled_p;
+                }
             }
         }
+    }
+  else if (dst->screenhacks)
+    {
+      /* src has no hacks, free dst's */
+      int i;
+      for (i = 0; i < dst->screenhacks_count; i++)
+        {
+          if (dst->screenhacks[i])
+            {
+              if (dst->screenhacks[i]->visual) free(dst->screenhacks[i]->visual);
+              if (dst->screenhacks[i]->name) free(dst->screenhacks[i]->name);
+              if (dst->screenhacks[i]->command) free(dst->screenhacks[i]->command);
+              free(dst->screenhacks[i]);
+            }
+        }
+      free(dst->screenhacks);
+      dst->screenhacks = 0;
+      dst->screenhacks_count = 0;
     }
 }
 
@@ -3394,11 +3475,9 @@ maybe_reload_init_file (state *s)
       warning_dialog (s->window, _("Warning"), b);
       free (b);
 
-      /* Reload into applied_prefs, then copy to prefs */
+      /* Reload into applied_prefs, then copy to prefs (including deep copy of screenhacks) */
       load_init_file (s->dpy, &s->applied_prefs);
       copy_prefs_settings (&s->prefs, &s->applied_prefs);
-      s->prefs.screenhacks = s->applied_prefs.screenhacks;
-      s->prefs.screenhacks_count = s->applied_prefs.screenhacks_count;
       initialize_sort_map (s);
 
       list_elt = selected_list_element (s);
@@ -5561,11 +5640,8 @@ xscreensaver_window_realize (GtkWidget *self, gpointer user_data)
   hack_environment (s);  /* must be before initialize_sort_map() */
   /* Load into applied_prefs first, then copy to prefs (PREVIEW) */
   load_init_file (s->dpy, &s->applied_prefs);
-  /* Copy applied_prefs to prefs so they start the same */
+  /* Copy applied_prefs to prefs so they start the same (including deep copy of screenhacks) */
   copy_prefs_settings (&s->prefs, &s->applied_prefs);
-  /* Share the screenhacks array pointer */
-  s->prefs.screenhacks = s->applied_prefs.screenhacks;
-  s->prefs.screenhacks_count = s->applied_prefs.screenhacks_count;
   p = &s->prefs;  /* Update local pointer to use preview prefs */
   initialize_sort_map (s);
 
