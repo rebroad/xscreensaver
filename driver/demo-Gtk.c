@@ -2442,7 +2442,7 @@ browse_text_file_cb (GtkButton *button, gpointer user_data)
                     GTK_ENTRY (win->text_file_entry),
                     &p->text_file,
                     _("Please select a text file."),
-                    s->debug_p, FALSE, FALSE)
+                    s->debug_p, FALSE, FALSE);
 }
 
 
@@ -2459,7 +2459,7 @@ browse_text_program_cb (GtkButton *button, gpointer user_data)
                     GTK_ENTRY (win->text_program_entry),
                     &p->text_program,
                     _("Please select a text-generating program."),
-                    s->debug_p, FALSE, TRUE)
+                    s->debug_p, FALSE, TRUE);
 }
 
 
@@ -5052,7 +5052,6 @@ flush_popup_changes (state *s)
   XScreenSaverDialog *dialog = XSCREENSAVER_DIALOG (s->dialog);
 
   Bool changed = FALSE;
-  saver_preferences *p = &s->prefs;
   int list_elt = selected_list_element (s);
 
   GtkEntry *cmd = GTK_ENTRY (dialog->cmd_text);
