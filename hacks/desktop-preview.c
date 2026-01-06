@@ -32,8 +32,6 @@ struct state {
   GC gc;
   int width, height;
   int root_width, root_height;
-  time_t last_update;
-  int update_interval;  /* seconds */
 };
 
 static void *
@@ -57,10 +55,6 @@ desktop_preview_init (Display *dpy, Window window)
   st->root_width = root_xgwa.width;
   st->root_height = root_xgwa.height;
 
-  st->update_interval = get_integer_resource (dpy, "updateInterval", "Integer");
-  if (st->update_interval < 1) st->update_interval = 2;  /* Default 2 seconds */
-
-  st->last_update = 0;
   st->screenshot = None;
 
   gcv.function = GXcopy;
@@ -74,7 +68,11 @@ static void
 grab_and_display_screenshot (struct state *st)
 {
   XWindowAttributes xgwa, root_xgwa;
-  XGCValues gcv;
+  XImage *src_image = NULL, *dst_image = NULL;
+  double scale_x, scale_y, scale;
+  int scaled_width, scaled_height;
+  int offset_x, offset_y;
+  int x, y;
 
   XGetWindowAttributes (st->dpy, st->window, &xgwa);
   XGetWindowAttributes (st->dpy, st->root, &root_xgwa);
@@ -84,59 +82,112 @@ grab_and_display_screenshot (struct state *st)
   st->root_width = root_xgwa.width;
   st->root_height = root_xgwa.height;
 
-  /* Free old screenshot */
-  if (st->screenshot != None)
+  /* Calculate scale factor to fit desktop into window while maintaining aspect ratio */
+  scale_x = (double) st->width / st->root_width;
+  scale_y = (double) st->height / st->root_height;
+  scale = (scale_x < scale_y) ? scale_x : scale_y;
+
+  scaled_width = (int) (st->root_width * scale);
+  scaled_height = (int) (st->root_height * scale);
+  offset_x = (st->width - scaled_width) / 2;
+  offset_y = (st->height - scaled_height) / 2;
+
+  /* Get the root window image */
+  src_image = XGetImage (st->dpy, st->root, 0, 0,
+                        st->root_width, st->root_height,
+                        AllPlanes, ZPixmap);
+  if (!src_image)
     {
-      XFreePixmap (st->dpy, st->screenshot);
-      st->screenshot = None;
-    }
-
-  /* Create pixmap for full desktop screenshot */
-  st->screenshot = XCreatePixmap (st->dpy, st->root,
-                                  st->root_width, st->root_height,
-                                  root_xgwa.depth);
-
-  if (st->screenshot != None)
-    {
-      gcv.function = GXcopy;
-      gcv.subwindow_mode = IncludeInferiors;
-      GC root_gc = XCreateGC (st->dpy, st->screenshot,
-                             GCFunction | GCSubwindowMode, &gcv);
-
-      /* Copy full root window to pixmap */
-      XCopyArea (st->dpy, st->root, st->screenshot, root_gc,
-                0, 0, st->root_width, st->root_height, 0, 0);
-      XFreeGC (st->dpy, root_gc);
-
-      /* Scale and copy to preview window */
-      /* Note: XCopyArea doesn't scale - we copy what fits */
-      {
-        unsigned int copy_w = (st->root_width < st->width) ?
-          st->root_width : st->width;
-        unsigned int copy_h = (st->root_height < st->height) ?
-          st->root_height : st->height;
-        XCopyArea (st->dpy, st->screenshot, st->window, st->gc,
-                  0, 0, copy_w, copy_h, 0, 0);
-      }
       XSync (st->dpy, False);
+      return;
     }
+
+  /* Create destination image for scaled version */
+  dst_image = XCreateImage (st->dpy, xgwa.visual, xgwa.depth,
+                            ZPixmap, 0, NULL, scaled_width, scaled_height,
+                            xgwa.depth == 1 ? 1 : 32, 0);
+  if (!dst_image)
+    {
+      XDestroyImage (src_image);
+      XSync (st->dpy, False);
+      return;
+    }
+
+  dst_image->data = (char *) calloc (dst_image->bytes_per_line * scaled_height, 1);
+  if (!dst_image->data)
+    {
+      XDestroyImage (src_image);
+      XDestroyImage (dst_image);
+      XSync (st->dpy, False);
+      return;
+    }
+
+  /* Scale the image using nearest-neighbor interpolation */
+  for (y = 0; y < scaled_height; y++)
+    {
+      int src_y = (int) (y / scale);
+      if (src_y >= st->root_height) src_y = st->root_height - 1;
+
+      for (x = 0; x < scaled_width; x++)
+        {
+          int src_x = (int) (x / scale);
+          if (src_x >= st->root_width) src_x = st->root_width - 1;
+
+          unsigned long pixel = XGetPixel (src_image, src_x, src_y);
+          XPutPixel (dst_image, x, y, pixel);
+        }
+    }
+
+  /* Put the scaled image into the window */
+  XPutImage (st->dpy, st->window, st->gc, dst_image,
+            0, 0, offset_x, offset_y, scaled_width, scaled_height);
+
+  /* Clear border areas if image doesn't fill the window */
+  if (offset_x > 0 || offset_y > 0 ||
+      scaled_width < st->width || scaled_height < st->height)
+    {
+      XSetForeground (st->dpy, st->gc, BlackPixelOfScreen (st->screen));
+      /* Top border */
+      if (offset_y > 0)
+        XFillRectangle (st->dpy, st->window, st->gc, 0, 0, st->width, offset_y);
+      /* Bottom border */
+      if (offset_y + scaled_height < st->height)
+        XFillRectangle (st->dpy, st->window, st->gc, 0, offset_y + scaled_height,
+                       st->width, st->height - (offset_y + scaled_height));
+      /* Left border */
+      if (offset_x > 0)
+        XFillRectangle (st->dpy, st->window, st->gc, 0, offset_y, offset_x, scaled_height);
+      /* Right border */
+      if (offset_x + scaled_width < st->width)
+        XFillRectangle (st->dpy, st->window, st->gc, offset_x + scaled_width, offset_y,
+                       st->width - (offset_x + scaled_width), scaled_height);
+    }
+
+  /* Clean up */
+  XDestroyImage (src_image);
+  if (dst_image)
+    {
+      if (dst_image->data)
+        {
+          free (dst_image->data);
+          dst_image->data = NULL;
+        }
+      XDestroyImage (dst_image);
+    }
+
+  XSync (st->dpy, False);
 }
 
 static unsigned long
 desktop_preview_draw (Display *dpy, Window window, void *closure)
 {
   struct state *st = (struct state *) closure;
-  time_t now = time ((time_t *) 0);
 
-  /* Update screenshot if interval has passed */
-  if (st->last_update == 0 || (now - st->last_update) >= st->update_interval)
-    {
-      grab_and_display_screenshot (st);
-      st->last_update = now;
-    }
+  /* Update screenshot on every draw call to match desktop frame rate */
+  grab_and_display_screenshot (st);
 
-  /* Return delay in microseconds until next draw call */
-  return st->update_interval * 1000000;
+  /* Return a small delay to allow other events to be processed */
+  return 16666;  /* ~60 FPS */
 }
 
 static void
@@ -151,11 +202,9 @@ desktop_preview_reshape (Display *dpy, Window window, void *closure,
 static Bool
 desktop_preview_event (Display *dpy, Window window, void *closure, XEvent *event)
 {
-  struct state *st = (struct state *) closure;
+  (void) closure;  /* unused */
   if (screenhack_event_helper (dpy, window, event))
     {
-      /* Force update on user interaction */
-      st->last_update = 0;
       return True;
     }
   return False;
@@ -175,12 +224,10 @@ static const char *desktop_preview_defaults [] = {
   ".foreground:		white",
   "*dontClearRoot:	True",
   "*fpsSolid:		true",
-  "*updateInterval:	2",
   0
 };
 
 static XrmOptionDescRec desktop_preview_options [] = {
-  { "-update-interval",	".updateInterval",	XrmoptionSepArg, 0 },
   { 0, 0, 0, 0 }
 };
 
