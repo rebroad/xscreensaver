@@ -28,6 +28,7 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>
+#include <string.h>
 #include <ctype.h>
 #include <time.h>
 #include <pwd.h>		/* for getpwuid() */
@@ -3025,7 +3026,7 @@ populate_demo_window (state *s, int list_elt)
     {
       hack = 0;
       pretty_name = strdup (_("Lock Only"));
-      schedule_preview (s, 0);
+      schedule_preview (s, "xscreensaver-desktop-preview");
     }
   else
     {
@@ -3429,11 +3430,15 @@ reap_zombies (state *s)
           if (pid == s->running_preview_pid)
             {
               char *ss = subproc_pretty_name (s);
-              DL(0, "pid %lu (%s) died", (unsigned long) pid, ss);
+              int exit_status = WIFEXITED(wait_status) ? WEXITSTATUS(wait_status) : -1;
+              int signal_num = WIFSIGNALED(wait_status) ? WTERMSIG(wait_status) : 0;
+              DL(0, "[PREVIEW] preview subprocess pid %lu (%s) died: exit_status=%d signal=%d",
+                 (unsigned long) pid, ss, exit_status, signal_num);
               free (ss);
+              s->running_preview_pid = 0;
             }
           else
-            DL(0, "pid %lu died", (unsigned long) pid);
+            DL(0, "[PREVIEW] unrelated pid %lu died", (unsigned long) pid);
         }
     }
 }
@@ -3566,6 +3571,11 @@ get_best_gl_visual (state *s)
 static void
 kill_preview_subproc (state *s, Bool reset_p)
 {
+  if (s->debug_p)
+    DL(0, "[PREVIEW] kill_preview_subproc: reset_p=%d running_pid=%lu running_cmd=\"%s\"",
+       reset_p, (unsigned long) s->running_preview_pid,
+       (s->running_preview_cmd ? s->running_preview_cmd : "(null)"));
+
   s->running_preview_error_p = FALSE;
 
   reap_zombies (s);
@@ -3573,6 +3583,8 @@ kill_preview_subproc (state *s, Bool reset_p)
 
   if (s->subproc_check_timer_id)
     {
+      if (s->debug_p)
+        DL(0, "[PREVIEW] removing preview check timer (id=%d)", s->subproc_check_timer_id);
       g_source_remove (s->subproc_check_timer_id);
       s->subproc_check_timer_id = 0;
       s->subproc_check_countdown = 0;
@@ -3580,15 +3592,19 @@ kill_preview_subproc (state *s, Bool reset_p)
 
   if (s->running_preview_pid)
     {
-      int status = kill (s->running_preview_pid, SIGTERM);
       char *ss = subproc_pretty_name (s);
+      if (s->debug_p)
+        DL(0, "[PREVIEW] sending SIGTERM to pid %lu (%s)",
+           (unsigned long) s->running_preview_pid, ss);
+
+      int status = kill (s->running_preview_pid, SIGTERM);
 
       if (status < 0)
         {
           if (errno == ESRCH)
             {
               if (s->debug_p)
-                DL(0, "pid %lu (%s) was already dead.",
+                DL(0, "[PREVIEW] pid %lu (%s) was already dead",
                    (unsigned long) s->running_preview_pid, ss);
             }
           else
@@ -3597,13 +3613,18 @@ kill_preview_subproc (state *s, Bool reset_p)
               sprintf (buf, "%s: couldn't kill pid %lu (%s)",
                        blurb(), (unsigned long) s->running_preview_pid, ss);
               perror (buf);
+              if (s->debug_p)
+                DL(0, "[PREVIEW] kill() failed: %s", strerror (errno));
             }
         }
       else {
 	int endstatus;
+        if (s->debug_p)
+      DL(0, "[PREVIEW] waiting for pid %lu (%s) to exit", (unsigned long) s->running_preview_pid, ss);
 	waitpid(s->running_preview_pid, &endstatus, 0);
 	if (s->debug_p)
-          DL(0, "killed pid %lu (%s)", (unsigned long) s->running_preview_pid, ss);
+      DL(0, "[PREVIEW] killed pid %lu (%s) exit_status=%d",
+             (unsigned long) s->running_preview_pid, ss, WEXITSTATUS(endstatus));
       }
 
       free (ss);
@@ -3611,11 +3632,18 @@ kill_preview_subproc (state *s, Bool reset_p)
       if (s->running_preview_cmd) free (s->running_preview_cmd);
       s->running_preview_cmd = 0;
     }
+  else
+    {
+      if (s->debug_p)
+        DL(0, "[PREVIEW] no running preview pid to kill");
+    }
 
   reap_zombies (s);
 
   if (reset_p)
     {
+      if (s->debug_p)
+        DL(0, "[PREVIEW] resetting preview window");
       reset_preview_window (s);
       clear_preview_window (s);
     }
@@ -3638,6 +3666,9 @@ launch_preview_subproc (state *s)
   GtkWidget *pr = win->preview;
   GdkWindow *window;
 
+  if (s->debug_p)
+    DL(0, "[PREVIEW] launch_preview_subproc: cmd=\"%s\"", (cmd ? cmd : "(null)"));
+
   reset_preview_window (s);
 
   window = gtk_widget_get_window (pr);
@@ -3646,6 +3677,9 @@ launch_preview_subproc (state *s)
 
   if (s->preview_suppressed_p || !s->gl_visual)
     {
+      if (s->debug_p)
+        DL(0, "[PREVIEW] preview suppressed (suppressed_p=%d gl_visual=%p), killing subproc",
+           s->preview_suppressed_p, s->gl_visual);
       kill_preview_subproc (s, FALSE);
       goto DONE;
     }
@@ -3655,9 +3689,15 @@ launch_preview_subproc (state *s)
   id = (window && s->backend != WAYLAND_BACKEND
         ? gdk_x11_window_get_xid (window)
         : 0);
+  if (s->debug_p)
+    DL(0, "[PREVIEW] preview window: gdk_window=%p xid=0x%lx backend=%d",
+       window, (unsigned long) id, s->backend);
+
   if (id == 0)
     {
       /* No window id?  No command to run. */
+      if (s->debug_p)
+        DL(0, "[PREVIEW] no window ID available, cannot launch preview");
       free (new_cmd);
       new_cmd = 0;
     }
@@ -3671,18 +3711,32 @@ launch_preview_subproc (state *s)
       strcpy (new_cmd, cmd);
       sprintf (new_cmd + strlen (new_cmd), " --window-id 0x%X",
                (unsigned int) id);
+      if (s->debug_p)
+        DL(0, "[PREVIEW] constructed command: \"%s\"", new_cmd);
     }
 
   if (id && s->screenshot)
-    screenshot_save (s->dpy, id, s->screenshot);
+    {
+      if (s->debug_p)
+        DL(0, "[PREVIEW] saving screenshot to window 0x%lx", (unsigned long) id);
+      screenshot_save (s->dpy, id, s->screenshot);
+    }
 
+  if (s->debug_p)
+    DL(0, "[PREVIEW] killing existing preview subproc before launching new one");
   kill_preview_subproc (s, FALSE);
   if (! new_cmd)
     {
+      if (s->debug_p)
+        DL(0, "[PREVIEW] no command to run, marking error and clearing window");
       s->running_preview_error_p = TRUE;
       clear_preview_window (s);
       goto DONE;
     }
+
+  if (s->debug_p)
+    DL(0, "[PREVIEW] forking preview subprocess: shell=\"%s\" nice=%d",
+       p->shell, p->nice_inferior);
 
   switch ((int) (forked = fork ()))
     {
@@ -3691,21 +3745,29 @@ launch_preview_subproc (state *s)
         char buf[255];
         sprintf (buf, "%s: couldn't fork", blurb());
         perror (buf);
+        if (s->debug_p)
+          DL(0, "[PREVIEW] fork() failed: %s", strerror (errno));
         s->running_preview_error_p = TRUE;
         goto DONE;
         break;
       }
     case 0:
       {
+        if (s->debug_p)
+          DL(0, "[PREVIEW] child process: closing X connection, setting up environment");
         close (ConnectionNumber (s->dpy));
 
         hack_subproc_environment (id, s->debug_p);
 
+        if (s->debug_p)
+          DL(0, "[PREVIEW] child process: waiting 250ms before exec");
         usleep (250000);  /* pause for 1/4th second before launching, to give
                              the previous program time to die and flush its X
                              buffer, so we don't get leftover turds on the
                              window. */
 
+        if (s->debug_p)
+          DL(0, "[PREVIEW] child process: executing \"%s\"", new_cmd);
         exec_command (p->shell, new_cmd, p->nice_inferior);
         /* Don't bother printing an error message when we are unable to
            exec subprocesses; we handle that by polling the pid later.
@@ -3716,6 +3778,8 @@ launch_preview_subproc (state *s)
            If one uses exit() instead of _exit(), then one sometimes gets a
            spurious "Gdk-ERROR: Fatal IO error on X server" error message.
         */
+        if (s->debug_p)
+          DL(0, "[PREVIEW] child process: exec failed, exiting");
         _exit (1);  /* exits child fork */
         break;
 
@@ -3728,7 +3792,8 @@ launch_preview_subproc (state *s)
         if (s->debug_p)
           {
             char *ss = subproc_pretty_name (s);
-            DL(0, "forked %lu (%s)", (unsigned long) forked, ss);
+            DL(0, "[PREVIEW] forked preview subprocess: pid=%lu cmd=\"%s\" window=0x%lx",
+               (unsigned long) forked, ss, (unsigned long) id);
             free (ss);
           }
         break;
@@ -3736,6 +3801,9 @@ launch_preview_subproc (state *s)
     }
 
   /* Put some props on the embedded preview window, for debugging. */
+  if (s->debug_p)
+    DL(0, "[PREVIEW] setting window properties: name=\"XScreenSaver Settings Preview\" pid=%lu",
+       (unsigned long) forked);
   XStoreName (s->dpy, id, "XScreenSaver Settings Preview");
   XChangeProperty (s->dpy, id, XA_WM_COMMAND,
                    XA_STRING, 8, PropModeReplace,
@@ -3745,6 +3813,8 @@ launch_preview_subproc (state *s)
                    XA_CARDINAL, 32, PropModeReplace,
                    (unsigned char *) &forked, 1);
 
+  if (s->debug_p)
+    DL(0, "[PREVIEW] scheduling preview check timer");
   schedule_preview_check (s);
 
  DONE:
@@ -3831,11 +3901,30 @@ static int
 update_subproc_timer (gpointer data)
 {
   state *s = (state *) data;
+  if (s->debug_p)
+    DL(0, "[PREVIEW] update_subproc_timer fired: desired_cmd=%s running_cmd=%s running_pid=%lu",
+       (s->desired_preview_cmd ? s->desired_preview_cmd : "(null)"),
+       (s->running_preview_cmd ? s->running_preview_cmd : "(null)"),
+       (unsigned long) s->running_preview_pid);
+
   if (! s->desired_preview_cmd)
-    kill_preview_subproc (s, TRUE);
+    {
+      if (s->debug_p)
+        DL(0, "[PREVIEW] no desired command, killing preview subproc");
+      kill_preview_subproc (s, TRUE);
+    }
   else if (!s->running_preview_cmd ||
            !!strcmp (s->desired_preview_cmd, s->running_preview_cmd))
-    launch_preview_subproc (s);
+    {
+      if (s->debug_p)
+        DL(0, "[PREVIEW] command changed or not running, launching preview subproc");
+      launch_preview_subproc (s);
+    }
+  else
+    {
+      if (s->debug_p)
+        DL(0, "[PREVIEW] command unchanged, no action needed");
+    }
 
   s->subproc_timer_id = 0;
   return FALSE;  /* do not re-execute timer */
@@ -3855,17 +3944,23 @@ schedule_preview (state *s, const char *cmd)
   if (s->debug_p)
     {
       if (cmd)
-        DL(0, "scheduling preview \"%s\"", cmd);
+        DL(0, "[PREVIEW] scheduling preview command: \"%s\" (delay=%dms)", cmd, delay);
       else
-        DL(0, "scheduling preview death");
+        DL(0, "[PREVIEW] scheduling preview death (delay=%dms)", delay);
     }
 
   if (s->desired_preview_cmd) free (s->desired_preview_cmd);
   s->desired_preview_cmd = (cmd ? strdup (cmd) : 0);
 
   if (s->subproc_timer_id)
-    g_source_remove (s->subproc_timer_id);
+    {
+      if (s->debug_p)
+        DL(0, "[PREVIEW] removing existing preview timer");
+      g_source_remove (s->subproc_timer_id);
+    }
   s->subproc_timer_id = g_timeout_add (delay, update_subproc_timer, s);
+  if (s->debug_p)
+    DL(0, "[PREVIEW] added preview timer (id=%d)", s->subproc_timer_id);
 }
 
 
@@ -3891,12 +3986,13 @@ check_subproc_timer (gpointer data)
       if (status < 0 && errno == ESRCH)
         s->running_preview_error_p = TRUE;
 
-      if (s->debug_p && s->running_preview_error_p)
+      if (s->debug_p)
         {
           char *ss = subproc_pretty_name (s);
-          DL(0, "timer: pid %lu (%s) is %s",
+          DL(0, "[PREVIEW] check_subproc_timer: pid %lu (%s) is %s (countdown=%d)",
              (unsigned long) s->running_preview_pid, ss,
-             (s->running_preview_error_p ? "dead" : "alive"));
+             (s->running_preview_error_p ? "dead" : "alive"),
+             s->subproc_check_countdown);
           free (ss);
         }
 
