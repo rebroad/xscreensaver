@@ -4249,8 +4249,9 @@ screen_blanked_p (state *s)
       && nitems >= 3
       && dataP)
     {
-      Atom *data = (Atom *) dataP;
-      blanked_p = (data[0] != 0);
+      /* The property stores internal state flags: 0x01=BLANKED, 0x02=LOCKED, 0x04=AUTH */
+      PROP32 *data = (PROP32 *) dataP;
+      blanked_p = ((data[0] & 0x01) != 0);
     }
 
   if (dataP) XFree (dataP);

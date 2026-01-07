@@ -1129,10 +1129,11 @@ store_saver_status (Display *dpy,
       status = (PROP32 *) calloc (nitems, sizeof(*status));
     }
 
-  status[0] = (PROP32) (auth_p    ? XA_AUTH  :
-                        locked_p  ? XA_LOCK  :
-                        blanked_p ? XA_BLANK :
-                        0);
+  /* Store internal state flags (bitwise-compatible) instead of atom values.
+     STATE_BLANKED = 0x01, STATE_LOCKED = 0x02, STATE_AUTH = 0x04 */
+  status[0] = (PROP32) ((blanked_p ? 0x01 : 0) |
+                        (locked_p  ? 0x02 : 0) |
+                        (auth_p   ? 0x04 : 0));
   status[1] = (PROP32) (((unsigned long) blank_time) >> 32);
   status[2] = (PROP32) (((unsigned long) blank_time) & 0xFFFFFFFFL);
 
@@ -1151,11 +1152,19 @@ store_saver_status (Display *dpy,
         {
           if (i > 0) fprintf (stderr, ", ");
           if (i == 0)
-            fprintf (stderr, "%s",
-                     (status[i] == XA_LOCK  ? "LOCK"  :
-                      status[i] == XA_BLANK ? "BLANK" :
-                      status[i] == XA_AUTH  ? "AUTH"  :
-                      status[i] == 0 ? "0" : "???"));
+            {
+              /* The property stores internal state flags: 0x01=BLANKED, 0x02=LOCKED, 0x04=AUTH */
+              char state_str[32] = "";
+              if (status[i] == 0)
+                strcpy(state_str, "0");
+              else {
+                if (status[i] & 0x01) strcat(state_str, "BLANK");
+                if (status[i] & 0x02) { if (*state_str) strcat(state_str, "|"); strcat(state_str, "LOCK"); }
+                if (status[i] & 0x04) { if (*state_str) strcat(state_str, "|"); strcat(state_str, "AUTH"); }
+                if (!*state_str) strcpy(state_str, "???");
+              }
+              fprintf (stderr, "%s", state_str);
+            }
           else
             fprintf (stderr, "%lu", status[i]);
         }

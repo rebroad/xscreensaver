@@ -195,15 +195,16 @@ send_xscreensaver_command (Display *dpy, Atom command, long arg,
               && dataP)
             {
               PROP32 *data = (PROP32 *) dataP;
-              Atom state = (Atom) data[0];
+              /* The property stores internal state flags: 0x01=BLANKED, 0x02=LOCKED, 0x04=AUTH */
+              PROP32 state = data[0];
               time_t tt = (time_t)			/* 64 bit time_t */
                 ((((unsigned long) data[1] & 0xFFFFFFFFL) << 32) |
                   ((unsigned long) data[2] & 0xFFFFFFFFL));
               char *s;
 
-	      if (state == XA_BLANK)
+          if ((state & 0x01) != 0)
 		fputs (": screen blanked since ", stdout);
-	      else if (state == XA_LOCK || state == XA_AUTH)
+          else if ((state & 0x02) != 0 || (state & 0x04) != 0)
 		fputs (": screen locked since ", stdout);
 	      else if (state == 0)
 		fputs (": screen non-blanked since ", stdout);
@@ -495,12 +496,18 @@ xscreensaver_command_wait_for_blank (Display *dpy,
             {
               PROP32 *status = (PROP32 *) dataP;
               int i;
+              char state_str[32] = "";
+              /* The property stores internal state flags: 0x01=BLANKED, 0x02=LOCKED, 0x04=AUTH */
+              if (status[0] == 0)
+                strcpy(state_str, "0");
+              else {
+                if (status[0] & 0x01) strcat(state_str, "BLANK");
+                if (status[0] & 0x02) { if (*state_str) strcat(state_str, "|"); strcat(state_str, "LOCK"); }
+                if (status[0] & 0x04) { if (*state_str) strcat(state_str, "|"); strcat(state_str, "AUTH"); }
+                if (!*state_str) strcpy(state_str, "???");
+              }
               fprintf (stderr, "%s: read status property: 0x%lx: %s", progname,
-                       (unsigned long) w,
-                       (status[0] == XA_BLANK ? "BLANK" :
-                        status[0] == XA_LOCK  ? "LOCK"  :
-                        status[0] == XA_AUTH  ? "AUTH"  :
-                        status[0] == 0 ? "0" : "???"));
+                       (unsigned long) w, state_str);
               for (i = 1; i < nitems; i++)
                 fprintf (stderr, ", %lu", status[i]);
               fprintf (stderr, "\n");
