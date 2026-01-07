@@ -1142,7 +1142,6 @@ store_saver_status (Display *dpy,
   XUngrabServer (dpy);
   XSync (dpy, False);
 
-# if 0
   if (debug_p && verbose_p)
     {
       int i;
@@ -1172,7 +1171,6 @@ store_saver_status (Display *dpy,
       if (system ("xprop -root _SCREENSAVER_STATUS") != 0)
         DL(0, "xprop exec failed");
     }
-# endif /* 0 */
 
   if (status != (PROP32 *) dataP)
     free (status);

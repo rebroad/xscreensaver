@@ -123,7 +123,7 @@ store_saver_status (saver_info *si)
       && dataP)
     {
       PROP32 *data = (PROP32 *) dataP;
-      state = data[0];
+      state = data[0];  /* Property stores bit flags: 0x01=BLANKED, 0x02=LOCKED, 0x04=AUTH */
       tt = (time_t)				/* 64 bit time_t */
         ((((unsigned long) data[1] & 0xFFFFFFFFL) << 32) |
           ((unsigned long) data[2] & 0xFFFFFFFFL));
@@ -149,6 +149,8 @@ store_saver_status (saver_info *si)
   XUngrabServer (dpy);
   XSync (dpy, False);
 
+  DL(0, "store_saver_status: debug_p=%d verbose_p=%d state=0x%02x",
+     si->prefs.debug_p, si->prefs.verbose_p, state);
   if (si->prefs.debug_p && si->prefs.verbose_p)
     {
       int i;
