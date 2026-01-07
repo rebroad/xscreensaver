@@ -2278,21 +2278,8 @@ main_loop (Display *dpy)
       /* Now that events have been processed, see if the state should change,
          based on any events received and the current time.
        */
-      debug_log ("[STATE_MACHINE] entering switch: current_state=0x%02x (enum=%d: UNBLANKED_UNLOCKED=%d BLANKED_UNLOCKED=%d UNBLANKED_LOCKED=%d BLANKED_LOCKED=%d UNBLANKED_AUTH=%d BLANKED_AUTH=%d) BLANKED=%d LOCKED=%d AUTH=%d active_at=%ld now=%ld ignore_activity_before=%ld",
-                 current_state, current_state,
-                 (current_state == UNBLANKED_UNLOCKED ? 1 : 0),
-                 (current_state == BLANKED_UNLOCKED ? 1 : 0),
-                 (current_state == UNBLANKED_LOCKED ? 1 : 0),
-                 (current_state == BLANKED_LOCKED ? 1 : 0),
-                 (current_state == UNBLANKED_AUTH ? 1 : 0),
-                 (current_state == BLANKED_AUTH ? 1 : 0),
-                 !!(current_state & STATE_BLANKED),
-                 !!(current_state & STATE_LOCKED),
-                 !!(current_state & STATE_AUTH),
-                 (long)active_at, (long)now, (long)ignore_activity_before);
       switch (current_state) {
       case UNBLANKED_UNLOCKED:
-        debug_log ("[STATE_MACHINE] case UNBLANKED_UNLOCKED");
         if (!locking_disabled_p &&
             (force_lock_p ||
              (lock_p &&
@@ -2349,9 +2336,6 @@ main_loop (Display *dpy)
               }
           }
 
-        debug_log ("[UNBLANKED] force_blank_p=%d now=%ld active_at=%ld blank_timeout=%ld condition=%d",
-                   force_blank_p, (long)now, (long)active_at, (long)blank_timeout,
-                   (force_blank_p || now >= active_at + blank_timeout ? 1 : 0));
         if (force_blank_p ||
                  now >= active_at + blank_timeout)
           {
@@ -2600,6 +2584,19 @@ main_loop (Display *dpy)
         break;
 
       default:
+        debug_log ("[STATE_MACHINE] entering switch: current_state=0x%02x (enum=%d: UNBLANKED_UNLOCKED=%d BLANKED_UNLOCKED=%d UNBLANKED_LOCKED=%d BLANKED_LOCKED=%d UNBLANKED_AUTH=%d BLANKED_AUTH=%d) BLANKED=%d LOCKED=%d AUTH=%d active_at=%ld now=%ld ignore_activity_before=%ld",
+          current_state, current_state,
+          (current_state == UNBLANKED_UNLOCKED ? 1 : 0),
+          (current_state == BLANKED_UNLOCKED ? 1 : 0),
+          (current_state == UNBLANKED_LOCKED ? 1 : 0),
+          (current_state == BLANKED_LOCKED ? 1 : 0),
+          (current_state == UNBLANKED_AUTH ? 1 : 0),
+          (current_state == BLANKED_AUTH ? 1 : 0),
+          !!(current_state & STATE_BLANKED),
+          !!(current_state & STATE_LOCKED),
+          !!(current_state & STATE_AUTH),
+          (long)active_at, (long)now, (long)ignore_activity_before);
+        sleep (1);
         /* abort(); */
         break;
       }
