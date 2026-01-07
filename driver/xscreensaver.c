@@ -507,9 +507,12 @@ static int respawn_thrashing_count = 0;
    Returns true if:
      - the process that died was "xscreensaver-auth", and
      - it exited with a "success" status meaning "user is authenticated".
+   If blank_requested_p is non-NULL, it will be set to True if the user
+   requested screen blank (Windows+L) while the screen was already locked.
  */
 static Bool
-handle_sigchld (Display *dpy, Bool blanked_p, time_t *active_at_p)
+handle_sigchld (Display *dpy, Bool blanked_p, time_t *active_at_p,
+                Bool *blank_requested_p)
 {
   Bool authenticated_p = False;
 
@@ -649,6 +652,7 @@ handle_sigchld (Display *dpy, Bool blanked_p, time_t *active_at_p)
           saver_auth_pid = 0;
 
           /* xscreensaver-auth exits with status 200 to mean "ok to unlock".
+             Status 201 means "screen blank requested" (Windows+L pressed).
              Any other exit code, or dying with a signal, means "nope".
            */
           if (!WIFSIGNALED (wait_status) &&
@@ -659,6 +663,13 @@ handle_sigchld (Display *dpy, Bool blanked_p, time_t *active_at_p)
                 {
                   authenticated_p = True;
                   strcpy (how, "and authenticated");
+                }
+              else if (status == 201)
+                {
+                  /* Windows+L pressed: user wants to blank the screen */
+                  if (blank_requested_p)
+                    *blank_requested_p = True;
+                  strcpy (how, "and screen blank requested");
                 }
               else if (status == 0 && !blanked_p)
                 strcpy (how, "normally");   /* This was the splash dialog */
@@ -1853,7 +1864,8 @@ main_loop (Display *dpy)
          When "xscreensaver-auth" dies, we analyze its exit code.
        */
       if (sigchld_received)
-        authenticated_p = handle_sigchld (dpy, current_state != 0, &active_at);
+        authenticated_p = handle_sigchld (dpy, current_state != 0, &active_at,
+                                              &force_blank_p);
 
       /* Now process any outstanding X11 events on the queue: user activity
          from XInput, and ClientMessages from xscreensaver-command.
@@ -1962,41 +1974,18 @@ main_loop (Display *dpy)
                 }
               else if (msg == XA_LOCK)
                 {
-                  debug_log ("[XA_LOCK] received: current_state=0x%02x (BLANKED=%d LOCKED=%d AUTH=%d) locking_disabled_p=%d",
-                             current_state,
-                             !!(current_state & STATE_BLANKED),
-                             !!(current_state & STATE_LOCKED),
-                             !!(current_state & STATE_AUTH),
-                             locking_disabled_p);
                   if (locking_disabled_p)
-                    {
-                      debug_log ("[XA_LOCK] locking disabled");
-                      clientmessage_response (dpy, &xev, False,
-                                              "locking disabled");
-                    }
+                    clientmessage_response (dpy, &xev, False,
+                                            "locking disabled");
                   else if (!(current_state & STATE_LOCKED))
                     {
-                      debug_log ("[XA_LOCK] not locked, setting force_lock_p=True, ignore_activity_before=%ld (now=%ld + 2)",
-                                 (long)(now + 2), (long)now);
                       force_lock_p = True;
                       ignore_activity_before = now + 2;
                       clientmessage_response (dpy, &xev, True, "locking");
                     }
-                  else if (!(current_state & STATE_BLANKED))
-                    {
-                      /* Already locked but not blanked: blank the screen. */
-                      debug_log ("[XA_LOCK] already locked but not blanked, setting force_blank_p=True, ignore_activity_before=%ld (now=%ld + 2)",
-                                 (long)(now + 2), (long)now);
-                      force_blank_p = True;
-                      ignore_activity_before = now + 2;
-                      clientmessage_response (dpy, &xev, True, "blanking");
-                    }
                   else
-                    {
-                      debug_log ("[XA_LOCK] already locked and blanked");
-                      clientmessage_response (dpy, &xev, False,
-                                              "already locked");
-                    }
+                    clientmessage_response (dpy, &xev, False,
+                                            "already locked");
                 }
               else if (msg == XA_SUSPEND)
                 {
