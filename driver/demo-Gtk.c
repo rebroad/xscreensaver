@@ -218,6 +218,7 @@ G_DEFINE_TYPE (XScreenSaverApp, xscreensaver_app, GTK_TYPE_APPLICATION)
   W(grab_image_button)		\
   W(fade_button)		\
   W(unfade_button)		\
+  W(lock_blank_later_button)	\
   W(preview)			\
   W(preview_notebook)		\
   W(text_radio)			\
@@ -1555,6 +1556,7 @@ flush_dialog_changes (state *s)
 
   CHECKBOX (p2->fade_p,       fade_button);
   CHECKBOX (p2->unfade_p,     unfade_button);
+  CHECKBOX (p2->lock_blank_later_p, lock_blank_later_button);
   SECONDS  (p2->fade_seconds, fade_spinbutton);
 
 # undef SECONDS
@@ -1648,6 +1650,7 @@ flush_dialog_changes (state *s)
   COPY(timeout);
   COPY(cycle);
   COPY(lock_p);
+  COPY(lock_blank_later_p);
   COPY(lock_timeout);
 
   COPY(dpms_enabled_p);
@@ -2810,6 +2813,7 @@ populate_prefs_page (state *s)
   TOGGLE_ACTIVE (grab_image_button,    p->random_image_p);
   TOGGLE_ACTIVE (fade_button,          p->fade_p);
   TOGGLE_ACTIVE (unfade_button,        p->unfade_p);
+  TOGGLE_ACTIVE (lock_blank_later_button, p->lock_blank_later_p);
 
   switch (p->tmode)
     {

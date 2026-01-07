@@ -141,6 +141,7 @@ static const char * const prefs[] = {
   "timeout",
   "cycle",
   "lock",
+  "lockBlankLater",
   "lockVTs",			/* not saved */
   "lockTimeout",
   "passwdTimeout",
@@ -577,6 +578,7 @@ write_init_file (Display *dpy,
       CHECK("timeout")		type = pref_time, t = p->timeout;
       CHECK("cycle")		type = pref_time, t = p->cycle;
       CHECK("lock")		type = pref_bool, b = p->lock_p;
+      CHECK("lockBlankLater")	type = pref_bool, b = p->lock_blank_later_p;
       CHECK("lockVTs")		continue;  /* don't save, unused */
       CHECK("lockTimeout")	type = pref_time, t = p->lock_timeout;
       CHECK("passwdTimeout")	type = pref_time, t = p->passwd_timeout;
