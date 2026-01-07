@@ -1707,6 +1707,38 @@ auto_register_xscreensaver_window (Display *dpy, Window w)
     register_window_label (w, label);
 }
 
+/* Check if the screensaver is currently blanked by reading the status atom.
+   Returns True if blanked, False otherwise.
+ */
+static Bool
+screen_blanked_p (Display *dpy)
+{
+  Atom type;
+  int format;
+  unsigned long nitems, bytesafter;
+  unsigned char *dataP = 0;
+  Bool blanked_p = False;
+
+  /* XA_SCREENSAVER_STATUS format documented in windows.c. */
+  if (XGetWindowProperty (dpy, RootWindow (dpy, 0), /* always screen 0 */
+                          XA_SCREENSAVER_STATUS,
+                          0, 999, False, XA_INTEGER,
+                          &type, &format, &nitems, &bytesafter,
+                          &dataP)
+      == Success
+      && type == XA_INTEGER
+      && nitems >= 3
+      && dataP)
+    {
+      Atom *data = (Atom *) dataP;
+      blanked_p = (data[0] != 0);
+    }
+
+  if (dataP) XFree (dataP);
+
+  return blanked_p;
+}
+
 static void
 describe_window (Display *dpy, Window w, const char *prefix)
 {
@@ -1826,7 +1858,7 @@ window_occluded_p (Display *dpy, Window window)
         {
           last_hash = current_hash;
         }
-      else {
+      else if (verbose_p > 0 && screen_blanked_p (dpy)){
         static double last_log = 0;
         double now = double_time();
         if (now - last_log > 0.2) {
