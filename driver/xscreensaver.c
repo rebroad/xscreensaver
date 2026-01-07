@@ -2286,7 +2286,7 @@ main_loop (Display *dpy)
               now >= active_at + blank_timeout + lock_timeout)))
           {
             DL(1, "locking");
-            debug_log ("[LOCKING] lock_blank_later_p=%d force_lock_p=%d active_at=%ld now=%ld",
+            debug_log ("[UNBLANKED_UNLOCKED] lock_blank_later_p=%d force_lock_p=%d active_at=%ld now=%ld",
                        lock_blank_later_p, force_lock_p, (long)active_at, (long)now);
             if (grab_keyboard_and_mouse (mouse_screen (dpy)))
               {
@@ -2294,22 +2294,22 @@ main_loop (Display *dpy)
                 current_state |= STATE_LOCKED;
                 cursor_blanked_at = now;
                 authenticated_p = False;
-                debug_log ("[LOCKING] grabbed ,lock_blank_later_p=%d force_lock_p=%d will_blank=%d",
+                debug_log ("[UNBLANKED_UNLOCKED] grabbed ,lock_blank_later_p=%d force_lock_p=%d will_blank=%d",
                            lock_blank_later_p, force_lock_p,
                            !(lock_blank_later_p && force_lock_p));
                 if (!lock_blank_later_p || !force_lock_p)
                   {
                     current_state |= STATE_BLANKED;
                     blanked_at = now;
-                    debug_log ("[LOCKING] blanking immediately: blanked_at=%ld", (long)blanked_at);
+                    debug_log ("[UNBLANKED_UNLOCKED] blanking immediately: blanked_at=%ld", (long)blanked_at);
                   }
                 else
                   {
-                    debug_log ("[LOCKING] NOT blanking immediately (lock_blank_later_p && force_lock_p), current_state=0x%02x",
+                    debug_log ("[UNBLANKED_UNLOCKED] NOT blanking immediately (lock_blank_later_p && force_lock_p), current_state=0x%02x",
                                current_state);
                   }
                 store_saver_status (dpy, blanked_at == now, True, False, locked_at);
-                debug_log ("[LOCKING] final state: current_state=0x%02x (BLANKED=%d LOCKED=%d) blanked_at=%ld locked_at=%ld",
+                debug_log ("[UNBLANKED_UNLOCKED] final state: current_state=0x%02x (BLANKED=%d LOCKED=%d) blanked_at=%ld locked_at=%ld",
                            current_state,
                            !!(current_state & STATE_BLANKED),
                            !!(current_state & STATE_LOCKED),
@@ -2322,7 +2322,7 @@ main_loop (Display *dpy)
           }
           /* fallthrough */
       case UNBLANKED_LOCKED:
-        debug_log ("[UNBLANKED_LOCKED] force_blank_p=%d now=%ld active_at=%ld blank_timeout=%ld condition=%d",
+        debug_log ("[UNBLANKED] force_blank_p=%d now=%ld active_at=%ld blank_timeout=%ld condition=%d",
                    force_blank_p, (long)now, (long)active_at, (long)blank_timeout,
                    (force_blank_p || now >= active_at + blank_timeout ? 1 : 0));
         if (force_blank_p ||
@@ -2334,7 +2334,7 @@ main_loop (Display *dpy)
               }
             else
               {
-                debug_log ("[MAIN] checking blank condition: force_blank_p=%d now=%ld active_at=%ld blank_timeout=%ld ignore_activity_before=%ld condition=%s",
+                debug_log ("[UNBLANKED] checking blank condition: force_blank_p=%d now=%ld active_at=%ld blank_timeout=%ld ignore_activity_before=%ld condition=%s",
                            force_blank_p, (long) now, (long) active_at, (long) blank_timeout, (long) ignore_activity_before,
                            (now >= active_at + blank_timeout ? "TRUE (timeout)" : "FALSE"));
                 DL(1, "blanking");
@@ -2343,7 +2343,7 @@ main_loop (Display *dpy)
                     current_state |= STATE_BLANKED;
                     blanked_at = now;
                     cursor_blanked_at = now;
-                    debug_log ("[MAIN] transitioning UNBLANKED%s->BLANKED%s: blanked_at=%ld", (current_state & STATE_LOCKED ? "LOCKED" : ""),
+                    debug_log ("[UNBLANKED] transitioning UNBLANKED%s->BLANKED%s: blanked_at=%ld", (current_state & STATE_LOCKED ? "LOCKED" : ""),
                             (current_state & STATE_LOCKED ? "LOCKED" : ""), (long) blanked_at);
                     store_saver_status (dpy, True, current_state & STATE_LOCKED, False, blanked_at);
                   }
@@ -2357,7 +2357,7 @@ main_loop (Display *dpy)
             /* Grab succeeded and state changed: launch graphics. */
             if (! saver_gfx_pid)
               {
-                debug_log ("[MAIN] launching xscreensaver-gfx (state=%s)",
+                debug_log ("[UNBLANKED->BLANKED] launching xscreensaver-gfx (state=%s)",
                            (current_state & STATE_LOCKED ? "LOCKED" : "BLANKED"));
                 static Bool first_time_p = True;
                 char *av[20];
@@ -2385,14 +2385,14 @@ main_loop (Display *dpy)
 
                 av[ac] = 0;
                 gfx_stopped_p = False;
-                debug_log ("[MAIN] about to fork_and_exec xscreensaver-gfx with args:");
+                debug_log ("[UNBLANKED->BLANKED] about to fork_and_exec xscreensaver-gfx with args:");
                 {
                   int i;
                   for (i = 0; i < ac; i++)
-                    debug_log ("[MAIN]   argv[%d] = '%s'", i, av[i]);
+                    debug_log ("[UNBLANKED->BLANKED]   argv[%d] = '%s'", i, av[i]);
                 }
                 saver_gfx_pid = fork_and_exec (dpy, ac, av);
-                debug_log ("[MAIN] fork_and_exec returned pid %lu", (unsigned long) saver_gfx_pid);
+                debug_log ("[UNBLANKED->BLANKED] fork_and_exec returned pid %lu", (unsigned long) saver_gfx_pid);
                 respawn_thrashing_count = 0;
                 first_time_p = False;
               }
@@ -2408,7 +2408,7 @@ main_loop (Display *dpy)
              (lock_p &&
               now >= blanked_at + lock_timeout)))
           {
-            DL(1, "locking%s", (force_lock_p ? "" : " after timeout"));
+            DL(1, "locking (force_lock_p=%d lock_p=%d)", force_lock_p, lock_p);
             current_state = BLANKED_LOCKED;
             authenticated_p = False;
             locked_at = now;
@@ -2419,32 +2419,31 @@ main_loop (Display *dpy)
                  active_at >= ignore_activity_before)
           {
           UNBLANK:
-            debug_log ("[MAIN] transitioning BLANKED->UNBLANKED: active_at=%ld now=%ld ignore_activity_before=%ld condition=%s",
+            DL(1, "[BLANKED] unblanking (active_at=%ld now=%ld ignore_activity_before=%ld)",
                        (long) active_at, (long) now, (long) ignore_activity_before,
                        (active_at >= now && active_at >= ignore_activity_before ? "TRUE" : "FALSE"));
-            DL(1, "unblanking");
             current_state = UNBLANKED_UNLOCKED;
             ignore_motion_p = False;
             store_saver_status (dpy, False, False, False, now);
 
-            debug_log ("[MAIN] after UNBLANK transition: active_at=%ld now=%ld blank_timeout=%ld (next blank in %ld seconds)",
+            debug_log ("[BLANKED] after UNBLANK transition: active_at=%ld now=%ld blank_timeout=%ld (next blank in %ld seconds)",
                        (long) active_at, (long) now, (long) blank_timeout,
                        (long) (active_at + blank_timeout - now));
 
             if (saver_gfx_pid)
               {
-                debug_log ("[MAIN] killing xscreensaver-gfx (pid %lu)",
+                debug_log ("[BLANKED] killing xscreensaver-gfx (pid %lu)",
                            (unsigned long) saver_gfx_pid);
                 DL(1, "pid %lu: killing " SAVER_GFX_PROGRAM,
                    (unsigned long) saver_gfx_pid);
                 kill (saver_gfx_pid, SIGTERM);
                 respawn_thrashing_count = 0;
-                debug_log ("[MAIN] sent SIGTERM to xscreensaver-gfx (pid %lu), waiting for exit",
+                debug_log ("[BLANKED] sent SIGTERM to xscreensaver-gfx (pid %lu), waiting for exit",
                            (unsigned long) saver_gfx_pid);
 
                 if (gfx_stopped_p)  /* SIGCONT to allow SIGTERM to proceed */
                   {
-                    DL(1, "pid %lu: sending " SAVER_GFX_PROGRAM " SIGCONT",
+                    DL(1, "[BLANKED] sending " SAVER_GFX_PROGRAM " SIGCONT (pid %lu)",
                        (unsigned long) saver_gfx_pid);
                     gfx_stopped_p = False;
                     kill (-saver_gfx_pid, SIGCONT);  /* send to process group */
