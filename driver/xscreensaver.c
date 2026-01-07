@@ -1867,7 +1867,11 @@ main_loop (Display *dpy)
         {
           authenticated_p = handle_sigchld (dpy, current_state != 0, &active_at,
                                               &force_blank_p);
-          if (force_blank_p) current_state &= ~STATE_AUTH;
+          if (force_blank_p)
+            {
+              current_state &= ~STATE_AUTH;
+              ignore_activity_before = now + 2;
+            }
         }
 
       /* Now process any outstanding X11 events on the queue: user activity
