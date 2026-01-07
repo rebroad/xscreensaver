@@ -2097,12 +2097,12 @@ main_loop (Display *dpy)
               Bool was_locked = !!(current_state & STATE_LOCKED);
               Bool was_blanked = !!(current_state & STATE_BLANKED);
               Bool was_auth = !!(current_state & STATE_AUTH);
-              Bool ignore_activity = now >= ignore_activity_before;
+              Bool watch_activity = now > ignore_activity_before;
               time_t old_active_at = active_at;
 
-              debug_log ("[KeyPress/Release] state=0x%02x (BLANKED=%d LOCKED=%d AUTH=%d) active_at=%ld now=%ld ignore_activity=%d",
-                         current_state, was_blanked, was_locked, was_auth,
-                         (long)old_active_at, (long)now, ignore_activity);
+              debug_log ("[KeyPress/Release] (BLANKED=%d LOCKED=%d AUTH=%d) active=%lds ago, watch_activity=%d",
+                         was_blanked, was_locked, was_auth,
+                         (long) (now - old_active_at), watch_activity);
 
               if (!(current_state & STATE_AUTH) &&  /* logged by xscreensaver-auth */
                   (verbose_p > 1 ||
@@ -2113,9 +2113,9 @@ main_loop (Display *dpy)
 
               if (was_locked)
                 {
-                  debug_log ("[KeyPress/Release] LOCKED: active_at updated from %ld to %ld, ignore_activity=%d, will_trigger_auth=%d",
-                             (long)old_active_at, (long)active_at, ignore_activity,
-                             (active_at >= now && active_at >= ignore_activity_before ? 1 : 0));
+                  debug_log ("[KeyPress/Release] LOCKED: active_at updated from %lds ago to %lds ago, watch_activity=%d, will_trigger_auth=%d",
+                             (long) (now - old_active_at), (long) (now - active_at), watch_activity,
+                             (active_at >= now && watch_activity ? 1 : 0));
                 }
 
               continue;
@@ -2161,25 +2161,20 @@ main_loop (Display *dpy)
               Bool was_locked = !!(current_state & STATE_LOCKED);
               Bool was_blanked = !!(current_state & STATE_BLANKED);
               Bool was_auth = !!(current_state & STATE_AUTH);
-              Bool ignore_activity = now >= ignore_activity_before;
+              Bool watch_activity = now > ignore_activity_before;
               time_t old_active_at = active_at;
 
-              debug_log ("[XI_RawKeyPress/Release] state=0x%02x (BLANKED=%d LOCKED=%d AUTH=%d) active_at=%ld now=%ld ignore_activity=%d",
-                         current_state, was_blanked, was_locked, was_auth,
-                         (long)old_active_at, (long)now, ignore_activity);
-
-              if (!(current_state & STATE_AUTH) &&  /* logged by xscreensaver-auth */
-                  (verbose_p > 1 ||
-                   (verbose_p && now - active_at > 1)))
-                print_xinput_event (dpy, &xev, NULL, "");
+              debug_log ("[XI_RawKeyPress/Release] (BLANKED=%d LOCKED=%d AUTH=%d) active=%lds ago, watch_activity=%d",
+                         was_blanked, was_locked, was_auth,
+                         (long) (now - old_active_at), watch_activity);
 
               active_at = now;
 
               if (was_locked)
                 {
-                  debug_log ("[XI_RawKeyPress/Release] LOCKED: active_at updated from %ld to %ld, ignore_activity=%d, will_trigger_auth=%d",
-                             (long)old_active_at, (long)active_at, ignore_activity,
-                             (active_at >= now && ignore_activity ? 1 : 0));
+                  debug_log ("[XI_RawKeyPress/Release] LOCKED: active_at updated from %lds ago to %lds ago, watch_activity=%d, will_trigger_auth=%d",
+                             (long) (now - old_active_at), (long) (now - active_at), watch_activity,
+                             (active_at >= now && watch_activity ? 1 : 0));
                 }
             }
             break;
@@ -2188,10 +2183,6 @@ main_loop (Display *dpy)
           case XI_RawTouchBegin:
           case XI_RawTouchEnd:
           case XI_RawTouchUpdate:
-            if (!(current_state & STATE_AUTH) &&  /* logged by xscreensaver-auth */
-                (verbose_p > 1 ||
-                 (verbose_p && now - active_at > 1)))
-              print_xinput_event (dpy, &xev, NULL, "");
             active_at = now;
             break;
 
@@ -2324,14 +2315,13 @@ main_loop (Display *dpy)
           }
         /* fallthrough */
       case UNBLANKED_LOCKED:
-        Bool ignore_activity = now >= ignore_activity_before;
+        Bool watch_activity = now > ignore_activity_before;
         if (current_state & STATE_LOCKED)
           {
             /* Check for activity to trigger AUTH sequence (same as BLANKED_LOCKED case) */
-            Bool activity_check = (active_at >= now && ignore_activity);
-            debug_log ("[UNBLANKED_LOCKED] active_at=%ld now=%ld ignore_activity_before=%ld activity_check=%d (active_at>=now=%d && active_at>=ignore=%d)",
-                   (long)active_at, (long)now, (long)ignore_activity_before, activity_check,
-                   (active_at >= now ? 1 : 0), ignore_activity);
+            Bool activity_check = (active_at >= now && watch_activity);
+            debug_log ("[UNBLANKED_LOCKED] active=%lds ago, watch_activity=%d, activity_check=%d",
+                   (long) (now - active_at), watch_activity, activity_check);
             if (activity_check)
               {
                 debug_log ("[UNBLANKED_LOCKED] activity detected, triggering AUTH sequence");
@@ -2348,8 +2338,8 @@ main_loop (Display *dpy)
               }
             else
               {
-                debug_log ("[UNBLANKED] checking blank condition: force_blank_p=%d now=%ld active_at=%ld blank_timeout=%ld ignore_activity=%d condition=%s",
-                           force_blank_p, (long) now, (long) active_at, (long) blank_timeout, ignore_activity,
+                debug_log ("[UNBLANKED] checking blank condition: force_blank_p=%d now=%ld active_at=%ld blank_timeout=%ld watch_activity=%d condition=%s",
+                           force_blank_p, (long) now, (long) active_at, (long) blank_timeout, watch_activity,
                            (now >= active_at + blank_timeout ? "TRUE (timeout)" : "FALSE"));
                 DL(1, "blanking");
                 if (grab_keyboard_and_mouse (mouse_screen (dpy)))
@@ -2414,6 +2404,7 @@ main_loop (Display *dpy)
         break;
 
       case BLANKED_UNLOCKED:
+        watch_activity = now > ignore_activity_before;
         if (!locking_disabled_p &&
             (force_lock_p ||
              (lock_p &&
@@ -2427,20 +2418,20 @@ main_loop (Display *dpy)
             force_lock_p = False;   /* Single shot */
           }
         else if (active_at >= now &&
-                 ignore_activity)
+                 watch_activity)
           {
           UNBLANK:
-            ignore_activity = now >= ignore_activity_before;
-            DL(1, "[BLANKED] unblanking (active=%lds ago, ignore_activity=%d, activity_check=%d)",
-                       (long) (now - active_at), ignore_activity,
-                       (active_at >= now && ignore_activity ? "TRUE" : "FALSE"));
+            watch_activity = now > ignore_activity_before;
+            DL(1, "[BLANKED] unblanking (active=%lds ago, watch_activity=%d, activity_check=%d)",
+                       (long) (now - active_at), watch_activity,
+                       (active_at >= now && watch_activity ? "TRUE" : "FALSE"));
             current_state = UNBLANKED_UNLOCKED;
             ignore_motion_p = False;
             store_saver_status (dpy, False, False, False, now);
 
-            debug_log ("[BLANKED] after UNBLANK transition: active_at=%ld now=%ld blank_timeout=%ld (next blank in %ld seconds)",
-                       (long) active_at, (long) now, (long) blank_timeout,
-                       (long) (active_at + blank_timeout - now));
+            debug_log ("[BLANKED] after UNBLANK transition: active=%lds ago, blank_timeout=%ld (next blank in %ld seconds)",
+                       (long) (now - active_at), (long) blank_timeout,
+                       (long) (blank_timeout - (now - active_at)));
 
             if (saver_gfx_pid)
               {
@@ -2469,10 +2460,10 @@ main_loop (Display *dpy)
       case BLANKED_LOCKED:
         debug_log ("[STATE_MACHINE] case BLANKED_LOCKED: entered");
         {
-          Bool activity_check = (active_at >= now && ignore_activity);
-          ignore_activity = now >= ignore_activity_before;
-          debug_log ("[BLANKED_LOCKED] active=%lds ago, ignore_activity=%d, activity_check=%d",
-                     (long) (now - active_at), ignore_activity, activity_check);
+          Bool activity_check = (active_at >= now && watch_activity);
+          watch_activity = now > ignore_activity_before;
+          debug_log ("[BLANKED_LOCKED] active=%lds ago, watch_activity=%d, activity_check=%d",
+                     (long) (now - active_at), watch_activity, activity_check);
           if (activity_check)
             UNLOCK:
           {
@@ -2531,20 +2522,15 @@ main_loop (Display *dpy)
         break;
         }
       case UNBLANKED_AUTH:
-        debug_log ("[STATE_MACHINE] case UNBLANKED_AUTH: entered");
       case BLANKED_AUTH:
-        if (current_state == BLANKED_AUTH)
-          debug_log ("[STATE_MACHINE] case BLANKED_AUTH: entered");
-        debug_log ("[AUTH_STATE] current_state=0x%02x (BLANKED=%d LOCKED=%d AUTH=%d) saver_auth_pid=%lu authenticated_p=%d",
-                   current_state,
+        debug_log ("[AUTH_STATE] (BLANKED=%d LOCKED=%d AUTH=%d) saver_auth=%d authenticated_p=%d",
                    !!(current_state & STATE_BLANKED),
                    !!(current_state & STATE_LOCKED),
                    !!(current_state & STATE_AUTH),
-                   (unsigned long)saver_auth_pid, authenticated_p);
+                   !!(saver_auth_pid), authenticated_p);
         if (saver_auth_pid)
           {
             /* xscreensaver-auth still running -- wait for it to exit. */
-            debug_log ("[AUTH_STATE] waiting for xscreensaver-auth (pid %lu) to exit", (unsigned long)saver_auth_pid);
           }
         else if (authenticated_p)
           {

@@ -1858,11 +1858,12 @@ window_occluded_p (Display *dpy, Window window)
         {
           last_hash = current_hash;
         }
-      else if (verbose_p > 0 && screen_blanked_p (dpy)){
+      else if (verbose_p > 0) {
+        Bool blanked_p = screen_blanked_p (dpy);
         static double last_log = 0;
         double now = double_time();
         if (now - last_log > 0.2) {
-          DL(0, "window tree hash unchanged");
+          DL(0, "window tree hash unchanged %s", blanked_p ? "(screen blanked)" : "(not blanked)");
           last_log = now;
         }
       }
