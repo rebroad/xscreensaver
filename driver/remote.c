@@ -183,7 +183,8 @@ send_xscreensaver_command (Display *dpy, Atom command, long arg,
           unsigned char *dataP = 0;
 
           /* XA_SCREENSAVER_STATUS format documented in windows.c. */
-          if (XGetWindowProperty (dpy, RootWindow (dpy, 0), /* always screen #0 */
+          if (XGetWindowProperty (dpy,
+                                  RootWindow (dpy, 0), /* always screen #0 */
                                   XA_SCREENSAVER_STATUS,
                                   0, 999, False, XA_INTEGER,
                                   &type, &format, &nitems, &bytesafter,
@@ -203,7 +204,7 @@ send_xscreensaver_command (Display *dpy, Atom command, long arg,
 
               if ((state & 0x01) != 0)
                 fputs (": screen blanked since ", stdout);
-              else if ((state & 0x02) != 0 || (state & 0x04) != 0)
+              else if ((state & 0x02) != 0)
                 fputs (": screen locked since ", stdout);
               else if (state == 0)
                 fputs (": screen non-blanked since ", stdout);
@@ -457,12 +458,14 @@ xscreensaver_command_response (Display *dpy, Window window,
 }
 
 
-/* Wait until xscreensaver says the screen is blanked.
+/* Wait until xscreensaver says the screen is blanked or locked.
+   Returns 0 on success, or -1 on error/timeout.
    Catches errors, times out after a few seconds.
+   Reports which state was reached (blank, lock, or both) via debug logging.
  */
 static int
-xscreensaver_command_wait_for_blank (Display *dpy,
-                                     Bool verbose_p, char **error_ret)
+xscreensaver_command_wait_for_state_change (Display *dpy,
+                                            Bool verbose_p, char **error_ret)
 {
   Window w = RootWindow (dpy, 0);  /* always screen 0 */
   time_t start = time((time_t*)0);
@@ -489,23 +492,23 @@ xscreensaver_command_wait_for_blank (Display *dpy,
           && nitems >= 3
           && dataP)
         {
-          Atom state = ((Atom *) dataP)[0];
+          PROP32 *status = (PROP32 *) dataP;
+          PROP32 state = status[0];
 
           if (verbose_p > 1)
             {
-              PROP32 *status = (PROP32 *) dataP;
               int i;
               char state_str[32] = "";
               /* The property stores internal state flags: 0x01=BLANKED, 0x02=LOCKED, 0x04=AUTH */
-              if (status[0] == 0)
+              if (state == 0)
                 strcpy(state_str, "0");
               else {
-                if (status[0] & 0x01) strcat(state_str, "BLANK");
-                if (status[0] & 0x02) { if (*state_str) strcat(state_str, "|"); strcat(state_str, "LOCK"); }
-                if (status[0] & 0x04) { if (*state_str) strcat(state_str, "|"); strcat(state_str, "AUTH"); }
+                if (state & 0x01) strcat(state_str, "BLANK");
+                if (state & 0x02) { if (*state_str) strcat(state_str, "|"); strcat(state_str, "LOCK"); }
+                if (state & 0x04) { if (*state_str) strcat(state_str, "|"); strcat(state_str, "AUTH"); }
                 if (!*state_str) strcpy(state_str, "???");
               }
-              fprintf (stderr, "%s: read status property: 0x%lx: %s", progname,
+              BLURB(); fprintf (stderr, "read status property: 0x%lx: %s",
                        (unsigned long) w, state_str);
               for (i = 1; i < nitems; i++)
                 fprintf (stderr, ", %lu", status[i]);
@@ -514,15 +517,29 @@ xscreensaver_command_wait_for_blank (Display *dpy,
 
           if (state != 0)
             {
-              DL(2, "screen blanked");
+              {
+                char state_msg[64] = "";
+                if (state & 0x01) strcat(state_msg, "blanked");
+                if (state & 0x02) {
+                  if (*state_msg) strcat(state_msg, " and ");
+                  strcat(state_msg, "locked");
+                }
+                if (state & 0x04) {
+                  if (*state_msg) strcat(state_msg, " and ");
+                  strcat(state_msg, "authenticating");
+                }
+                DL(2, "screen %s", state_msg);
+              }
+              if (dataP) XFree (dataP);
               break;
             }
+          if (dataP) XFree (dataP);
         }
 
       now = time ((time_t *) 0);
       if (now >= start + max)
         {
-          strcpy (err, "Timed out waiting for screen to blank");
+          strcpy (err, "Timed out waiting for screen to blank or lock");
           if (error_ret)
             *error_ret = strdup (err);
           else
@@ -555,7 +572,7 @@ xscreensaver_command (Display *dpy, Atom command, long arg, Bool verbose_p,
                                             (command == XA_EXIT),
                                             error_ret);
 
-  /* If this command should result in the screen being blank, wait until
+  /* If this command should result in the screen being blank or locked, wait until
      the xscreensaver window is mapped before returning. */
   if (status == 0 &&
       (command == XA_ACTIVATE ||
