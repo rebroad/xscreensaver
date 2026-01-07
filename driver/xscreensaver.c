@@ -1964,6 +1964,13 @@ main_loop (Display *dpy)
                       ignore_activity_before = now + 2;
                       clientmessage_response (dpy, &xev, True, "locking");
                     }
+                  else if (!(current_state & STATE_BLANKED))
+                    {
+                      /* Already locked but not blanked: blank the screen. */
+                      force_blank_p = True;
+                      ignore_activity_before = now + 2;
+                      clientmessage_response (dpy, &xev, True, "blanking");
+                    }
                   else
                     clientmessage_response (dpy, &xev, False,
                                             "already locked");
@@ -2220,12 +2227,12 @@ main_loop (Display *dpy)
             DL(1, "locking");
             if (grab_keyboard_and_mouse (mouse_screen (dpy)))
               {
-                current_state = BLANKED_LOCKED;
-                blanked_at = now;
+                current_state = BLANKED_LOCKED; // TODO - don't blank if blank later
+                blanked_at = now; // TODO here also
                 locked_at = now;
                 cursor_blanked_at = now;
                 authenticated_p = False;
-                store_saver_status (dpy, True, True, False, locked_at);
+                store_saver_status (dpy, True, True, False, locked_at); // TODO here also
               }
             else
               DL(0, "unable to grab -- locking aborted!");
@@ -2249,13 +2256,12 @@ main_loop (Display *dpy)
                 DL(1, "blanking");
                 if (grab_keyboard_and_mouse (mouse_screen (dpy)))
                   {
-                    current_state = BLANKED_UNLOCKED;
+                    current_state |= STATE_BLANKED;
                     blanked_at = now;
-                    locked_at = 0;
                     cursor_blanked_at = now;
-                    debug_log ("[MAIN] transitioning UNBLANKED->BLANKED: blanked_at=%ld",
-                               (long) blanked_at);
-                    store_saver_status (dpy, True, False, False, blanked_at);
+                    debug_log ("[MAIN] transitioning UNBLANKED%s->BLANKED%s: blanked_at=%ld", (current_state & STATE_LOCKED ? "LOCKED" : ""),
+                            (current_state & STATE_LOCKED ? "LOCKED" : ""), (long) blanked_at);
+                    store_saver_status (dpy, True, current_state & STATE_LOCKED, False, blanked_at);
                   }
                 else
                   DL(0, "unable to grab -- blanking aborted!");
