@@ -581,7 +581,7 @@ xscreensaver_command (Display *dpy, Atom command, long arg, Bool verbose_p,
        command == XA_NEXT ||
        command == XA_PREV ||
        command == XA_SELECT))
-    status = xscreensaver_command_wait_for_blank (dpy, verbose_p, error_ret);
+    status = xscreensaver_command_wait_for_state_change (dpy, verbose_p, error_ret);
 
   fflush (stdout);
   fflush (stderr);
