@@ -507,12 +507,9 @@ static int respawn_thrashing_count = 0;
    Returns true if:
      - the process that died was "xscreensaver-auth", and
      - it exited with a "success" status meaning "user is authenticated".
-   If blank_requested_p is non-NULL, it will be set to True if the user
-   requested screen blank (Windows+L) while the screen was already locked.
  */
 static Bool
-handle_sigchld (Display *dpy, Bool blanked_p, time_t *active_at_p,
-                Bool *blank_requested_p)
+handle_sigchld (Display *dpy, Bool blanked_p, time_t *active_at_p)
 {
   Bool authenticated_p = False;
 
@@ -652,7 +649,6 @@ handle_sigchld (Display *dpy, Bool blanked_p, time_t *active_at_p,
           saver_auth_pid = 0;
 
           /* xscreensaver-auth exits with status 200 to mean "ok to unlock".
-             Status 201 means "screen blank requested" (Windows+L pressed).
              Any other exit code, or dying with a signal, means "nope".
            */
           if (!WIFSIGNALED (wait_status) &&
@@ -663,13 +659,6 @@ handle_sigchld (Display *dpy, Bool blanked_p, time_t *active_at_p,
                 {
                   authenticated_p = True;
                   strcpy (how, "and authenticated");
-                }
-              else if (status == 201)
-                {
-                  /* Windows+L pressed: user wants to blank the screen */
-                  if (blank_requested_p)
-                    *blank_requested_p = True;
-                  strcpy (how, "and screen blank requested");
                 }
               else if (status == 0 && !blanked_p)
                 strcpy (how, "normally");   /* This was the splash dialog */
@@ -1864,15 +1853,7 @@ main_loop (Display *dpy)
          When "xscreensaver-auth" dies, we analyze its exit code.
        */
       if (sigchld_received)
-        {
-          authenticated_p = handle_sigchld (dpy, current_state != 0, &active_at,
-                                              &force_blank_p);
-          if (force_blank_p)
-            {
-              current_state &= ~STATE_AUTH;
-              ignore_activity_before = now + 2;
-            }
-        }
+        authenticated_p = handle_sigchld (dpy, current_state != 0, &active_at);
 
       /* Now process any outstanding X11 events on the queue: user activity
          from XInput, and ClientMessages from xscreensaver-command.
@@ -2161,19 +2142,47 @@ main_loop (Display *dpy)
           case XI_RawKeyPress:
           case XI_RawKeyRelease:
             {
-              Bool was_locked = !!(current_state & STATE_LOCKED);
-              Bool was_blanked = !!(current_state & STATE_BLANKED);
-              Bool was_auth = !!(current_state & STATE_AUTH);
+              Bool is_locked = !!(current_state & STATE_LOCKED);
+              Bool is_blanked = !!(current_state & STATE_BLANKED);
+              Bool is_auth = !!(current_state & STATE_AUTH);
               Bool watch_activity = now > ignore_activity_before;
               time_t old_active_at = active_at;
 
               debug_log ("[XI_RawKeyPress/Release] (BLANKED=%d LOCKED=%d AUTH=%d) active=%lds ago, watch_activity=%d",
-                         was_blanked, was_locked, was_auth,
+                         is_blanked, is_locked, is_auth,
                          (long) (now - old_active_at), watch_activity);
+
+              /* Check for Windows+L (Super+L) key combination to request screen blank
+                 when the screen is already locked. */
+              if (is_locked && xev.xcookie.evtype == XI_RawKeyPress)
+                {
+                  XIRawEvent *re = (XIRawEvent *) xev.xcookie.data;
+                  if (re)
+                    {
+                      XEvent ev2;
+                      static XComposeStatus compose = { 0, };
+                      KeySym keysym = 0;
+                      if (xinput_event_to_xlib (XI_RawKeyPress,
+                                                 (XIDeviceEvent *) re,
+                                                 &ev2))
+                        {
+                          XLookupString (&ev2.xkey, NULL, 0, &keysym, &compose);
+                          if (keysym && (keysym == XK_l || keysym == XK_L) &&
+                              (ev2.xkey.state & Mod4Mask))
+                            {
+                              /* Windows+L pressed while locked: request screen blank */
+                              force_blank_p = True;
+                              current_state &= ~STATE_AUTH;
+                              ignore_activity_before = now + 2;
+                              debug_log ("[XI_RawKeyPress] Windows+L detected while locked: setting force_blank_p and clearing AUTH");
+                            }
+                        }
+                    }
+                }
 
               active_at = now;
 
-              if (was_locked)
+              if (is_locked && !force_blank_p)
                 {
                   debug_log ("[XI_RawKeyPress/Release] LOCKED: active_at updated from %lds ago to %lds ago, watch_activity=%d, will_trigger_auth=%d",
                              (long) (now - old_active_at), (long) (now - active_at), watch_activity,

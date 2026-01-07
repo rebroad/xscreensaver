@@ -3144,16 +3144,6 @@ handle_keypress (window_state *ws, XKeyEvent *event, Bool filter_p)
 
   decoded[decoded_size] = 0;
 
-  /* Check for Windows+L (Super+L) key combination to request screen blank.
-     This should be checked before single-char command handling. */
-  if (keysym && (keysym == XK_l || keysym == XK_L) &&
-      (event->state & Mod4Mask))
-    {
-      /* Windows+L pressed: exit with code 201 to indicate screen blank request */
-      destroy_window (ws);
-      exit (201);
-    }
-
   if (decoded_size == 1)		/* Handle single-char commands */
     {
       /* When a key is pressed, set the remaining time to halfway between
