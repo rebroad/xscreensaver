@@ -1864,8 +1864,11 @@ main_loop (Display *dpy)
          When "xscreensaver-auth" dies, we analyze its exit code.
        */
       if (sigchld_received)
-        authenticated_p = handle_sigchld (dpy, current_state != 0, &active_at,
+        {
+          authenticated_p = handle_sigchld (dpy, current_state != 0, &active_at,
                                               &force_blank_p);
+          if (force_blank_p) current_state &= ~STATE_AUTH;
+        }
 
       /* Now process any outstanding X11 events on the queue: user activity
          from XInput, and ClientMessages from xscreensaver-command.
@@ -2456,8 +2459,8 @@ main_loop (Display *dpy)
       case BLANKED_LOCKED:
         debug_log ("[STATE_MACHINE] case BLANKED_LOCKED: entered");
         {
-          Bool activity_check = (active_at >= now && watch_activity);
           watch_activity = now > ignore_activity_before;
+          Bool activity_check = (active_at >= now && watch_activity);
           debug_log ("[BLANKED_LOCKED] active=%lds ago, watch_activity=%d, activity_check=%d",
                      (long) (now - active_at), watch_activity, activity_check);
           if (activity_check)
