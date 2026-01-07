@@ -1082,6 +1082,8 @@ store_saver_status (Display *dpy,
                     Bool blanked_p, Bool locked_p, Bool auth_p,
                     time_t blank_time)
 {
+  debug_log ("[store_saver_status] called: blanked_p=%d locked_p=%d auth_p=%d blank_time=%ld",
+             blanked_p, locked_p, auth_p, (long)blank_time);
   /* See the different version of this function in windows.c, which explains
      the structure of the XA_SCREENSAVER_STATUS property.
 
@@ -2516,7 +2518,7 @@ main_loop (Display *dpy)
                the auth dialog is raised.  We can ignore failures here. */
             grab_mouse (mouse_screen (dpy), auth_cursor);
 
-            store_saver_status (dpy, True, True, True, locked_at);
+            store_saver_status (dpy, !!(current_state & STATE_BLANKED), True, True, locked_at);
 
             av[ac++] = SAVER_AUTH_PROGRAM;
             if (verbose_p)     av[ac++] = "--verbose";
@@ -2567,7 +2569,7 @@ main_loop (Display *dpy)
                immediately. */
             ignore_activity_before = now + 1;
 
-            store_saver_status (dpy, True, True, False, locked_at);
+            store_saver_status (dpy, !!(current_state & STATE_BLANKED), True, False, locked_at);
 
             if (gfx_stopped_p)	/* SIGCONT to resume savers */
               {
