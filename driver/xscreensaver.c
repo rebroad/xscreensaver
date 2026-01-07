@@ -1692,6 +1692,16 @@ main_loop (Display *dpy)
    Main loop
   ************************************************************************/
 
+  /* Track Mod4 (Super) key state for Super+L detection */
+  static Bool mod4_pressed = False;
+  static KeyCode mod4_keycode_l = 0;
+  static KeyCode mod4_keycode_r = 0;
+  if (!mod4_keycode_l)
+    {
+      mod4_keycode_l = XKeysymToKeycode (dpy, XK_Super_L);
+      mod4_keycode_r = XKeysymToKeycode (dpy, XK_Super_R);
+    }
+
   while (1)
     {
       Bool force_blank_p = False;
@@ -2152,30 +2162,53 @@ main_loop (Display *dpy)
                          is_blanked, is_locked, is_auth,
                          (long) (now - old_active_at), watch_activity);
 
-              /* Check for Windows+L (Super+L) key combination to request screen blank
-                 when the screen is already locked. */
-              if (is_locked && xev.xcookie.evtype == XI_RawKeyPress)
+              /* Track Mod4 (Super) key state for Super+L detection */
+              XIRawEvent *re = (XIRawEvent *) xev.xcookie.data;
+              if (re)
                 {
-                  XIRawEvent *re = (XIRawEvent *) xev.xcookie.data;
-                  if (re)
+                  KeyCode keycode = re->detail;
+                  if (keycode == mod4_keycode_l || keycode == mod4_keycode_r)
                     {
-                      XEvent ev2;
-                      static XComposeStatus compose = { 0, };
-                      KeySym keysym = 0;
-                      if (xinput_event_to_xlib (XI_RawKeyPress,
-                                                 (XIDeviceEvent *) re,
-                                                 &ev2))
+                      mod4_pressed = (xev.xcookie.evtype == XI_RawKeyPress);
+                      debug_log ("[XI_RawKeyPress/Release] Mod4 key %s: keycode=%d mod4_pressed=%d",
+                                 (xev.xcookie.evtype == XI_RawKeyPress ? "pressed" : "released"),
+                                 keycode, mod4_pressed);
+                    }
+                }
+
+              /* Check for Super+L key combination to request screen blank
+                 when the screen is already locked. */
+              if (is_locked && xev.xcookie.evtype == XI_RawKeyPress && re)
+                {
+                  XEvent ev2;
+                  static XComposeStatus compose = { 0, };
+                  KeySym keysym = 0;
+                  Bool converted = xinput_event_to_xlib (XI_RawKeyPress,
+                                                         (XIDeviceEvent *) re,
+                                                         &ev2);
+                  debug_log ("[XI_RawKeyPress] Super+L check: xinput_event_to_xlib=%d keycode=%d",
+                             converted, converted ? ev2.xkey.keycode : 0);
+                  if (converted)
+                    {
+                      XLookupString (&ev2.xkey, NULL, 0, &keysym, &compose);
+                      debug_log ("[XI_RawKeyPress] Super+L check: keysym=0x%lx (%s) mod4_pressed=%d",
+                                 (unsigned long) keysym,
+                                 keysym ? XKeysymToString(keysym) : "NULL",
+                                 mod4_pressed);
+                      if (keysym && (keysym == XK_l || keysym == XK_L) && mod4_pressed)
                         {
-                          XLookupString (&ev2.xkey, NULL, 0, &keysym, &compose);
-                          if (keysym && (keysym == XK_l || keysym == XK_L) &&
-                              (ev2.xkey.state & Mod4Mask))
-                            {
-                              /* Windows+L pressed while locked: request screen blank */
-                              force_blank_p = True;
-                              current_state &= ~STATE_AUTH;
-                              ignore_activity_before = now + 2;
-                              debug_log ("[XI_RawKeyPress] Windows+L detected while locked: setting force_blank_p and clearing AUTH");
-                            }
+                          /* Super+L pressed while locked: request screen blank */
+                          force_blank_p = True;
+                          current_state &= ~STATE_AUTH;
+                          ignore_activity_before = now + 2;
+                          debug_log ("[XI_RawKeyPress] Super+L detected while locked: setting force_blank_p and clearing AUTH");
+                        }
+                      else
+                        {
+                          debug_log ("[XI_RawKeyPress] Super+L check failed: keysym match=%d (keysym=0x%lx XK_l=0x%lx XK_L=0x%lx) mod4_pressed=%d",
+                                     (keysym && (keysym == XK_l || keysym == XK_L)),
+                                     (unsigned long) keysym, (unsigned long) XK_l, (unsigned long) XK_L,
+                                     mod4_pressed);
                         }
                     }
                 }
