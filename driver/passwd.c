@@ -260,7 +260,10 @@ xscreensaver_auth (void *closure,
     do_syslog ();
 
   if (finished_fn)
-    finished_fn (closure, ok);
+    {
+      DL(0, "[xscreensaver_auth] calling finished_fn(closure, ok=%d)", ok);
+      finished_fn (closure, ok);
+    }
 
   return ok;
 }

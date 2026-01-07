@@ -2983,6 +2983,21 @@ unlock_cb (window_state *ws)
 }
 
 
+/* Format a time_t as a human-readable date/time string for debugging. */
+static const char *
+format_time_debug (time_t t)
+{
+  static char buf[64];
+  struct tm *tm = localtime (&t);
+  if (!tm || t <= 0)
+    {
+      strcpy (buf, "never");
+      return buf;
+    }
+  strftime (buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", tm);
+  return buf;
+}
+
 /* We store the count and last time of authorization failures on a property
    on the root window, so that on subsequent runs of this program that
    succeed, we can warn the user that someone tried to log in and failed.
@@ -3030,8 +3045,8 @@ persistent_auth_status_failure (window_state *ws,
         ((((unsigned long) data[1] & 0xFFFFFFFFL) << 32) |
           ((unsigned long) data[2] & 0xFFFFFFFFL));
 
-      DL(1, "previous auth failures: %d @ %lu",
-         count, (unsigned long) tt);
+      DL(1, "previous auth failures: %d @ %lu (%s)",
+         count, (unsigned long) tt, format_time_debug (tt));
     }
 
   if (dataP)
@@ -3059,8 +3074,8 @@ persistent_auth_status_failure (window_state *ws,
 
       XChangeProperty (dpy, w, prop, XA_INTEGER, 32,
                        PropModeReplace, (unsigned char *) vv, 3);
-      DL(1, "saved auth failure: %d @ %lu",
-         count, (unsigned long) tt);
+      DL(1, "saved auth failure: %d @ %lu (%s)",
+         count, (unsigned long) tt, format_time_debug (tt));
     }
 
   if (count_ret) *count_ret = count;
@@ -3362,7 +3377,14 @@ thermo_timer (XtPointer closure, XtIntervalId *id)
   int timeout = 1000/30;  /* FPS */
   double now = double_time();
   if (now >= ws->end_time)
-    ws->auth_state = AUTH_TIME;
+    {
+      if (ws->auth_state == AUTH_NOTIFY)
+        {
+          double elapsed = now - ws->start_time;
+          debug_log ("[THERMO_TIMER] AUTH_NOTIFY timeout reached: elapsed=%.3f seconds", elapsed);
+        }
+      ws->auth_state = AUTH_TIME;
+    }
   if (ws->timer) XtRemoveTimeOut (ws->timer);
   ws->timer = XtAppAddTimeOut (ws->app, timeout, thermo_timer, (XtPointer) ws);
 }
@@ -3393,7 +3415,10 @@ gui_main_loop (window_state *ws, Bool splash_p, Bool notification_p)
       if (timeout <= 1) timeout = 1;
     }
   else if (ws->auth_state == AUTH_NOTIFY)
-    timeout = 5;
+    {
+      timeout = 5;
+      debug_log ("[GUI_MAIN_LOOP] AUTH_NOTIFY: timeout=%d seconds", timeout);
+    }
   else
     {
       timeout = ws->passwd_timeout;
@@ -3402,6 +3427,10 @@ gui_main_loop (window_state *ws, Bool splash_p, Bool notification_p)
 
   ws->start_time = double_time();
   ws->end_time = ws->start_time + timeout;
+
+  if (ws->auth_state == AUTH_NOTIFY)
+    debug_log ("[GUI_MAIN_LOOP] AUTH_NOTIFY: start_time=%.3f, end_time=%.3f, duration=%.3f",
+               ws->start_time, ws->end_time, timeout);
 
   /* Since the "xscreensaver" process holds the mouse and keyboard grabbed
      while "xscreensaver-auth" is running, we don't receive normal KeyPress
@@ -3712,6 +3741,8 @@ xscreensaver_auth_finished (void *closure, Bool authenticated_p)
   time_t failure_time = 0;
   Bool prompted_p = !!ws;
 
+  debug_log ("[AUTH_FINISHED] called: authenticated_p=%d", authenticated_p);
+
   /* If this was called without xscreensaver_auth_conv() ever having been
      called, then either PAM decided that the user is authenticated without
      a prompt (e.g. a bluetooth fob); or there was an error initializing
@@ -3725,12 +3756,16 @@ xscreensaver_auth_finished (void *closure, Bool authenticated_p)
       /* Read the old failure count, and delete it. */
       persistent_auth_status_failure (ws, False, True,
                                       &unlock_failures, &failure_time);
+      debug_log ("[AUTH_FINISHED] authenticated: unlock_failures=%d, failure_time=%ld (%s)",
+                 unlock_failures, (long)failure_time, format_time_debug (failure_time));
     }
   else
     {
       /* Increment the failure count. */
       persistent_auth_status_failure (ws, True, False,
                                       &unlock_failures, &failure_time);
+      debug_log ("[AUTH_FINISHED] failed: unlock_failures=%d, failure_time=%ld (%s)",
+                 unlock_failures, (long)failure_time, format_time_debug (failure_time));
     }
 
   /* If we have something to say, put the dialog back up for a few seconds
@@ -3753,11 +3788,16 @@ xscreensaver_auth_finished (void *closure, Bool authenticated_p)
       int warning_slack =
         get_integer_resource (ws->dpy, "authWarningSlack", "AuthWarningSlack");
 
+      debug_log ("[AUTH_FINISHED] checking previous failures: %d failures, "
+                 "age=%d sec, warning_slack=%d",
+                 unlock_failures, sec, warning_slack);
+
       if (sec < warning_slack)
         {
           DL(1, "ignoring recent unlock failures:"
              " %d within %d sec",
              unlock_failures, warning_slack);
+          debug_log ("[AUTH_FINISHED] skipping notification (within warning_slack), exiting immediately");
           goto END;
         }
       else if (days  > 1) sprintf (ago, _("%d days ago"), days);
@@ -3771,12 +3811,15 @@ xscreensaver_auth_finished (void *closure, Bool authenticated_p)
         sprintf (msg,
                  _("There have been %d failed login attempts, oldest %s."),
                  unlock_failures, ago);
+      debug_log ("[AUTH_FINISHED] showing notification for %d previous failure(s): \"%s\"",
+                 unlock_failures, msg);
     }
   else
     {
       /* No need to pop up a window.  Authenticated, and there are no previous
          failures to report.
        */
+      debug_log ("[AUTH_FINISHED] no notification needed, exiting immediately");
       goto END;
     }
 
@@ -3784,9 +3827,12 @@ xscreensaver_auth_finished (void *closure, Bool authenticated_p)
   ws->body_label = strdup (msg);
 
   ws->auth_state = AUTH_NOTIFY;
+  debug_log ("[AUTH_FINISHED] entering notification loop (5 second timeout)");
   gui_main_loop (ws, False, True);
+  debug_log ("[AUTH_FINISHED] notification loop exited, destroying window");
 
  END:
+  debug_log ("[AUTH_FINISHED] exiting (destroying window)");
   destroy_window (global_ws);
 }
 

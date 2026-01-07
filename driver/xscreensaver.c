@@ -1972,6 +1972,16 @@ main_loop (Display *dpy)
                 }
               else if (msg == XA_LOCK)
                 {
+                  /* Log exit point for XA_LOCK messages with timestamp */
+                  struct tm *tm = localtime (&now);
+                  char timestamp[64];
+                  strftime (timestamp, sizeof(timestamp), "%Y-%m-%d %H:%M:%S", tm);
+                  debug_log ("[EXIT] received XA_LOCK ClientMessage at %s (state=0x%x BLANKED=%d LOCKED=%d AUTH=%d)",
+                             timestamp, current_state,
+                             !!(current_state & STATE_BLANKED),
+                             !!(current_state & STATE_LOCKED),
+                             !!(current_state & STATE_AUTH));
+
                   if (locking_disabled_p)
                     clientmessage_response (dpy, &xev, False,
                                             "locking disabled");

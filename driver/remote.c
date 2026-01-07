@@ -299,6 +299,17 @@ send_xscreensaver_command (Display *dpy, Atom command, long arg,
       event.xclient.data.l[1] = arg1;
       event.xclient.data.l[2] = arg2;
 
+      /* Log entry point for XA_LOCK messages with timestamp */
+      if (command == XA_LOCK)
+        {
+          time_t t = time ((time_t *) 0);
+          struct tm *tm = localtime (&t);
+          char timestamp[64];
+          strftime (timestamp, sizeof(timestamp), "%Y-%m-%d %H:%M:%S", tm);
+          DL(0, "[ENTRY] sending XA_LOCK ClientMessage at %s (pid %lu)",
+             timestamp, (unsigned long) getpid());
+        }
+
       if (! XSendEvent (dpy, window, False, PropertyChangeMask, &event))
         {
           sprintf (err, "XSendEvent(dpy, 0x%x ...) failed\n",
