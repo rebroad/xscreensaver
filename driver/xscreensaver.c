@@ -2278,8 +2278,21 @@ main_loop (Display *dpy)
       /* Now that events have been processed, see if the state should change,
          based on any events received and the current time.
        */
+      debug_log ("[STATE_MACHINE] entering switch: current_state=0x%02x (enum=%d: UNBLANKED_UNLOCKED=%d BLANKED_UNLOCKED=%d UNBLANKED_LOCKED=%d BLANKED_LOCKED=%d UNBLANKED_AUTH=%d BLANKED_AUTH=%d) BLANKED=%d LOCKED=%d AUTH=%d active_at=%ld now=%ld ignore_activity_before=%ld",
+                 current_state, current_state,
+                 (current_state == UNBLANKED_UNLOCKED ? 1 : 0),
+                 (current_state == BLANKED_UNLOCKED ? 1 : 0),
+                 (current_state == UNBLANKED_LOCKED ? 1 : 0),
+                 (current_state == BLANKED_LOCKED ? 1 : 0),
+                 (current_state == UNBLANKED_AUTH ? 1 : 0),
+                 (current_state == BLANKED_AUTH ? 1 : 0),
+                 !!(current_state & STATE_BLANKED),
+                 !!(current_state & STATE_LOCKED),
+                 !!(current_state & STATE_AUTH),
+                 (long)active_at, (long)now, (long)ignore_activity_before);
       switch (current_state) {
       case UNBLANKED_UNLOCKED:
+        debug_log ("[STATE_MACHINE] case UNBLANKED_UNLOCKED");
         if (!locking_disabled_p &&
             (force_lock_p ||
              (lock_p &&
@@ -2322,15 +2335,18 @@ main_loop (Display *dpy)
           }
         /* fallthrough */
       case UNBLANKED_LOCKED:
-        /* Check for activity to trigger AUTH sequence (same as BLANKED_LOCKED case) */
-        Bool activity_check = (active_at >= now && active_at >= ignore_activity_before);
-        debug_log ("[UNBLANKED_LOCKED] active_at=%ld now=%ld ignore_activity_before=%ld activity_check=%d (active_at>=now=%d && active_at>=ignore=%d)",
+        if (current_state & STATE_LOCKED)
+          {
+            /* Check for activity to trigger AUTH sequence (same as BLANKED_LOCKED case) */
+            Bool activity_check = (active_at >= now && active_at >= ignore_activity_before);
+            debug_log ("[UNBLANKED_LOCKED] active_at=%ld now=%ld ignore_activity_before=%ld activity_check=%d (active_at>=now=%d && active_at>=ignore=%d)",
                    (long)active_at, (long)now, (long)ignore_activity_before, activity_check,
                    (active_at >= now ? 1 : 0), (active_at >= ignore_activity_before ? 1 : 0));
-        if (activity_check)
-          {
-            debug_log ("[UNBLANKED_LOCKED] activity detected, triggering AUTH sequence");
-            goto UNLOCK;
+            if (activity_check)
+              {
+                debug_log ("[UNBLANKED_LOCKED] activity detected, triggering AUTH sequence");
+                goto UNLOCK;
+              }
           }
 
         debug_log ("[UNBLANKED] force_blank_p=%d now=%ld active_at=%ld blank_timeout=%ld condition=%d",
@@ -2408,6 +2424,7 @@ main_loop (Display *dpy)
                 first_time_p = False;
               }
           }
+        debug_log ("[STATE_MACHINE] case UNBLANKED_LOCKED: exiting");
         break;
 
       case BLANKED_UNLOCKED:
@@ -2463,6 +2480,7 @@ main_loop (Display *dpy)
         break;
 
       case BLANKED_LOCKED:
+        debug_log ("[STATE_MACHINE] case BLANKED_LOCKED: entered");
         {
           Bool activity_check = (active_at >= now && active_at >= ignore_activity_before);
           debug_log ("[BLANKED_LOCKED] active_at=%ld now=%ld ignore_activity_before=%ld activity_check=%d (active_at>=now=%d && active_at>=ignore=%d)",
@@ -2526,7 +2544,10 @@ main_loop (Display *dpy)
         break;
         }
       case UNBLANKED_AUTH:
+        debug_log ("[STATE_MACHINE] case UNBLANKED_AUTH: entered");
       case BLANKED_AUTH:
+        if (current_state == BLANKED_AUTH)
+          debug_log ("[STATE_MACHINE] case BLANKED_AUTH: entered");
         debug_log ("[AUTH_STATE] current_state=0x%02x (BLANKED=%d LOCKED=%d AUTH=%d) saver_auth_pid=%lu authenticated_p=%d",
                    current_state,
                    !!(current_state & STATE_BLANKED),
