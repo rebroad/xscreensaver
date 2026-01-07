@@ -2227,12 +2227,16 @@ main_loop (Display *dpy)
             DL(1, "locking");
             if (grab_keyboard_and_mouse (mouse_screen (dpy)))
               {
-                current_state = BLANKED_LOCKED; // TODO - don't blank if blank later
-                blanked_at = now; // TODO here also
                 locked_at = now;
+                current_state |= STATE_LOCKED;
                 cursor_blanked_at = now;
                 authenticated_p = False;
-                store_saver_status (dpy, True, True, False, locked_at); // TODO here also
+                if (!lock_blank_later_p || !force_lock_p)
+                  {
+                    current_state |= STATE_BLANKED;
+                    blanked_at = now;
+                  }
+                store_saver_status (dpy, blanked_at == now, True, False, locked_at);
               }
             else
               DL(0, "unable to grab -- locking aborted!");
@@ -2328,7 +2332,7 @@ main_loop (Display *dpy)
             current_state = BLANKED_LOCKED;
             authenticated_p = False;
             locked_at = now;
-            store_saver_status (dpy, True, True, False, locked_at);
+            store_saver_status (dpy, True, True, False, now);
             force_lock_p = False;   /* Single shot */
           }
         else if (active_at >= now &&
