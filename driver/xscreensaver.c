@@ -2320,8 +2320,19 @@ main_loop (Display *dpy)
 
             force_lock_p = False;   /* Single shot */
           }
-          /* fallthrough */
+        /* fallthrough */
       case UNBLANKED_LOCKED:
+        /* Check for activity to trigger AUTH sequence (same as BLANKED_LOCKED case) */
+        Bool activity_check = (active_at >= now && active_at >= ignore_activity_before);
+        debug_log ("[UNBLANKED_LOCKED] active_at=%ld now=%ld ignore_activity_before=%ld activity_check=%d (active_at>=now=%d && active_at>=ignore=%d)",
+                   (long)active_at, (long)now, (long)ignore_activity_before, activity_check,
+                   (active_at >= now ? 1 : 0), (active_at >= ignore_activity_before ? 1 : 0));
+        if (activity_check)
+          {
+            debug_log ("[UNBLANKED_LOCKED] activity detected, triggering AUTH sequence");
+            goto UNLOCK;
+          }
+
         debug_log ("[UNBLANKED] force_blank_p=%d now=%ld active_at=%ld blank_timeout=%ld condition=%d",
                    force_blank_p, (long)now, (long)active_at, (long)blank_timeout,
                    (force_blank_p || now >= active_at + blank_timeout ? 1 : 0));
@@ -2400,9 +2411,6 @@ main_loop (Display *dpy)
         break;
 
       case BLANKED_UNLOCKED:
-        if (active_at >= now &&
-            active_at >= ignore_activity_before)
-          goto UNLOCK;
         if (!locking_disabled_p &&
             (force_lock_p ||
              (lock_p &&
