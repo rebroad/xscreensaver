@@ -1911,8 +1911,6 @@ main_loop (Display *dpy)
 
                   if (!(current_state & STATE_BLANKED))
                     {
-                      /* Screen is not blanked, so we can blank it.
-                         This is true even if it's locked or showing the auth dialog. */
                       force_blank_p = True;
                       ignore_activity_before = now + 2;
                       debug_log ("[MAIN] force_blank_p set to True from ClientMessage (BLANK command)");
