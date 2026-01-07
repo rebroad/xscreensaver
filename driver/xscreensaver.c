@@ -1082,8 +1082,6 @@ store_saver_status (Display *dpy,
                     Bool blanked_p, Bool locked_p, Bool auth_p,
                     time_t blank_time)
 {
-  debug_log ("[store_saver_status] called: blanked_p=%d locked_p=%d auth_p=%d blank_time=%ld",
-             blanked_p, locked_p, auth_p, (long)blank_time);
   /* See the different version of this function in windows.c, which explains
      the structure of the XA_SCREENSAVER_STATUS property.
 
@@ -1131,8 +1129,6 @@ store_saver_status (Display *dpy,
       status = (PROP32 *) calloc (nitems, sizeof(*status));
     }
 
-  /* Store internal state flags (bitwise-compatible) instead of atom values.
-     STATE_BLANKED = 0x01, STATE_LOCKED = 0x02, STATE_AUTH = 0x04 */
   status[0] = (PROP32) ((blanked_p ? 0x01 : 0) |
                         (locked_p  ? 0x02 : 0) |
                         (auth_p   ? 0x04 : 0));
@@ -1144,6 +1140,7 @@ store_saver_status (Display *dpy,
   XUngrabServer (dpy);
   XSync (dpy, False);
 
+# if 0
   if (debug_p && verbose_p)
     {
       int i;
@@ -1173,6 +1170,7 @@ store_saver_status (Display *dpy,
       if (system ("xprop -root _SCREENSAVER_STATUS") != 0)
         DL(0, "xprop exec failed");
     }
+# endif /* 0 */
 
   if (status != (PROP32 *) dataP)
     free (status);
@@ -1720,7 +1718,7 @@ main_loop (Display *dpy)
         else
           until = 0;
 
-        if (current_state & (STATE_BLANKED | STATE_LOCKED))
+        if (current_state & STATE_BLANKED)
           {
             /* On rare occasions the mouse pointer re-appears, even though we
                are holding the mouse grabbed with a blank cursor.  This should
@@ -1911,8 +1909,10 @@ main_loop (Display *dpy)
 
                   if (msg == XA_DEMO) ignore_motion_p = True;
 
-                  if (!(current_state & (STATE_BLANKED | STATE_AUTH)))
+                  if (!(current_state & STATE_BLANKED))
                     {
+                      /* Screen is not blanked, so we can blank it.
+                         This is true even if it's locked or showing the auth dialog. */
                       force_blank_p = True;
                       ignore_activity_before = now + 2;
                       debug_log ("[MAIN] force_blank_p set to True from ClientMessage (BLANK command)");

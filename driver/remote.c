@@ -471,6 +471,8 @@ xscreensaver_command_wait_for_state_change (Display *dpy,
   time_t start = time((time_t*)0);
   int max = 10;
   char err[2048];
+  PROP32 initial_state = 0;
+  Bool initial_state_set = False;
   while (1)
     {
       Atom type;
@@ -515,8 +517,17 @@ xscreensaver_command_wait_for_state_change (Display *dpy,
               fprintf (stderr, "\n");
             }
 
-          if (state != 0)
+          if (!initial_state_set)
             {
+              /* Capture the initial state as our baseline */
+              initial_state = state;
+              initial_state_set = True;
+              if (dataP) XFree (dataP);
+              /* Continue polling to detect a change */
+            }
+          else if (state != initial_state)
+            {
+              /* State has changed from initial state - report the new state */
               {
                 char state_msg[64] = "";
                 if (state & 0x01) strcat(state_msg, "blanked");
@@ -533,7 +544,11 @@ xscreensaver_command_wait_for_state_change (Display *dpy,
               if (dataP) XFree (dataP);
               break;
             }
-          if (dataP) XFree (dataP);
+          else
+            {
+              /* State hasn't changed yet, continue polling */
+              if (dataP) XFree (dataP);
+            }
         }
 
       now = time ((time_t *) 0);
