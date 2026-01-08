@@ -23,7 +23,6 @@
 #include <X11/Xatom.h>
 
 #include "atoms.h"
-#include "blurb.h"
 
 #ifdef HAVE_UNAME
 # include <sys/utsname.h>	/* for uname() */
@@ -32,13 +31,10 @@
 
 /* Set some properties to hopefully tell the window manager to leave us alone.
    This is used by xscreensaver-gfx and xscreensaver-auth but not xscreensaver.
-
-   set_bypass_compositor: If non-zero, sets _NET_WM_BYPASS_COMPOSITOR=1.
-                          Set to 0 for windows that need compositor transparency.
  */
 void
 xscreensaver_set_wm_atoms (Display *dpy, Window window, int width, int height, 
-                           Window for_window, int set_bypass_compositor)
+                           Window for_window)
 {
   XClassHint class_hints;
   XSizeHints size_hints;
@@ -78,19 +74,10 @@ xscreensaver_set_wm_atoms (Display *dpy, Window window, int width, int height,
      grubby paws off of our windows.
    */
 
-  if (set_bypass_compositor)
-    {
-      i = 0;
-      vl[i++] = 1;  /* _NET_WM_BYPASS_COMPOSITOR = 1 */
-      XChangeProperty (dpy, window, XA_NET_WM_BYPASS_COMPOSITOR, XA_CARDINAL, 32,
-                       PropModeReplace, (unsigned char *) vl, i);
-      DL(1, "set _NET_WM_BYPASS_COMPOSITOR=1 for window 0x%lx (bypassing compositor)", (unsigned long)window);
-    }
-  else
-    {
-      DL(1, "skipping _NET_WM_BYPASS_COMPOSITOR for window 0x%lx (needs compositor transparency)",
-               (unsigned long)window);
-    }
+  i = 0;
+  vl[i++] = 1;  /* _NET_WM_BYPASS_COMPOSITOR = 1 */
+  XChangeProperty (dpy, window, XA_NET_WM_BYPASS_COMPOSITOR, XA_CARDINAL, 32,
+                   PropModeReplace, (unsigned char *) vl, i);
 
   /* _NET_WM_STATE = [ _NET_WM_STATE_ABOVE, _NET_WM_STATE_FULLSCREEN ] */
   i = 0;
