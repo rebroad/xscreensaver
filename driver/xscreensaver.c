@@ -2084,29 +2084,17 @@ main_loop (Display *dpy)
           case KeyPress:
           case KeyRelease:
             {
-              Bool was_locked = !!(current_state & STATE_LOCKED);
-              Bool was_blanked = !!(current_state & STATE_BLANKED);
-              Bool was_auth = !!(current_state & STATE_AUTH);
+              Bool is_locked = !!(current_state & STATE_LOCKED);
+              Bool is_blanked = !!(current_state & STATE_BLANKED);
+              Bool is_auth = !!(current_state & STATE_AUTH);
               Bool watch_activity = now > ignore_activity_before;
               time_t old_active_at = active_at;
 
               debug_log ("[KeyPress/Release] (BLANKED=%d LOCKED=%d AUTH=%d) active=%lds ago, watch_activity=%d",
-                         was_blanked, was_locked, was_auth,
+                         is_blanked, is_locked, is_auth,
                          (long) (now - old_active_at), watch_activity);
 
-              if (!(current_state & STATE_AUTH) &&  /* logged by xscreensaver-auth */
-                  (verbose_p > 1 ||
-                   (verbose_p && now - active_at > 1)))
-                print_xinput_event (dpy, &xev, NULL, "");
-
               active_at = now;
-
-              if (was_locked)
-                {
-                  debug_log ("[KeyPress/Release] LOCKED: active_at updated from %lds ago to %lds ago, watch_activity=%d, will_trigger_auth=%d",
-                             (long) (now - old_active_at), (long) (now - active_at), watch_activity,
-                             (active_at >= now && watch_activity ? 1 : 0));
-                }
 
               continue;
             }
@@ -2149,14 +2137,13 @@ main_loop (Display *dpy)
           case XI_RawKeyRelease:
             {
               Bool is_locked = !!(current_state & STATE_LOCKED);
-              Bool is_blanked = !!(current_state & STATE_BLANKED);
+              /*Bool is_blanked = !!(current_state & STATE_BLANKED);
               Bool is_auth = !!(current_state & STATE_AUTH);
               Bool watch_activity = now > ignore_activity_before;
-              time_t old_active_at = active_at;
 
               debug_log ("[XI_RawKeyPress/Release] (BLANKED=%d LOCKED=%d AUTH=%d) active=%lds ago, watch_activity=%d",
                          is_blanked, is_locked, is_auth,
-                         (long) (now - old_active_at), watch_activity);
+                         (long) (now - active_at), watch_activity);*/
 
               /* Track Mod4 (Super) key state for Super+L detection */
               XIRawEvent *re = (XIRawEvent *) xev.xcookie.data;
@@ -2182,12 +2169,12 @@ main_loop (Display *dpy)
                   Bool converted = xinput_event_to_xlib (XI_RawKeyPress,
                                                          (XIDeviceEvent *) re,
                                                          &ev2);
-                  debug_log ("[XI_RawKeyPress] Super+L check: xinput_event_to_xlib=%d keycode=%d",
+                  DL (1, "Super+L check: xinput_event_to_xlib=%d keycode=%d",
                              converted, converted ? ev2.xkey.keycode : 0);
                   if (converted)
                     {
                       XLookupString (&ev2.xkey, NULL, 0, &keysym, &compose);
-                      debug_log ("[XI_RawKeyPress] Super+L check: keysym=0x%lx (%s) mod4_pressed=%d",
+                      DL (1, "Super+L check: keysym=0x%lx (%s) mod4_pressed=%d",
                                  (unsigned long) keysym,
                                  keysym ? XKeysymToString(keysym) : "NULL",
                                  mod4_pressed);
@@ -2198,25 +2185,22 @@ main_loop (Display *dpy)
                             {
                               force_blank_p = True;
                               current_state &= ~STATE_AUTH;
-                              debug_log ("Super+L detected while locked: setting force_blank_p and clearing AUTH");
+                              DL (1, "Super+L detected while locked: setting force_blank_p and clearing AUTH");
                             }
                           else
                             {
-                              force_lock_p = True;
-                              debug_log ("Super+L detected while unlocked: setting force_lock_p");
+                              //force_lock_p = True;
+                              DL (1, "Super+L detected while unlocked: setting force_lock_p");
                             }
                           ignore_activity_before = now + 2;
                         }
                       else
-                        {
-                          debug_log ("[XI_RawKeyPress] Super+L check failed: keysym match=%d (keysym=0x%lx XK_l=0x%lx XK_L=0x%lx) mod4_pressed=%d",
+                        DL (1, "Super+L check failed: keysym match=%d (keysym=0x%lx XK_l=0x%lx XK_L=0x%lx) mod4_pressed=%d",
                                      (keysym && (keysym == XK_l || keysym == XK_L)),
                                      (unsigned long) keysym, (unsigned long) XK_l, (unsigned long) XK_L,
                                      mod4_pressed);
-                        }
                     }
                 }
-
               active_at = now;
             }
             break;
@@ -2565,16 +2549,11 @@ main_loop (Display *dpy)
         }
       case UNBLANKED_AUTH:
       case BLANKED_AUTH:
-        debug_log ("[AUTH_STATE] (BLANKED=%d LOCKED=%d AUTH=%d) saver_auth=%d authenticated_p=%d",
-                   !!(current_state & STATE_BLANKED),
-                   !!(current_state & STATE_LOCKED),
-                   !!(current_state & STATE_AUTH),
-                   !!(saver_auth_pid), authenticated_p);
         if (saver_auth_pid)
           {
             /* xscreensaver-auth still running -- wait for it to exit. */
           }
-        else if (authenticated_p)
+        else if (!saver_auth_pid && authenticated_p)
           {
             /* xscreensaver-auth exited with "success" status */
             debug_log ("[AUTH_STATE] authentication succeeded, unlocking");
