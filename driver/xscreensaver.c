@@ -1694,13 +1694,9 @@ main_loop (Display *dpy)
 
   /* Track Mod4 (Super) key state for Super+L detection */
   static Bool mod4_pressed = False;
-  static KeyCode mod4_keycode_l = 0;
-  static KeyCode mod4_keycode_r = 0;
-  if (!mod4_keycode_l)
-    {
-      mod4_keycode_l = XKeysymToKeycode (dpy, XK_Super_L);
-      mod4_keycode_r = XKeysymToKeycode (dpy, XK_Super_R);
-    }
+  static KeyCode mod4_keycode_l, mod4_keycode_r;
+  mod4_keycode_l = XKeysymToKeycode (dpy, XK_Super_L);
+  mod4_keycode_r = XKeysymToKeycode (dpy, XK_Super_R);
 
   while (1)
     {
@@ -2170,7 +2166,7 @@ main_loop (Display *dpy)
                   if (keycode == mod4_keycode_l || keycode == mod4_keycode_r)
                     {
                       mod4_pressed = (xev.xcookie.evtype == XI_RawKeyPress);
-                      debug_log ("[XI_RawKeyPress/Release] Mod4 key %s: keycode=%d mod4_pressed=%d",
+                      DL (1, "Mod4 key %s: keycode=%d mod4_pressed=%d",
                                  (xev.xcookie.evtype == XI_RawKeyPress ? "pressed" : "released"),
                                  keycode, mod4_pressed);
                     }
@@ -2178,7 +2174,7 @@ main_loop (Display *dpy)
 
               /* Check for Super+L key combination to request screen blank
                  when the screen is already locked. */
-              if (is_locked && xev.xcookie.evtype == XI_RawKeyPress && re)
+              if (xev.xcookie.evtype == XI_RawKeyPress && re)
                 {
                   XEvent ev2;
                   static XComposeStatus compose = { 0, };
@@ -2198,10 +2194,18 @@ main_loop (Display *dpy)
                       if (keysym && (keysym == XK_l || keysym == XK_L) && mod4_pressed)
                         {
                           /* Super+L pressed while locked: request screen blank */
-                          force_blank_p = True;
-                          current_state &= ~STATE_AUTH;
+                          if (is_locked)
+                            {
+                              force_blank_p = True;
+                              current_state &= ~STATE_AUTH;
+                              debug_log ("Super+L detected while locked: setting force_blank_p and clearing AUTH");
+                            }
+                          else
+                            {
+                              force_lock_p = True;
+                              debug_log ("Super+L detected while unlocked: setting force_lock_p");
+                            }
                           ignore_activity_before = now + 2;
-                          debug_log ("[XI_RawKeyPress] Super+L detected while locked: setting force_blank_p and clearing AUTH");
                         }
                       else
                         {
@@ -2214,13 +2218,6 @@ main_loop (Display *dpy)
                 }
 
               active_at = now;
-
-              if (is_locked && !force_blank_p)
-                {
-                  debug_log ("[XI_RawKeyPress/Release] LOCKED: active_at updated from %lds ago to %lds ago, watch_activity=%d, will_trigger_auth=%d",
-                             (long) (now - old_active_at), (long) (now - active_at), watch_activity,
-                             (active_at >= now && watch_activity ? 1 : 0));
-                }
             }
             break;
           case XI_RawButtonPress:
@@ -2591,7 +2588,6 @@ main_loop (Display *dpy)
             debug_log ("[AUTH_STATE] authorization failed, clearing AUTH bit");
             DL(1, "authorization failed");
             current_state &= ~STATE_AUTH;  /* Clear AUTH bit, keep LOCKED */
-            authenticated_p = False;
 
             /* We already hold the mouse grab, but try to re-grab it with
                a different mouse pointer, to hide the pointer again now that
