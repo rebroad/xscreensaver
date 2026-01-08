@@ -1692,12 +1692,6 @@ main_loop (Display *dpy)
    Main loop
   ************************************************************************/
 
-  /* Track Mod4 (Super) key state for Super+L detection */
-  static Bool mod4_pressed = False;
-  static KeyCode mod4_keycode_l, mod4_keycode_r;
-  mod4_keycode_l = XKeysymToKeycode (dpy, XK_Super_L);
-  mod4_keycode_r = XKeysymToKeycode (dpy, XK_Super_R);
-
   while (1)
     {
       Bool force_blank_p = False;
@@ -2088,11 +2082,11 @@ main_loop (Display *dpy)
               Bool is_blanked = !!(current_state & STATE_BLANKED);
               Bool is_auth = !!(current_state & STATE_AUTH);
               Bool watch_activity = now > ignore_activity_before;
-              time_t old_active_at = active_at;
 
-              debug_log ("[KeyPress/Release] (BLANKED=%d LOCKED=%d AUTH=%d) active=%lds ago, watch_activity=%d",
-                         is_blanked, is_locked, is_auth,
-                         (long) (now - old_active_at), watch_activity);
+              if (!is_locked)
+                debug_log ("[KeyPress/Release] (BLANKED=%d LOCKED=%d AUTH=%d) active=%lds ago, watch_activity=%d",
+                           is_blanked, is_locked, is_auth,
+                           (long) (now - active_at), watch_activity);
 
               active_at = now;
 
@@ -2147,40 +2141,31 @@ main_loop (Display *dpy)
 
               /* Track Mod4 (Super) key state for Super+L detection */
               XIRawEvent *re = (XIRawEvent *) xev.xcookie.data;
-              if (re)
-                {
-                  KeyCode keycode = re->detail;
-                  if (keycode == mod4_keycode_l || keycode == mod4_keycode_r)
-                    {
-                      mod4_pressed = (xev.xcookie.evtype == XI_RawKeyPress);
-                      DL (1, "Mod4 key %s: keycode=%d mod4_pressed=%d",
-                                 (xev.xcookie.evtype == XI_RawKeyPress ? "pressed" : "released"),
-                                 keycode, mod4_pressed);
-                    }
-                }
+              Bool super_pressed = False;
 
               /* Check for Super+L key combination to request screen blank
                  when the screen is already locked. */
-              if (xev.xcookie.evtype == XI_RawKeyPress && re && mod4_pressed)
+              if (xev.xcookie.evtype == XI_RawKeyPress && re)
                 {
                   XEvent ev2;
                   KeySym keysym = 0;
                   if (xinput_event_to_xlib (XI_RawKeyPress, (XIDeviceEvent *) re, &ev2))
                     {
+                      super_pressed = (ev2.xkey.state & Mod4Mask) != 0;
                       XComposeStatus compose = { 0, };
                       XLookupString (&ev2.xkey, NULL, 0, &keysym, &compose);
-                      if (keysym && (keysym == XK_l || keysym == XK_L))
+                      if (super_pressed && keysym && (keysym == XK_l || keysym == XK_L))
                         {
                           /* Super+L pressed while locked: request screen blank */
                           if (is_locked)
                             {
                               force_blank_p = True;
-                              DL (1, "Super+L detected while locked: Bl");
+                              DL (1, "Super+L detected while locked: Blanking");
                             }
                           else
                             {
                               force_lock_p = True;
-                              DL (1, "Super+L detected while unlocked: setting force_lock_p");
+                              DL (1, "Super+L detected while unlocked: Locking");
                             }
                           current_state &= ~STATE_AUTH;
                           ignore_activity_before = now + 2;
@@ -2188,7 +2173,7 @@ main_loop (Display *dpy)
                     }
                 }
 
-              if (!(force_blank_p || force_lock_p || mod4_pressed))
+              if (!(force_blank_p || force_lock_p || super_pressed))
                 active_at = now;
             }
             break;
@@ -2246,7 +2231,7 @@ main_loop (Display *dpy)
 
           default:
             if (verbose_p)
-              print_xinput_event (dpy, &xev, NULL, "");
+              print_xinput_event (dpy, &xev, NULL, "default");
             break;
           }
 
