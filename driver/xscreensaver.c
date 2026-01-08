@@ -2180,7 +2180,7 @@ main_loop (Display *dpy)
                             }
                           else
                             {
-                              //force_lock_p = True;
+                              force_lock_p = True;
                               DL (1, "Super+L detected while unlocked: setting force_lock_p");
                             }
                           ignore_activity_before = now + 2;
