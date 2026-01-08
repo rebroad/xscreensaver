@@ -2141,7 +2141,9 @@ main_loop (Display *dpy)
 
               /* Track Mod4 (Super) key state for Super+L detection */
               XIRawEvent *re = (XIRawEvent *) xev.xcookie.data;
-              Bool super_pressed = False;
+              static Bool super_pressed = False;
+              Bool old_super_pressed = super_pressed;
+              static time_t force_time = 0;
 
               /* Check for Super+L key combination to request screen blank
                  when the screen is already locked. */
@@ -2168,13 +2170,17 @@ main_loop (Display *dpy)
                               DL (1, "Super+L detected while unlocked: Locking");
                             }
                           current_state &= ~STATE_AUTH;
-                          ignore_activity_before = now + 2;
+                          force_time = now;
                         }
                     }
                 }
 
-              if (!(force_blank_p || force_lock_p || super_pressed))
-                active_at = now;
+              if (!(force_blank_p || force_lock_p || super_pressed || old_super_pressed))
+                {
+                  active_at = now;
+                  if (is_locked && now - force_time < 2)
+                    DL (1, "Activity detected within 2 seconds of Super+L");
+                }
             }
             break;
           case XI_RawButtonPress:
