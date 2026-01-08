@@ -93,7 +93,6 @@ extern Bool debug_p;
 
 #undef DEBUG_METRICS
 #undef DEBUG_STACKING
-#define DEBUG_STACKING  /* Enable window stacking debug logging */
 
 #define LOCK_FAILURE_ATOM "_XSCREENSAVER_AUTH_FAILURES"
 
@@ -155,8 +154,6 @@ struct window_state {
   Dimension min_height;
   Window window;
   Colormap cmap;
-  Visual *visual;
-  int visual_depth;
 
   int splash_p;
   auth_state auth_state;
@@ -249,14 +246,10 @@ struct window_state {
   int logo_npixels;
   unsigned long *logo_pixels;
 
-  double dialog_opacity;
-
   line_button_state newlogin_button_state;
   line_button_state unlock_button_state;
   line_button_state demo_button_state;
   line_button_state help_button_state;
-
-  Bool bypass_cleared_p;  /* True if we've cleared BYPASS_COMPOSITOR for opacity */
 };
 
 
@@ -669,21 +662,12 @@ get_font (window_state *ws, const char *name)
   return f;
 }
 
-static Pixel
+static unsigned long
 get_color (window_state *ws, const char *name, const char *rclass)
 {
-  Pixel p;
   resource_keys (ws, &name, &rclass);
-  p = get_pixel_resource (ws->dpy, ws->cmap,
-                          (char *) name, (char *) rclass);
-  if (ws->visual_depth == 32)
-    {
-      /* Ensure alpha matches dialog_opacity for the requested color.
-         Most X11 visuals use the top 8 bits for alpha. */
-      unsigned long a = (unsigned long)(ws->dialog_opacity * 255.0);
-      p = (p & 0x00FFFFFF) | (a << 24);
-    }
-  return p;
+  return get_pixel_resource (ws->dpy, DefaultColormapOfScreen (ws->screen),
+                             (char *) name, (char *) rclass);
 }
 
 static void
@@ -695,20 +679,9 @@ get_xft_color (window_state *ws, XftColor *ret,
   s = get_string_resource (ws->dpy, (char *) name, (char *) rclass);
   if (!s || !*s) s = "black";
   XftColorAllocName (ws->dpy,
-                     ws->visual,
-                     ws->cmap,
+                     DefaultVisualOfScreen(ws->screen),
+                     DefaultColormapOfScreen (ws->screen),
                      s, ret);
-  if (ws->visual_depth == 32)
-    {
-      double a = ws->dialog_opacity;
-      ret->color.red   = (unsigned short)(ret->color.red   * a);
-      ret->color.green = (unsigned short)(ret->color.green * a);
-      ret->color.blue  = (unsigned short)(ret->color.blue  * a);
-      ret->color.alpha = (unsigned short)(a * 0xFFFF);
-      /* Re-allocate with premultiplied alpha */
-      XftColorFree (ws->dpy, ws->visual, ws->cmap, ret);
-      XftColorAllocValue (ws->dpy, ws->visual, ws->cmap, &ret->color, ret);
-    }
 }
 
 static void
@@ -722,15 +695,15 @@ dim_xft_color (window_state *ws, const XftColor *in, Pixel bg, XftColor *out)
   XRenderColor rc;
   XColor xc;
   xc.pixel = bg;
-  XQueryColor (ws->dpy, ws->cmap, &xc);
+  XQueryColor (ws->dpy, DefaultColormapOfScreen (ws->screen), &xc);
   rc.red   = dim * in->color.red   + (1-dim) * xc.red;
   rc.green = dim * in->color.green + (1-dim) * xc.green;
   rc.blue  = dim * in->color.blue  + (1-dim) * xc.blue;
   rc.alpha = in->color.alpha;
 # endif
   if (! XftColorAllocValue (ws->dpy,
-                            ws->visual,
-                            ws->cmap,
+                            DefaultVisualOfScreen(ws->screen),
+                            DefaultColormapOfScreen (ws->screen),
                             &rc, out))
     abort();
 }
@@ -1000,10 +973,6 @@ get_keyboard_layout (window_state *ws)
 # endif /* HAVE_XKB */
 }
 
-#ifdef DEBUG_STACKING
-/* Forward declaration for window labeling */
-static void register_window_label (Window w, const char *label);
-#endif
 
 static void
 create_window (window_state *ws, int w, int h)
@@ -1012,127 +981,19 @@ create_window (window_state *ws, int w, int h)
   unsigned long attrmask;
   Window ow = ws->window;
 
-  attrmask = CWOverrideRedirect | CWEventMask | CWBackPixel | CWBorderPixel | CWColormap;
+  attrmask = CWOverrideRedirect | CWEventMask;
   attrs.override_redirect = True;
   attrs.event_mask = ExposureMask | VisibilityChangeMask;
-  attrs.background_pixel = ws->background;
-  attrs.border_pixel = 0;
-  attrs.colormap = ws->cmap;
-
   ws->window = XCreateWindow (ws->dpy,
                               RootWindowOfScreen(ws->screen),
                               ws->x, ws->y, w, h, 0,
-                              ws->visual_depth,
+                              DefaultDepthOfScreen (ws->screen),
                               InputOutput,
-                              ws->visual,
+                              DefaultVisualOfScreen(ws->screen),
                               attrmask, &attrs);
   XSetWindowBackground (ws->dpy, ws->window, ws->background);
-  /* Don't set BYPASS_COMPOSITOR if we're using a 32-bit visual or need transparency,
-     so the compositor can apply transparency effects. */
-  xscreensaver_set_wm_atoms (ws->dpy, ws->window, w, h, 0,
-                             (ws->visual_depth == 32 || ws->dialog_opacity < 1.0) ? 0 : 1); // TODO maybe never bypass?
-  if (ws->visual_depth == 32 || ws->dialog_opacity < 1.0)
-    ws->bypass_cleared_p = True;
-
-  /* Override window type: DIALOG for password dialog, SPLASH for splash dialog.
-     The screensaver window uses NOTIFICATION, so we need different types
-     to avoid stacking conflicts and misidentification. Set this immediately
-     after xscreensaver_set_wm_atoms so auto-registration sees the correct type. */
-  {
-    Atom va[4];
-    if (ws->splash_p)
-      {
-        DL(0, "create_window: setting window type to SPLASH for window 0x%lx", (unsigned long)ws->window);
-        va[0] = XA_NET_WM_WINDOW_TYPE_SPLASH;
-        va[1] = XA_KDE_NET_WM_WINDOW_TYPE_OVERRIDE;
-        XChangeProperty (ws->dpy, ws->window, XA_NET_WM_WINDOW_TYPE, XA_ATOM, 32,
-                         PropModeReplace, (unsigned char *) va, 2);
-      }
-    else
-      {
-        DL(0, "create_window: setting window type to DIALOG for window 0x%lx", (unsigned long)ws->window);
-        va[0] = XA_NET_WM_WINDOW_TYPE_DIALOG;
-        va[1] = XA_KDE_NET_WM_WINDOW_TYPE_OVERRIDE;
-        XChangeProperty (ws->dpy, ws->window, XA_NET_WM_WINDOW_TYPE, XA_ATOM, 32,
-                         PropModeReplace, (unsigned char *) va, 2);
-      }
-  }
-
-# ifdef DEBUG_STACKING
-  /* Register window label after setting window type, so auto-registration
-     sees the correct type and doesn't override our label. */
-  register_window_label (ws->window, ws->splash_p ? "splash-dialog" : "password-dialog");
-# endif
-
-  /* Find the screensaver window (NOTIFICATION type, "XScreenSaver" class)
-     and set _WM_TRANSIENT_FOR so the dialog appears above it. */
-  if (!ws->splash_p)
-    {
-
-        /* Find the screensaver window (NOTIFICATION type, "XScreenSaver" class)
-           and set _WM_TRANSIENT_FOR so the dialog appears above it. */
-        {
-        Window root = RootWindowOfScreen (ws->screen);
-        Window root2 = 0, parent = 0, *kids = 0;
-        unsigned int nkids = 0;
-        Window screensaver_window = 0;
-
-        if (XQueryTree (ws->dpy, root, &root2, &parent, &kids, &nkids))
-          {
-            int i;
-            for (i = 0; i < nkids && !screensaver_window; i++)
-              {
-                Atom actual_type;
-                int actual_format;
-                unsigned long nitems, bytes_after;
-                unsigned char *prop_data = NULL;
-                Atom *atoms = NULL;
-                XClassHint ch;
-
-                /* Check if this window has NOTIFICATION type */
-                if (XGetWindowProperty (ws->dpy, kids[i], XA_NET_WM_WINDOW_TYPE,
-                                       0, 10, False, XA_ATOM,
-                                       &actual_type, &actual_format, &nitems,
-                                       &bytes_after, &prop_data) == Success && prop_data)
-                  {
-                    atoms = (Atom *)prop_data;
-                    if (nitems > 0 && atoms[0] == XA_NET_WM_WINDOW_TYPE_NOTIFICATION)
-                      {
-                        /* Check if it's the screensaver window by class */
-                        if (XGetClassHint (ws->dpy, kids[i], &ch))
-                          {
-                            if (ch.res_class && !strcmp(ch.res_class, "XScreenSaver"))
-                              screensaver_window = kids[i];
-                            XFree (ch.res_class);
-                            XFree (ch.res_name);
-                          }
-                      }
-                    XFree (prop_data);
-                  }
-              }
-            if (kids)
-              XFree ((char *) kids);
-          }
-
-        if (screensaver_window)
-          {
-            Window transient_va[1];
-            transient_va[0] = screensaver_window;
-            XChangeProperty (ws->dpy, ws->window, XA_WM_TRANSIENT_FOR, XA_WINDOW, 32,
-                             PropModeReplace, (unsigned char *) transient_va, 1);
-            DL(1, "set _WM_TRANSIENT_FOR to screensaver window 0x%lx",
-               (unsigned long)screensaver_window);
-          }
-        else
-          {
-            DL(1, "could not find screensaver window for _WM_TRANSIENT_FOR");
-          }
-      }
-    }
-
-  /* Reset bypass_cleared_p when window is recreated, so we can clear
-     BYPASS_COMPOSITOR again if needed during fade */
-  ws->bypass_cleared_p = False;
+  XSetWindowColormap (ws->dpy, ws->window, ws->cmap);
+  xscreensaver_set_wm_atoms (ws->dpy, ws->window, w, h, 0);
 
   /* An input method is necessary for dead keys to work.
    */
@@ -1151,122 +1012,11 @@ create_window (window_state *ws, int w, int h)
   DL(1, "%s input method",
      ws->ic ? "attached" : "failed to attach");
 
-  /* Always map the window. For splash dialogs, map without raising to avoid taking focus. */
-  if (ws->splash_p)
-    {
-      /* For splash dialog, save current focus and restore it after mapping to prevent taking focus */
-      Window current_focus;
-      int revert_to;
-      XGetInputFocus (ws->dpy, &current_focus, &revert_to);
-
-      /* Log initial focus state */
-      if (current_focus == None)
-        DL(1, "splash focus: initial focus is None");
-      else if (current_focus == PointerRoot)
-        DL(1, "splash focus: initial focus is PointerRoot");
-      else
-        DL(1, "splash focus: initial focus is window 0x%lx (revert_to=%d)",
-           (unsigned long)current_focus, revert_to);
-
-      /* Map without raising to avoid taking focus */
-      XMapWindow (ws->dpy, ws->window);
-      XSync (ws->dpy, False);
-
-      /* Restore focus and verify */
-      if (current_focus != None && current_focus != PointerRoot)
-        XSetInputFocus (ws->dpy, current_focus, revert_to, CurrentTime);
-      else
-        XSetInputFocus (ws->dpy, None, RevertToNone, CurrentTime);
-      XSync (ws->dpy, False);
-
-      /* Check and log focus state */
-      {
-        Window check_focus;
-        int check_revert;
-        XGetInputFocus (ws->dpy, &check_focus, &check_revert);
-        if (check_focus == ws->window)
-          {
-            DL(1, "splash focus: ERROR - focus is on splash window 0x%lx!",
-               (unsigned long)ws->window);
-            /* Try to restore again */
-            if (current_focus != None && current_focus != PointerRoot)
-              {
-                XSetInputFocus (ws->dpy, current_focus, revert_to, CurrentTime);
-                XSync (ws->dpy, False);
-                XGetInputFocus (ws->dpy, &check_focus, &check_revert);
-                if (check_focus == ws->window)
-                  DL(1, "splash focus: ERROR - focus STILL on splash after second restore!");
-                else
-                  DL(1, "splash focus: restored to 0x%lx (second attempt)",
-                     (unsigned long)current_focus);
-              }
-          }
-        else if (check_focus != current_focus)
-          {
-            DL(1, "splash focus: WARNING - focus is 0x%lx (expected 0x%lx)",
-               (unsigned long)check_focus, (unsigned long)current_focus);
-          }
-        else
-          {
-            DL(1, "splash focus: OK - focus correctly at 0x%lx",
-               (unsigned long)current_focus);
-          }
-      }
-
-      /* Check again after delay */
-      usleep(10000);
-      {
-        Window check_focus;
-        int check_revert;
-        XGetInputFocus (ws->dpy, &check_focus, &check_revert);
-        if (check_focus == ws->window)
-          {
-            DL(1, "splash focus: WARNING - focus stolen after 10ms, restoring");
-            if (current_focus != None && current_focus != PointerRoot)
-              XSetInputFocus (ws->dpy, current_focus, revert_to, CurrentTime);
-            else
-              XSetInputFocus (ws->dpy, None, RevertToNone, CurrentTime);
-            XSync (ws->dpy, False);
-          }
-        else if (check_focus != current_focus)
-          {
-            DL(1, "splash focus: WARNING - focus changed to 0x%lx after delay",
-               (unsigned long)check_focus);
-          }
-      }
-    }
-  else
+  if (ow)
     {
       XMapRaised (ws->dpy, ws->window);
+      XDestroyWindow (ws->dpy, ow);
     }
-
-  /* Destroy old window after mapping new one to ensure smooth transition */
-  if (ow)
-    XDestroyWindow (ws->dpy, ow);
-}
-
-
-static Visual *
-find_32bit_visual (Display *dpy, int screen_no)
-{
-  XVisualInfo vi_template;
-  XVisualInfo *vi_out;
-  int nitems;
-  Visual *visual = NULL;
-
-  vi_template.screen = screen_no;
-  vi_template.depth = 32;
-  vi_template.class = TrueColor;
-
-  vi_out = XGetVisualInfo (dpy, VisualScreenMask | VisualDepthMask | VisualClassMask,
-                           &vi_template, &nitems);
-  if (vi_out)
-    {
-      if (nitems > 0)
-        visual = vi_out[0].visual;
-      XFree (vi_out);
-    }
-  return visual;
 }
 
 
@@ -1288,23 +1038,9 @@ window_init (Widget root_widget, int splash_p)
 
   splash_pick_window_position (ws->dpy, &ws->cx, &ws->cy, &ws->screen);
 
-  /* Find a 32-bit visual for transparency support. */
-  ws->visual = find_32bit_visual (ws->dpy, XScreenNumberOfScreen (ws->screen));
-  if (ws->visual) {
-      ws->visual_depth = 32;
-      unsigned long rm, gm, bm, am;
-      visual_rgb_masks (ws->screen, ws->visual, &rm, &gm, &bm);
-      am = ~(rm | gm | bm) & 0xFFFFFFFF;
-      DL(1, "using 32-bit visual: 0x%lx (masks: R=0x%lx G=0x%lx B=0x%lx A=0x%lx)",
-         (unsigned long)XVisualIDFromVisual(ws->visual), rm, gm, bm, am);
-  } else {
-      ws->visual = DefaultVisualOfScreen (ws->screen);
-      ws->visual_depth = DefaultDepthOfScreen (ws->screen);
-  }
-
   ws->cmap = XCreateColormap (dpy,
-                              RootWindowOfScreen (ws->screen),
-                              ws->visual,
+                              RootWindowOfScreen (ws->screen), /* Old skool */
+                              DefaultVisualOfScreen (ws->screen),
                               AllocNone);
 
   {
@@ -1330,11 +1066,6 @@ window_init (Widget root_widget, int splash_p)
 
   ws->passwd_timeout = get_seconds_resource (ws->dpy, "passwdTimeout", "Time");
   if (ws->passwd_timeout <= 5) ws->passwd_timeout = 5;
-
-  ws->dialog_opacity = get_float_resource (ws->dpy, "dialogOpacity", "Float");
-  if (ws->dialog_opacity < 0.0) ws->dialog_opacity = 0.0;
-  if (ws->dialog_opacity > 1.0 || ws->dialog_opacity == 0.0)
-    ws->dialog_opacity = 1.0;
 
   /* Put the version number in the label. */
   {
@@ -1427,57 +1158,24 @@ window_init (Widget root_widget, int splash_p)
 
   get_keyboard_layout (ws);
 
-  ws->x = ws->y = 0;
-  create_window (ws, 1, 1);
-
   /* Load the logo pixmap, based on font size */
   {
     int x, y;
     unsigned int bw, d;
     Window root = RootWindowOfScreen(ws->screen);
-    Visual *visual = ws->visual;
+    Visual *visual = DefaultVisualOfScreen (ws->screen);
     int logo_size = (ws->heading_font->ascent > 24 ? 2 : 1);
-    ws->logo_pixmap = xscreensaver_logo (ws->screen, visual, ws->window, ws->cmap,
+    ws->logo_pixmap = xscreensaver_logo (ws->screen, visual, root, ws->cmap,
                                          ws->background,
                                          &ws->logo_pixels, &ws->logo_npixels,
                                          &ws->logo_clipmask, logo_size);
     if (!ws->logo_pixmap) abort();
-
-    /* Fix logo pixels if we are using a 32-bit visual. */
-    if (ws->visual_depth == 32)
-      {
-        unsigned long a = (unsigned long)(ws->dialog_opacity * 255.0);
-        unsigned long alpha_bits = (a << 24);
-
-        int k;
-        for (k = 0; k < ws->logo_npixels; k++)
-          ws->logo_pixels[k] = (ws->logo_pixels[k] & 0x00FFFFFF) | alpha_bits;
-
-        XGCValues gcv2;
-        GC gc2 = XCreateGC (dpy, ws->logo_pixmap, 0, &gcv2);
-        XImage *img = XGetImage (dpy, ws->logo_pixmap, 0, 0,
-                                 ws->logo_width, ws->logo_height,
-                                 AllPlanes, ZPixmap);
-        if (img)
-          {
-            int ix, iy;
-            for (iy = 0; iy < ws->logo_height; iy++)
-              for (ix = 0; ix < ws->logo_width; ix++)
-                {
-                  unsigned long p = XGetPixel (img, ix, iy);
-                  p = (p & 0x00FFFFFF) | alpha_bits;
-                  XPutPixel (img, ix, iy, p);
-                }
-            XPutImage (dpy, ws->logo_pixmap, gc2, img, 0, 0, 0, 0,
-                       ws->logo_width, ws->logo_height);
-            XDestroyImage (img);
-          }
-        XFreeGC (dpy, gc2);
-      }
-
     XGetGeometry (dpy, ws->logo_pixmap, &root, &x, &y,
                   &ws->logo_width, &ws->logo_height, &bw, &d);
   }
+
+  ws->x = ws->y = 0;
+  create_window (ws, 1, 1);
 
   /* Select SubstructureNotifyMask on the root window so that we know
      when another process has mapped a window, so that we can make our
@@ -1489,9 +1187,6 @@ window_init (Widget root_widget, int splash_p)
     XSelectInput (ws->dpy, root, 
                   xgwa.your_event_mask | SubstructureNotifyMask);
   }
-
-  /* Note: create_window() already maps the window, so we don't need to map again here */
-  XSync (ws->dpy, False);
 
 
   ws->newlogin_button_state.cmd = ws->newlogin_cmd;
@@ -1517,302 +1212,27 @@ window_init (Widget root_widget, int splash_p)
 
 
 #ifdef DEBUG_STACKING
-/* Track window labels for debugging */
-#define MAX_WINDOW_LABELS 100
-static struct {
-  Window w;
-  char *label;  /* Owned by this structure - freed when window is unregistered */
-} window_labels[MAX_WINDOW_LABELS];
-static int window_label_count = 0;
-
 static void
-register_window_label (Window w, const char *label)
+describe_window (Display *dpy, Window w)
 {
-  if (window_label_count < MAX_WINDOW_LABELS)
-    {
-      /* Check if window is already registered and update it */
-      int i;
-      for (i = 0; i < window_label_count; i++)
-        {
-          if (window_labels[i].w == w)
-            {
-              free (window_labels[i].label);
-              window_labels[i].label = strdup (label);
-              DL(0, "updated window 0x%lx label to \"%s\"", (unsigned long)w, label);
-              return;
-            }
-        }
-
-      window_labels[window_label_count].w = w;
-      window_labels[window_label_count].label = strdup (label);
-      window_label_count++;
-      DL(0, "registered window 0x%lx as \"%s\"", (unsigned long)w, label);
-    }
-}
-
-static const char *
-get_window_label (Window w)
-{
-  int i;
-  for (i = 0; i < window_label_count; i++)
-    {
-      if (window_labels[i].w == w)
-        return window_labels[i].label;
-    }
-  return NULL;
-}
-
-/* Auto-register XScreenSaver windows based on their properties */
-static void
-auto_register_xscreensaver_window (Display *dpy, Window w)
-{
-  if (get_window_label (w))
-    return;  /* Already registered */
-
   XClassHint ch;
   char *name = 0;
-  XWindowAttributes xwa;
-  Atom actual_type;
-  int actual_format;
-  unsigned long nitems, bytes_after;
-  unsigned char *prop_data = NULL;
-  Atom *atoms = NULL;
-  const char *label = NULL;
-  Window root, parent, *children;
-  unsigned int nchildren;
-
-  if (!XGetWindowAttributes (dpy, w, &xwa))
-    return;
-
-  /* Check if it's an XScreenSaver window */
   if (XGetClassHint (dpy, w, &ch))
     {
-      if (ch.res_class && !strcmp(ch.res_class, "XScreenSaver"))
-        {
-          /* Check for hack name property first */
-          char *hack_name_prop = NULL;
-          if (XGetWindowProperty (dpy, w, XA_SCREENSAVER_HACK_NAME,
-                                 0, 255, False, XA_STRING,
-                                 &actual_type, &actual_format, &nitems,
-                                 &bytes_after, &prop_data) == Success && prop_data)
-            {
-              hack_name_prop = (char *)prop_data;
-            }
-
-          /* Check window type */
-          if (XGetWindowProperty (dpy, w, XA_NET_WM_WINDOW_TYPE,
-                                 0, 10, False, XA_ATOM,
-                                 &actual_type, &actual_format, &nitems,
-                                 &bytes_after, &prop_data) == Success && prop_data)
-            {
-              atoms = (Atom *)prop_data;
-              if (nitems > 0)
-                {
-                  if (atoms[0] == XA_NET_WM_WINDOW_TYPE_NOTIFICATION)
-                    {
-                      if (xwa.width == 1 && xwa.height == 1)
-                        label = "screensaver-daemon";
-                      else if (hack_name_prop)
-                        {
-                          /* Use hack name + " hack" */
-                          char hack_label[256];
-                          snprintf (hack_label, sizeof(hack_label), "%s hack", hack_name_prop);
-                          register_window_label (w, hack_label);
-                          if (prop_data)
-                            XFree (prop_data);
-                          if (hack_name_prop)
-                            XFree (hack_name_prop);
-                          return;  /* Already registered */
-                        }
-                      else
-                        label = "screensaver-main";
-                    }
-                  else if (atoms[0] == XA_NET_WM_WINDOW_TYPE_DIALOG)
-                    label = "screensaver-dialog";
-                  else if (atoms[0] == XA_NET_WM_WINDOW_TYPE_SPLASH)
-                    {
-                      /* Splash dialog - should already be registered manually, but if not, register it */
-                      if (!get_window_label (w))
-                        label = "splash-dialog";
-                    }
-                }
-              XFree (prop_data);
-            }
-
-          if (hack_name_prop)
-            XFree (hack_name_prop);
-
-          /* If no type hint, check by size */
-          if (!label)
-            {
-              if (xwa.width == 1 && xwa.height == 1)
-                label = "screensaver-daemon";
-              else if (XFetchName (dpy, w, &name) && name && strstr(name, "Error"))
-                label = "screensaver-error-dialog";
-              else
-                label = "screensaver-unknown";
-              if (name)
-                XFree (name);
-            }
-        }
+      DL(0, "0x%lx \"%s\", \"%s\"\n", (unsigned long) w,
+         ch.res_class, ch.res_name);
       XFree (ch.res_class);
       XFree (ch.res_name);
     }
   else if (XFetchName (dpy, w, &name) && name)
     {
-      if (strstr(name, "XScreenSaver"))
-        {
-          if (xwa.width == 1 && xwa.height == 1)
-            label = "screensaver-daemon";
-          else
-            label = "screensaver-unknown";
-        }
+      DL(0, "0x%lx \"%s\"\n", (unsigned long) w, name);
       XFree (name);
     }
   else
     {
-      /* Untitled window - check if it's a child of a screensaver window
-         or matches screensaver dimensions (might be compositor overlay) */
-      if (XQueryTree (dpy, w, &root, &parent, &children, &nchildren))
-        {
-          if (children)
-            XFree (children);
-
-          /* Check if parent is a screensaver window */
-          if (parent != root)
-            {
-              XClassHint parent_ch;
-              if (XGetClassHint (dpy, parent, &parent_ch))
-                {
-                  if (parent_ch.res_class && !strcmp(parent_ch.res_class, "XScreenSaver"))
-                    {
-                      if (xwa.width > 1000 && xwa.height > 1000)
-                        label = "screensaver-compositor-overlay";
-                      else
-                        label = "screensaver-child";
-                    }
-                  XFree (parent_ch.res_class);
-                  XFree (parent_ch.res_name);
-                }
-            }
-          else if (xwa.width > 1000 && xwa.height > 1000)
-            {
-              /* Large untitled window at root level - might be compositor overlay */
-              label = "compositor-overlay";
-            }
-        }
+      DL(0, "0x%lx (untitled)", (unsigned long) w);
     }
-
-  if (label)
-    register_window_label (w, label);
-}
-
-/* Check if the screensaver is currently blanked by reading the status atom.
-   Returns True if blanked, False otherwise.
- */
-static Bool
-screen_blanked_p (Display *dpy)
-{
-  Atom type;
-  int format;
-  unsigned long nitems, bytesafter;
-  unsigned char *dataP = 0;
-  Bool blanked_p = False;
-
-  /* XA_SCREENSAVER_STATUS format documented in windows.c. */
-  if (XGetWindowProperty (dpy, RootWindow (dpy, 0), /* always screen 0 */
-                          XA_SCREENSAVER_STATUS,
-                          0, 999, False, XA_INTEGER,
-                          &type, &format, &nitems, &bytesafter,
-                          &dataP)
-      == Success
-      && type == XA_INTEGER
-      && nitems >= 3
-      && dataP)
-    {
-      /* The property stores internal state flags: 0x01=BLANKED, 0x02=LOCKED, 0x04=AUTH */
-      PROP32 *data = (PROP32 *) dataP;
-      blanked_p = ((data[0] & 0x01) != 0);
-    }
-
-  if (dataP) XFree (dataP);
-
-  return blanked_p;
-}
-
-static void
-describe_window (Display *dpy, Window w, const char *prefix)
-{
-  XClassHint ch;
-  char *name = 0;
-  XWindowAttributes xwa;
-  char type_hint[100] = "";
-  const char *label = get_window_label (w);
-  char label_str[200] = "";
-
-  /* Auto-register XScreenSaver windows if not already registered */
-  if (!label)
-    {
-      auto_register_xscreensaver_window (dpy, w);
-      label = get_window_label (w);
-    }
-
-  if (label)
-    {
-      snprintf (label_str, sizeof(label_str), " [%s]", label);
-    }
-
-  XGetWindowAttributes (dpy, w, &xwa);
-
-  /* Try to get window type hint to distinguish windows */
-  {
-    Atom actual_type;
-    int actual_format;
-    unsigned long nitems, bytes_after;
-    unsigned char *prop_data = NULL;
-    Atom *atoms = NULL;
-
-    if (XGetWindowProperty (dpy, w, XA_NET_WM_WINDOW_TYPE,
-                            0, 10, False, XA_ATOM,
-                            &actual_type, &actual_format, &nitems,
-                            &bytes_after, &prop_data) == Success && prop_data)
-      {
-        atoms = (Atom *)prop_data;
-        if (nitems > 0)
-          {
-            if (atoms[0] == XA_NET_WM_WINDOW_TYPE_DIALOG)
-              strcpy(type_hint, " [DIALOG]");
-            else if (atoms[0] == XA_NET_WM_WINDOW_TYPE_SPLASH)
-              strcpy(type_hint, " [SPLASH]");
-            else if (atoms[0] == XA_NET_WM_WINDOW_TYPE_NOTIFICATION)
-              strcpy(type_hint, " [NOTIFICATION]");
-          }
-        XFree (prop_data);
-      }
-  }
-  {
-    unsigned long visual_id = (unsigned long)XVisualIDFromVisual(xwa.visual);
-    if (XGetClassHint (dpy, w, &ch))
-      {
-        DL(0, "%s: 0x%lx (%dx%d+%d+%d) \"%s\", \"%s\"%s%s visual=0x%lx depth=%d",
-           prefix, (unsigned long) w,
-           xwa.width, xwa.height, xwa.x, xwa.y, ch.res_class, ch.res_name, type_hint, label_str,
-           visual_id, xwa.depth);
-        XFree (ch.res_class);
-        XFree (ch.res_name);
-      }
-    else if (XFetchName (dpy, w, &name) && name)
-      {
-        DL(0, "%s: 0x%lx (%dx%d+%d+%d) \"%s\"%s%s visual=0x%lx depth=%d", prefix, (unsigned long) w,
-           xwa.width, xwa.height, xwa.x, xwa.y, name, type_hint, label_str, visual_id, xwa.depth);
-        XFree (name);
-      }
-    else
-      {
-        DL(0, "%s: 0x%lx (%dx%d+%d+%d) (untitled)%s%s visual=0x%lx depth=%d", prefix, (unsigned long) w,
-           xwa.width, xwa.height, xwa.x, xwa.y, type_hint, label_str, visual_id, xwa.depth);
-      }
-  }
 }
 #endif /* DEBUG_STACKING */
 
@@ -1823,6 +1243,7 @@ static Bool
 window_occluded_p (Display *dpy, Window window)
 {
   int screen;
+
 # ifdef DEBUG_STACKING
   static unsigned long last_hash = 0;
   unsigned long current_hash = 0;
@@ -1969,32 +1390,19 @@ window_occluded_p (Display *dpy, Window window)
             }
           else if (saw_our_window_p)
             {
-              /* Ignore the Composite Overlay Window, which is always on top. */
-              char *name = 0;
-              Bool is_cow = False;
-              if (XFetchName (dpy, kids[i], &name) && name)
-                {
-                  if (!strcmp(name, "Composite Overlay Window"))
-                    is_cow = True;
-                  XFree (name);
-                }
-
-              if (!is_cow)
-                {
-                  saw_later_window_p = True;
+              saw_later_window_p = True;
 # ifdef DEBUG_STACKING
                   if (hash_changed_p)
                     describe_window (dpy, kids[i], "higher");
 # endif
-                  break;
-                }
-              else
-                {
+              break;
+            }
+          else
+            {
 # ifdef DEBUG_STACKING
-                  if (hash_changed_p)
-                    describe_window (dpy, kids[i], "cow");
+              if (hash_changed_p)
+                describe_window (dpy, kids[i], "cow");
 # endif
-                }
             }
         }
 
@@ -2042,8 +1450,10 @@ static void
 window_draw (window_state *ws)
 {
   Display *dpy = ws->dpy;
-  Visual *visual = ws->visual;
-  int depth = ws->visual_depth;
+  Screen *screen = ws->screen;
+  Window root = RootWindowOfScreen (screen);
+  Visual *visual = DefaultVisualOfScreen(screen);
+  int depth = DefaultDepthOfScreen (screen);
   XWindowAttributes xgwa;
 
 # define MIN_COLUMNS 22   /* Set window width based on headingFont ascent. */
@@ -2090,38 +1500,14 @@ window_draw (window_state *ws)
   window_width = text_right + ws->internal_padding + ext_border;
   window_height = window_width * 3;  /* reduced later */
 
-  dbuf = XCreatePixmap (dpy, ws->window, window_width, window_height, depth);
+  dbuf = XCreatePixmap (dpy, root, window_width, window_height, depth);
   gc = XCreateGC (dpy, dbuf, 0, &gcv);
-
-  {
-    double current_opacity = ws->dialog_opacity;
-    double now_time = double_time();
-    double remain = ws->end_time - now_time;
-
-    if (remain <= 1.0 && remain > 0.0)
-      current_opacity = remain * ws->dialog_opacity;
-    else if (remain <= 0.0)
-      current_opacity = 0.0;
-
-    if (depth == 32)
-      {
-        unsigned long a = (unsigned long)(current_opacity * 255.0);
-        unsigned long bg_pixel = (ws->background & 0x00FFFFFF) | (a << 24);
-        XSetForeground (dpy, gc, bg_pixel);
-      }
-    else
-      XSetForeground (dpy, gc, ws->background);
-  }
-
+  XSetForeground (dpy, gc, ws->background);
   XFillRectangle (dpy, dbuf, gc, 0, 0, window_width, window_height);
 
   if (ws->xftdraw)
     XftDrawDestroy (ws->xftdraw);
-  ws->xftdraw = XftDrawCreate (dpy, dbuf, visual, ws->cmap);
-  if (!ws->xftdraw) {
-    DL(1, "XftDrawCreate failed!");
-    abort();
-  }
+  ws->xftdraw = XftDrawCreate (dpy, dbuf, visual, xgwa.colormap);
 
   lines[i].text  = ws->heading_label;			/* XScreenSaver */
   lines[i].font  = ws->heading_font;
@@ -2603,8 +1989,8 @@ window_draw (window_state *ws)
                        xgwa.y == ws->y &&
                        xgwa.width  == window_width &&
                        xgwa.height == window_height);
-
-    occluded_p = (window_occluded_p (ws->dpy, ws->window));
+    occluded_p = (!size_changed_p &&
+                  window_occluded_p (ws->dpy, ws->window));
 
     if (size_changed_p || occluded_p)
       {
@@ -2618,214 +2004,12 @@ window_draw (window_state *ws)
            wc.width, wc.height, wc.x, wc.y);
         XConfigureWindow (ws->dpy, ws->window, CWX|CWY|CWWidth|CWHeight, &wc);
 # else
-        if (size_changed_p)
-          {
-            DL(1, "re-creating window: size changed from %dx%d to %dx%d (pos: %d,%d -> %d,%d)",
-               xgwa.width, xgwa.height, window_width, window_height,
-               xgwa.x, xgwa.y, ws->x, ws->y);
-          }
-        else
-          {
-            DL(1, "re-creating window: occluded");
-          }
+        DL(1, "re-creating window: %s",
+           size_changed_p ? "size changed" : "occluded");
         create_window (ws, window_width, window_height);
-        /* Note: create_window() already maps the window when replacing an old one (ow != NULL) */
 # endif
+        XMapRaised (ws->dpy, ws->window);
         XInstallColormap (ws->dpy, ws->cmap);
-        XSync (ws->dpy, False);
-        usleep(50000);  /* 50ms delay to allow compositor to see the window */
-
-        /* Diagnostic: Check window visibility state after mapping */
-        {
-          XWindowAttributes xwa;
-          Atom actual_type;
-          int actual_format;
-          unsigned long nitems, bytes_after;
-          unsigned char *prop_data = NULL;
-          unsigned long opacity_val = 0xffffffffUL;
-
-          if (XGetWindowAttributes (ws->dpy, ws->window, &xwa))
-            {
-              const char *map_state_str = (xwa.map_state == IsUnmapped ? "Unmapped" :
-                                           xwa.map_state == IsUnviewable ? "Unviewable" :
-                                           "Viewable");
-              DL(1, "window mapped: %s depth=%d visual=0x%lx override_redirect=%d",
-                 map_state_str, xwa.depth,
-                 (unsigned long)XVisualIDFromVisual(xwa.visual),
-                 xwa.override_redirect);
-            }
-
-          /* Check BYPASS_COMPOSITOR */
-          if (XGetWindowProperty (ws->dpy, ws->window, XA_NET_WM_BYPASS_COMPOSITOR,
-                                  0, 1, False, XA_CARDINAL,
-                                  &actual_type, &actual_format, &nitems,
-                                  &bytes_after, &prop_data) == Success && prop_data)
-            {
-              unsigned long bypass_val = *((unsigned long *)prop_data);
-              XFree (prop_data);
-              DL(1, "_NET_WM_BYPASS_COMPOSITOR=%lu %s",
-                 bypass_val, bypass_val ? "(bypass enabled)" : "(bypass disabled)");
-            }
-          else
-            {
-              DL(1, "_NET_WM_BYPASS_COMPOSITOR not set (compositor can apply effects)");
-            }
-
-          /* Check opacity */
-          if (XGetWindowProperty (ws->dpy, ws->window, XA_NET_WM_WINDOW_OPACITY,
-                                  0, 1, False, XA_CARDINAL,
-                                  &actual_type, &actual_format, &nitems,
-                                  &bytes_after, &prop_data) == Success && prop_data)
-            {
-              opacity_val = *((unsigned long *)prop_data);
-              XFree (prop_data);
-              double opacity_pct = (opacity_val / (double)0xffffffffUL) * 100.0;
-              DL(1, "_NET_WM_WINDOW_OPACITY=0x%08lx (%.1f%%) %s",
-                 opacity_val, opacity_pct,
-                 opacity_pct < 1.0 ? "*** TRANSPARENT ***" : "");
-            }
-          else
-            {
-              DL(1, "_NET_WM_WINDOW_OPACITY not set (fully opaque)");
-            }
-        }
-
-        /* If we're in the fade period, clear BYPASS_COMPOSITOR if it wasn't
-           already prevented from being set in create_window(). We prevent it
-           from being set for 32-bit visuals or static transparency, but we may
-           need to delete it here if we're fading and it was set (e.g., non-32-bit
-           visual that starts fading). */
-        {
-          double now = double_time();
-          double remain = ws->end_time - now;
-          if (remain < 1.0 && !ws->bypass_cleared_p)
-            {
-              XDeleteProperty (ws->dpy, ws->window, XA_NET_WM_BYPASS_COMPOSITOR);
-              ws->bypass_cleared_p = True;
-              DL(1, "deleted BYPASS_COMPOSITOR for fade period");
-            }
-        }
-      }
-  }
-
-  /* Fade out the dialog/splash during the last second before it disappears.
-     We use compositor-based transparency via _NET_WM_WINDOW_OPACITY,
-     the same approach GTK's gtk_widget_set_opacity() uses. */
-  {
-    double now = double_time();
-    double remain = ws->end_time - now;
-    double opacity = ws->dialog_opacity;
-    unsigned long cardinal;
-    static Bool compositor_checked_p = False;
-    static Bool compositor_available_p = False;
-
-    /* Check once if compositor is available */
-    if (!compositor_checked_p)
-      {
-        char atom_name[20];
-        sprintf (atom_name, "_NET_WM_CM_S%d",
-                 XScreenNumberOfScreen (ws->screen));
-        Atom cm_atom = XInternAtom (dpy, atom_name, False);
-        Window cm_owner = XGetSelectionOwner (dpy, cm_atom);
-        compositor_available_p = (cm_owner != None);
-        compositor_checked_p = True;
-        if (compositor_available_p)
-          DL(1, "compositor detected on %s, will use _NET_WM_WINDOW_OPACITY",
-             atom_name);
-        else
-          DL(1, "no compositor detected on %s, will use software brightness fade",
-             atom_name);
-      }
-
-    if (remain <= 1.0 && remain > 0.0)
-      opacity = remain * ws->dialog_opacity;  /* Fade from 1.0 to 0.0 */
-    else if (remain <= 0.0)
-      opacity = 0.0;
-
-    /* Log opacity during fade for debugging */
-    if (remain <= 1.0 && remain > 0.0)
-      {
-        static double last_log = 0;
-        if (now - last_log > 0.2)
-          {
-            unsigned long card_val = (unsigned long)(opacity * 0xffffffffUL);
-            DL(2, "fade: opacity=%.2f card=0x%08lx splash_p=%d visual_depth=%d",
-               opacity, card_val, ws->splash_p, ws->visual_depth);
-            last_log = now;
-          }
-      }
-
-    /* Use compositor-based opacity via _NET_WM_WINDOW_OPACITY.
-       This is the same approach GTK's gtk_widget_set_opacity() uses. */
-    if (compositor_available_p)
-      {
-        /* Delete BYPASS_COMPOSITOR during fade if it wasn't already prevented from being set.
-           We prevent it from being set in create_window() for 32-bit visuals or static transparency,
-           but we may need to delete it here if we're fading and it was set (e.g., non-32-bit visual
-           that starts fading). */
-        if (remain <= 1.0 && !ws->bypass_cleared_p)
-          {
-            XDeleteProperty (ws->dpy, ws->window, XA_NET_WM_BYPASS_COMPOSITOR);
-            ws->bypass_cleared_p = True;
-            DL(1, "deleted BYPASS_COMPOSITOR to enable compositor transparency/opacity");
-            XSync (ws->dpy, False);
-          }
-
-        /* _NET_WM_WINDOW_OPACITY is a CARD32: 0 (transparent) to 0xffffffff (opaque) */
-        cardinal = (unsigned long)(opacity * 0xffffffffUL);
-
-        /* Following GTK's approach: delete property when fully opaque,
-           set property otherwise */
-        if (cardinal == 0xffffffffUL)
-          XDeleteProperty (dpy, ws->window, XA_NET_WM_WINDOW_OPACITY);
-        else
-          {
-            XChangeProperty (dpy, ws->window, XA_NET_WM_WINDOW_OPACITY,
-                             XA_CARDINAL, 32, PropModeReplace,
-                             (unsigned char *) &cardinal, 1);
-            DL(2, "set _NET_WM_WINDOW_OPACITY=0x%lx", cardinal);
-          }
-        XSync (dpy, False);  /* Ensure property is set before next frame */
-      }
-
-    /* Software-based fade: modify pixel values directly.
-       This works regardless of compositor support, like fade.c does.
-       We multiply each pixel's RGB bytes by the opacity ratio.
-       We skip this if a compositor is available, so that we can fade
-       to transparency instead of fading to black. */
-    if (opacity < 1.0 && !compositor_available_p)
-      {
-        XImage *img = XGetImage (dpy, dbuf, 0, 0, window_width, window_height,
-                                 AllPlanes, ZPixmap);
-        if (img)
-          {
-            unsigned char *bits = (unsigned char *) img->data;
-            unsigned char *end = bits + img->bytes_per_line * img->height;
-            unsigned char ramp[256];
-            int i;
-
-            /* Build lookup table: ramp[i] = i * opacity */
-            for (i = 0; i < 256; i++)
-              ramp[i] = (unsigned char)(i * opacity);
-
-            /* Apply to every byte in the image */
-            while (bits < end)
-              {
-                *bits = ramp[*bits];
-                bits++;
-              }
-
-            /* Write the modified image back to the pixmap so the final blit
-               uses the updated alpha or brightness data. */
-            {
-              GC pix_gc = XCreateGC (dpy, dbuf, 0, &gcv);
-              XPutImage (dpy, dbuf, pix_gc, img, 0, 0, 0, 0,
-                         window_width, window_height);
-              XFreeGC (dpy, pix_gc);
-            }
-
-            XDestroyImage (img);
-          }
       }
   }
 
@@ -2836,22 +2020,6 @@ window_draw (window_state *ws)
   XSync (dpy, False);
   XFreeGC (dpy, gc);
   XFreePixmap (dpy, dbuf);
-
-  {
-    static double last_draw_log = 0;
-    static unsigned int draw_count = 0;
-    double now_log = double_time();
-    draw_count++;
-    if (now_log - last_draw_log >= 1.0)
-      {
-        DL(2, "window_draw finished: %dx%d @ %d,%d opacity=%.2f depth=%d visual_id=0x%lx (dps=%u)",
-           window_width, window_height, ws->x, ws->y, ws->dialog_opacity, ws->visual_depth,
-           (unsigned long)XVisualIDFromVisual(ws->visual), draw_count);
-        draw_count = 0;
-        last_draw_log = now_log;
-      }
-  }
-
   free (lines);
 
   if (verbose_p > 1)
@@ -2920,17 +2088,17 @@ destroy_window (window_state *ws)
   if (ws->button_font)   XftFontClose (ws->dpy, ws->button_font);
   if (ws->hostname_font) XftFontClose (ws->dpy, ws->hostname_font);
 
-  XftColorFree (ws->dpy, ws->visual,
-                ws->cmap,
+  XftColorFree (ws->dpy, DefaultVisualOfScreen (ws->screen),
+                DefaultColormapOfScreen (ws->screen),
                 &ws->xft_foreground);
-  XftColorFree (ws->dpy, ws->visual,
-                ws->cmap,
+  XftColorFree (ws->dpy, DefaultVisualOfScreen (ws->screen),
+                DefaultColormapOfScreen (ws->screen),
                 &ws->xft_button_foreground);
-  XftColorFree (ws->dpy, ws->visual,
-                ws->cmap,
+  XftColorFree (ws->dpy, DefaultVisualOfScreen (ws->screen),
+                DefaultColormapOfScreen (ws->screen),
                 &ws->xft_text_foreground);
-  XftColorFree (ws->dpy, ws->visual,
-                ws->cmap,
+  XftColorFree (ws->dpy, DefaultVisualOfScreen (ws->screen),
+                DefaultColormapOfScreen (ws->screen),
                 &ws->xft_error_foreground);
   if (ws->xftdraw) XftDrawDestroy (ws->xftdraw);
 

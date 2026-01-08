@@ -80,15 +80,12 @@ blurb (void)
   buf[i++] = '0' + (tm.tm_sec >= 10 ? tm.tm_sec/10 : 0);
   buf[i++] = '0' + (tm.tm_sec % 10);
 
-# if defined(BLURB_CENTISECONDS) || defined(BLURB_MILLISECONDS)
+# ifdef BLURB_CENTISECONDS
   {
-    int ms = now.tv_usec / 1000;
+    int c = now.tv_usec / 10000;
     buf[i++] = '.';
-    buf[i++] = '0' + (ms >= 100 ? ms/100 : 0);
-    buf[i++] = '0' + ((ms % 100) >= 10 ? (ms % 100)/10 : 0);
-# if defined(BLURB_MILLISECONDS)
-    buf[i++] = '0' + (ms % 10);
-# endif
+    buf[i++] = '0' + (c >= 10 ? c/10 : 0);
+    buf[i++] = '0' + (c % 10);
   }
 # endif
 

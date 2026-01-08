@@ -1170,42 +1170,23 @@ static int
 demo_write_init_file (state *s, saver_preferences *p)
 {
   XScreenSaverWindow *win = XSCREENSAVER_WINDOW (s->window);
-  const char *f = init_file_name();
 
-  if (s->debug_p)
-    {
-      DL(0, "demo_write_init_file: entered");
-      DL(0, "demo_write_init_file: init_file_name = %s", f ? f : "(null)");
-      DL(0, "demo_write_init_file: dpy = %p", s->dpy);
-    }
-
-  int result = write_init_file (s->dpy, p, s->short_version, FALSE);
-  if (s->debug_p)
-    DL(0, "demo_write_init_file: write_init_file returned %d", result);
-
-  if (!result)
+  if (!write_init_file (s->dpy, p, s->short_version, FALSE))
     {
       if (s->debug_p)
-        DL(0, "demo_write_init_file: successfully wrote %s", f ? f : "(null)");
+        DL(0, "wrote %s", init_file_name());
       return 0;
     }
   else
     {
-      if (s->debug_p)
-        DL(0, "demo_write_init_file: failed to write init file");
+      const char *f = init_file_name();
       if (!f || !*f)
-        {
-          if (s->debug_p)
-            DL(0, "demo_write_init_file: couldn't determine init file name");
-          warning_dialog (GTK_WINDOW (win), _("Error"),
+        warning_dialog (GTK_WINDOW (win), _("Error"),
                         _("Couldn't determine init file name!\n"));
-        }
       else
         {
           char *b = (char *) malloc (strlen(f) + 1024);
           sprintf (b, _("Couldn't write %s\n"), f);
-          if (s->debug_p)
-            DL(0, "demo_write_init_file: showing error dialog: %s", b);
           warning_dialog (GTK_WINDOW (win), _("Error"), b);
           free (b);
         }
@@ -1475,24 +1456,8 @@ flush_dialog_changes (state *s)
   FlushForeachClosure closure;
   Bool changed = FALSE;
 
-  if (s->debug_p)
-    {
-      DL(0, "flush_dialog_changes: entered");
-      DL(0, "flush_dialog_changes: initializing_p = %d, saving_p = %d",
-         s->initializing_p, s->saving_p);
-    }
-  if (s->initializing_p)
-    {
-      if (s->debug_p)
-        DL(0, "flush_dialog_changes: returning FALSE (initializing)");
-      return FALSE;
-    }
-  if (s->saving_p)
-    {
-      if (s->debug_p)
-        DL(0, "flush_dialog_changes: returning FALSE (already saving)");
-      return FALSE;
-    }
+  if (s->initializing_p) return FALSE;
+  if (s->saving_p) return FALSE;
   s->saving_p = TRUE;
 
   *p2 = *p;
@@ -1697,27 +1662,15 @@ flush_dialog_changes (state *s)
 
   populate_prefs_page (s);
 
-  if (s->debug_p)
-    DL(0, "flush_dialog_changes: changed = %d", changed);
   if (changed)
     {
-      if (s->debug_p)
-        DL(0, "flush_dialog_changes: changes detected, setting unsaved_changes_p");
       if (s->dpy)
         sync_server_dpms_settings_1 (s->dpy, p);
       s->unsaved_changes_p = TRUE;
       update_save_load_buttons (s);
     }
-  else
-    {
-      if (s->debug_p)
-        DL(0, "flush_dialog_changes: no changes detected");
-    }
 
   s->saving_p = FALSE;
-  if (s->debug_p)
-    DL(0, "flush_dialog_changes: returning %d, unsaved_changes_p = %d",
-       changed, s->unsaved_changes_p);
 
   return changed;
 }
@@ -3754,11 +3707,6 @@ get_best_gl_visual (state *s)
 static void
 kill_preview_subproc (state *s, Bool reset_p)
 {
-  if (s->debug_p)
-    DL(0, "kill_preview_subproc: reset_p=%d running_pid=%lu running_cmd=\"%s\"",
-       reset_p, (unsigned long) s->running_preview_pid,
-       (s->running_preview_cmd ? s->running_preview_cmd : "(null)"));
-
   s->running_preview_error_p = FALSE;
 
   reap_zombies (s);
@@ -3766,8 +3714,6 @@ kill_preview_subproc (state *s, Bool reset_p)
 
   if (s->subproc_check_timer_id)
     {
-      if (s->debug_p)
-        DL(0, "removing preview check timer (id=%d)", s->subproc_check_timer_id);
       g_source_remove (s->subproc_check_timer_id);
       s->subproc_check_timer_id = 0;
       s->subproc_check_countdown = 0;
@@ -3775,12 +3721,8 @@ kill_preview_subproc (state *s, Bool reset_p)
 
   if (s->running_preview_pid)
     {
-      char *ss = subproc_pretty_name (s);
-      if (s->debug_p)
-        DL(0, "sending SIGTERM to pid %lu (%s)",
-           (unsigned long) s->running_preview_pid, ss);
-
       int status = kill (s->running_preview_pid, SIGTERM);
+      char *ss = subproc_pretty_name (s);
 
       if (status < 0)
         {
@@ -3796,18 +3738,13 @@ kill_preview_subproc (state *s, Bool reset_p)
               sprintf (buf, "%s: couldn't kill pid %lu (%s)",
                        blurb(), (unsigned long) s->running_preview_pid, ss);
               perror (buf);
-              if (s->debug_p)
-                DL(0, "kill() failed: %s", strerror (errno));
             }
         }
       else {
         int endstatus;
-        if (s->debug_p)
-          DL(0, "waiting for pid %lu (%s) to exit", (unsigned long) s->running_preview_pid, ss);
         waitpid(s->running_preview_pid, &endstatus, 0);
         if (s->debug_p)
-          DL(0, "killed pid %lu (%s) exit_status=%d",
-             (unsigned long) s->running_preview_pid, ss, WEXITSTATUS(endstatus));
+          DL(0, "killed pid %lu (%s)", (unsigned long) s->running_preview_pid, ss);
       }
 
       free (ss);
@@ -3815,18 +3752,11 @@ kill_preview_subproc (state *s, Bool reset_p)
       if (s->running_preview_cmd) free (s->running_preview_cmd);
       s->running_preview_cmd = 0;
     }
-  else
-    {
-      if (s->debug_p)
-        DL(0, "no running preview pid to kill");
-    }
 
   reap_zombies (s);
 
   if (reset_p)
     {
-      if (s->debug_p)
-        DL(0, "resetting preview window");
       reset_preview_window (s);
       clear_preview_window (s);
     }
@@ -3849,9 +3779,6 @@ launch_preview_subproc (state *s)
   GtkWidget *pr = win->preview;
   GdkWindow *window;
 
-  if (s->debug_p)
-    DL(0, "launch_preview_subproc: cmd=\"%s\"", (cmd ? cmd : "(null)"));
-
   reset_preview_window (s);
 
   window = gtk_widget_get_window (pr);
@@ -3860,9 +3787,6 @@ launch_preview_subproc (state *s)
 
   if (s->preview_suppressed_p || !s->gl_visual)
     {
-      if (s->debug_p)
-        DL(0, "preview suppressed (suppressed_p=%d gl_visual=%p), killing subproc",
-           s->preview_suppressed_p, s->gl_visual);
       kill_preview_subproc (s, FALSE);
       goto DONE;
     }
@@ -3872,15 +3796,9 @@ launch_preview_subproc (state *s)
   id = (window && s->backend != WAYLAND_BACKEND
         ? gdk_x11_window_get_xid (window)
         : 0);
-  if (s->debug_p)
-    DL(0, "preview window: gdk_window=%p xid=0x%lx backend=%d",
-       window, (unsigned long) id, s->backend);
-
   if (id == 0)
     {
       /* No window id?  No command to run. */
-      if (s->debug_p)
-        DL(0, "no window ID available, cannot launch preview");
       free (new_cmd);
       new_cmd = 0;
     }
@@ -3894,32 +3812,18 @@ launch_preview_subproc (state *s)
       strcpy (new_cmd, cmd);
       sprintf (new_cmd + strlen (new_cmd), " --window-id 0x%X",
                (unsigned int) id);
-      if (s->debug_p)
-        DL(0, "constructed command: \"%s\"", new_cmd);
     }
 
   if (id && s->screenshot)
-    {
-      if (s->debug_p)
-        DL(0, "saving screenshot to window 0x%lx", (unsigned long) id);
-      screenshot_save (s->dpy, id, s->screenshot);
-    }
+    screenshot_save (s->dpy, id, s->screenshot);
 
-  if (s->debug_p)
-    DL(0, "killing existing preview subproc before launching new one");
   kill_preview_subproc (s, FALSE);
   if (! new_cmd)
     {
-      if (s->debug_p)
-        DL(0, "no command to run, marking error and clearing window");
       s->running_preview_error_p = TRUE;
       clear_preview_window (s);
       goto DONE;
     }
-
-  if (s->debug_p)
-    DL(0, "forking preview subprocess: shell=\"%s\" nice=%d",
-       p->shell, p->nice_inferior);
 
   switch ((int) (forked = fork ()))
     {
@@ -3928,29 +3832,21 @@ launch_preview_subproc (state *s)
         char buf[255];
         sprintf (buf, "%s: couldn't fork", blurb());
         perror (buf);
-        if (s->debug_p)
-          DL(0, "fork() failed: %s", strerror (errno));
         s->running_preview_error_p = TRUE;
         goto DONE;
         break;
       }
     case 0:
       {
-        if (s->debug_p)
-          DL(0, "child process: closing X connection, setting up environment");
         close (ConnectionNumber (s->dpy));
 
         hack_subproc_environment (id, s->debug_p);
 
-        if (s->debug_p)
-          DL(0, "child process: waiting 250ms before exec");
         usleep (250000);  /* pause for 1/4th second before launching, to give
                              the previous program time to die and flush its X
                              buffer, so we don't get leftover turds on the
                              window. */
 
-        if (s->debug_p)
-          DL(0, "child process: executing \"%s\"", new_cmd);
         exec_command (p->shell, new_cmd, p->nice_inferior);
         /* Don't bother printing an error message when we are unable to
            exec subprocesses; we handle that by polling the pid later.
@@ -3961,8 +3857,6 @@ launch_preview_subproc (state *s)
            If one uses exit() instead of _exit(), then one sometimes gets a
            spurious "Gdk-ERROR: Fatal IO error on X server" error message.
         */
-        if (s->debug_p)
-          DL(0, "child process: exec failed, exiting");
         _exit (1);  /* exits child fork */
         break;
 
@@ -3975,8 +3869,7 @@ launch_preview_subproc (state *s)
         if (s->debug_p)
           {
             char *ss = subproc_pretty_name (s);
-            DL(0, "forked preview subprocess: pid=%lu cmd=\"%s\" window=0x%lx",
-               (unsigned long) forked, ss, (unsigned long) id);
+            DL(0, "forked %lu (%s)", (unsigned long) forked, ss);
             free (ss);
           }
         break;
@@ -3984,9 +3877,6 @@ launch_preview_subproc (state *s)
     }
 
   /* Put some props on the embedded preview window, for debugging. */
-  if (s->debug_p)
-    DL(0, "setting window properties: name=\"XScreenSaver Settings Preview\" pid=%lu",
-       (unsigned long) forked);
   XStoreName (s->dpy, id, "XScreenSaver Settings Preview");
   XChangeProperty (s->dpy, id, XA_WM_COMMAND,
                    XA_STRING, 8, PropModeReplace,
@@ -3996,8 +3886,6 @@ launch_preview_subproc (state *s)
                    XA_CARDINAL, 32, PropModeReplace,
                    (unsigned char *) &forked, 1);
 
-  if (s->debug_p)
-    DL(0, "scheduling preview check timer");
   schedule_preview_check (s);
 
  DONE:
@@ -4084,30 +3972,11 @@ static int
 update_subproc_timer (gpointer data)
 {
   state *s = (state *) data;
-  if (s->debug_p)
-    DL(0, "update_subproc_timer fired: desired_cmd=%s running_cmd=%s running_pid=%lu",
-       (s->desired_preview_cmd ? s->desired_preview_cmd : "(null)"),
-       (s->running_preview_cmd ? s->running_preview_cmd : "(null)"),
-       (unsigned long) s->running_preview_pid);
-
   if (! s->desired_preview_cmd)
-    {
-      if (s->debug_p)
-        DL(0, "no desired command, killing preview subproc");
-      kill_preview_subproc (s, TRUE);
-    }
+    kill_preview_subproc (s, TRUE);
   else if (!s->running_preview_cmd ||
            !!strcmp (s->desired_preview_cmd, s->running_preview_cmd))
-    {
-      if (s->debug_p)
-        DL(0, "command changed or not running, launching preview subproc");
-      launch_preview_subproc (s);
-    }
-  else
-    {
-      if (s->debug_p)
-        DL(0, "command unchanged, no action needed");
-    }
+    launch_preview_subproc (s);
 
   s->subproc_timer_id = 0;
   return FALSE;  /* do not re-execute timer */
@@ -4136,14 +4005,8 @@ schedule_preview (state *s, const char *cmd)
   s->desired_preview_cmd = (cmd ? strdup (cmd) : 0);
 
   if (s->subproc_timer_id)
-    {
-      if (s->debug_p)
-        DL(0, "removing existing preview timer");
-      g_source_remove (s->subproc_timer_id);
-    }
+    g_source_remove (s->subproc_timer_id);
   s->subproc_timer_id = g_timeout_add (delay, update_subproc_timer, s);
-  if (s->debug_p)
-    DL(0, "added preview timer (id=%d)", s->subproc_timer_id);
 }
 
 
@@ -4249,7 +4112,6 @@ screen_blanked_p (state *s)
       && nitems >= 3
       && dataP)
     {
-      /* The property stores internal state flags: 0x01=BLANKED, 0x02=LOCKED, 0x04=AUTH */
       PROP32 *data = (PROP32 *) dataP;
       blanked_p = ((data[0] & 0x01) != 0);
     }
@@ -5591,7 +5453,6 @@ xscreensaver_window_realize (GtkWidget *self, gpointer user_data)
 
   restore_window_position (s, GTK_WINDOW (self), FALSE);
 
-  /* Initialize unsaved changes flag and button states */
   s->unsaved_changes_p = FALSE;
   update_save_load_buttons (s);
 
