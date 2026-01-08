@@ -1568,6 +1568,7 @@ main_loop (Display *dpy)
   int xi_opcode;
   time_t now = time ((time_t *) 0);
   time_t active_at = now;
+  time_t force_time = 0;
   time_t blanked_at = 0;
   time_t locked_at = 0;
   time_t cursor_blanked_at = 0;
@@ -1949,6 +1950,8 @@ main_loop (Display *dpy)
                       clientmessage_response (dpy, &xev, True, "deactivating");
                     }
                     active_at = now;
+                    if (now - force_time < 2)
+                      DL (1, "DEACTIVATE ClientMessage: Activity detected within 2 seconds of Super+L");
                     ignore_activity_before = now;
 
                   /* DEACTIVATE while inactive also needs to reset the
@@ -2078,7 +2081,7 @@ main_loop (Display *dpy)
           case KeyPress:
           case KeyRelease:
             {
-              Bool is_locked = !!(current_state & STATE_LOCKED);
+              /*Bool is_locked = !!(current_state & STATE_LOCKED);
               Bool is_blanked = !!(current_state & STATE_BLANKED);
               Bool is_auth = !!(current_state & STATE_AUTH);
               Bool watch_activity = now > ignore_activity_before;
@@ -2086,9 +2089,11 @@ main_loop (Display *dpy)
               if (!is_locked)
                 debug_log ("[KeyPress/Release] (BLANKED=%d LOCKED=%d AUTH=%d) active=%lds ago, watch_activity=%d",
                            is_blanked, is_locked, is_auth,
-                           (long) (now - active_at), watch_activity);
+                           (long) (now - active_at), watch_activity);*/
 
               active_at = now;
+              if (now - force_time < 2)
+                DL (1, "KeyPress/KeyRelease: Activity detected within 2 seconds of Super+L");
 
               continue;
             }
@@ -2096,6 +2101,8 @@ main_loop (Display *dpy)
           case ButtonPress:
           case ButtonRelease:
             active_at = now;
+            if (now - force_time < 2)
+              DL (1, "ButtonPress/ButtonRelease: Activity detected within 2 seconds of Super+L");
             if (verbose_p)
               print_xinput_event (dpy, &xev, NULL, "");
             continue;
@@ -2143,7 +2150,6 @@ main_loop (Display *dpy)
               XIRawEvent *re = (XIRawEvent *) xev.xcookie.data;
               static Bool super_pressed = False;
               Bool old_super_pressed = super_pressed;
-              static time_t force_time = 0;
 
               /* Check for Super+L key combination to request screen blank
                  when the screen is already locked. */
@@ -2178,8 +2184,8 @@ main_loop (Display *dpy)
               if (!(force_blank_p || force_lock_p || super_pressed || old_super_pressed))
                 {
                   active_at = now;
-                  if (is_locked && now - force_time < 2)
-                    DL (1, "Activity detected within 2 seconds of Super+L");
+                  if (now - force_time < 2)
+                    DL (1, "XI_RawKeyPress/Release (non-Super, non-L): Activity detected within 2 seconds of Super+L");
                 }
             }
             break;
@@ -2189,6 +2195,8 @@ main_loop (Display *dpy)
           case XI_RawTouchEnd:
           case XI_RawTouchUpdate:
             active_at = now;
+            if (now - force_time < 2)
+              DL (1, "XI_RawButtonPress/Release/Touch: Activity detected within 2 seconds of Super+L");
             break;
 
           case XI_RawMotion:
@@ -2222,6 +2230,8 @@ main_loop (Display *dpy)
                   if (! ignored_p)
                     {
                       active_at = now;
+                      if (now - force_time < 2)
+                        DL (1, "XI_RawMotion: Activity detected within 2 seconds of Super+L");
                       last_mouse.time = now;
                       last_mouse.x = root_x;
                       last_mouse.y = root_y;
@@ -2252,6 +2262,8 @@ main_loop (Display *dpy)
           if (wayland_active_p)
             {
               active_at = now;
+              if (now - force_time < 2)
+                DL (1, "Wayland activity: Activity detected within 2 seconds of Super+L");
               wayland_active_p = False;
               DL(1, "wayland reports user activity");
             }
@@ -2284,34 +2296,34 @@ main_loop (Display *dpy)
               now >= active_at + blank_timeout + lock_timeout)))
           {
             DL(1, "locking");
-            debug_log ("[UNBLANKED_UNLOCKED] lock_blank_later_p=%d force_lock_p=%d active_at=%ld now=%ld",
-                       lock_blank_later_p, force_lock_p, (long)active_at, (long)now);
+            debug_log ("[UNBLANKED_UNLOCKED] lock_blank_later_p=%d force_lock_p=%d active_at=%lds ago",
+                       lock_blank_later_p, force_lock_p, (long)(now - active_at));
             if (grab_keyboard_and_mouse (mouse_screen (dpy)))
               {
                 locked_at = now;
                 current_state |= STATE_LOCKED;
                 cursor_blanked_at = now;
                 authenticated_p = False;
-                debug_log ("[UNBLANKED_UNLOCKED] grabbed ,lock_blank_later_p=%d force_lock_p=%d will_blank=%d",
+                /*debug_log ("[UNBLANKED_UNLOCKED] grabbed ,lock_blank_later_p=%d force_lock_p=%d will_blank=%d",
                            lock_blank_later_p, force_lock_p,
-                           !(lock_blank_later_p && force_lock_p));
+                           !(lock_blank_later_p && force_lock_p));*/
                 if (!lock_blank_later_p || !force_lock_p)
                   {
                     current_state |= STATE_BLANKED;
                     blanked_at = now;
-                    debug_log ("[UNBLANKED_UNLOCKED] blanking immediately: blanked_at=%ld", (long)blanked_at);
+                    /*debug_log ("[UNBLANKED_UNLOCKED] blanking immediately: blanked_at=%ld", (long)blanked_at);*/
                   }
                 else
                   {
-                    debug_log ("[UNBLANKED_UNLOCKED] NOT blanking immediately (lock_blank_later_p && force_lock_p), current_state=0x%02x",
-                               current_state);
+                    /*debug_log ("[UNBLANKED_UNLOCKED] NOT blanking immediately (lock_blank_later_p && force_lock_p), current_state=0x%02x",
+                               current_state);*/
                   }
                 store_saver_status (dpy, blanked_at == now, True, False, locked_at);
-                debug_log ("[UNBLANKED_UNLOCKED] final state: current_state=0x%02x (BLANKED=%d LOCKED=%d) blanked_at=%ld locked_at=%ld",
+                /*debug_log ("[UNBLANKED_UNLOCKED] final state: current_state=0x%02x (BLANKED=%d LOCKED=%d) blanked_at=%ld locked_at=%ld",
                            current_state,
                            !!(current_state & STATE_BLANKED),
                            !!(current_state & STATE_LOCKED),
-                           (long)blanked_at, (long)locked_at);
+                           (long)blanked_at, (long)locked_at);*/
               }
             else
               DL(0, "unable to grab -- locking aborted!");
