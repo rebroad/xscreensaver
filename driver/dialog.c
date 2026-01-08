@@ -2749,7 +2749,7 @@ window_draw (window_state *ws)
         if (now - last_log > 0.2)
           {
             unsigned long card_val = (unsigned long)(opacity * 0xffffffffUL);
-            DL(1, "fade: opacity=%.2f card=0x%08lx splash_p=%d visual_depth=%d",
+            DL(2, "fade: opacity=%.2f card=0x%08lx splash_p=%d visual_depth=%d",
                opacity, card_val, ws->splash_p, ws->visual_depth);
             last_log = now;
           }
@@ -2844,7 +2844,7 @@ window_draw (window_state *ws)
     draw_count++;
     if (now_log - last_draw_log >= 1.0)
       {
-        DL(1, "window_draw finished: %dx%d @ %d,%d opacity=%.2f depth=%d visual_id=0x%lx (dps=%u)",
+        DL(2, "window_draw finished: %dx%d @ %d,%d opacity=%.2f depth=%d visual_id=0x%lx (dps=%u)",
            window_width, window_height, ws->x, ws->y, ws->dialog_opacity, ws->visual_depth,
            (unsigned long)XVisualIDFromVisual(ws->visual), draw_count);
         draw_count = 0;
