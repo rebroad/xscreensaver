@@ -2164,20 +2164,11 @@ main_loop (Display *dpy)
               if (xev.xcookie.evtype == XI_RawKeyPress && re)
                 {
                   XEvent ev2;
-                  static XComposeStatus compose = { 0, };
                   KeySym keysym = 0;
-                  Bool converted = xinput_event_to_xlib (XI_RawKeyPress,
-                                                         (XIDeviceEvent *) re,
-                                                         &ev2);
-                  DL (1, "Super+L check: xinput_event_to_xlib=%d keycode=%d",
-                             converted, converted ? ev2.xkey.keycode : 0);
-                  if (converted)
+                  if (xinput_event_to_xlib (XI_RawKeyPress, (XIDeviceEvent *) re, &ev2))
                     {
+                      XComposeStatus compose = { 0, };
                       XLookupString (&ev2.xkey, NULL, 0, &keysym, &compose);
-                      DL (1, "Super+L check: keysym=0x%lx (%s) mod4_pressed=%d",
-                                 (unsigned long) keysym,
-                                 keysym ? XKeysymToString(keysym) : "NULL",
-                                 mod4_pressed);
                       if (keysym && (keysym == XK_l || keysym == XK_L) && mod4_pressed)
                         {
                           /* Super+L pressed while locked: request screen blank */
@@ -2194,11 +2185,6 @@ main_loop (Display *dpy)
                             }
                           ignore_activity_before = now + 2;
                         }
-                      else
-                        DL (1, "Super+L check failed: keysym match=%d (keysym=0x%lx XK_l=0x%lx XK_L=0x%lx) mod4_pressed=%d",
-                                     (keysym && (keysym == XK_l || keysym == XK_L)),
-                                     (unsigned long) keysym, (unsigned long) XK_l, (unsigned long) XK_L,
-                                     mod4_pressed);
                     }
                 }
               active_at = now;
