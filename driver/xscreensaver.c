@@ -2161,7 +2161,7 @@ main_loop (Display *dpy)
 
               /* Check for Super+L key combination to request screen blank
                  when the screen is already locked. */
-              if (xev.xcookie.evtype == XI_RawKeyPress && re)
+              if (xev.xcookie.evtype == XI_RawKeyPress && re && mod4_pressed)
                 {
                   XEvent ev2;
                   KeySym keysym = 0;
@@ -2169,25 +2169,27 @@ main_loop (Display *dpy)
                     {
                       XComposeStatus compose = { 0, };
                       XLookupString (&ev2.xkey, NULL, 0, &keysym, &compose);
-                      if (keysym && (keysym == XK_l || keysym == XK_L) && mod4_pressed)
+                      if (keysym && (keysym == XK_l || keysym == XK_L))
                         {
                           /* Super+L pressed while locked: request screen blank */
                           if (is_locked)
                             {
                               force_blank_p = True;
-                              current_state &= ~STATE_AUTH;
-                              DL (1, "Super+L detected while locked: setting force_blank_p and clearing AUTH");
+                              DL (1, "Super+L detected while locked: Bl");
                             }
                           else
                             {
                               force_lock_p = True;
                               DL (1, "Super+L detected while unlocked: setting force_lock_p");
                             }
+                          current_state &= ~STATE_AUTH;
                           ignore_activity_before = now + 2;
                         }
                     }
                 }
-              active_at = now;
+
+              if (!(force_blank_p || force_lock_p || mod4_pressed))
+                active_at = now;
             }
             break;
           case XI_RawButtonPress:
