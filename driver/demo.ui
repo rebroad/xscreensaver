@@ -2283,6 +2283,27 @@ Under Wayland.</property>
                                 <property name="fill">False</property>
                               </packing>
                             </child>
+			    <child>
+			      <object class="GtkCheckButton" id="lock_blank_later_button">
+				<property name="name">lock_blank_later_button</property>
+				<property name="visible">True</property>
+				<property name="tooltip-text" translatable="yes">When enabled, the Window+L key will lock only (instead of locking and blanking immediately). Blanking will occur later due to either inactivity timeout or another Window+L press while already locked.</property>
+				<property name="can-focus">True</property>
+				<property name="label" translatable="yes">_Lock first blank later</property>
+				<property name="use-underline">True</property>
+				<property name="relief">GTK_RELIEF_NORMAL</property>
+				<property name="focus-on-click">True</property>
+				<property name="active">False</property>
+				<property name="inconsistent">False</property>
+				<property name="draw-indicator">True</property>
+				<signal handler="pref_changed_cb" name="toggled"/>
+			      </object>
+			      <packing>
+				<property name="padding">0</property>
+				<property name="expand">False</property>
+				<property name="fill">False</property>
+			      </packing>
+			    </child>
                             <child>
                               <object class="GtkBox" id="fade_hbox">
                                 <property name="name">fade_hbox</property>
