@@ -34,7 +34,7 @@ int verbose_p = 0;
 int logging_to_file_p = 0;
 int running_under_systemd_p = 0;
 
-/* #define BLURB_CENTISECONDS */
+#define BLURB_CENTISECONDS
 
 const char *
 blurb (void)
