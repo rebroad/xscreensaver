@@ -141,6 +141,7 @@ static const char * const prefs[] = {
   "timeout",
   "cycle",
   "lock",
+  "lockBlankLater",
   "lockVTs",			/* not saved */
   "lockTimeout",
   "passwdTimeout",
@@ -577,6 +578,7 @@ write_init_file (Display *dpy,
       CHECK("timeout")		type = pref_time, t = p->timeout;
       CHECK("cycle")		type = pref_time, t = p->cycle;
       CHECK("lock")		type = pref_bool, b = p->lock_p;
+      CHECK("lockBlankLater")	type = pref_bool, b = p->lock_blank_later_p;
       CHECK("lockVTs")		continue;  /* don't save, unused */
       CHECK("lockTimeout")	type = pref_time, t = p->lock_timeout;
       CHECK("passwdTimeout")	type = pref_time, t = p->passwd_timeout;
@@ -828,6 +830,7 @@ load_init_file (Display *dpy, saver_preferences *p)
   p->xsync_p	    = get_boolean_resource (dpy, "synchronous", "Synchronous");
   p->verbose_p	    = get_boolean_resource (dpy, "verbose", "Boolean");
   p->lock_p	    = get_boolean_resource (dpy, "lock", "Boolean");
+  p->lock_blank_later_p = get_boolean_resource (dpy, "lockBlankLater", "Boolean");
   p->fade_p	    = get_boolean_resource (dpy, "fade", "Boolean");
   p->unfade_p	    = get_boolean_resource (dpy, "unfade", "Boolean");
   p->fade_seconds   = 1000 * get_seconds_resource (dpy, "fadeSeconds", "Time");
