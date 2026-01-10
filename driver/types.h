@@ -59,6 +59,7 @@ struct saver_preferences {
   Bool xsync_p;			/* whether to XSynchronize */
 
   Bool lock_p;			/* whether to lock as well as save */
+  Bool lock_blank_later_p;	/* whether to lock without blanking immediately */
 
   Bool fade_p;			/* whether to fade to black, if possible */
   Bool unfade_p;		/* whether to fade from black, if possible */

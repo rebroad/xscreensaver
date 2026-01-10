@@ -94,7 +94,7 @@ store_saver_status (saver_info *si)
   int format;
   unsigned long nitems, bytesafter;
   int i, j;
-  PROP32 state = XA_BLANK;
+  PROP32 state = 0x01;
   time_t tt = 0;
 
   /* I hate using XGrabServer, but the calls to read and then alter the
@@ -151,10 +151,11 @@ store_saver_status (saver_info *si)
           if (i > 0) strcat (buf, ", ");
           if (i == 0 || i == 2)
             {
-              const char *s = (status[i] == XA_LOCK  ? "LOCK"  :
-                               status[i] == XA_BLANK ? "BLANK" :
-                               status[i] == XA_AUTH  ? "AUTH"  :
-                               status[i] == 0 ? "0" : "???");
+	      const char *s = (status[i] & 0x05 ? "AUTH|BLANK" :
+			       status[i] & 0x04 ? "AUTH"       :
+			       status[i] & 0x03 ? "LOCK|BLANK" :
+			       status[i] & 0x02 ? "LOCK"       :
+			       status[i] & 0x01 ? "BLANK" : "???");
               strcat (buf, s);
             }
           else
@@ -564,7 +565,7 @@ blank_screen (saver_info *si)
 
       /* Read the current state to determine if we should allow fade reversal.
          Fade reversal should only occur when NOT LOCKED (i.e., when BLANKED). */
-      Atom current_state = 0;
+      PROP32 current_state = 0;
       Window w = RootWindow (si->dpy, 0);  /* always screen 0 */
       Atom type;
       int format;
@@ -581,7 +582,7 @@ blank_screen (saver_info *si)
           && dataP)
         {
           PROP32 *data = (PROP32 *) dataP;
-          current_state = (Atom) data[0];
+	  current_state = data[0];
         }
       if (dataP) XFree (dataP);
 
@@ -591,7 +592,7 @@ blank_screen (saver_info *si)
 
       /* Only allow fade reversal if state is not LOCKED (i.e., if it's BLANKED).
          When LOCKED, we should not reverse the fade even if user activity is detected. */
-      Bool is_locked = (current_state == XA_LOCK || current_state == XA_AUTH);
+      Bool is_locked = (current_state & 0x02) != 0;
       double *interrupted_ratio_ptr = (is_locked ? NULL : &si->interrupted_fade_ratio);
       Bool *reversed_ptr = (is_locked ? NULL : &fade_reversed_p);
       user_active_p = fade_screens (si->app, si->dpy,
