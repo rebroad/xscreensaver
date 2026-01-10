@@ -874,7 +874,7 @@ save_button_cb (GtkWidget *widget, gpointer user_data)
       DL(0, "save_button_cb: entered");
       DL(0, "save_button_cb: unsaved_changes_p = %d", s->unsaved_changes_p);
       DL(0, "save_button_cb: initializing_p = %d, saving_p = %d",
-         s->initializing_p, s->saving_p);
+	 s->initializing_p, s->saving_p);
     }
 
   /* Flush any pending UI changes to the prefs struct */
@@ -890,38 +890,38 @@ save_button_cb (GtkWidget *widget, gpointer user_data)
   if (changed || s->unsaved_changes_p)
     {
       if (s->debug_p)
-        DL(0, "save_button_cb: attempting to write init file");
+	DL(0, "save_button_cb: attempting to write init file");
       /* Write to disk */
       int result = demo_write_init_file (s, p);
       if (s->debug_p)
-        DL(0, "save_button_cb: demo_write_init_file returned %d", result);
+	DL(0, "save_button_cb: demo_write_init_file returned %d", result);
       if (result == 0)
-        {
-          /* Success - clear unsaved changes flag */
-          if (s->debug_p)
-            DL(0, "save_button_cb: successfully wrote init file");
-          s->unsaved_changes_p = FALSE;
-          update_save_load_buttons (s);
+	{
+	  /* Success - clear unsaved changes flag */
+	  if (s->debug_p)
+	    DL(0, "save_button_cb: successfully wrote init file");
+	  s->unsaved_changes_p = FALSE;
+	  update_save_load_buttons (s);
 
-          /* Tell the xscreensaver daemon to wake up and reload the init file,
-             in case the timeout has changed.  Without this, it would wait
-             until the *old* timeout had expired before reloading. */
-          if (s->debug_p)
-            DL(0, "command: DEACTIVATE");
-          if (s->dpy)
-            xscreensaver_command (s->dpy, XA_DEACTIVATE, 0, 0, 0);
-        }
+	  /* Tell the xscreensaver daemon to wake up and reload the init file,
+	     in case the timeout has changed.  Without this, it would wait
+	     until the *old* timeout had expired before reloading. */
+	  if (s->debug_p)
+	    DL(0, "command: DEACTIVATE");
+	  if (s->dpy)
+	    xscreensaver_command (s->dpy, XA_DEACTIVATE, 0, 0, 0);
+	}
       else
-        {
-          if (s->debug_p)
-            DL(0, "save_button_cb: failed to write init file");
-        }
+	{
+	  if (s->debug_p)
+	    DL(0, "save_button_cb: failed to write init file");
+	}
     }
   else
     {
       /* No changes to save */
       if (s->debug_p)
-        DL(0, "save_button_cb: no changes detected, clearing unsaved_changes_p");
+	DL(0, "save_button_cb: no changes detected, clearing unsaved_changes_p");
       s->unsaved_changes_p = FALSE;
       update_save_load_buttons (s);
     }
@@ -961,8 +961,8 @@ load_button_cb (GtkWidget *widget, gpointer user_data)
     g_object_get (G_OBJECT (tree_view), "model", &model, NULL);
     if (model)
       {
-        gtk_list_store_clear (model);
-        g_object_unref (model);
+	gtk_list_store_clear (model);
+	g_object_unref (model);
       }
   }
 
@@ -1181,7 +1181,7 @@ demo_write_init_file (state *s, saver_preferences *p)
     {
       const char *f = init_file_name();
       if (!f || !*f)
-        warning_dialog (GTK_WINDOW (win), _("Error"),
+	warning_dialog (GTK_WINDOW (win), _("Error"),
                         _("Couldn't determine init file name!\n"));
       else
         {
@@ -3741,9 +3741,9 @@ kill_preview_subproc (state *s, Bool reset_p)
             }
         }
       else {
-        int endstatus;
-        waitpid(s->running_preview_pid, &endstatus, 0);
-        if (s->debug_p)
+	int endstatus;
+	waitpid(s->running_preview_pid, &endstatus, 0);
+	if (s->debug_p)
           DL(0, "killed pid %lu (%s)", (unsigned long) s->running_preview_pid, ss);
       }
 
