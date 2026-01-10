@@ -2604,11 +2604,6 @@ gui_main_loop (window_state *ws, Bool splash_p, Bool notification_p)
             XtAppProcessEvent (ws->app, m);
           else
             {
-              /* Force refresh during fade period (last 1 second) */
-              double remain = ws->end_time - double_time();
-              if (remain <= 1.0 && remain > 0.0)
-                refresh_p = True;
-
               if (refresh_p)
                 {
                   /* Redraw when outstanding events have been processed. */

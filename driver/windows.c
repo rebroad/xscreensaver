@@ -159,12 +159,11 @@ store_saver_status (saver_info *si)
           if (i > 0) strcat (buf, ", ");
           if (i == 0 || i == 2)
             {
-              const char *s = (status[i] == 5 ? "BLANK|AUTH" :
-                               status[i] == 4 ? "AUTH"       :
-                               status[i] == 3 ? "BLANK|LOCK" :
-                               status[i] == 2 ? "LOCK"       :
-                               status[i] == 1 ? "BLANK"      :
-                               status[i] == 0 ? "0" : "???");
+              const char *s = (status[i] & 0x05 ? "AUTH|BLANK" :
+                               status[i] & 0x04 ? "AUTH"       :
+                               status[i] & 0x03 ? "LOCK|BLANK" :
+                               status[i] & 0x02 ? "LOCK"       :
+                               status[i] & 0x01 ? "BLANK" : "???");
               strcat (buf, s);
             }
           else

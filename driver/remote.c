@@ -98,7 +98,7 @@ reset_dpms_timer (Display *dpy)
 
 static int
 send_xscreensaver_command (Display *dpy, Atom command, long arg,
-                           Window *window_ret, char **error_ret)
+			   Window *window_ret, char **error_ret)
 {
   int status = -1;
   char *v = 0;
@@ -143,9 +143,9 @@ send_xscreensaver_command (Display *dpy, Atom command, long arg,
       XClassHint hint;
       memset (&hint, 0, sizeof(hint));
       if (!v || !*v)
-        {
-          sprintf (err, "version property not set on window 0x%x?",
-                   (unsigned int) window);
+	{
+	  sprintf (err, "version property not set on window 0x%x?",
+		   (unsigned int) window);
           if (error_ret)
             *error_ret = strdup (err);
           else
@@ -153,13 +153,13 @@ send_xscreensaver_command (Display *dpy, Atom command, long arg,
 
           status = -1;
           goto DONE;
-        }
+	}
 
       XGetClassHint(dpy, window, &hint);
       if (!hint.res_class)
-        {
-          sprintf (err, "class hints not set on window 0x%x?",
-                   (unsigned int) window);
+	{
+	  sprintf (err, "class hints not set on window 0x%x?",
+		   (unsigned int) window);
           if (error_ret)
             *error_ret = strdup (err);
           else
@@ -167,47 +167,46 @@ send_xscreensaver_command (Display *dpy, Atom command, long arg,
 
           status = -1;
           goto DONE;
-        }
+	}
 
       fprintf (stdout, "%s %s", hint.res_class, v);
 
       if (command != XA_SCREENSAVER_STATUS)
-        {
-          fprintf (stdout, "\n");
-        }
+	{
+	  fprintf (stdout, "\n");
+	}
       else
-        {
-          Atom type;
-          int format;
-          unsigned long nitems, bytesafter;
-          unsigned char *dataP = 0;
+	{
+	  Atom type;
+	  int format;
+	  unsigned long nitems, bytesafter;
+	  unsigned char *dataP = 0;
 
           /* XA_SCREENSAVER_STATUS format documented in windows.c. */
-          if (XGetWindowProperty (dpy,
+	  if (XGetWindowProperty (dpy,
                                   RootWindow (dpy, 0), /* always screen #0 */
-                                  XA_SCREENSAVER_STATUS,
-                                  0, 999, False, XA_INTEGER,
-                                  &type, &format, &nitems, &bytesafter,
-                                  &dataP)
-              == Success
+				  XA_SCREENSAVER_STATUS,
+				  0, 999, False, XA_INTEGER,
+				  &type, &format, &nitems, &bytesafter,
+				  &dataP)
+	      == Success
               && type == XA_INTEGER
               && nitems >= 3
               && dataP)
             {
               PROP32 *data = (PROP32 *) dataP;
-              /* The property stores internal state flags: 0x01=BLANKED, 0x02=LOCKED, 0x04=AUTH */
               PROP32 state = data[0];
               time_t tt = (time_t)			/* 64 bit time_t */
                 ((((unsigned long) data[1] & 0xFFFFFFFFL) << 32) |
                   ((unsigned long) data[2] & 0xFFFFFFFFL));
               char *s;
 
-              if ((state & 0x01) != 0)
-                fputs (": screen blanked since ", stdout);
-              else if ((state & 0x02) != 0)
-                fputs (": screen locked since ", stdout);
-              else if (state == 0)
-                fputs (": screen non-blanked since ", stdout);
+	      if (state == XA_BLANK)
+		fputs (": screen blanked since ", stdout);
+	      else if (state == XA_LOCK || state == XA_AUTH)
+		fputs (": screen locked since ", stdout);
+	      else if (state == 0)
+		fputs (": screen non-blanked since ", stdout);
               else
                 goto STATUS_LOSE;
 
@@ -245,24 +244,24 @@ send_xscreensaver_command (Display *dpy, Atom command, long arg,
                   fputs ("\n", stdout);
               }
 
-              if (dataP) free (dataP);
-            }
-          else
-            {
-              fprintf (stdout, "\n");
+	      if (dataP) free (dataP);
+	    }
+	  else
+	    {
+	      fprintf (stdout, "\n");
             STATUS_LOSE:
-              fflush (stdout);
+	      fflush (stdout);
 
               if (dataP)
                 DL(0, "bad status format on root window");
               else
                 DL(0, "no saver status on root window");
 
-              if (dataP) XFree (dataP);
+	      if (dataP) XFree (dataP);
               status = -1;
               goto DONE;
-            }
-        }
+	    }
+	}
 
       /* No need to read a response for these commands. */
       status = 1;
@@ -274,17 +273,17 @@ send_xscreensaver_command (Display *dpy, Atom command, long arg,
       long arg1 = arg;
       long arg2 = 0;
       if (arg < 0)
-        abort();
+	abort();
       else if (arg == 0 && command == XA_SELECT)
-        abort();
+	abort();
       else if (arg != 0 && command == XA_DEMO)
-        {
+	{
           /* 1.09, 1992: DEMO took no arguments
              2.35, 1998: [ '300',  hack-number ]   1 indexed, 0 means random
              5.00, 2006: [ '5000', hack-number ]   same */
-          arg1 = 5000;
-          arg2 = arg;
-        }
+	  arg1 = 5000;
+	  arg2 = arg;
+	}
 
       if (command == XA_DEACTIVATE)
         reset_dpms_timer (dpy);
@@ -300,8 +299,8 @@ send_xscreensaver_command (Display *dpy, Atom command, long arg,
       event.xclient.data.l[2] = arg2;
 
       if (! XSendEvent (dpy, window, False, PropertyChangeMask, &event))
-        {
-          sprintf (err, "XSendEvent(dpy, 0x%x ...) failed\n",
+	{
+	  sprintf (err, "XSendEvent(dpy, 0x%x ...) failed\n",
                    (unsigned int) window);
           if (error_ret)
             *error_ret = strdup (err);
@@ -309,7 +308,7 @@ send_xscreensaver_command (Display *dpy, Atom command, long arg,
             DL(0, "%s", err);
           status = -1;
           goto DONE;
-        }
+	}
     }
 
   status = 0;
@@ -341,8 +340,8 @@ xscreensaver_command_response (Display *dpy, Window window,
   Bool got_event = False;
 
   while (!(got_event = XCheckIfEvent(dpy, &event,
-                                     &xscreensaver_command_event_p, 0)) &&
-         sleep_count++ < 10)
+				     &xscreensaver_command_event_p, 0)) &&
+	 sleep_count++ < 10)
     {
 # if defined(HAVE_SELECT)
       /* Wait for an event, but don't wait longer than 1 sec.  Note that we
@@ -366,9 +365,9 @@ xscreensaver_command_response (Display *dpy, Window window,
     {
       sprintf (err, "no response to command.");
       if (error_ret)
-        *error_ret = strdup (err);
+	*error_ret = strdup (err);
       else
-        fprintf (stderr, "%s: %s\n", progname, err);
+	fprintf (stderr, "%s: %s\n", progname, err);
 
       return -1;
     }
@@ -385,61 +384,61 @@ xscreensaver_command_response (Display *dpy, Window window,
       error_handler_hit_p = False;
       old_handler = XSetErrorHandler (ignore_all_errors_ehandler);
       st2 = XGetWindowProperty (dpy, window,
-                                XA_SCREENSAVER_RESPONSE,
-                                0, 1024, True,
-                                AnyPropertyType,
-                                &type, &format, &nitems, &bytesafter,
-                                &msg);
+				XA_SCREENSAVER_RESPONSE,
+				0, 1024, True,
+				AnyPropertyType,
+				&type, &format, &nitems, &bytesafter,
+				&msg);
       XSync (dpy, False);
       XSetErrorHandler (old_handler);
 
       if (error_handler_hit_p)
-        {
-          if (exiting_p)
-            return 0;
+	{
+	  if (exiting_p)
+	    return 0;
 
-          sprintf (err, "xscreensaver window unexpectedly deleted.");
+	  sprintf (err, "xscreensaver window unexpectedly deleted.");
 
-          if (error_ret)
-            *error_ret = strdup (err);
-          else
-            fprintf (stderr, "%s: %s\n", progname, err);
+	  if (error_ret)
+	    *error_ret = strdup (err);
+	  else
+	    fprintf (stderr, "%s: %s\n", progname, err);
 
-          return -1;
-        }
+	  return -1;
+	}
 
       if (st2 == Success && type != None)
-        {
-          if (type != XA_STRING || format != 8)
-            {
-              sprintf (err, "unrecognized response property.");
+	{
+	  if (type != XA_STRING || format != 8)
+	    {
+	      sprintf (err, "unrecognized response property.");
 
-              if (error_ret)
-                *error_ret = strdup (err);
-              else
-                fprintf (stderr, "%s: %s\n", progname, err);
+	      if (error_ret)
+		*error_ret = strdup (err);
+	      else
+		fprintf (stderr, "%s: %s\n", progname, err);
 
-              if (msg) XFree (msg);
-              return -1;
-            }
-          else if (!msg || (msg[0] != '+' && msg[0] != '-'))
-            {
-              sprintf (err, "unrecognized response message.");
+	      if (msg) XFree (msg);
+	      return -1;
+	    }
+	  else if (!msg || (msg[0] != '+' && msg[0] != '-'))
+	    {
+	      sprintf (err, "unrecognized response message.");
 
-              if (error_ret)
-                *error_ret = strdup (err);
-              else
-                fprintf (stderr, "%s: %s\n", progname, err);
+	      if (error_ret)
+		*error_ret = strdup (err);
+	      else
+		fprintf (stderr, "%s: %s\n", progname, err);
 
-              if (msg) XFree (msg);
-              return -1;
-            }
-          else
-            {
-              int ret = (msg[0] == '+' ? 0 : -1);
+	      if (msg) XFree (msg);
+	      return -1;
+	    }
+	  else
+	    {
+	      int ret = (msg[0] == '+' ? 0 : -1);
           sprintf (err, "%s: %s", progname, (char *) msg+1);
 
-              if (error_ret)
+	      if (error_ret)
             *error_ret = strdup (err);
           else if (verbose_p || ret != 0) {
             if (ret < 0)
@@ -448,10 +447,10 @@ xscreensaver_command_response (Display *dpy, Window window,
               fprintf (stdout, "%s\n", err);
           }
 
-              XFree (msg);
-              return ret;
-            }
-        }
+	      XFree (msg);
+	      return ret;
+	    }
+	}
     }
 
   return -1;  /* warning suppression: not actually reached */
@@ -459,9 +458,7 @@ xscreensaver_command_response (Display *dpy, Window window,
 
 
 /* Wait until xscreensaver says the screen is blanked or locked.
-   Returns 0 on success, or -1 on error/timeout.
    Catches errors, times out after a few seconds.
-   Reports which state was reached (blank, lock, or both) via debug logging.
  */
 static int
 xscreensaver_command_wait_for_state_change (Display *dpy,
@@ -500,18 +497,12 @@ xscreensaver_command_wait_for_state_change (Display *dpy,
           if (verbose_p > 1)
             {
               int i;
-              char state_str[32] = "";
-              /* The property stores internal state flags: 0x01=BLANKED, 0x02=LOCKED, 0x04=AUTH */
-              if (state == 0)
-                strcpy(state_str, "0");
-              else {
-                if (state & 0x01) strcat(state_str, "BLANK");
-                if (state & 0x02) { if (*state_str) strcat(state_str, "|"); strcat(state_str, "LOCK"); }
-                if (state & 0x04) { if (*state_str) strcat(state_str, "|"); strcat(state_str, "AUTH"); }
-                if (!*state_str) strcpy(state_str, "???");
-              }
-              BLURB(); fprintf (stderr, "read status property: 0x%lx: %s",
-                       (unsigned long) w, state_str);
+              BLURB(); fprintf (stderr, "read status property: 0x%lx: %s", (unsigned long) w,
+                       (state & 0x05 ? "AUTH|BLANK" :
+                        state & 0x04 ? "AUTH"       :
+                        state & 0x03 ? "LOCK|BLANK" :
+                        state & 0x02 ? "LOCK"       :
+                        state & 0x01 ? "BLANK" : "???"));
               for (i = 1; i < nitems; i++)
                 fprintf (stderr, ", %lu", status[i]);
               fprintf (stderr, "\n");
@@ -527,17 +518,12 @@ xscreensaver_command_wait_for_state_change (Display *dpy,
             }
           else if (state != initial_state)
             {
-              /* State has changed from initial state - report the new state */
               {
                 char state_msg[64] = "";
-                if (state & 0x01) strcat(state_msg, "blanked");
-                if (state & 0x02) {
+                if (state & ~initial_state & 0x01) strcat(state_msg, "blanked");
+                if (state & ~initial_state & 0x02) {
                   if (*state_msg) strcat(state_msg, " and ");
                   strcat(state_msg, "locked");
-                }
-                if (state & 0x04) {
-                  if (*state_msg) strcat(state_msg, " and ");
-                  strcat(state_msg, "authenticating");
                 }
                 DL(2, "screen %s", state_msg);
               }
@@ -606,9 +592,9 @@ xscreensaver_command (Display *dpy, Atom command, long arg, Bool verbose_p,
 
 void
 server_xscreensaver_version (Display *dpy,
-                             char **version_ret,
-                             char **user_ret,
-                             char **host_ret)
+			     char **version_ret,
+			     char **user_ret,
+			     char **host_ret)
 {
   Window window = find_screensaver_window (dpy, 0);
 
@@ -630,13 +616,13 @@ server_xscreensaver_version (Display *dpy,
     {
       unsigned char *v = 0;
       XGetWindowProperty (dpy, window, XA_SCREENSAVER_VERSION, 0, 100,
-                          False, XA_STRING, &type, &format, &nitems,
-                          &bytesafter, &v);
+			  False, XA_STRING, &type, &format, &nitems,
+			  &bytesafter, &v);
       if (v)
-        {
-          *version_ret = strdup ((char *) v);
-          XFree (v);
-        }
+	{
+	  *version_ret = strdup ((char *) v);
+	  XFree (v);
+	}
     }
 
   if (user_ret || host_ret)
@@ -646,52 +632,52 @@ server_xscreensaver_version (Display *dpy,
       const char *host = 0;
 
       XGetWindowProperty (dpy, window, XA_SCREENSAVER_ID, 0, 512,
-                          False, XA_STRING, &type, &format, &nitems,
-                          &bytesafter, &id);
+			  False, XA_STRING, &type, &format, &nitems,
+			  &bytesafter, &id);
       if (id && *id)
-        {
-          const char *old_tag = " on host ";
-          const char *s = strstr ((char *) id, old_tag);
-          if (s)
-            {
-              /* found ID of the form "1234 on host xyz". */
-              user = 0;
-              host = s + strlen (old_tag);
-            }
-          else
-            {
-              char *o = 0, *p = 0, *c = 0;
-              o = strchr ((char *) id, '(');
-              if (o) p = strrchr (o, '@');
-              if (p) c = strchr (p, ')');
-              if (c)
-                {
-                  /* found ID of the form "1234 (user@host)"
+	{
+	  const char *old_tag = " on host ";
+	  const char *s = strstr ((char *) id, old_tag);
+	  if (s)
+	    {
+	      /* found ID of the form "1234 on host xyz". */
+	      user = 0;
+	      host = s + strlen (old_tag);
+	    }
+	  else
+	    {
+	      char *o = 0, *p = 0, *c = 0;
+	      o = strchr ((char *) id, '(');
+	      if (o) p = strrchr (o, '@');
+	      if (p) c = strchr (p, ')');
+	      if (c)
+		{
+		  /* found ID of the form "1234 (user@host)"
                      or the weirder "1234 (user@crap@host)". */
-                  user = o+1;
-                  host = p+1;
-                  *p = 0;
-                  *c = 0;
-                }
-            }
+		  user = o+1;
+		  host = p+1;
+		  *p = 0;
+		  *c = 0;
+		}
+	    }
 
-        }
+	}
 
       if (!user_ret)
         ;
       else if (user && *user && *user != '?')
-        *user_ret = strdup (user);
+	*user_ret = strdup (user);
       else
-        *user_ret = 0;
+	*user_ret = 0;
 
       if (!host_ret)
         ;
       else if (host && *host && *host != '?')
-        *host_ret = strdup (host);
+	*host_ret = strdup (host);
       else
-        *host_ret = 0;
+	*host_ret = 0;
 
       if (id)
-        XFree (id);
+	XFree (id);
     }
 }

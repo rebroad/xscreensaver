@@ -1151,12 +1151,11 @@ store_saver_status (Display *dpy,
           if (i > 0) fprintf (stderr, ", ");
           if (i == 0)
             fprintf (stderr, "%s",
-                     (status[i] == BLANKED_AUTH   ? "BLANK|AUTH" :
-                      status[i] == AUTH           ? "AUTH"       :
-                      status[i] == BLANKED_LOCKED ? "BLANK|LOCK" :
-                      status[i] == LOCKED         ? "LOCK"       :
-                      status[i] == BLANKED        ? "BLANK"      :
-                      status[i] == 0              ? "0" : "???"));
+                     (status[i] & 0x05 ? "AUTH|BLANK" :
+                      status[i] & 0x04 ? "AUTH"       :
+                      status[i] & 0x03 ? "LOCK|BLANK" :
+                      status[i] & 0x02 ? "LOCK"       :
+                      status[i] & 0x01 ? "BLANK" : "???"));
           else
             fprintf (stderr, "%lu", status[i]);
         }
@@ -2293,7 +2292,7 @@ main_loop (Display *dpy)
                 /*debug_log ("[UNBLANKED_UNLOCKED] grabbed ,lock_blank_later_p=%d force_lock_p=%d will_blank=%d",
                            lock_blank_later_p, force_lock_p,
                            !(lock_blank_later_p && force_lock_p));*/
-                if (!lock_blank_later_p || !force_lock_p)
+                if (!lock_blank_later_p)
                   {
                     current_state |= STATE_BLANKED;
                     blanked_at = now;
@@ -2318,12 +2317,11 @@ main_loop (Display *dpy)
           }
         /* fallthrough */
       case LOCKED:
-        Bool watch_activity = now > ignore_activity_before;
+        Bool watch_activity = now >= ignore_activity_before;
         if (current_state & STATE_LOCKED)
           {
-            /* Check for activity to trigger AUTH sequence (same as BLANKED_LOCKED case) */
             Bool activity_check = (active_at >= now && watch_activity);
-            debug_log ("[UNBLANKED_LOCKED] active=%lds ago, watch_activity=%d, activity_check=%d",
+            debug_log ("[UNBLANKED_LOCKED] active=%lds ago, watch_activity=%d, activity=%d",
                    (long) (now - active_at), watch_activity, activity_check);
             if (activity_check)
               {
@@ -2404,7 +2402,7 @@ main_loop (Display *dpy)
         break;
 
       case BLANKED:
-        Bool activity = (active_at >= now) && (active_at >= ignore_activity_before);
+        Bool activity = (active_at >= now && active_at >= ignore_activity_before);
         if (!locking_disabled_p &&
             (force_lock_p ||
              (lock_p &&
@@ -2495,7 +2493,7 @@ main_loop (Display *dpy)
                the auth dialog is raised.  We can ignore failures here. */
             grab_mouse (mouse_screen (dpy), auth_cursor);
 
-            store_saver_status (dpy, !!(current_state & STATE_BLANKED), True, True, locked_at);
+            store_saver_status (dpy, current_state & STATE_BLANKED, True, True, locked_at);
 
             av[ac++] = SAVER_AUTH_PROGRAM;
             if (verbose_p)     av[ac++] = "--verbose";
@@ -2538,7 +2536,7 @@ main_loop (Display *dpy)
                immediately. */
             ignore_activity_before = now + 1;
 
-            store_saver_status (dpy, !!(current_state & STATE_BLANKED), True, False, locked_at);
+            store_saver_status (dpy, current_state & STATE_BLANKED, True, False, locked_at);
 
             if (gfx_stopped_p)	/* SIGCONT to resume savers */
               {
