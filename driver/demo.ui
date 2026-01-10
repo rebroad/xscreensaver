@@ -2579,11 +2579,12 @@ Under Wayland.</property>
               </packing>
             </child>
             <child>
-              <object class="GtkHButtonBox" id="hbuttonbox2">
+              <object class="GtkBox" id="hbuttonbox2">
                 <property name="name">hbuttonbox2</property>
                 <property name="border-width">5</property>
-                <property name="layout-style">GTK_BUTTONBOX_EDGE</property>
                 <property name="spacing">10</property>
+                <property name="orientation">horizontal</property>
+                <property name="vexpand">False</property>
                 <child>
                   <object class="GtkButton" id="helpbutton">
                     <property name="name">helpbutton</property>
@@ -2596,25 +2597,82 @@ Under Wayland.</property>
                     <property name="focus-on-click">True</property>
                     <signal handler="doc_menu_cb" name="clicked"/>
                   </object>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="fill">False</property>
+                    <property name="pack-type">GTK_PACK_START</property>
+                  </packing>
                 </child>
                 <child>
-                  <object class="GtkButton" id="closebutton">
-                    <property name="name">closebutton</property>
+                  <object class="GtkBox">
                     <property name="visible">True</property>
-                    <property name="can-default">True</property>
-                    <property name="can-focus">True</property>
-                    <property name="label">gtk-close</property>
-                    <property name="use-stock">True</property>
-                    <property name="relief">GTK_RELIEF_NORMAL</property>
-                    <property name="focus-on-click">True</property>
-                    <signal handler="quit_menu_cb" name="clicked"/>
+                    <property name="orientation">horizontal</property>
+                    <property name="expand">True</property>
                   </object>
+                  <packing>
+                    <property name="expand">True</property>
+                    <property name="fill">True</property>
+                    <property name="pack-type">GTK_PACK_START</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkHButtonBox">
+                    <property name="visible">True</property>
+                    <property name="layout-style">GTK_BUTTONBOX_EDGE</property>
+                    <property name="spacing">10</property>
+                    <child>
+                      <object class="GtkButton" id="loadbutton">
+                        <property name="name">loadbutton</property>
+                        <property name="visible">True</property>
+                        <property name="can-default">True</property>
+                        <property name="can-focus">True</property>
+                        <property name="label" translatable="yes">_Load</property>
+                        <property name="use-underline">True</property>
+                        <property name="relief">GTK_RELIEF_NORMAL</property>
+                        <property name="focus-on-click">True</property>
+                        <property name="sensitive">False</property>
+                        <signal handler="load_button_cb" name="clicked"/>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkButton" id="savebutton">
+                        <property name="name">savebutton</property>
+                        <property name="visible">True</property>
+                        <property name="can-default">True</property>
+                        <property name="can-focus">True</property>
+                        <property name="label" translatable="yes">_Save</property>
+                        <property name="use-underline">True</property>
+                        <property name="relief">GTK_RELIEF_NORMAL</property>
+                        <property name="focus-on-click">True</property>
+                        <property name="sensitive">False</property>
+                        <signal handler="save_button_cb" name="clicked"/>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkButton" id="closebutton">
+                        <property name="name">closebutton</property>
+                        <property name="visible">True</property>
+                        <property name="can-default">True</property>
+                        <property name="can-focus">True</property>
+                        <property name="label">gtk-close</property>
+                        <property name="use-stock">True</property>
+                        <property name="relief">GTK_RELIEF_NORMAL</property>
+                        <property name="focus-on-click">True</property>
+                        <signal handler="quit_menu_cb" name="clicked"/>
+                      </object>
+                    </child>
+                  </object>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="fill">False</property>
+                    <property name="pack-type">GTK_PACK_END</property>
+                  </packing>
                 </child>
               </object>
               <packing>
                 <property name="padding">0</property>
                 <property name="expand">False</property>
-                <property name="fill">True</property>
+                <property name="fill">False</property>
                 <property name="pack-type">GTK_PACK_END</property>
               </packing>
             </child>
