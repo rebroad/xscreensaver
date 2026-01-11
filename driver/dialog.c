@@ -1248,10 +1248,6 @@ window_occluded_p (Display *dpy, Window window)
 {
   int screen;
 
-# ifdef DEBUG_STACKING
-  DL(0, "");
-# endif
-
   for (screen = 0; screen < ScreenCount (dpy); screen++)
     {
       int i;
@@ -2385,15 +2381,8 @@ handle_event (window_state *ws, XEvent *xev, Bool filter_p)
              handle_button (ws, xev, &ws->demo_button_state) ||
              handle_button (ws, xev, &ws->help_button_state)))
         if (ws->splash_p && xev->xany.type == ButtonRelease)
-	  {
-	    /* Cancel any existing dismiss timer */
-	    if (ws->splash_dismiss_timer)
-	      XtRemoveTimeOut (ws->splash_dismiss_timer);
-	    /* Schedule dismissal after a delay (2s) */
-	    ws->splash_dismiss_timer =
-	      XtAppAddTimeOut (ws->app, 100, splash_dismiss_timer, (XtPointer) ws);
-	  }
-    refresh_p = True;
+	  ws->auth_state = AUTH_CANCEL;
+      refresh_p = True;
     }
   default:
     break;
