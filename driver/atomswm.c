@@ -88,7 +88,7 @@ xscreensaver_set_wm_atoms (Display *dpy, Window window, int width, int height,
     }
   else
     {
-      DL(1, "skipping _NET_WM_BYPASS_COMPOSITOR for window 0x%lx (needs compositor transparency)",
+      DL(2, "skipping _NET_WM_BYPASS_COMPOSITOR for window 0x%lx (needs compositor transparency)",
                (unsigned long)window);
     }
 

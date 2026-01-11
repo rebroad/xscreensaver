@@ -1043,7 +1043,7 @@ create_window (window_state *ws, int w, int h)
     Atom va[4];
     if (ws->splash_p)
       {
-        DL(0, "create_window: setting window type to SPLASH for window 0x%lx", (unsigned long)ws->window);
+	DL(2, "create_window: setting window type to SPLASH for window 0x%lx", (unsigned long)ws->window);
         va[0] = XA_NET_WM_WINDOW_TYPE_SPLASH;
         va[1] = XA_KDE_NET_WM_WINDOW_TYPE_OVERRIDE;
         XChangeProperty (ws->dpy, ws->window, XA_NET_WM_WINDOW_TYPE, XA_ATOM, 32,
@@ -1126,7 +1126,7 @@ create_window (window_state *ws, int w, int h)
           }
         else
           {
-            DL(1, "could not find screensaver window for _WM_TRANSIENT_FOR");
+	    DL(2, "could not find screensaver window for _WM_TRANSIENT_FOR");
           }
       }
     }
@@ -1149,7 +1149,7 @@ create_window (window_state *ws, int w, int h)
   if (ws->ic)
     XSetICFocus (ws->ic);
 
-  DL(1, "%s input method",
+  DL(0, "%s input method",
      ws->ic ? "attached" : "failed to attach");
 
   XMapRaised (ws->dpy, ws->window);
@@ -1209,7 +1209,7 @@ window_init (Widget root_widget, int splash_p)
       unsigned long rm, gm, bm, am;
       visual_rgb_masks (ws->screen, ws->visual, &rm, &gm, &bm);
       am = ~(rm | gm | bm) & 0xFFFFFFFF;
-      DL(1, "using 32-bit visual: 0x%lx (masks: R=0x%lx G=0x%lx B=0x%lx A=0x%lx)",
+      DL(2, "using 32-bit visual: 0x%lx (masks: R=0x%lx G=0x%lx B=0x%lx A=0x%lx)",
          (unsigned long)XVisualIDFromVisual(ws->visual), rm, gm, bm, am);
   } else {
       ws->visual = DefaultVisualOfScreen (ws->screen);
@@ -1463,7 +1463,7 @@ register_window_label (Window w, const char *label)
       window_labels[window_label_count].w = w;
       window_labels[window_label_count].label = strdup (label);
       window_label_count++;
-      DL(0, "registered window 0x%lx as \"%s\"", (unsigned long)w, label);
+      DL(2, "registered window 0x%lx as \"%s\"", (unsigned long)w, label);
     }
 }
 
@@ -1711,7 +1711,7 @@ describe_window (Display *dpy, Window w, const char *prefix)
     unsigned long visual_id = (unsigned long)XVisualIDFromVisual(xwa.visual);
     if (XGetClassHint (dpy, w, &ch))
       {
-        DL(0, "%s: 0x%lx (%dx%d+%d+%d) \"%s\", \"%s\"%s%s visual=0x%lx depth=%d",
+	DL(2, "%s: 0x%lx (%dx%d+%d+%d) \"%s\", \"%s\"%s%s visual=0x%lx depth=%d",
            prefix, (unsigned long) w,
            xwa.width, xwa.height, xwa.x, xwa.y, ch.res_class, ch.res_name, type_hint, label_str,
            visual_id, xwa.depth);
@@ -1720,13 +1720,13 @@ describe_window (Display *dpy, Window w, const char *prefix)
       }
     else if (XFetchName (dpy, w, &name) && name)
       {
-        DL(0, "%s: 0x%lx (%dx%d+%d+%d) \"%s\"%s%s visual=0x%lx depth=%d", prefix, (unsigned long) w,
+	DL(2, "%s: 0x%lx (%dx%d+%d+%d) \"%s\"%s%s visual=0x%lx depth=%d", prefix, (unsigned long) w,
            xwa.width, xwa.height, xwa.x, xwa.y, name, type_hint, label_str, visual_id, xwa.depth);
         XFree (name);
       }
     else
       {
-        DL(0, "%s: 0x%lx (%dx%d+%d+%d) (untitled)%s%s visual=0x%lx depth=%d", prefix, (unsigned long) w,
+	DL(2, "%s: 0x%lx (%dx%d+%d+%d) (untitled)%s%s visual=0x%lx depth=%d", prefix, (unsigned long) w,
            xwa.width, xwa.height, xwa.x, xwa.y, type_hint, label_str, visual_id, xwa.depth);
       }
   }
@@ -1832,7 +1832,7 @@ window_occluded_p (Display *dpy, Window window)
           if (first_named_idx > 0)
             {
               if (first_named_idx > 1)
-                DL(0, "... (skipped %d untitled entries) ...", first_named_idx - 1);
+		DL(2, "... (skipped %d untitled entries) ...", first_named_idx - 1);
               describe_window (dpy, kids[first_named_idx], "lower");
             }
 
@@ -1845,7 +1845,7 @@ window_occluded_p (Display *dpy, Window window)
               if (start_idx > last_shown + 1)
                 {
                   int skipped = start_idx - (last_shown + 1);
-                  DL(0, "... (skipped %d lower entries) ...", skipped);
+		  DL(2, "... (skipped %d lower entries) ...", skipped);
                 }
 
               /* Single pass: iterate through windows in order, showing:
@@ -2537,7 +2537,7 @@ window_draw (window_state *ws)
 # else
         if (size_changed_p)
           {
-            DL(1, "re-creating window: size changed from %dx%d to %dx%d (pos: %d,%d -> %d,%d)",
+	    DL(0, "re-creating window: size changed from %dx%d to %dx%d (pos: %d,%d -> %d,%d)",
                xgwa.width, xgwa.height, window_width, window_height,
                xgwa.x, xgwa.y, ws->x, ws->y);
           }
@@ -2566,7 +2566,7 @@ window_draw (window_state *ws)
               const char *map_state_str = (xwa.map_state == IsUnmapped ? "Unmapped" :
                                            xwa.map_state == IsUnviewable ? "Unviewable" :
                                            "Viewable");
-              DL(1, "window mapped: %s depth=%d visual=0x%lx override_redirect=%d",
+	      DL(2, "window mapped: %s depth=%d visual=0x%lx override_redirect=%d",
                  map_state_str, xwa.depth,
                  (unsigned long)XVisualIDFromVisual(xwa.visual),
                  xwa.override_redirect);
@@ -2761,7 +2761,7 @@ window_draw (window_state *ws)
     draw_count++;
     if (now_log - last_draw_log >= 1.0)
       {
-        DL(1, "window_draw finished: %dx%d @ %d,%d opacity=%.2f depth=%d visual_id=0x%lx (dps=%u)",
+	DL(2, "window_draw finished: %dx%d @ %d,%d opacity=%.2f depth=%d visual_id=0x%lx (dps=%u)",
            window_width, window_height, ws->x, ws->y, ws->dialog_opacity, ws->visual_depth,
            (unsigned long)XVisualIDFromVisual(ws->visual), draw_count);
         draw_count = 0;

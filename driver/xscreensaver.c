@@ -2149,7 +2149,7 @@ main_loop (Display *dpy)
               Bool watch_activity = now > ignore_activity_before;
               time_t old_active_at = active_at;
 
-              debug_log ("[XI_RawKeyPress/Release] (BLANKED=%d LOCKED=%d AUTH=%d) active=%lds ago, watch_activity=%d",
+	      DL(2, "[XI_RawKeyPress/Release] (BLANKED=%d LOCKED=%d AUTH=%d) active=%lds ago, watch_activity=%d",
                          is_blanked, is_locked, is_auth,
                          (long) (now - old_active_at), watch_activity);
 
@@ -2208,7 +2208,7 @@ main_loop (Display *dpy)
 
               if (is_locked && !force_blank_p)
                 {
-                  debug_log ("[XI_RawKeyPress/Release] LOCKED: active_at updated from %lds ago to %lds ago, watch_activity=%d, will_trigger_auth=%d",
+		  DL(2, "[XI_RawKeyPress/Release] LOCKED: active_at updated from %lds ago to %lds ago, watch_activity=%d, will_trigger_auth=%d",
                              (long) (now - old_active_at), (long) (now - active_at), watch_activity,
                              (active_at >= now && watch_activity ? 1 : 0));
                 }
@@ -2315,7 +2315,7 @@ main_loop (Display *dpy)
               now >= active_at + blank_timeout + lock_timeout)))
           {
             DL(1, "locking");
-            debug_log ("[UNBLANKED_UNLOCKED] lock_blank_later_p=%d force_lock_p=%d active_at=%ld now=%ld",
+	    DL(2, "[UNBLANKED_UNLOCKED] lock_blank_later_p=%d force_lock_p=%d active_at=%ld now=%ld",
                        lock_blank_later_p, force_lock_p, (long)active_at, (long)now);
             if (grab_keyboard_and_mouse (mouse_screen (dpy)))
               {
@@ -2323,7 +2323,7 @@ main_loop (Display *dpy)
                 locked_at = now;
                 cursor_blanked_at = now;
                 authenticated_p = False;
-                debug_log ("[UNBLANKED_UNLOCKED] grabbed ,lock_blank_later_p=%d force_lock_p=%d will_blank=%d",
+		DL(2, "[UNBLANKED_UNLOCKED] grabbed ,lock_blank_later_p=%d force_lock_p=%d will_blank=%d",
                            lock_blank_later_p, force_lock_p,
                            !(lock_blank_later_p && force_lock_p));
 		if (!lock_blank_later_p)
@@ -2334,11 +2334,11 @@ main_loop (Display *dpy)
 		  }
                 else
                   {
-                    debug_log ("[UNBLANKED_UNLOCKED] NOT blanking immediately (lock_blank_later_p && force_lock_p), current_state=0x%02x",
+		    DL(2, "[UNBLANKED_UNLOCKED] NOT blanking immediately (lock_blank_later_p && force_lock_p), current_state=0x%02x",
                                current_state);
                   }
 		store_saver_status (dpy, blanked_at == now, True, False, locked_at);
-                debug_log ("[UNBLANKED_UNLOCKED] final state: current_state=0x%02x (BLANKED=%d LOCKED=%d) blanked_at=%ld locked_at=%ld",
+		DL(2, "[UNBLANKED_UNLOCKED] final state: current_state=0x%02x (BLANKED=%d LOCKED=%d) blanked_at=%ld locked_at=%ld",
                            current_state,
                            !!(current_state & STATE_BLANKED),
                            !!(current_state & STATE_LOCKED),
@@ -2527,12 +2527,12 @@ main_loop (Display *dpy)
               }
 
             DL(1, "authorizing");
-            debug_log ("[AUTH] starting authorization: current_state=0x%02x (BLANKED=%d LOCKED=%d) -> adding AUTH bit",
+	    DL(2, "[AUTH] starting authorization: current_state=0x%02x (BLANKED=%d LOCKED=%d) -> adding AUTH bit",
                        current_state,
                        !!(current_state & STATE_BLANKED),
                        !!(current_state & STATE_LOCKED));
 	    current_state |= STATE_AUTH;
-            debug_log ("[AUTH] new state: current_state=0x%02x (BLANKED=%d LOCKED=%d AUTH=%d)",
+	    DL(2, "[AUTH] new state: current_state=0x%02x (BLANKED=%d LOCKED=%d AUTH=%d)",
                        current_state,
                        !!(current_state & STATE_BLANKED),
                        !!(current_state & STATE_LOCKED),
@@ -2557,7 +2557,7 @@ main_loop (Display *dpy)
         }
       case UNBLANKED_AUTH:
       case BLANKED_AUTH:
-        debug_log ("[AUTH_STATE] (BLANKED=%d LOCKED=%d AUTH=%d) saver_auth=%d authenticated_p=%d",
+	DL(2, "[AUTH_STATE] (BLANKED=%d LOCKED=%d AUTH=%d) saver_auth=%d authenticated_p=%d",
                    !!(current_state & STATE_BLANKED),
                    !!(current_state & STATE_LOCKED),
                    !!(current_state & STATE_AUTH),
