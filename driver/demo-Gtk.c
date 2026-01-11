@@ -874,7 +874,7 @@ save_button_cb (GtkWidget *widget, gpointer user_data)
       DL(0, "save_button_cb: entered");
       DL(0, "save_button_cb: unsaved_changes_p = %d", s->unsaved_changes_p);
       DL(0, "save_button_cb: initializing_p = %d, saving_p = %d",
-         s->initializing_p, s->saving_p);
+	 s->initializing_p, s->saving_p);
     }
 
   /* Flush any pending UI changes to the prefs struct */
@@ -890,38 +890,38 @@ save_button_cb (GtkWidget *widget, gpointer user_data)
   if (changed || s->unsaved_changes_p)
     {
       if (s->debug_p)
-        DL(0, "save_button_cb: attempting to write init file");
+	DL(0, "save_button_cb: attempting to write init file");
       /* Write to disk */
       int result = demo_write_init_file (s, p);
       if (s->debug_p)
-        DL(0, "save_button_cb: demo_write_init_file returned %d", result);
+	DL(0, "save_button_cb: demo_write_init_file returned %d", result);
       if (result == 0)
-        {
-          /* Success - clear unsaved changes flag */
-          if (s->debug_p)
-            DL(0, "save_button_cb: successfully wrote init file");
-          s->unsaved_changes_p = FALSE;
-          update_save_load_buttons (s);
+	{
+	  /* Success - clear unsaved changes flag */
+	  if (s->debug_p)
+	    DL(0, "save_button_cb: successfully wrote init file");
+	  s->unsaved_changes_p = FALSE;
+	  update_save_load_buttons (s);
 
-          /* Tell the xscreensaver daemon to wake up and reload the init file,
-             in case the timeout has changed.  Without this, it would wait
-             until the *old* timeout had expired before reloading. */
-          if (s->debug_p)
-            DL(0, "command: DEACTIVATE");
-          if (s->dpy)
-            xscreensaver_command (s->dpy, XA_DEACTIVATE, 0, 0, 0);
-        }
+	  /* Tell the xscreensaver daemon to wake up and reload the init file,
+	     in case the timeout has changed.  Without this, it would wait
+	     until the *old* timeout had expired before reloading. */
+	  if (s->debug_p)
+	    DL(0, "command: DEACTIVATE");
+	  if (s->dpy)
+	    xscreensaver_command (s->dpy, XA_DEACTIVATE, 0, 0, 0);
+	}
       else
-        {
-          if (s->debug_p)
-            DL(0, "save_button_cb: failed to write init file");
-        }
+	{
+	  if (s->debug_p)
+	    DL(0, "save_button_cb: failed to write init file");
+	}
     }
   else
     {
       /* No changes to save */
       if (s->debug_p)
-        DL(0, "save_button_cb: no changes detected, clearing unsaved_changes_p");
+	DL(0, "save_button_cb: no changes detected, clearing unsaved_changes_p");
       s->unsaved_changes_p = FALSE;
       update_save_load_buttons (s);
     }
@@ -961,8 +961,8 @@ load_button_cb (GtkWidget *widget, gpointer user_data)
     g_object_get (G_OBJECT (tree_view), "model", &model, NULL);
     if (model)
       {
-        gtk_list_store_clear (model);
-        g_object_unref (model);
+	gtk_list_store_clear (model);
+	g_object_unref (model);
       }
   }
 
@@ -1170,42 +1170,23 @@ static int
 demo_write_init_file (state *s, saver_preferences *p)
 {
   XScreenSaverWindow *win = XSCREENSAVER_WINDOW (s->window);
-  const char *f = init_file_name();
 
-  if (s->debug_p)
-    {
-      DL(0, "demo_write_init_file: entered");
-      DL(0, "demo_write_init_file: init_file_name = %s", f ? f : "(null)");
-      DL(0, "demo_write_init_file: dpy = %p", s->dpy);
-    }
-
-  int result = write_init_file (s->dpy, p, s->short_version, FALSE);
-  if (s->debug_p)
-    DL(0, "demo_write_init_file: write_init_file returned %d", result);
-
-  if (!result)
+  if (!write_init_file (s->dpy, p, s->short_version, FALSE))
     {
       if (s->debug_p)
-        DL(0, "demo_write_init_file: successfully wrote %s", f ? f : "(null)");
+        DL(0, "wrote %s", init_file_name());
       return 0;
     }
   else
     {
-      if (s->debug_p)
-        DL(0, "demo_write_init_file: failed to write init file");
+      const char *f = init_file_name();
       if (!f || !*f)
-        {
-          if (s->debug_p)
-            DL(0, "demo_write_init_file: couldn't determine init file name");
-          warning_dialog (GTK_WINDOW (win), _("Error"),
+	warning_dialog (GTK_WINDOW (win), _("Error"),
                         _("Couldn't determine init file name!\n"));
-        }
       else
         {
           char *b = (char *) malloc (strlen(f) + 1024);
           sprintf (b, _("Couldn't write %s\n"), f);
-          if (s->debug_p)
-            DL(0, "demo_write_init_file: showing error dialog: %s", b);
           warning_dialog (GTK_WINDOW (win), _("Error"), b);
           free (b);
         }
@@ -1475,24 +1456,8 @@ flush_dialog_changes (state *s)
   FlushForeachClosure closure;
   Bool changed = FALSE;
 
-  if (s->debug_p)
-    {
-      DL(0, "flush_dialog_changes: entered");
-      DL(0, "flush_dialog_changes: initializing_p = %d, saving_p = %d",
-         s->initializing_p, s->saving_p);
-    }
-  if (s->initializing_p)
-    {
-      if (s->debug_p)
-        DL(0, "flush_dialog_changes: returning FALSE (initializing)");
-      return FALSE;
-    }
-  if (s->saving_p)
-    {
-      if (s->debug_p)
-        DL(0, "flush_dialog_changes: returning FALSE (already saving)");
-      return FALSE;
-    }
+  if (s->initializing_p) return FALSE;
+  if (s->saving_p) return FALSE;
   s->saving_p = TRUE;
 
   *p2 = *p;
@@ -1697,27 +1662,15 @@ flush_dialog_changes (state *s)
 
   populate_prefs_page (s);
 
-  if (s->debug_p)
-    DL(0, "flush_dialog_changes: changed = %d", changed);
   if (changed)
     {
-      if (s->debug_p)
-        DL(0, "flush_dialog_changes: changes detected, setting unsaved_changes_p");
       if (s->dpy)
         sync_server_dpms_settings_1 (s->dpy, p);
       s->unsaved_changes_p = TRUE;
       update_save_load_buttons (s);
     }
-  else
-    {
-      if (s->debug_p)
-        DL(0, "flush_dialog_changes: no changes detected");
-    }
 
   s->saving_p = FALSE;
-  if (s->debug_p)
-    DL(0, "flush_dialog_changes: returning %d, unsaved_changes_p = %d",
-       changed, s->unsaved_changes_p);
 
   return changed;
 }
@@ -4249,7 +4202,6 @@ screen_blanked_p (state *s)
       && nitems >= 3
       && dataP)
     {
-      /* The property stores internal state flags: 0x01=BLANKED, 0x02=LOCKED, 0x04=AUTH */
       PROP32 *data = (PROP32 *) dataP;
       blanked_p = ((data[0] & 0x01) != 0);
     }
@@ -5591,7 +5543,6 @@ xscreensaver_window_realize (GtkWidget *self, gpointer user_data)
 
   restore_window_position (s, GTK_WINDOW (self), FALSE);
 
-  /* Initialize unsaved changes flag and button states */
   s->unsaved_changes_p = FALSE;
   update_save_load_buttons (s);
 

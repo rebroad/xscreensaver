@@ -102,7 +102,6 @@ store_saver_status (saver_info *si)
   int format;
   unsigned long nitems, bytesafter;
   int i, j;
-  /* Default to BLANKED (0x01) if property doesn't exist yet */
   PROP32 state = 0x01;
   time_t tt = 0;
 
@@ -123,7 +122,7 @@ store_saver_status (saver_info *si)
       && dataP)
     {
       PROP32 *data = (PROP32 *) dataP;
-      state = data[0];  /* Property stores bit flags: 0x01=BLANKED, 0x02=LOCKED, 0x04=AUTH */
+      state = data[0];
       tt = (time_t)				/* 64 bit time_t */
         ((((unsigned long) data[1] & 0xFFFFFFFFL) << 32) |
           ((unsigned long) data[2] & 0xFFFFFFFFL));
@@ -162,17 +161,11 @@ store_saver_status (saver_info *si)
           if (i > 0) strcat (buf, ", ");
           if (i == 0 || i == 2)
             {
-              /* The property stores internal state flags: 0x01=BLANKED, 0x02=LOCKED, 0x04=AUTH */
-              char state_str[32] = "";
-              if (status[i] == 0)
-                strcpy(state_str, "0");
-              else {
-                if (status[i] & 0x01) strcat(state_str, "BLANK");
-                if (status[i] & 0x02) { if (*state_str) strcat(state_str, "|"); strcat(state_str, "LOCK"); }
-                if (status[i] & 0x04) { if (*state_str) strcat(state_str, "|"); strcat(state_str, "AUTH"); }
-                if (!*state_str) strcpy(state_str, "???");
-              }
-              const char *s = state_str;
+	      const char *s = (status[i] & 0x05 ? "AUTH|BLANK" :
+			       status[i] & 0x04 ? "AUTH"       :
+			       status[i] & 0x03 ? "LOCK|BLANK" :
+			       status[i] & 0x02 ? "LOCK"       :
+			       status[i] & 0x01 ? "BLANK" : "???");
               strcat (buf, s);
             }
           else
@@ -599,7 +592,7 @@ blank_screen (saver_info *si)
           && dataP)
         {
           PROP32 *data = (PROP32 *) dataP;
-          current_state = data[0];
+	  current_state = data[0];
         }
       if (dataP) XFree (dataP);
 
@@ -609,8 +602,7 @@ blank_screen (saver_info *si)
 
       /* Only allow fade reversal if state is not LOCKED (i.e., if it's BLANKED).
          When LOCKED, we should not reverse the fade even if user activity is detected. */
-      /* The property stores internal state flags: 0x01=BLANKED, 0x02=LOCKED, 0x04=AUTH */
-      Bool is_locked = ((current_state & 0x02) != 0 || (current_state & 0x04) != 0);
+      Bool is_locked = (current_state & 0x02) != 0;
       double *interrupted_ratio_ptr = (is_locked ? NULL : &si->interrupted_fade_ratio);
       Bool *reversed_ptr = (is_locked ? NULL : &fade_reversed_p);
       user_active_p = fade_screens (si->app, si->dpy,

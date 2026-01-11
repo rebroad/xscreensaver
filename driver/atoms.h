@@ -21,14 +21,14 @@ extern Atom XA_SCREENSAVER, XA_SCREENSAVER_VERSION, XA_SCREENSAVER_RESPONSE,
      XA_NET_WM_STATE_STAYS_ON_TOP, XA_KDE_NET_WM_WINDOW_TYPE_OVERRIDE,
      XA_NET_WM_WINDOW_TYPE, XA_NET_WM_WINDOW_TYPE_SPLASH,
      XA_NET_WM_WINDOW_TYPE_DIALOG, XA_NET_WM_WINDOW_TYPE_NOTIFICATION,
-	 XA_NET_WM_WINDOW_TYPE_NORMAL, XA_NET_WM_WINDOW_OPACITY,
-	 XA_SCREENSAVER_HACK_NAME;
+     XA_NET_WM_WINDOW_TYPE_NORMAL, XA_NET_WM_WINDOW_OPACITY,
+     XA_SCREENSAVER_HACK_NAME;
 
 extern void init_xscreensaver_atoms (Display *dpy);
 extern void xscreensaver_set_wm_atoms (Display *, Window,
                                        int width, int height,
-									   Window for_window,
-									   int set_bypass_compositor);
+                                       Window for_window,
+                                       int set_bypass_compositor);
 
 /* You might think that to store an array of 32-bit quantities onto a
    server-side property, you would pass an array of 32-bit data quantities

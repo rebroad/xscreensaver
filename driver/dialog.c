@@ -192,6 +192,7 @@ struct window_state {
 
   XtIntervalId cursor_timer;		/* Blink the I-beam */
   XtIntervalId bs_timer;		/* Auto-repeat Backspace */
+  XtIntervalId splash_dismiss_timer;	/* Delay before dismissing splash on keypress */
   int i_beam;
 
   double start_time, end_time;
@@ -1151,94 +1152,7 @@ create_window (window_state *ws, int w, int h)
   DL(1, "%s input method",
      ws->ic ? "attached" : "failed to attach");
 
-  /* Always map the window. For splash dialogs, map without raising to avoid taking focus. */
-  if (ws->splash_p)
-    {
-      /* For splash dialog, save current focus and restore it after mapping to prevent taking focus */
-      Window current_focus;
-      int revert_to;
-      XGetInputFocus (ws->dpy, &current_focus, &revert_to);
-
-      /* Log initial focus state */
-      if (current_focus == None)
-        DL(1, "splash focus: initial focus is None");
-      else if (current_focus == PointerRoot)
-        DL(1, "splash focus: initial focus is PointerRoot");
-      else
-        DL(1, "splash focus: initial focus is window 0x%lx (revert_to=%d)",
-           (unsigned long)current_focus, revert_to);
-
-      /* Map without raising to avoid taking focus */
-      XMapWindow (ws->dpy, ws->window);
-      XSync (ws->dpy, False);
-
-      /* Restore focus and verify */
-      if (current_focus != None && current_focus != PointerRoot)
-        XSetInputFocus (ws->dpy, current_focus, revert_to, CurrentTime);
-      else
-        XSetInputFocus (ws->dpy, None, RevertToNone, CurrentTime);
-      XSync (ws->dpy, False);
-
-      /* Check and log focus state */
-      {
-        Window check_focus;
-        int check_revert;
-        XGetInputFocus (ws->dpy, &check_focus, &check_revert);
-        if (check_focus == ws->window)
-          {
-            DL(1, "splash focus: ERROR - focus is on splash window 0x%lx!",
-               (unsigned long)ws->window);
-            /* Try to restore again */
-            if (current_focus != None && current_focus != PointerRoot)
-              {
-                XSetInputFocus (ws->dpy, current_focus, revert_to, CurrentTime);
-                XSync (ws->dpy, False);
-                XGetInputFocus (ws->dpy, &check_focus, &check_revert);
-                if (check_focus == ws->window)
-                  DL(1, "splash focus: ERROR - focus STILL on splash after second restore!");
-                else
-                  DL(1, "splash focus: restored to 0x%lx (second attempt)",
-                     (unsigned long)current_focus);
-              }
-          }
-        else if (check_focus != current_focus)
-          {
-            DL(1, "splash focus: WARNING - focus is 0x%lx (expected 0x%lx)",
-               (unsigned long)check_focus, (unsigned long)current_focus);
-          }
-        else
-          {
-            DL(1, "splash focus: OK - focus correctly at 0x%lx",
-               (unsigned long)current_focus);
-          }
-      }
-
-      /* Check again after delay */
-      usleep(10000);
-      {
-        Window check_focus;
-        int check_revert;
-        XGetInputFocus (ws->dpy, &check_focus, &check_revert);
-        if (check_focus == ws->window)
-          {
-            DL(1, "splash focus: WARNING - focus stolen after 10ms, restoring");
-            if (current_focus != None && current_focus != PointerRoot)
-              XSetInputFocus (ws->dpy, current_focus, revert_to, CurrentTime);
-            else
-              XSetInputFocus (ws->dpy, None, RevertToNone, CurrentTime);
-            XSync (ws->dpy, False);
-          }
-        else if (check_focus != current_focus)
-          {
-            DL(1, "splash focus: WARNING - focus changed to 0x%lx after delay",
-               (unsigned long)check_focus);
-          }
-      }
-    }
-  else
-    {
-      XMapRaised (ws->dpy, ws->window);
-    }
+  XMapRaised (ws->dpy, ws->window);
 
   /* Destroy old window after mapping new one to ensure smooth transition */
   if (ow)
@@ -1259,11 +1173,11 @@ find_32bit_visual (Display *dpy, int screen_no)
   vi_template.class = TrueColor;
 
   vi_out = XGetVisualInfo (dpy, VisualScreenMask | VisualDepthMask | VisualClassMask,
-                           &vi_template, &nitems);
+			   &vi_template, &nitems);
   if (vi_out)
     {
       if (nitems > 0)
-        visual = vi_out[0].visual;
+	visual = vi_out[0].visual;
       XFree (vi_out);
     }
   return visual;
@@ -1510,7 +1424,10 @@ window_init (Widget root_widget, int splash_p)
 
   ws->unlock_button_state.fn = unlock_cb;
 
-  grab_keyboard_and_mouse (ws);
+  /* Don't grab keyboard/mouse for splash screens - they should be passive
+     and allow user interaction with other applications. */
+  if (!ws->splash_p)
+    grab_keyboard_and_mouse (ws);
 
   return ws;
 }
@@ -1823,6 +1740,7 @@ static Bool
 window_occluded_p (Display *dpy, Window window)
 {
   int screen;
+
 # ifdef DEBUG_STACKING
   static unsigned long last_hash = 0;
   unsigned long current_hash = 0;
@@ -2603,7 +2521,6 @@ window_draw (window_state *ws)
                        xgwa.y == ws->y &&
                        xgwa.width  == window_width &&
                        xgwa.height == window_height);
-
     occluded_p = (window_occluded_p (ws->dpy, ws->window));
 
     if (size_changed_p || occluded_p)
@@ -2629,8 +2546,8 @@ window_draw (window_state *ws)
             DL(1, "re-creating window: occluded");
           }
         create_window (ws, window_width, window_height);
-        /* Note: create_window() already maps the window when replacing an old one (ow != NULL) */
 # endif
+	// TODO - XMapRaised is the fix??
         XInstallColormap (ws->dpy, ws->cmap);
         XSync (ws->dpy, False);
         usleep(50000);  /* 50ms delay to allow compositor to see the window */
@@ -2898,6 +2815,11 @@ destroy_window (window_state *ws)
       XtRemoveTimeOut (ws->bs_timer);
       ws->bs_timer = 0;
     }
+  if (ws->splash_dismiss_timer)
+    {
+      XtRemoveTimeOut (ws->splash_dismiss_timer);
+      ws->splash_dismiss_timer = 0;
+    }
 
   while (XCheckMaskEvent (ws->dpy, PointerMotionMask, &event))
     DL(1, "discarding MotionNotify event");
@@ -3069,6 +2991,7 @@ persistent_auth_status_failure (window_state *ws,
 
 
 static void bs_timer (XtPointer, XtIntervalId *);
+static void splash_dismiss_timer (XtPointer, XtIntervalId *);
 
 static void
 handle_keypress (window_state *ws, XKeyEvent *event, Bool filter_p)
@@ -3285,7 +3208,14 @@ handle_event (window_state *ws, XEvent *xev, Bool filter_p)
   switch (xev->xany.type) {
   case KeyPress:
     if (ws->splash_p)
-      ws->auth_state = AUTH_CANCEL;
+      {
+	/* Cancel any existing dismiss timer */
+	if (ws->splash_dismiss_timer)
+	  XtRemoveTimeOut (ws->splash_dismiss_timer);
+	/* Schedule dismissal after a delay (2s) */
+	ws->splash_dismiss_timer =
+	  XtAppAddTimeOut (ws->app, 2000, splash_dismiss_timer, (XtPointer) ws);
+      }
     else
       {
         handle_keypress (ws, &xev->xkey, filter_p);
@@ -3350,6 +3280,18 @@ bs_timer (XtPointer closure, XtIntervalId *id)
           sizeof (ws->plaintext_passwd_char_size));
   memset (ws->censored_passwd, 0, sizeof(ws->censored_passwd));
   window_draw (ws);
+}
+
+
+/* Dismiss splash screen after a delay following keypress. */
+static void
+splash_dismiss_timer (XtPointer closure, XtIntervalId *id)
+{
+  window_state *ws = (window_state *) closure;
+  if (ws->splash_dismiss_timer)
+    XtRemoveTimeOut (ws->splash_dismiss_timer);
+  ws->splash_dismiss_timer = 0;
+  ws->auth_state = AUTH_CANCEL;
 }
 
 

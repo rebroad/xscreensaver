@@ -344,7 +344,6 @@ status_prop_changed (saver_info *si)
       && dataP)
     {
       PROP32 *data = (PROP32 *) dataP;
-      /* The property stores internal state flags: 0x01=BLANKED, 0x02=LOCKED, 0x04=AUTH */
       si->auth_p = ((data[0] & 0x04) != 0);
       if (si->auth_p != oauth_p)  /* Faster watchdog while authenticating */
         reset_watchdog_timer (si);
