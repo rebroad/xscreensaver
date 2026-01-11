@@ -2246,6 +2246,7 @@ main_loop (Display *dpy)
 	      {
 		debug_log ("[UNBLANKED_LOCKED] activity detected, triggering AUTH sequence");
 		goto UNLOCK;
+		break;
 	      }
 	  }
 
@@ -2436,6 +2437,7 @@ main_loop (Display *dpy)
             DL(1, "unlocking");
             authenticated_p = False;
             goto UNBLANK;
+	    break;
           }
         else
           {
