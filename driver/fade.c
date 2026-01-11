@@ -389,10 +389,10 @@ log_fade_progress (const char *fade_type, double ratio, Bool out_p, int *last_lo
     percent = (int)(ratio * 100 + 0.5);           /* fade-in: 0% -> 100% */
 
   /* Round down to nearest 5% */
-  int current_5_percent = (percent / 5) * 5;
+  int current_10_percent = (percent / 10) * 10;
 
   /* Only log when we cross into a new 5% bucket */
-  if (current_5_percent > *last_logged_percent)
+  if (current_10_percent > *last_logged_percent)
     {
       char actual_gamma_str[256] = "";
 
@@ -480,13 +480,13 @@ log_fade_progress (const char *fade_type, double ratio, Bool out_p, int *last_lo
         }
 # endif /* HAVE_RANDR_12 */
 
-      if (current_5_percent == 0)
+      if (current_10_percent == 0)
         debug_log ("[FADE] %s (%s): 0%% (start, target=%.2f)%s%s", fade_type, (out_p ? "fade-out" : "fade-in"), ratio, actual_gamma_str, brightness_str);
-      else if (current_5_percent == 100)
+      else if (current_10_percent == 100)
         debug_log ("[FADE] %s (%s): 100%% (complete, target=%.2f)%s%s", fade_type, (out_p ? "fade-out" : "fade-in"), ratio, actual_gamma_str, brightness_str);
       else
-        debug_log ("[FADE] %s (%s): %d%% (target=%.2f)%s%s", fade_type, (out_p ? "fade-out" : "fade-in"), current_5_percent, ratio, actual_gamma_str, brightness_str);
-      *last_logged_percent = current_5_percent;
+	debug_log ("[FADE] %s (%s): %d%% (target=%.2f)%s%s", fade_type, (out_p ? "fade-out" : "fade-in"), current_10_percent, ratio, actual_gamma_str, brightness_str);
+      *last_logged_percent = current_10_percent;
     }
 }
 
