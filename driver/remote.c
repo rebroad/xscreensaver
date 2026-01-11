@@ -427,7 +427,7 @@ xscreensaver_command_response (Display *dpy, Window window,
 
 	      if (error_ret)
 		*error_ret = strdup (err);
-	      else  
+	      else
 		fprintf (stderr, "%s: %s\n", progname, err);
 
 	      if (msg) XFree (msg);

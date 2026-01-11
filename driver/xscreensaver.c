@@ -2068,7 +2068,7 @@ main_loop (Display *dpy)
 
           case KeyPress:
           case KeyRelease:
-            if (current_state != AUTH &&  /* logged by xscreensaver-auth */
+	    if (!(current_state & STATE_AUTH) &&  /* logged by xscreensaver-auth */
                 (verbose_p > 1 ||
                  (verbose_p && now - active_at > 1)))
               print_xinput_event (dpy, &xev, NULL, "");
@@ -2116,7 +2116,7 @@ main_loop (Display *dpy)
           case XI_RawTouchBegin:
           case XI_RawTouchEnd:
           case XI_RawTouchUpdate:
-            if (current_state != AUTH &&  /* logged by xscreensaver-auth */
+	    if (!(current_state & STATE_AUTH) &&  /* logged by xscreensaver-auth */
                 (verbose_p > 1 ||
                  (verbose_p && now - active_at > 1)))
               print_xinput_event (dpy, &xev, NULL, "");
@@ -2246,7 +2246,6 @@ main_loop (Display *dpy)
 	      {
 		debug_log ("[UNBLANKED_LOCKED] activity detected, triggering AUTH sequence");
 		goto UNLOCK;
-		break;
 	      }
 	  }
 
@@ -2437,7 +2436,6 @@ main_loop (Display *dpy)
             DL(1, "unlocking");
             authenticated_p = False;
             goto UNBLANK;
-	    break;
           }
         else
           {
