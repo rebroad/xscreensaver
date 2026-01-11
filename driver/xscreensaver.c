@@ -852,7 +852,7 @@ static void init_line_handler (int lineno,
   else if (!strcmp (key, "splash"))  splash_p  = !strcasecmp (val, "true");
   else if (!strcmp (key, "lock"))    lock_p    = !strcasecmp (val, "true");
   else if (!strcmp (key, "lockBlankLater")) lock_blank_later_p =
-                                       !strcasecmp (val, "true");
+				       !strcasecmp (val, "true");
   else if (!strcmp (key, "mode"))    blanking_disabled_p =
                                        !strcasecmp (val, "off");
   else if (!strcmp (key, "timeout"))
@@ -1130,8 +1130,8 @@ store_saver_status (Display *dpy,
     }
 
   status[0] = (PROP32) ((blanked_p ? 0x01 : 0) |
-                        (locked_p  ? 0x02 : 0) |
-                        (auth_p   ? 0x04 : 0));
+			(locked_p  ? 0x02 : 0) |
+			(auth_p   ? 0x04 : 0));
   status[1] = (PROP32) (((unsigned long) blank_time) >> 32);
   status[2] = (PROP32) (((unsigned long) blank_time) & 0xFFFFFFFFL);
 
@@ -1151,11 +1151,11 @@ store_saver_status (Display *dpy,
           if (i > 0) fprintf (stderr, ", ");
           if (i == 0)
             fprintf (stderr, "%s",
-                     (status[i] & 0x05 ? "AUTH|BLANK" :
-                      status[i] & 0x04 ? "AUTH"       :
-                      status[i] & 0x03 ? "LOCK|BLANK" :
-                      status[i] & 0x02 ? "LOCK"       :
-                      status[i] & 0x01 ? "BLANK" : "???"));
+		     (status[i] & 0x05 ? "AUTH|BLANK" :
+		      status[i] & 0x04 ? "AUTH"       :
+		      status[i] & 0x03 ? "LOCK|BLANK" :
+		      status[i] & 0x02 ? "LOCK"       :
+		      status[i] & 0x01 ? "BLANK" : "???"));
           else
             fprintf (stderr, "%lu", status[i]);
         }
@@ -1575,7 +1575,7 @@ main_loop (Display *dpy)
 #define STATE_LOCKED  0x02
 #define STATE_AUTH    0x04
   enum { INACTIVE, BLANKED, LOCKED, BLANKED_LOCKED,
-         AUTH = 6, BLANKED_AUTH = 7 } current_state = INACTIVE;
+	 AUTH = 6, BLANKED_AUTH = 7 } current_state = INACTIVE;
 
   struct { time_t time; int x, y; } last_mouse = { 0, 0, 0 };
 
@@ -1703,14 +1703,14 @@ main_loop (Display *dpy)
         int xfd = ConnectionNumber (dpy);
         fd_set in_fds;
         struct timeval tv;
-        time_t until = 0;
+	time_t until = 0;
 
-        if (!(current_state & STATE_BLANKED))
-          until = active_at + blank_timeout;
-        else if (!(current_state & STATE_LOCKED))
-          until = blanked_at + lock_timeout;
+	if (!(current_state & STATE_BLANKED))
+	  until = active_at + blank_timeout;
+	else if (!(current_state & STATE_LOCKED))
+	  until = blanked_at + lock_timeout;
 
-        if (current_state & STATE_BLANKED)
+	if (current_state & STATE_BLANKED)
           {
             /* On rare occasions the mouse pointer re-appears, even though we
                are holding the mouse grabbed with a blank cursor.  This should
@@ -1808,7 +1808,7 @@ main_loop (Display *dpy)
       if (sighup_received)
         {
           sighup_received = 0;
-          if (current_state & STATE_LOCKED)
+	  if (current_state & STATE_LOCKED)
             {
               DL(0, "SIGHUP received while locked: ignoring");
             }
@@ -1830,7 +1830,7 @@ main_loop (Display *dpy)
                             sig == SIGQUIT ? "SIGQUIT" : "SIGTERM");
           sigterm_received = 0;
           DL(0, "%s received%s: exiting", sn,
-             ((current_state & STATE_LOCKED) ? " while locked" : ""));
+	     ((current_state & STATE_LOCKED) ? " while locked" : ""));
 
           /* Rather than calling saver_exit(), set our SIGTERM handler back to
              the default and re-signal it so that this process actually dies
@@ -1845,7 +1845,7 @@ main_loop (Display *dpy)
          When "xscreensaver-auth" dies, we analyze its exit code.
        */
       if (sigchld_received)
-        authenticated_p = handle_sigchld (dpy, current_state != INACTIVE, &active_at);
+	authenticated_p = handle_sigchld (dpy, current_state != INACTIVE, &active_at);
 
       /* Now process any outstanding X11 events on the queue: user activity
          from XInput, and ClientMessages from xscreensaver-command.
@@ -1901,7 +1901,7 @@ main_loop (Display *dpy)
 
                   if (msg == XA_DEMO) ignore_motion_p = True;
 
-                  if (!(current_state & STATE_BLANKED))
+		  if (!(current_state & STATE_BLANKED))
                     {
                       force_blank_p = True;
                       ignore_activity_before = now + 2;
@@ -1922,14 +1922,14 @@ main_loop (Display *dpy)
                 }
               else if (msg == XA_CYCLE)
                 {
-                  if (!(current_state & STATE_BLANKED))
+		  if (!(current_state & STATE_BLANKED))
                     /* Only allowed when screen already blanked */
                     clientmessage_response (dpy, &xev, False, "not blanked");
                   /* else xscreensaver-gfx will respond to this. */
                 }
               else if (msg == XA_DEACTIVATE)
                 {
-                  if (current_state == INACTIVE)
+		  if (current_state == INACTIVE)
                     {
                       clientmessage_response (dpy, &xev, True,
                                  "already inactive, resetting activity time");
@@ -1940,10 +1940,10 @@ main_loop (Display *dpy)
                          LOCKED, it will advance to AUTH. */
                       clientmessage_response (dpy, &xev, True, "deactivating");
                     }
-                    active_at = now;
+		    active_at = now;
+		    ignore_activity_before = now;
                     if (now - force_time < 2)
-                      DL (1, "DEACTIVATE ClientMessage: Activity detected within 2 seconds of Super+L");
-                    ignore_activity_before = now;
+                      DL(1, "DEACTIVATE ClientMessage: Activity detected witin 2 seconds of Super+L");
 
                   /* DEACTIVATE while inactive also needs to reset the
                      server's DPMS time, but doing that here would mean
