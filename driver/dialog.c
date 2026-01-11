@@ -189,6 +189,7 @@ struct window_state {
 
   XtIntervalId cursor_timer;		/* Blink the I-beam */
   XtIntervalId bs_timer;		/* Auto-repeat Backspace */
+  XtIntervalId splash_dismiss_timer;	/* Delay before dismissing splash on keypress */
   int i_beam;
 
   double start_time, end_time;
@@ -1205,7 +1206,10 @@ window_init (Widget root_widget, int splash_p)
 
   ws->unlock_button_state.fn = unlock_cb;
 
-  grab_keyboard_and_mouse (ws);
+  /* Don't grab keyboard/mouse for splash screens - they should be passive
+     and allow user interaction with other applications. */
+  if (!ws->splash_p)
+    grab_keyboard_and_mouse (ws);
 
   return ws;
 }
@@ -1243,10 +1247,6 @@ static Bool
 window_occluded_p (Display *dpy, Window window)
 {
   int screen;
-
-# ifdef DEBUG_STACKING
-  DL(0, "");
-# endif
 
   for (screen = 0; screen < ScreenCount (dpy); screen++)
     {
@@ -1954,6 +1954,11 @@ destroy_window (window_state *ws)
       XtRemoveTimeOut (ws->bs_timer);
       ws->bs_timer = 0;
     }
+  if (ws->splash_dismiss_timer)
+    {
+      XtRemoveTimeOut (ws->splash_dismiss_timer);
+      ws->splash_dismiss_timer = 0;
+    }
 
   while (XCheckMaskEvent (ws->dpy, PointerMotionMask, &event))
     DL(1, "discarding MotionNotify event");
@@ -2125,6 +2130,7 @@ persistent_auth_status_failure (window_state *ws,
 
 
 static void bs_timer (XtPointer, XtIntervalId *);
+static void splash_dismiss_timer (XtPointer, XtIntervalId *);
 
 static void
 handle_keypress (window_state *ws, XKeyEvent *event, Bool filter_p)
@@ -2341,7 +2347,14 @@ handle_event (window_state *ws, XEvent *xev, Bool filter_p)
   switch (xev->xany.type) {
   case KeyPress:
     if (ws->splash_p)
-      ws->auth_state = AUTH_CANCEL;
+      {
+	/* Cancel any existing dismiss timer */
+	if (ws->splash_dismiss_timer)
+	  XtRemoveTimeOut (ws->splash_dismiss_timer);
+	/* Schedule dismissal after a delay (2s) */
+	ws->splash_dismiss_timer =
+	  XtAppAddTimeOut (ws->app, 2000, splash_dismiss_timer, (XtPointer) ws);
+      }
     else
       {
         handle_keypress (ws, &xev->xkey, filter_p);
@@ -2368,8 +2381,8 @@ handle_event (window_state *ws, XEvent *xev, Bool filter_p)
              handle_button (ws, xev, &ws->demo_button_state) ||
              handle_button (ws, xev, &ws->help_button_state)))
         if (ws->splash_p && xev->xany.type == ButtonRelease)
-          ws->auth_state = AUTH_CANCEL;
-    refresh_p = True;
+	  ws->auth_state = AUTH_CANCEL;
+      refresh_p = True;
     }
   default:
     break;
@@ -2406,6 +2419,18 @@ bs_timer (XtPointer closure, XtIntervalId *id)
           sizeof (ws->plaintext_passwd_char_size));
   memset (ws->censored_passwd, 0, sizeof(ws->censored_passwd));
   window_draw (ws);
+}
+
+
+/* Dismiss splash screen after a delay following keypress. */
+static void
+splash_dismiss_timer (XtPointer closure, XtIntervalId *id)
+{
+  window_state *ws = (window_state *) closure;
+  if (ws->splash_dismiss_timer)
+    XtRemoveTimeOut (ws->splash_dismiss_timer);
+  ws->splash_dismiss_timer = 0;
+  ws->auth_state = AUTH_CANCEL;
 }
 
 
