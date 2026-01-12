@@ -3177,7 +3177,7 @@ populate_demo_window (state *s, int list_elt)
     {
       hack = 0;
       pretty_name = strdup (_("Screen Saver Disabled"));
-      schedule_preview (s, 0);
+      schedule_preview (s, "desktop-preview");
     }
   else
     {
