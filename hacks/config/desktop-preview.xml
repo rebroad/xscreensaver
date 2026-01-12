@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+
+<screensaver name="desktop-preview" _label="Desktop Preview">
+
+  <command arg="--root"/>
+
+  <video href="https://www.youtube.com/watch?v=dQw4w9WgXcQ"/>
+
+  <boolean id="showfps" _label="Show frame rate" arg-set="--fps"/>
+
+  <xscreensaver-updater />
+
+  <_description>
+Displays a live preview of the desktop. This hack is used by
+xscreensaver-settings to preview the "Disable Screen Saver" mode.
+
+Copyright © 2025 R E Broadley.
+  </_description>
+</screensaver>
+
