@@ -1562,6 +1562,43 @@ wayland_activity_cb (void *closure)
 }
 #endif /* HAVE_WAYLAND */
 
+#define STATE_BLANKED 0x01
+#define STATE_LOCKED  0x02
+#define STATE_AUTH    0x04
+
+/* Check for Super+L key combination to request screen blank/lock.
+   Returns True if Super modifier is currently pressed. */
+static Bool
+check_super_l_combo (Display *dpy, XKeyEvent *xkey, time_t now,
+		     Bool *force_blank_p, Bool *force_lock_p,
+		     int *current_state, time_t *force_time)
+{
+  Bool super_pressed = (xkey->state & Mod4Mask) != 0;
+  KeySym keysym = 0;
+  XComposeStatus compose = { 0, };
+  Bool is_locked = (*current_state & STATE_LOCKED) != 0;
+
+  XLookupString (xkey, NULL, 0, &keysym, &compose);
+  if (super_pressed && keysym && (keysym == XK_l || keysym == XK_L))
+    {
+      /* Super+L pressed while locked: request screen blank */
+      if (is_locked)
+	{
+	  *force_blank_p = True;
+	  DL (1, "Super+L detected while locked: Blanking");
+	}
+      else
+	{
+	  *force_lock_p = True;
+	  DL (1, "Super+L detected while unlocked: Locking");
+	}
+      *current_state &= ~STATE_AUTH; // TODO - not sure we need to do this
+      *force_time = now;
+    }
+
+  return super_pressed;
+}
+
 
 static void
 main_loop (Display *dpy)
@@ -1579,13 +1616,11 @@ main_loop (Display *dpy)
   Bool ignore_motion_p = False;
   Bool wayland_p = False;
 
-#define STATE_BLANKED 0x01
-#define STATE_LOCKED  0x02
-#define STATE_AUTH    0x04
   enum { INACTIVE, BLANKED, LOCKED, BLANKED_LOCKED,
 	 AUTH = 6, BLANKED_AUTH = 7 } current_state = INACTIVE;
 
   struct { time_t time; int x, y; } last_mouse = { 0, 0, 0 };
+  static Bool super_pressed = False;  /* Track Super key state for Super+L detection */
 
 # ifdef HAVE_WAYLAND
   Bool wayland_active_p = False;
@@ -2078,12 +2113,27 @@ main_loop (Display *dpy)
 
           case KeyPress:
           case KeyRelease:
-	    if (!(current_state & STATE_AUTH) &&  /* logged by xscreensaver-auth */
-                (verbose_p > 1 ||
-                 (verbose_p && now - active_at > 1)))
-              print_xinput_event (dpy, &xev, NULL, "");
-            active_at = now;
-	    log_activity_after_super_l ("KeyPress/KeyRelease", current_state, now, force_time);
+	    {
+	      Bool old_super_pressed = super_pressed;
+
+	      if (xev.xkey.type == KeyPress)
+		{
+		  super_pressed = check_super_l_combo (dpy, &xev.xkey, now,
+						       &force_blank_p, &force_lock_p,
+						       (int *)&current_state, &force_time);
+		}
+
+	      if (!(current_state & STATE_AUTH) &&  /* logged by xscreensaver-auth */
+		  (verbose_p > 1 ||
+		   (verbose_p && now - active_at > 1)))
+		print_xinput_event (dpy, &xev, NULL, "");
+
+	      if (!(force_blank_p || force_lock_p || super_pressed || old_super_pressed))
+		{
+		  active_at = now;
+		  log_activity_after_super_l ("KeyPress/KeyRelease", current_state, now, force_time);
+		}
+	    }
             continue;
             break;
           case ButtonPress:
@@ -2124,8 +2174,8 @@ main_loop (Display *dpy)
           case XI_RawKeyPress:
           case XI_RawKeyRelease:
 	    {
-	      Bool is_locked = current_state & STATE_LOCKED;
 	      /*Bool is_blanked = current_state & STATE_BLANKED;
+	      Bool is_locked = current_state & STATE_LOCKED;
 	      Bool is_auth = current_state & STATE_AUTH;
 	      Bool watch_activity = now > ignore_activity_before;
 
@@ -2135,7 +2185,6 @@ main_loop (Display *dpy)
 
 	      /* Track Mod4 (Super) key state for Super+L detection */
 	      XIRawEvent *re = (XIRawEvent *) xev.xcookie.data;
-	      static Bool super_pressed = False;
 	      Bool old_super_pressed = super_pressed;
 
 	      /* Check for Super+L key combination to request screen blank
@@ -2143,28 +2192,11 @@ main_loop (Display *dpy)
 	      if (xev.xcookie.evtype == XI_RawKeyPress && re)
 		{
 		  XEvent ev2;
-		  KeySym keysym = 0;
 		  if (xinput_event_to_xlib (XI_RawKeyPress, (XIDeviceEvent *) re, &ev2))
 		    {
-		      super_pressed = (ev2.xkey.state & Mod4Mask) != 0;
-		      XComposeStatus compose = { 0, };
-		      XLookupString (&ev2.xkey, NULL, 0, &keysym, &compose);
-		      if (super_pressed && keysym && (keysym == XK_l || keysym == XK_L))
-			{
-			  /* Super+L pressed while locked: request screen blank */
-			  if (is_locked)
-			    {
-			      force_blank_p = True;
-			      DL (1, "Super+L detected while locked: Blanking");
-			    }
-			  else
-			    {
-			      force_lock_p = True;
-			      DL (1, "Super+L detected while unlocked: Locking");
-			    }
-			  current_state &= ~STATE_AUTH;
-			  force_time = now;
-			}
+		      super_pressed = check_super_l_combo (dpy, &ev2.xkey, now,
+							   &force_blank_p, &force_lock_p,
+							   (int *)&current_state, &force_time);
 		    }
 		}
 
