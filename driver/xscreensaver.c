@@ -260,6 +260,14 @@
 #undef MAX
 #define MAX(x,y)((x)>(y)?(x):(y))
 
+#define log_activity_after_super_l(message, current_state, now, force_time) \
+  do { \
+    if ((now) - (force_time) < 2) \
+      DL (1, "%s: Activity detected within 2 seconds of Super+L", (message)); \
+    else if ((current_state) & 0x02)  /* STATE_LOCKED */ \
+      DL (1, "%s: Activity detected while locked", (message)); \
+  } while (0)
+
 
 /* Globals used in this file.
  */
@@ -1561,6 +1569,7 @@ main_loop (Display *dpy)
   int xi_opcode;
   time_t now = time ((time_t *) 0);
   time_t active_at = now;
+  time_t force_time = 0;
   time_t blanked_at = 0;
   time_t locked_at = 0;
   time_t cursor_blanked_at = 0;
@@ -1941,6 +1950,7 @@ main_loop (Display *dpy)
                     }
 		    active_at = now;
 		    ignore_activity_before = now;
+		    log_activity_after_super_l ("DEACTIVATE ClientMessage", current_state, now, force_time);
 
                   /* DEACTIVATE while inactive also needs to reset the
                      server's DPMS time, but doing that here would mean
@@ -2073,11 +2083,13 @@ main_loop (Display *dpy)
                  (verbose_p && now - active_at > 1)))
               print_xinput_event (dpy, &xev, NULL, "");
             active_at = now;
+	    log_activity_after_super_l ("KeyPress/KeyRelease", current_state, now, force_time);
             continue;
             break;
           case ButtonPress:
           case ButtonRelease:
             active_at = now;
+	    log_activity_after_super_l ("ButtonPress/ButtonRelease", current_state, now, force_time);
             if (verbose_p)
               print_xinput_event (dpy, &xev, NULL, "");
             continue;
@@ -2111,6 +2123,58 @@ main_loop (Display *dpy)
           switch (xev.xcookie.evtype) {
           case XI_RawKeyPress:
           case XI_RawKeyRelease:
+	    {
+	      Bool is_locked = current_state & STATE_LOCKED;
+	      /*Bool is_blanked = current_state & STATE_BLANKED;
+	      Bool is_auth = current_state & STATE_AUTH;
+	      Bool watch_activity = now > ignore_activity_before;
+
+	      debug_log ("[XI_RawKeyPress/Release] (BLANKED=%d LOCKED=%d AUTH=%d) active=%lds ago, watch_activity=%d",
+			 is_blanked, is_locked, is_auth,
+			 (long) (now - active_at), watch_activity);*/
+
+	      /* Track Mod4 (Super) key state for Super+L detection */
+	      XIRawEvent *re = (XIRawEvent *) xev.xcookie.data;
+	      static Bool super_pressed = False;
+	      Bool old_super_pressed = super_pressed;
+
+	      /* Check for Super+L key combination to request screen blank
+		 when the screen is already locked. */
+	      if (xev.xcookie.evtype == XI_RawKeyPress && re)
+		{
+		  XEvent ev2;
+		  KeySym keysym = 0;
+		  if (xinput_event_to_xlib (XI_RawKeyPress, (XIDeviceEvent *) re, &ev2))
+		    {
+		      super_pressed = (ev2.xkey.state & Mod4Mask) != 0;
+		      XComposeStatus compose = { 0, };
+		      XLookupString (&ev2.xkey, NULL, 0, &keysym, &compose);
+		      if (super_pressed && keysym && (keysym == XK_l || keysym == XK_L))
+			{
+			  /* Super+L pressed while locked: request screen blank */
+			  if (is_locked)
+			    {
+			      force_blank_p = True;
+			      DL (1, "Super+L detected while locked: Blanking");
+			    }
+			  else
+			    {
+			      force_lock_p = True;
+			      DL (1, "Super+L detected while unlocked: Locking");
+			    }
+			  current_state &= ~STATE_AUTH;
+			  force_time = now;
+			}
+		    }
+		}
+
+	      if (!(force_blank_p || force_lock_p || super_pressed || old_super_pressed))
+		{
+		  active_at = now;
+		  log_activity_after_super_l ("XI_RawKeyPress/Release (non-Super, non-L)", current_state, now, force_time);
+		}
+	    }
+	    break;
           case XI_RawButtonPress:
           case XI_RawButtonRelease:
           case XI_RawTouchBegin:
@@ -2121,6 +2185,7 @@ main_loop (Display *dpy)
                  (verbose_p && now - active_at > 1)))
               print_xinput_event (dpy, &xev, NULL, "");
             active_at = now;
+	    log_activity_after_super_l ("XI_RawButtonPress/Release/Touch", current_state, now, force_time);
             break;
 
           case XI_RawMotion:
@@ -2154,6 +2219,7 @@ main_loop (Display *dpy)
                   if (! ignored_p)
                     {
                       active_at = now;
+		      log_activity_after_super_l ("XI_RawMotion", current_state, now, force_time);
                       last_mouse.time = now;
                       last_mouse.x = root_x;
                       last_mouse.y = root_y;
@@ -2184,6 +2250,7 @@ main_loop (Display *dpy)
           if (wayland_active_p)
             {
               active_at = now;
+	      log_activity_after_super_l ("Wayland activity", current_state, now, force_time);
               wayland_active_p = False;
               DL(1, "wayland reports user activity");
             }
