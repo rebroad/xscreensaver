@@ -1567,18 +1567,27 @@ wayland_activity_cb (void *closure)
 #define STATE_AUTH    0x04
 
 /* Check for Super+L key combination to request screen blank/lock.
-   Returns True if Super modifier is currently pressed. */
+   Returns True if Super modifier is currently pressed OR if the Super key itself is pressed. */
 static Bool
 check_super_l_combo (Display *dpy, XKeyEvent *xkey, time_t now,
 		     Bool *force_blank_p, Bool *force_lock_p,
 		     int *current_state, time_t *force_time)
 {
-  Bool super_pressed = (xkey->state & Mod4Mask) != 0;
+  Bool super_modifier_pressed = (xkey->state & Mod4Mask) != 0;
   KeySym keysym = 0;
   XComposeStatus compose = { 0, };
   Bool is_locked = (*current_state & STATE_LOCKED) != 0;
 
   XLookupString (xkey, NULL, 0, &keysym, &compose);
+
+  /* Check if Super key itself is being pressed (keysym) OR if Super modifier is active (state) */
+  Bool super_key_pressed = (keysym == XK_Super_L || keysym == XK_Super_R);
+  Bool super_pressed = super_modifier_pressed || super_key_pressed;
+
+  DL (1, "[check_super_l_combo] keycode=%d, keysym=%s, state=0x%x, Mod4Mask=0x%x, super_modifier=%d, super_key=%d, super_pressed=%d",
+      xkey->keycode, keysym ? XKeysymToString(keysym) : "NULL", xkey->state, Mod4Mask,
+      super_modifier_pressed, super_key_pressed, super_pressed);
+
   if (super_pressed && keysym && (keysym == XK_l || keysym == XK_L))
     {
       /* Super+L pressed while locked: request screen blank */
@@ -2121,12 +2130,18 @@ main_loop (Display *dpy)
 		  super_pressed = check_super_l_combo (dpy, &xev.xkey, now,
 						       &force_blank_p, &force_lock_p,
 						       (int *)&current_state, &force_time);
+		  DL (1, "[KeyPress] check_super_l_combo returned super_pressed=%d, old_super_pressed=%d, force_blank_p=%d, force_lock_p=%d",
+		      super_pressed, old_super_pressed, force_blank_p, force_lock_p);
 		}
 
 	      if (!(current_state & STATE_AUTH) &&  /* logged by xscreensaver-auth */
 		  (verbose_p > 1 ||
 		   (verbose_p && now - active_at > 1)))
 		print_xinput_event (dpy, &xev, NULL, "");
+
+	      DL (1, "[KeyPress/Release] before activity check: super_pressed=%d, old_super_pressed=%d, force_blank_p=%d, force_lock_p=%d, condition=%d",
+		  super_pressed, old_super_pressed, force_blank_p, force_lock_p,
+		  !(force_blank_p || force_lock_p || super_pressed || old_super_pressed));
 
 	      if (!(force_blank_p || force_lock_p || super_pressed || old_super_pressed))
 		{
