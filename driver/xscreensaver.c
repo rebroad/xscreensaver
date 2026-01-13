@@ -1988,11 +1988,9 @@ main_loop (Display *dpy)
                     }
                   else
                     {
-                      /* This behaves just like user input: if state is
-                         LOCKED, it will advance to AUTH. */
                       clientmessage_response (dpy, &xev, True, "deactivating");
                     }
-		    active_at = now;
+		    active_at = now - 1;
 		    ignore_activity_before = now;
 		    log_activity_after_super_l ("DEACTIVATE ClientMessage", current_state, now, force_time);
 
