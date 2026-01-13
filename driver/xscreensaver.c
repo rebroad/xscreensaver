@@ -1584,9 +1584,9 @@ check_super_l_combo (Display *dpy, XKeyEvent *xkey, time_t now,
   Bool super_key_pressed = (keysym == XK_Super_L || keysym == XK_Super_R);
   Bool super_pressed = super_modifier_pressed || super_key_pressed;
 
-  DL (1, "[check_super_l_combo] keycode=%d, keysym=%s, state=0x%x, Mod4Mask=0x%x, super_modifier=%d, super_key=%d, super_pressed=%d",
+  /*DL (1, "[check_super_l_combo] keycode=%d, keysym=%s, state=0x%x, Mod4Mask=0x%x, super_modifier=%d, super_key=%d, super_pressed=%d",
       xkey->keycode, keysym ? XKeysymToString(keysym) : "NULL", xkey->state, Mod4Mask,
-      super_modifier_pressed, super_key_pressed, super_pressed);
+      super_modifier_pressed, super_key_pressed, super_pressed);*/
 
   if (super_pressed && keysym && (keysym == XK_l || keysym == XK_L))
     {
