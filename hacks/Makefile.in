@@ -148,7 +148,7 @@ OBJS		= attraction.o blitspin.o bouboule.o braid.o bubbles.o \
 		  slip.o sphere.o spiral.o strange.o swirl.o xlockmore.o \
 		  fps.o goop.o starfish.o munch.o fadeplot.o \
 		  rdbomb.o coral.o mountain.o triangle.o lissie.o worm.o \
-		  rotor.o ant.o xjack.o xlyap.o xscreensaver-getimage.o desktop-preview.o \
+                  rotor.o ant.o xjack.o xlyap.o xscreensaver-getimage.o \
 		  cynosure.o moire2.o flow.o epicycle.o interference.o \
 		  truchet.o bsod.o crystal.o discrete.o distort.o kumppa.o \
 		  demon.o loop.o t3d.o penetrate.o deluxe.o compass.o \
@@ -170,7 +170,7 @@ OBJS		= attraction.o blitspin.o bouboule.o braid.o bubbles.o \
 		  asm6502.o abstractile.o lcdscrub.o hexadrop.o \
 		  tessellimage.o delaunay.o recanim.o binaryring.o \
 		  glitchpeg.o vfeedback.o scooter.o testx11.o marbling.o \
-		  binaryhorizon.o droste.o ansi-tty.o
+                  binaryhorizon.o droste.o ansi-tty.o desktop-preview.o
 
 EXES		= attraction blitspin bouboule braid decayscreen deco \
 		  drift flame galaxy grav greynetic halo \
