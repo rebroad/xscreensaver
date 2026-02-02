@@ -408,8 +408,10 @@ print_xinput_event (Display *dpy, XEvent *xev, XIC ic, const char *desc)
         break;
       }
     else
-      DL(0, "XI RawKey%s",
-         (re->evtype == XI_RawKeyPress ? "Press  " : "Release"));
+      DL(0, "XI RawKey%s"
+         "                   %s",
+         re->evtype == XI_RawKeyPress ? "Press  " : "Release",
+         desc ? desc : "");
     break;
 
   case XI_RawButtonPress:
