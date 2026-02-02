@@ -94,8 +94,8 @@ grab_and_display_screenshot (struct state *st)
 
   /* Get the root window image */
   src_image = XGetImage (st->dpy, st->root, 0, 0,
-			st->root_width, st->root_height,
-			AllPlanes, ZPixmap);
+                        st->root_width, st->root_height,
+                        AllPlanes, ZPixmap);
   if (!src_image)
     {
       XSync (st->dpy, False);
@@ -104,8 +104,8 @@ grab_and_display_screenshot (struct state *st)
 
   /* Create destination image for scaled version */
   dst_image = XCreateImage (st->dpy, xgwa.visual, xgwa.depth,
-			    ZPixmap, 0, NULL, scaled_width, scaled_height,
-			    xgwa.depth == 1 ? 1 : 32, 0);
+                            ZPixmap, 0, NULL, scaled_width, scaled_height,
+                            xgwa.depth == 1 ? 1 : 32, 0);
   if (!dst_image)
     {
       XDestroyImage (src_image);
@@ -129,18 +129,18 @@ grab_and_display_screenshot (struct state *st)
       if (src_y >= st->root_height) src_y = st->root_height - 1;
 
       for (x = 0; x < scaled_width; x++)
-	{
-	  int src_x = (int) (x / scale);
-	  if (src_x >= st->root_width) src_x = st->root_width - 1;
+        {
+          int src_x = (int) (x / scale);
+          if (src_x >= st->root_width) src_x = st->root_width - 1;
 
-	  unsigned long pixel = XGetPixel (src_image, src_x, src_y);
-	  XPutPixel (dst_image, x, y, pixel);
-	}
+          unsigned long pixel = XGetPixel (src_image, src_x, src_y);
+          XPutPixel (dst_image, x, y, pixel);
+        }
     }
 
   /* Put the scaled image into the window */
   XPutImage (st->dpy, st->window, st->gc, dst_image,
-	    0, 0, offset_x, offset_y, scaled_width, scaled_height);
+            0, 0, offset_x, offset_y, scaled_width, scaled_height);
 
   /* Clear border areas if image doesn't fill the window */
   if (offset_x > 0 || offset_y > 0 ||
@@ -149,18 +149,18 @@ grab_and_display_screenshot (struct state *st)
       XSetForeground (st->dpy, st->gc, BlackPixelOfScreen (st->screen));
       /* Top border */
       if (offset_y > 0)
-	XFillRectangle (st->dpy, st->window, st->gc, 0, 0, st->width, offset_y);
+        XFillRectangle (st->dpy, st->window, st->gc, 0, 0, st->width, offset_y);
       /* Bottom border */
       if (offset_y + scaled_height < st->height)
-	XFillRectangle (st->dpy, st->window, st->gc, 0, offset_y + scaled_height,
-		       st->width, st->height - (offset_y + scaled_height));
+        XFillRectangle (st->dpy, st->window, st->gc, 0, offset_y + scaled_height,
+                       st->width, st->height - (offset_y + scaled_height));
       /* Left border */
       if (offset_x > 0)
-	XFillRectangle (st->dpy, st->window, st->gc, 0, offset_y, offset_x, scaled_height);
+        XFillRectangle (st->dpy, st->window, st->gc, 0, offset_y, offset_x, scaled_height);
       /* Right border */
       if (offset_x + scaled_width < st->width)
-	XFillRectangle (st->dpy, st->window, st->gc, offset_x + scaled_width, offset_y,
-		       st->width - (offset_x + scaled_width), scaled_height);
+        XFillRectangle (st->dpy, st->window, st->gc, offset_x + scaled_width, offset_y,
+                       st->width - (offset_x + scaled_width), scaled_height);
     }
 
   /* Clean up */
@@ -168,10 +168,10 @@ grab_and_display_screenshot (struct state *st)
   if (dst_image)
     {
       if (dst_image->data)
-	{
-	  free (dst_image->data);
-	  dst_image->data = NULL;
-	}
+        {
+          free (dst_image->data);
+          dst_image->data = NULL;
+        }
       XDestroyImage (dst_image);
     }
 
@@ -192,7 +192,7 @@ desktop_preview_draw (Display *dpy, Window window, void *closure)
 
 static void
 desktop_preview_reshape (Display *dpy, Window window, void *closure,
-			 unsigned int w, unsigned int h)
+                         unsigned int w, unsigned int h)
 {
   struct state *st = (struct state *) closure;
   /* Window size changed, update screenshot */

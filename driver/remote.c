@@ -195,7 +195,7 @@ send_xscreensaver_command (Display *dpy, Atom command, long arg,
               && dataP)
             {
               PROP32 *data = (PROP32 *) dataP;
-	      PROP32 state = data[0];
+              PROP32 state = data[0];
               time_t tt = (time_t)			/* 64 bit time_t */
                 ((((unsigned long) data[1] & 0xFFFFFFFFL) << 32) |
                   ((unsigned long) data[2] & 0xFFFFFFFFL));
@@ -462,7 +462,7 @@ xscreensaver_command_response (Display *dpy, Window window,
  */
 static int
 xscreensaver_command_wait_for_state_change (Display *dpy,
-					    Bool verbose_p, char **error_ret)
+                                            Bool verbose_p, char **error_ret)
 {
   Window w = RootWindow (dpy, 0);  /* always screen 0 */
   time_t start = time((time_t*)0);
@@ -491,56 +491,56 @@ xscreensaver_command_wait_for_state_change (Display *dpy,
           && nitems >= 3
           && dataP)
         {
-	  PROP32 *status = (PROP32 *) dataP;
-	  PROP32 state = status[0];
+          PROP32 *status = (PROP32 *) dataP;
+          PROP32 state = status[0];
 
           if (verbose_p > 1)
             {
               int i;
-	      BLURB(); fprintf (stderr, "read status property: 0x%lx: %s", (unsigned long) w,
-		       (state & 0x05 ? "AUTH|BLANK" :
-			state & 0x04 ? "AUTH"       :
-			state & 0x03 ? "LOCK|BLANK" :
-			state & 0x02 ? "LOCK"       :
-			state & 0x01 ? "BLANK" : "???"));
+              BLURB(); fprintf (stderr, "read status property: 0x%lx: %s", (unsigned long) w,
+                       (state & 0x05 ? "AUTH|BLANK" :
+                        state & 0x04 ? "AUTH"       :
+                        state & 0x03 ? "LOCK|BLANK" :
+                        state & 0x02 ? "LOCK"       :
+                        state & 0x01 ? "BLANK" : "???"));
               for (i = 1; i < nitems; i++)
                 fprintf (stderr, ", %lu", status[i]);
               fprintf (stderr, "\n");
             }
 
-	  if (!initial_state_set)
+          if (!initial_state_set)
             {
-	      /* Capture the initial state as our baseline */
-	      initial_state = state;
-	      initial_state_set = True;
-	      if (dataP) XFree (dataP);
-	      /* Continue polling to detect a change */
-	    }
-	  else if (state != initial_state)
-	    {
-	      {
-		char state_msg[64] = "";
-		if (state & ~initial_state & 0x01) strcat(state_msg, "blanked");
-		if (state & ~initial_state & 0x02) {
-		  if (*state_msg) strcat(state_msg, " and ");
-		  strcat(state_msg, "locked");
-		}
-		DL(2, "screen %s", state_msg);
-	      }
-	      if (dataP) XFree (dataP);
+              /* Capture the initial state as our baseline */
+              initial_state = state;
+              initial_state_set = True;
+              if (dataP) XFree (dataP);
+              /* Continue polling to detect a change */
+            }
+          else if (state != initial_state)
+            {
+              {
+                char state_msg[64] = "";
+                if (state & ~initial_state & 0x01) strcat(state_msg, "blanked");
+                if (state & ~initial_state & 0x02) {
+                  if (*state_msg) strcat(state_msg, " and ");
+                  strcat(state_msg, "locked");
+                }
+                DL(2, "screen %s", state_msg);
+              }
+              if (dataP) XFree (dataP);
               break;
             }
-	  else
-	    {
-	      /* State hasn't changed yet, continue polling */
-	      if (dataP) XFree (dataP);
-	    }
+          else
+            {
+              /* State hasn't changed yet, continue polling */
+              if (dataP) XFree (dataP);
+            }
         }
 
       now = time ((time_t *) 0);
       if (now >= start + max)
         {
-	  strcpy (err, "Timed out waiting for screen to blank or lock");
+          strcpy (err, "Timed out waiting for screen to blank or lock");
           if (error_ret)
             *error_ret = strdup (err);
           else

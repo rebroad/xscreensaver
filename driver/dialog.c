@@ -1167,7 +1167,7 @@ window_init (Widget root_widget, int splash_p)
     Visual *visual = DefaultVisualOfScreen (ws->screen);
     int logo_size = (ws->heading_font->ascent > 24 ? 2 : 1);
     ws->logo_pixmap = xscreensaver_logo (ws->screen, visual, root, ws->cmap,
-                                         ws->background, 
+                                         ws->background,
                                          &ws->logo_pixels, &ws->logo_npixels,
                                          &ws->logo_clipmask, logo_size);
     if (!ws->logo_pixmap) abort();
@@ -1992,7 +1992,7 @@ window_draw (window_state *ws)
                        xgwa.y == ws->y &&
                        xgwa.width  == window_width &&
                        xgwa.height == window_height);
-    occluded_p = (!size_changed_p && 
+    occluded_p = (!size_changed_p &&
                   window_occluded_p (ws->dpy, ws->window));
 
     if (size_changed_p || occluded_p)
@@ -2463,12 +2463,12 @@ handle_event (window_state *ws, XEvent *xev, Bool filter_p)
   case KeyPress:
     if (ws->splash_p)
       {
-	/* Cancel any existing dismiss timer */
-	if (ws->splash_dismiss_timer)
-	  XtRemoveTimeOut (ws->splash_dismiss_timer);
-	/* Schedule dismissal after a delay (2s) */
-	ws->splash_dismiss_timer =
-	  XtAppAddTimeOut (ws->app, 2000, splash_dismiss_timer, (XtPointer) ws);
+        /* Cancel any existing dismiss timer */
+        if (ws->splash_dismiss_timer)
+          XtRemoveTimeOut (ws->splash_dismiss_timer);
+        /* Schedule dismissal after a delay (2s) */
+        ws->splash_dismiss_timer =
+          XtAppAddTimeOut (ws->app, 2000, splash_dismiss_timer, (XtPointer) ws);
       }
     else
       {
