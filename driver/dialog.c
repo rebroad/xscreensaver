@@ -189,6 +189,7 @@ struct window_state {
 
   XtIntervalId cursor_timer;		/* Blink the I-beam */
   XtIntervalId bs_timer;		/* Auto-repeat Backspace */
+  XtIntervalId splash_dismiss_timer;	/* Delay before dismissing splash on keypress */
   int i_beam;
 
   double start_time, end_time;
@@ -1205,7 +1206,10 @@ window_init (Widget root_widget, int splash_p)
 
   ws->unlock_button_state.fn = unlock_cb;
 
-  grab_keyboard_and_mouse (ws);
+  /* Don't grab keyboard/mouse for splash screens - they should be passive
+     and allow user interaction with other applications. */
+  if (!ws->splash_p)
+    grab_keyboard_and_mouse (ws);
 
   return ws;
 }
@@ -1270,7 +1274,9 @@ window_occluded_p (Display *dpy, Window window)
       /* Compute hash of window tree: include order by using a rolling hash.
          This detects both window addition/removal AND stacking order changes. */
       current_hash = 0;
+# endif
       for (i = 0; i < nkids; i++)
+# ifdef DEBUG_STACKING
         {
           /* Rolling hash: hash = hash * 31 + window_id (order-sensitive) */
           current_hash = current_hash * 31UL + (unsigned long)kids[i];
@@ -1288,15 +1294,12 @@ window_occluded_p (Display *dpy, Window window)
           last_log = now;
         }
       }
-# endif
 
-      int start_idx = 0;
-
-# ifdef DEBUG_STACKING
       /* For concise logging: show first entry, skip to first not-untitled,
          then show last 10 "lower" entries before "our" and "higher". */
       int first_named_idx = -1;
       int our_idx = -1;
+      int start_idx = 0;
 
       if (hash_changed_p)
         {
@@ -1376,9 +1379,9 @@ window_occluded_p (Display *dpy, Window window)
                 }
             }
         }
-# endif
 
       for (i = start_idx; i < nkids; i++)
+# endif
         {
           if (kids[i] == window)
             {
@@ -2066,6 +2069,11 @@ destroy_window (window_state *ws)
       XtRemoveTimeOut (ws->bs_timer);
       ws->bs_timer = 0;
     }
+  if (ws->splash_dismiss_timer)
+    {
+      XtRemoveTimeOut (ws->splash_dismiss_timer);
+      ws->splash_dismiss_timer = 0;
+    }
 
   while (XCheckMaskEvent (ws->dpy, PointerMotionMask, &event))
     DL(1, "discarding MotionNotify event");
@@ -2237,6 +2245,7 @@ persistent_auth_status_failure (window_state *ws,
 
 
 static void bs_timer (XtPointer, XtIntervalId *);
+static void splash_dismiss_timer (XtPointer, XtIntervalId *);
 
 static void
 handle_keypress (window_state *ws, XKeyEvent *event, Bool filter_p)
@@ -2453,7 +2462,14 @@ handle_event (window_state *ws, XEvent *xev, Bool filter_p)
   switch (xev->xany.type) {
   case KeyPress:
     if (ws->splash_p)
-      ws->auth_state = AUTH_CANCEL;
+      {
+        /* Cancel any existing dismiss timer */
+        if (ws->splash_dismiss_timer)
+          XtRemoveTimeOut (ws->splash_dismiss_timer);
+        /* Schedule dismissal after a delay (2s) */
+        ws->splash_dismiss_timer =
+          XtAppAddTimeOut (ws->app, 2000, splash_dismiss_timer, (XtPointer) ws);
+      }
     else
       {
         handle_keypress (ws, &xev->xkey, filter_p);
@@ -2518,6 +2534,18 @@ bs_timer (XtPointer closure, XtIntervalId *id)
           sizeof (ws->plaintext_passwd_char_size));
   memset (ws->censored_passwd, 0, sizeof(ws->censored_passwd));
   window_draw (ws);
+}
+
+
+/* Dismiss splash screen after a delay following keypress. */
+static void
+splash_dismiss_timer (XtPointer closure, XtIntervalId *id)
+{
+  window_state *ws = (window_state *) closure;
+  if (ws->splash_dismiss_timer)
+    XtRemoveTimeOut (ws->splash_dismiss_timer);
+  ws->splash_dismiss_timer = 0;
+  ws->auth_state = AUTH_CANCEL;
 }
 
 
