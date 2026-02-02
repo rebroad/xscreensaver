@@ -1248,6 +1248,12 @@ window_occluded_p (Display *dpy, Window window)
 {
   int screen;
 
+# ifdef DEBUG_STACKING
+  static unsigned long last_hash = 0;
+  unsigned long current_hash = 0;
+  Bool hash_changed_p = False;
+# endif
+
   for (screen = 0; screen < ScreenCount (dpy); screen++)
     {
       int i;
@@ -1264,33 +1270,141 @@ window_occluded_p (Display *dpy, Window window)
         continue;
         }
 
+# ifdef DEBUG_STACKING
+      /* Compute hash of window tree: include order by using a rolling hash.
+         This detects both window addition/removal AND stacking order changes. */
+      current_hash = 0;
+# endif
       for (i = 0; i < nkids; i++)
+# ifdef DEBUG_STACKING
+        {
+          /* Rolling hash: hash = hash * 31 + window_id (order-sensitive) */
+          current_hash = current_hash * 31UL + (unsigned long)kids[i];
+        }
+      hash_changed_p = (current_hash != last_hash);
+      if (hash_changed_p)
+        {
+          last_hash = current_hash;
+        }
+      else if (verbose_p > 0 && screen_blanked_p (dpy)) {
+        static double last_log = 0;
+        double now = double_time();
+        if (now - last_log > 0.2) {
+          DL(0, "window tree hash unchanged (screen blanked)");
+          last_log = now;
+        }
+      }
+
+      /* For concise logging: show first entry, skip to first not-untitled,
+         then show last 10 "lower" entries before "our" and "higher". */
+      int first_named_idx = -1;
+      int our_idx = -1;
+      int start_idx = 0;
+
+      if (hash_changed_p)
+        {
+          /* First pass: find our window index and first named window */
+          for (i = 0; i < nkids; i++)
+            {
+              if (kids[i] == window)
+                {
+                  start_idx = i;
+                  our_idx = i;
+                }
+
+              if (first_named_idx < 0)
+                {
+                  XClassHint ch;
+                  char *name = 0;
+                  if (XGetClassHint (dpy, kids[i], &ch))
+                    {
+                      first_named_idx = i;
+                      XFree (ch.res_class);
+                      XFree (ch.res_name);
+                    }
+                  else if (XFetchName (dpy, kids[i], &name) && name)
+                    {
+                      first_named_idx = i;
+                      XFree (name);
+                    }
+                }
+            }
+
+          /* Show first entry */
+          if (nkids > 0)
+            describe_window (dpy, kids[0], "lower");
+
+          /* Skip to first not-untitled entry (if different from first) */
+          if (first_named_idx > 0)
+            {
+              if (first_named_idx > 1)
+                DL(0, "... (skipped %d untitled entries) ...", first_named_idx - 1);
+              describe_window (dpy, kids[first_named_idx], "lower");
+            }
+
+          /* Show last 10 "lower" entries before "our", plus any 1x1 windows (in correct order) */
+          if (our_idx >= 0)
+            {
+              int start_idx = (our_idx > 10) ? (our_idx - 10) : 0;
+              /* Calculate how many we're skipping between what we've shown and start_idx */
+              int last_shown = (first_named_idx >= 0 && first_named_idx > 0) ? first_named_idx : 0;
+              if (start_idx > last_shown + 1)
+                {
+                  int skipped = start_idx - (last_shown + 1);
+                  DL(0, "... (skipped %d lower entries) ...", skipped);
+                }
+
+              /* Single pass: iterate through windows in order, showing:
+                 - First window (already shown above)
+                 - First named window (already shown above)
+                 - Last 10 non-1x1 windows
+                 - All 1x1 windows (regardless of position) */
+              for (i = 0; i < our_idx; i++)
+                {
+                  if (i == 0 || i == first_named_idx)
+                    continue;  /* Already shown above */
+
+                  XWindowAttributes xwa;
+                  Bool is_1x1 = False;
+                  if (XGetWindowAttributes (dpy, kids[i], &xwa))
+                    {
+                      is_1x1 = (xwa.width == 1 && xwa.height == 1);
+                    }
+
+                  /* Show if: 1x1 window (anywhere), or non-1x1 window in last 10 */
+                  if (is_1x1 || i >= start_idx)
+                    {
+                      describe_window (dpy, kids[i], "lower");
+                    }
+                }
+            }
+        }
+
+      for (i = start_idx; i < nkids; i++)
+# endif
         {
           if (kids[i] == window)
             {
               saw_our_window_p = True;
 # ifdef DEBUG_STACKING
-              BLURB();
-              fprintf (stderr, "our window:    ");
-              describe_window (dpy, kids[i]);
+              if (hash_changed_p)
+                describe_window (dpy, kids[i], "our");
 # endif
             }
           else if (saw_our_window_p)
             {
               saw_later_window_p = True;
 # ifdef DEBUG_STACKING
-              BLURB();
-              fprintf (stderr, "higher window: ");
-              describe_window (dpy, kids[i]);
+                  if (hash_changed_p)
+                    describe_window (dpy, kids[i], "higher");
 # endif
               break;
             }
           else
             {
 # ifdef DEBUG_STACKING
-              BLURB();
-              fprintf (stderr, "lower window:  ");
-              describe_window (dpy, kids[i]);
+              if (hash_changed_p)
+                describe_window (dpy, kids[i], "cow");
 # endif
             }
         }
@@ -1307,7 +1421,8 @@ window_occluded_p (Display *dpy, Window window)
 
   /* Window doesn't exist? */
 # ifdef DEBUG_STACKING
-  DL(0, "our window isn't on the screen");
+  if (hash_changed_p)
+    DL(0, "our window isn't on the screen");
 # endif
   return False;
 }
@@ -2381,7 +2496,7 @@ handle_event (window_state *ws, XEvent *xev, Bool filter_p)
              handle_button (ws, xev, &ws->demo_button_state) ||
              handle_button (ws, xev, &ws->help_button_state)))
         if (ws->splash_p && xev->xany.type == ButtonRelease)
-	  ws->auth_state = AUTH_CANCEL;
+          ws->auth_state = AUTH_CANCEL;
       refresh_p = True;
     }
   default:
