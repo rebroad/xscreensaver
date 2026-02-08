@@ -232,6 +232,13 @@ CMD_SRCS	= remote.c xscreensaver-command.c
 CMD_OBJS	= remote.o xscreensaver-command.o blurb.o atoms.o clientmsg.o
 CMD_LIBS	= $(LIBS_PRE) $(XINPUT_LIBS) -lX11 -lXext $(LIBS_POST)
 
+TRAY_DEFS	=
+TRAY_SRCS	= xscreensaver-tray.c
+TRAY_OBJS	= xscreensaver-tray.o blurb.o atoms.o \
+		  $(UTILS_BIN)/logo.o \
+		  $(UTILS_BIN)/minixpm.o
+TRAY_LIBS	= $(CMD_LIBS) $(SYSTEMD_LIBS)
+
 GTK_DEFS	= -DHACK_CONFIGURATION_PATH='"$(HACK_CONF_DIR)"' \
 		  -DDEFAULT_PATH_PREFIX='"@HACKDIR@"' \
 		  -DLOCALEDIR=\"$(localedir)\" \
@@ -274,7 +281,7 @@ TEST_EXES	= test-passwd   test-uid        test-xdpms      test-grab     \
 	          test-xkb      test-wayland-lock
 
 EXES		= xscreensaver xscreensaver-command xscreensaver-settings
-UTIL_EXES	= xscreensaver-gfx @EXES_SYSTEMD@
+UTIL_EXES	= xscreensaver-gfx xscreensaver-tray @EXES_SYSTEMD@
 SETUID_EXES	= xscreensaver-auth
 DEMO_EXES	= @ALL_DEMO_PROGRAMS@
 EXES_SYSTEMD	= xscreensaver-systemd
@@ -300,7 +307,7 @@ EXTRAS		= README Makefile.in \
 		  $(WAYLAND_GEN_XML)
 
 TARFILES	= $(DAEMON_SRCS) $(GFX_SRCS) $(AUTH_SRCS) $(SYSTEMD_SRCS) \
-		  $(CMD_SRCS) $(GTK_SRCS) $(MOTIF_SRCS) $(PWENT_SRCS) \
+		  $(CMD_SRCS) $(TRAY_SRCS) $(GTK_SRCS) $(MOTIF_SRCS) $(PWENT_SRCS) \
 		  $(KERBEROS_SRCS) $(PAM_SRCS) \
 		  $(WAYLAND_GEN_SRCS) \
 		  $(HDRS) $(MENA) $(MENB) $(TEST_SRCS) $(EXTRAS)
@@ -869,6 +876,9 @@ xscreensaver-systemd: $(SYSTEMD_OBJS)
 xscreensaver-command: $(CMD_OBJS)
 	$(CC) $(LDFLAGS) -o $@ $(CMD_OBJS) $(CMD_LIBS)
 
+xscreensaver-tray: $(TRAY_OBJS)
+	$(CC) $(LDFLAGS) -o $@ $(TRAY_OBJS) $(TRAY_LIBS)
+
 
 ##############################################################################
 #
@@ -1358,6 +1368,12 @@ xscreensaver-command.o: $(srcdir)/blurb.h
 xscreensaver-command.o: ../config.h
 xscreensaver-command.o: $(srcdir)/remote.h
 xscreensaver-command.o: $(UTILS_SRC)/version.h
+xscreensaver-tray.o: $(srcdir)/atoms.h
+xscreensaver-tray.o: $(srcdir)/blurb.h
+xscreensaver-tray.o: ../config.h
+xscreensaver-tray.o: $(UTILS_SRC)/resources.h
+xscreensaver-tray.o: $(UTILS_SRC)/minixpm.h
+xscreensaver-tray.o: $(UTILS_SRC)/images/logo-50.xpm
 xscreensaver-gfx.o: XScreenSaver_ad.h
 xscreensaver-gfx.o: $(srcdir)/atoms.h
 xscreensaver-gfx.o: $(srcdir)/blurb.h
@@ -1384,4 +1400,3 @@ xscreensaver-systemd.o: ../config.h
 xscreensaver-systemd.o: $(UTILS_SRC)/queue.h
 xscreensaver-systemd.o: $(UTILS_SRC)/version.h
 xscreensaver-systemd.o: $(UTILS_SRC)/yarandom.h
-

@@ -289,9 +289,11 @@ static unsigned int cursor_blank_interval = 60 * 30 + 17;
 #define SAVER_GFX_PROGRAM     "xscreensaver-gfx"
 #define SAVER_AUTH_PROGRAM    "xscreensaver-auth"
 #define SAVER_SYSTEMD_PROGRAM "xscreensaver-systemd"
+#define SAVER_TRAY_PROGRAM    "xscreensaver-tray"
 static pid_t saver_gfx_pid     = 0;
 static pid_t saver_auth_pid    = 0;
 static pid_t saver_systemd_pid = 0;
+static pid_t saver_tray_pid    = 0;
 static int sighup_received  = 0;
 static int sigterm_received = 0;
 static int sigchld_received = 0;
@@ -351,6 +353,11 @@ kill_all_subprocs (void)
     {
       DL(1, "pid %lu: killing " SAVER_SYSTEMD_PROGRAM, (unsigned long) saver_systemd_pid);
       kill (saver_systemd_pid, SIGTERM);
+    }
+  if (saver_tray_pid)
+    {
+      DL(1, "pid %lu: killing " SAVER_TRAY_PROGRAM, (unsigned long) saver_tray_pid);
+      kill (saver_tray_pid, SIGTERM);
     }
 }
 
@@ -509,6 +516,36 @@ fork_and_exec (Display *dpy, int argc, char **argv)
 }
 
 
+static void
+start_tray_icon (Display *dpy)
+{
+  if (saver_tray_pid) return;
+  {
+    char *av[10];
+    int ac = 0;
+    av[ac++] = SAVER_TRAY_PROGRAM;
+    if (verbose_p)     av[ac++] = "--verbose";
+    if (verbose_p > 1) av[ac++] = "--verbose";
+    if (verbose_p > 2) av[ac++] = "--verbose";
+    if (debug_p)       av[ac++] = "--debug";
+    av[ac] = 0;
+    saver_tray_pid = fork_and_exec (dpy, ac, av);
+  }
+}
+
+
+static void
+stop_tray_icon (void)
+{
+  if (saver_tray_pid)
+    {
+      DL(1, "pid %lu: killing " SAVER_TRAY_PROGRAM, (unsigned long) saver_tray_pid);
+      kill (saver_tray_pid, SIGTERM);
+      saver_tray_pid = 0;
+    }
+}
+
+
 static int respawn_thrashing_count = 0;
 
 /* Called from the main loop some time after the SIGCHLD signal has fired.
@@ -650,6 +687,12 @@ handle_sigchld (Display *dpy, Bool blanked_p, time_t *active_at_p)
           saver_systemd_pid = 0;
           DL(0, "pid %lu: " SAVER_SYSTEMD_PROGRAM
              " exited unexpectedly %s",
+             (unsigned long) kid, how);
+        }
+      else if (kid == saver_tray_pid)
+        {
+          saver_tray_pid = 0;
+          DL(1, "pid %lu: " SAVER_TRAY_PROGRAM " exited %s",
              (unsigned long) kid, how);
         }
       else if (kid == saver_auth_pid)
@@ -1388,8 +1431,8 @@ grab_keyboard_and_mouse (Screen *screen)
       if (kstatus == GrabSuccess)
         break;
 
-      /* else, wait a second and try to grab again. */
-      sleep (1);
+      /* else, wait 0.1s and try to grab again. */
+      usleep (100000);
     }
 
   if (kstatus != GrabSuccess)
@@ -1411,8 +1454,8 @@ grab_keyboard_and_mouse (Screen *screen)
       if (mstatus == GrabSuccess)
         break;
 
-      /* else, wait a second and try to grab again. */
-      sleep (1);
+      /* else, wait 0.1s and try to grab again. */
+      usleep (100000);
     }
 
   if (mstatus != GrabSuccess)
@@ -2334,7 +2377,9 @@ main_loop (Display *dpy)
                 locked_at = now;
                 cursor_blanked_at = now;
                 authenticated_p = False;
-                if (!lock_blank_later_p)
+                if (lock_blank_later_p)
+                  start_tray_icon (dpy);
+                else
                   {
                     current_state |= STATE_BLANKED;
                     blanked_at = now;
@@ -2379,6 +2424,7 @@ main_loop (Display *dpy)
                     blanked_at = now;
                     cursor_blanked_at = now;
                     store_saver_status (dpy, True, current_state & STATE_LOCKED, False, blanked_at);
+                    stop_tray_icon();
                   }
                 else
                   DL(0, "unable to grab -- blanking aborted!");
@@ -2455,6 +2501,7 @@ main_loop (Display *dpy)
             current_state = INACTIVE;
             ignore_motion_p = False;
             store_saver_status (dpy, False, False, False, now);
+            stop_tray_icon ();
 
             debug_log ("After UNBLANK transition: active=%lds ago, blank_timeout=%ld (next blank in %ld seconds)",
                        (long) (now - active_at), (long) blank_timeout,
