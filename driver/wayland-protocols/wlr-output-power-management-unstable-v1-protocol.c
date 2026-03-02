@@ -29,7 +29,7 @@
 #include "wayland-util.h"
 
 #ifndef __has_attribute
-# define __has_attribute(x) 0  /* Compatibility with non-clang compilers. */
+#define __has_attribute(x) 0  /* Compatibility with non-clang compilers. */
 #endif
 
 #if (__has_attribute(visibility) || defined(__GNUC__) && __GNUC__ >= 4)
@@ -41,36 +41,41 @@
 extern const struct wl_interface wl_output_interface;
 extern const struct wl_interface zwlr_output_power_v1_interface;
 
-static const struct wl_interface *wlr_output_power_management_unstable_v1_types[] = {
-	NULL,
-	&zwlr_output_power_v1_interface,
-	&wl_output_interface,
+static const struct wl_interface *wlr_output_power_management_unstable_v1_types []= {
+  NULL,
+  &zwlr_output_power_v1_interface,
+  &wl_output_interface,
 };
 
-static const struct wl_message zwlr_output_power_manager_v1_requests[] = {
-	{ "get_output_power", "no", wlr_output_power_management_unstable_v1_types + 1 },
-	{ "destroy", "", wlr_output_power_management_unstable_v1_types + 0 },
+static const struct wl_message zwlr_output_power_manager_v1_requests []= {
+  {"get_output_power", "no", wlr_output_power_management_unstable_v1_types + 1},
+  {"destroy", "", wlr_output_power_management_unstable_v1_types + 0},
 };
 
-WL_PRIVATE const struct wl_interface zwlr_output_power_manager_v1_interface = {
-	"zwlr_output_power_manager_v1", 1,
-	2, zwlr_output_power_manager_v1_requests,
-	0, NULL,
+WL_PRIVATE const struct wl_interface zwlr_output_power_manager_v1_interface= {
+  "zwlr_output_power_manager_v1",
+  1,
+  2,
+  zwlr_output_power_manager_v1_requests,
+  0,
+  NULL,
 };
 
-static const struct wl_message zwlr_output_power_v1_requests[] = {
-	{ "set_mode", "u", wlr_output_power_management_unstable_v1_types + 0 },
-	{ "destroy", "", wlr_output_power_management_unstable_v1_types + 0 },
+static const struct wl_message zwlr_output_power_v1_requests []= {
+  {"set_mode", "u", wlr_output_power_management_unstable_v1_types + 0},
+  {"destroy", "", wlr_output_power_management_unstable_v1_types + 0},
 };
 
-static const struct wl_message zwlr_output_power_v1_events[] = {
-	{ "mode", "u", wlr_output_power_management_unstable_v1_types + 0 },
-	{ "failed", "", wlr_output_power_management_unstable_v1_types + 0 },
+static const struct wl_message zwlr_output_power_v1_events []= {
+  {"mode", "u", wlr_output_power_management_unstable_v1_types + 0},
+  {"failed", "", wlr_output_power_management_unstable_v1_types + 0},
 };
 
-WL_PRIVATE const struct wl_interface zwlr_output_power_v1_interface = {
-	"zwlr_output_power_v1", 1,
-	2, zwlr_output_power_v1_requests,
-	2, zwlr_output_power_v1_events,
+WL_PRIVATE const struct wl_interface zwlr_output_power_v1_interface= {
+  "zwlr_output_power_v1",
+  1,
+  2,
+  zwlr_output_power_v1_requests,
+  2,
+  zwlr_output_power_v1_events,
 };
-

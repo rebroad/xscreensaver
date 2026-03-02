@@ -5,7 +5,7 @@
  * the above copyright notice appear in all copies and that both that
  * copyright notice and this permission notice appear in supporting
  * documentation.  No representations are made about the suitability of this
- * software for any purpose.  It is provided "as is" without express or 
+ * software for any purpose.  It is provided "as is" without express or
  * implied warranty.
  */
 
@@ -17,11 +17,11 @@
    be run with the provided object as its argument.
  */
 extern wayland_idle *
-wayland_idle_init (wayland_dpy *dpy,
-                   void (*activity_cb) (void *closure),
-                   void *closure);
+  wayland_idle_init(wayland_dpy *dpy,
+    void (*activity_cb)(void *closure),
+    void *closure);
 
 /* Shut it all down. */
-extern void wayland_idle_free (wayland_idle *);
+extern void wayland_idle_free(wayland_idle *);
 
 #endif /* __XSCREENSAVER_WAYLAND_IDLE_H__ */

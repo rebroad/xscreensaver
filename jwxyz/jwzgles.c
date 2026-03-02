@@ -5,7 +5,7 @@
  * the above copyright notice appear in all copies and that both that
  * copyright notice and this permission notice appear in supporting
  * documentation.  No representations are made about the suitability of this
- * software for any purpose.  It is provided "as is" without express or 
+ * software for any purpose.  It is provided "as is" without express or
  * implied warranty.
  */
 
@@ -160,13 +160,13 @@
 
 
 #ifdef HAVE_CONFIG_H
-# include "config.h"
+#include "config.h"
 #endif /* HAVE_CONFIG_H */
 
-#ifdef HAVE_JWZGLES	/* whole file */
+#ifdef HAVE_JWZGLES /* whole file */
 
 #ifndef HAVE_GL
-# error HAVE_GL is undefined
+#error HAVE_GL is undefined
 #endif
 
 #include <stdio.h>
@@ -176,33 +176,33 @@
 #include <ctype.h>
 #include <math.h>
 #ifdef HAVE_UNISTD_H
-# include <unistd.h>
+#include <unistd.h>
 #endif /* HAVE_UNISTD_H */
 
 #if defined(HAVE_IPHONE)
-# ifdef HAVE_GLES3
-#  include <OpenGLES/ES3/gl.h>
-#  include <OpenGLES/ES3/glext.h>
-# else  /* !HAVE_GLES3 */
-#  include <OpenGLES/ES1/gl.h>
-#  include <OpenGLES/ES1/glext.h>
-# endif /* !HAVE_GLES3 */
+#ifdef HAVE_GLES3
+#include <OpenGLES/ES3/gl.h>
+#include <OpenGLES/ES3/glext.h>
+#else /* !HAVE_GLES3 */
+#include <OpenGLES/ES1/gl.h>
+#include <OpenGLES/ES1/glext.h>
+#endif /* !HAVE_GLES3 */
 #elif defined(HAVE_COCOA)
-# include <OpenGL/gl.h>
+#include <OpenGL/gl.h>
 #elif defined(HAVE_ANDROID)
-# include <GLES/gl.h>
-# ifdef HAVE_GLES3
-#  include <GLES3/gl3.h>
-# endif
-# include <android/log.h>
+#include <GLES/gl.h>
+#ifdef HAVE_GLES3
+#include <GLES3/gl3.h>
+#endif
+#include <android/log.h>
 #else /* real X11 */
-# ifndef  GL_GLEXT_PROTOTYPES
-#  define GL_GLEXT_PROTOTYPES /* for glBindBuffer */
-# endif
-# include <GLES/gl.h>
-# ifdef HAVE_GLES3
-# include <GLES3/gl3.h>
-# endif /* HAVE_GLES3 */
+#ifndef GL_GLEXT_PROTOTYPES
+#define GL_GLEXT_PROTOTYPES /* for glBindBuffer */
+#endif
+#include <GLES/gl.h>
+#ifdef HAVE_GLES3
+#include <GLES3/gl3.h>
+#endif /* HAVE_GLES3 */
 #endif
 
 #include "jwzglesI.h"
@@ -214,19 +214,19 @@
 #undef countof
 #define countof(x) (sizeof((x))/sizeof((*x)))
 
-#undef  Assert
+#undef Assert
 
 #ifdef HAVE_COCOA
-  extern void jwxyz_abort (const char *fmt, ...) __dead2;
-# define Assert(C,S) do { if (!(C)) { jwxyz_abort ("%s",S); }} while(0)
+extern void jwxyz_abort(const char *fmt, ...) __dead2;
+#define Assert(C, S) do { if (!(C)) { jwxyz_abort ("%s",S); }} while(0)
 #elif defined HAVE_ANDROID
-# define Assert(C,S) do { \
+#define Assert(C, S) do { \
     if (!(C)) { \
       __android_log_print (ANDROID_LOG_ERROR, "xscreensaver", "jwzgles: %s\n", S); \
       abort(); \
     }} while(0)
 #else
-# define Assert(C,S) do { \
+#define Assert(C, S) do { \
     if (!(C)) { \
       fprintf (stderr, "jwzgles: %s\n", S); \
       abort(); \
@@ -234,96 +234,119 @@
 #endif
 
 
-typedef struct { GLfloat x, y, z; }    XYZ;
-typedef struct { GLfloat x, y, z, w; } XYZW;
-typedef struct { GLfloat s, t, r, q; } STRQ;
-typedef struct { GLfloat r, g, b, a; } RGBA;
+typedef struct
+{
+    GLfloat x, y, z;
+} XYZ;
+typedef struct
+{
+    GLfloat x, y, z, w;
+} XYZW;
+typedef struct
+{
+    GLfloat s, t, r, q;
+} STRQ;
+typedef struct
+{
+    GLfloat r, g, b, a;
+} RGBA;
 
 
-/* Used to record all calls to glVertex3f, glNormal3f, etc. 
+/* Used to record all calls to glVertex3f, glNormal3f, etc.
    while inside glBegin / glEnd so that we can convert that
    to a single call to glDrawArrays.
  */
-typedef struct {
-  int mode;
-  int count, size;	/* size of each array */
+typedef struct
+{
+    int mode;
+    int count, size; /* size of each array */
 
-  XYZW *verts;		/* Arrays being built */
-  XYZ  *norms;
-  STRQ *tex;
-  RGBA *color;
+    XYZW *verts; /* Arrays being built */
+    XYZ *norms;
+    STRQ *tex;
+    RGBA *color;
 
-  int ncount;		/* How many normals, tex coords and colors were */
-  int tcount;		/* used.  We optimize based on "0, 1, or many". */
-  int ccount;
-  int materialistic;	/* Whether glMaterial was called inside glBegin */
+    int ncount; /* How many normals, tex coords and colors were */
+    int tcount; /* used.  We optimize based on "0, 1, or many". */
+    int ccount;
+    int materialistic; /* Whether glMaterial was called inside glBegin */
 
-  XYZ  cnorm;		/* Prevailing normal/texture/color while building */
-  STRQ ctex;
-  RGBA ccolor;
+    XYZ cnorm; /* Prevailing normal/texture/color while building */
+    STRQ ctex;
+    RGBA ccolor;
 
 } vert_set;
 
 
-typedef void (*list_fn_cb) (void);
+typedef void (*list_fn_cb)(void);
 
 
 /* We need this nonsense because you can't cast a double to a void*
    or vice versa.  They tend to be passed in different registers,
    and you need to know about that because it's still 1972 here.
  */
-typedef union {
-  const void *v; GLfloat f; GLuint i; GLshort s; GLdouble d;
+typedef union
+{
+    const void *v;
+    GLfloat f;
+    GLuint i;
+    GLshort s;
+    GLdouble d;
 } void_int;
 
-typedef struct {		/* saved args for glDrawArrays */
-  int binding, size, type, stride, bytes;
-  void *data;
+typedef struct
+{ /* saved args for glDrawArrays */
+    int binding, size, type, stride, bytes;
+    void *data;
 } draw_array;
 
-typedef enum {			/* shorthand describing arglist signature */
-  PROTO_VOID,	/* no args */
-  PROTO_I,	/* 1 int arg */
-  PROTO_F,	/* 1 float arg */
-  PROTO_II,	/* int, int */
-  PROTO_FF,	/* float, float */
-  PROTO_IF,	/* int, float */
-  PROTO_III,	/* int, int, int */
-  PROTO_FFF,	/* float, float, float */
-  PROTO_IIF,	/* int, int, float */
-  PROTO_IIII,	/* int, int, int, int */
-  PROTO_FFFF,	/* float, float, float, float */
-  PROTO_IIV,	/* int, int[4] */
-  PROTO_IFV,	/* int, float[4] */
-  PROTO_IIIV,	/* int, int, int[4] */
-  PROTO_IIFV,	/* int, int, float[4] */
-  PROTO_FV16,	/* float[16] */
-  PROTO_ARRAYS	/* glDrawArrays */
+typedef enum
+{              /* shorthand describing arglist signature */
+  PROTO_VOID,  /* no args */
+  PROTO_I,     /* 1 int arg */
+  PROTO_F,     /* 1 float arg */
+  PROTO_II,    /* int, int */
+  PROTO_FF,    /* float, float */
+  PROTO_IF,    /* int, float */
+  PROTO_III,   /* int, int, int */
+  PROTO_FFF,   /* float, float, float */
+  PROTO_IIF,   /* int, int, float */
+  PROTO_IIII,  /* int, int, int, int */
+  PROTO_FFFF,  /* float, float, float, float */
+  PROTO_IIV,   /* int, int[4] */
+  PROTO_IFV,   /* int, float[4] */
+  PROTO_IIIV,  /* int, int, int[4] */
+  PROTO_IIFV,  /* int, int, float[4] */
+  PROTO_FV16,  /* float[16] */
+  PROTO_ARRAYS /* glDrawArrays */
 } fn_proto;
 
-typedef struct {		/* A single element of a display list */
-  const char *name;
-  list_fn_cb fn;		/* saved function pointer */
-  fn_proto proto;		/* arglist prototype */
-  draw_array *arrays;		/* args for glDrawArrays */
-  void_int argv[16];		/* args for everything else */
+typedef struct
+{ /* A single element of a display list */
+    const char *name;
+    list_fn_cb fn;        /* saved function pointer */
+    fn_proto proto;       /* arglist prototype */
+    draw_array *arrays;   /* args for glDrawArrays */
+    void_int argv [ 16 ]; /* args for everything else */
 } list_fn;
 
 
-typedef struct {	/* a display list: saved activity within glNewList */
-  int id;
-  int size, count;
-  list_fn *fns;
+typedef struct
+{ /* a display list: saved activity within glNewList */
+    int id;
+    int size, count;
+    list_fn *fns;
 
-  /* Named buffer that should be freed when this display list is deleted. */
-  GLuint buffer;
+    /* Named buffer that should be freed when this display list is deleted. */
+    GLuint buffer;
 
 } list;
 
 
-typedef struct {	/* All display lists */
-  list *lists;
-  int count, size;
+typedef struct
+{ /* All display lists */
+    list *lists;
+    int count, size;
 } list_set;
 
 
@@ -346,308 +369,318 @@ typedef struct {	/* All display lists */
 #define ISENABLED_ALPHA_TEST	(1<<16)
 
 
-typedef struct {
-  GLuint mode;
-  GLfloat obj[4], eye[4];
+typedef struct
+{
+    GLuint mode;
+    GLfloat obj [ 4 ], eye [ 4 ];
 } texgen_state;
 
 
-struct jwzgles_state {  /* global state */
+struct jwzgles_state
+{ /* global state */
 
-  vert_set set;		/* set being built */
+    vert_set set; /* set being built */
 
-  int compiling_list;	/* list id if inside glNewList; 0 means immediate */
-  int replaying_list;	/* depth of call stack to glCallList */
-  int compiling_verts;	/* inside glBegin */
+    int compiling_list;  /* list id if inside glNewList; 0 means immediate */
+    int replaying_list;  /* depth of call stack to glCallList */
+    int compiling_verts; /* inside glBegin */
 
-  list_set lists;	/* saved lists */
+    list_set lists; /* saved lists */
 
-  unsigned long enabled;	/* enabled flags, immediate mode */
-  unsigned long list_enabled;	/* and for the list-in-progress */
+    unsigned long enabled;      /* enabled flags, immediate mode */
+    unsigned long list_enabled; /* and for the list-in-progress */
 
-  texgen_state s, t, r, q;
+    texgen_state s, t, r, q;
 
-  /* Implementing glPushClientAttrib? Don't forget about these! */
-  draw_array varray, narray, carray, tarray;
-
+    /* Implementing glPushClientAttrib? Don't forget about these! */
+    draw_array varray, narray, carray, tarray;
 };
 
 
-static jwzgles_state *state = 0;
+static jwzgles_state *state= 0;
 
 
 #ifdef DEBUG
 
-void
-Log(const char *fmt, ...)
+void Log(
+  const char *fmt,
+  ...)
 {
   va_list args;
-  va_start (args, fmt);
+  va_start(args, fmt);
 #ifdef HAVE_ANDROID
   /* setprop log.redirect-stdio true is another possibility, but that
      apparently only works on rooted devices.
    */
   __android_log_vprint(ANDROID_LOG_DEBUG, "xscreensaver", fmt, args);
-# else
+#else
   vfprintf(stderr, fmt, args);
-# endif
-  va_end (args);
+#endif
+  va_end(args);
 }
 
-# define LOG(A)                Log("jwzgles: " A "\n")
-# define LOG1(A,B)             Log("jwzgles: " A "\n",B)
-# define LOG2(A,B,C)           Log("jwzgles: " A "\n",B,C)
-# define LOG3(A,B,C,D)         Log("jwzgles: " A "\n",B,C,D)
-# define LOG4(A,B,C,D,E)       Log("jwzgles: " A "\n",B,C,D,E)
-# define LOG5(A,B,C,D,E,F)     Log("jwzgles: " A "\n",B,C,D,E,F)
-# define LOG6(A,B,C,D,E,F,G)   Log("jwzgles: " A "\n",B,C,D,E,F,G)
-# define LOG7(A,B,C,D,E,F,G,H) Log("jwzgles: " A "\n",B,C,D,E,F,G,H)
-# define LOG8(A,B,C,D,E,F,G,H,I)\
+#define LOG(A)                Log("jwzgles: " A "\n")
+#define LOG1(A, B)             Log("jwzgles: " A "\n",B)
+#define LOG2(A, B, C)           Log("jwzgles: " A "\n",B,C)
+#define LOG3(A, B, C, D)         Log("jwzgles: " A "\n",B,C,D)
+#define LOG4(A, B, C, D, E)       Log("jwzgles: " A "\n",B,C,D,E)
+#define LOG5(A, B, C, D, E, F)     Log("jwzgles: " A "\n",B,C,D,E,F)
+#define LOG6(A, B, C, D, E, F, G)   Log("jwzgles: " A "\n",B,C,D,E,F,G)
+#define LOG7(A, B, C, D, E, F, G, H) Log("jwzgles: " A "\n",B,C,D,E,F,G,H)
+#define LOG8(A, B, C, D, E, F, G, H, I)\
          Log("jwzgles: "A "\n",B,C,D,E,F,G,H,I)
-# define LOG9(A,B,C,D,E,F,G,H,I,J)\
+#define LOG9(A, B, C, D, E, F, G, H, I, J)\
          Log("jwzgles: "A "\n",B,C,D,E,F,G,H,I,J)
-# define LOG10(A,B,C,D,E,F,G,H,I,J,K)\
+#define LOG10(A, B, C, D, E, F, G, H, I, J, K)\
          Log("jwzgles: "A "\n",B,C,D,E,F,G,H,I,J,K)
-# define LOG17(A,B,C,D,E,F,G,H,I,J,K,L,M,N,O,P,Q,R)\
+#define LOG17(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R)\
          Log("jwzgles: "A "\n",B,C,D,E,F,G,H,I,J,K,L,M,N,O,P,Q,R)
-# define CHECK(S) jwzgles_check_gl_error(S)
+#define CHECK(S) jwzgles_check_gl_error(S)
 #else
-# define LOG(A)                       /* */
-# define LOG1(A,B)                    /* */
-# define LOG2(A,B,C)                  /* */
-# define LOG3(A,B,C,D)                /* */
-# define LOG4(A,B,C,D,E)              /* */
-# define LOG5(A,B,C,D,E,F)            /* */
-# define LOG6(A,B,C,D,E,F,G)          /* */
-# define LOG7(A,B,C,D,E,F,G,H)        /* */
-# define LOG8(A,B,C,D,E,F,G,H,I)      /* */
-# define LOG9(A,B,C,D,E,F,G,H,I,J)    /* */
-# define LOG10(A,B,C,D,E,F,G,H,I,J,K) /* */
-# define LOG17(A,B,C,D,E,F,G,H,I,J,K,L,M,N,O,P,Q,R) /* */
-# define CHECK(S)              /* */
+#define LOG(A)                                                      /* */
+#define LOG1(A, B)                                                  /* */
+#define LOG2(A, B, C)                                               /* */
+#define LOG3(A, B, C, D)                                            /* */
+#define LOG4(A, B, C, D, E)                                         /* */
+#define LOG5(A, B, C, D, E, F)                                      /* */
+#define LOG6(A, B, C, D, E, F, G)                                   /* */
+#define LOG7(A, B, C, D, E, F, G, H)                                /* */
+#define LOG8(A, B, C, D, E, F, G, H, I)                             /* */
+#define LOG9(A, B, C, D, E, F, G, H, I, J)                          /* */
+#define LOG10(A, B, C, D, E, F, G, H, I, J, K)                      /* */
+#define LOG17(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R) /* */
+#define CHECK(S)                                                    /* */
 #endif
 
 #ifdef DEBUG
 static const char *
-mode_desc (int mode)	/* for debugging messages */
+  mode_desc(
+    int mode) /* for debugging messages */
 {
-  switch (mode) {
-# define SS(X) case GL_##X: return STRINGIFY(X);
-  SS(ALPHA)
-  SS(ALPHA_TEST)
-  SS(AMBIENT)
-  SS(AMBIENT_AND_DIFFUSE)
-  SS(ARRAY_BUFFER)
-  SS(AUTO_NORMAL)
-  SS(BACK)
-  SS(BLEND)
-  SS(BLEND_DST)
-  SS(BLEND_SRC)
-  SS(BLEND_SRC_ALPHA)
-  SS(BYTE)
-  SS(C3F_V3F)
-  SS(C4F_N3F_V3F)
-  SS(C4UB_V2F)
-  SS(C4UB_V3F)
-  SS(CCW)
-  SS(CLAMP)
-  SS(COLOR_ARRAY)
-  SS(COLOR_ARRAY_BUFFER_BINDING);
-  SS(COLOR_MATERIAL)
-  SS(COLOR_MATERIAL_FACE)
-  SS(COLOR_MATERIAL_PARAMETER)
-  SS(COMPILE)
-  SS(CULL_FACE)
-  SS(CW)
-  SS(DECAL)
-  SS(DEPTH_BUFFER_BIT)
-  SS(DEPTH_TEST)
-  SS(DIFFUSE)
-  SS(DOUBLEBUFFER)
-  SS(DST_ALPHA)
-  SS(DST_COLOR)
-  SS(DYNAMIC_DRAW)
-  SS(ELEMENT_ARRAY_BUFFER)
-  SS(EYE_LINEAR)
-  SS(EYE_PLANE)
-  SS(FEEDBACK)
-  SS(FILL)
-  SS(FLAT)
-  SS(FLOAT)
-  SS(FOG)
-  SS(FRONT)
-  SS(FRONT_AND_BACK)
-  SS(GREATER)
-  SS(INTENSITY)
-  SS(INVALID_ENUM)
-  SS(INVALID_OPERATION)
-  SS(INVALID_VALUE)
-  SS(LESS)
-  SS(LIGHT0)
-  SS(LIGHT1)
-  SS(LIGHT2)
-  SS(LIGHT3)
-  SS(LIGHTING)
-  SS(LIGHT_MODEL_AMBIENT)
-  SS(LIGHT_MODEL_COLOR_CONTROL)
-  SS(LIGHT_MODEL_LOCAL_VIEWER)
-  SS(LIGHT_MODEL_TWO_SIDE)
-  SS(LINE)
-  SS(LINEAR)
-  SS(LINEAR_MIPMAP_LINEAR)
-  SS(LINEAR_MIPMAP_NEAREST)
-  SS(LINES)
-  SS(LINE_LOOP)
-  SS(LINE_STRIP)
-  SS(LUMINANCE)
-  SS(LUMINANCE_ALPHA)
-  SS(MATRIX_MODE)
-  SS(MODELVIEW)
-  SS(MODULATE)
-  SS(N3F_V3F)
-  SS(NEAREST)
-  SS(NEAREST_MIPMAP_LINEAR)
-  SS(NEAREST_MIPMAP_NEAREST)
-  SS(NORMALIZE)
-  SS(NORMAL_ARRAY)
-  SS(NORMAL_ARRAY_BUFFER_BINDING);
-  SS(OBJECT_LINEAR)
-  SS(OBJECT_PLANE)
-  SS(ONE_MINUS_DST_ALPHA)
-  SS(ONE_MINUS_DST_COLOR)
-  SS(ONE_MINUS_SRC_ALPHA)
-  SS(ONE_MINUS_SRC_COLOR)
-  SS(OUT_OF_MEMORY)
-  SS(PACK_ALIGNMENT)
-  SS(POINTS)
-  SS(POLYGON)
-  SS(POLYGON_OFFSET_FILL)
-  SS(POLYGON_SMOOTH)
-  SS(POLYGON_STIPPLE)
-  SS(POSITION)
-  SS(PROJECTION)
-  SS(Q)
-  SS(QUADS)
-  SS(QUAD_STRIP)
-  SS(R)
-  SS(RENDER)
-  SS(REPEAT)
-  SS(RGB)
-  SS(RGBA)
-  SS(RGBA_MODE)
-  SS(S)
-  SS(SELECT)
-  SS(SEPARATE_SPECULAR_COLOR)
-  SS(SHADE_MODEL)
-  SS(SHININESS)
-  SS(SHORT)
-  SS(SINGLE_COLOR)
-  SS(SMOOTH)
-  SS(SPECULAR)
-  SS(SPHERE_MAP)
-  SS(SRC_ALPHA)
-  SS(SRC_ALPHA_SATURATE)
-  SS(SRC_COLOR)
-  SS(STACK_OVERFLOW)
-  SS(STACK_UNDERFLOW)
-  SS(STATIC_DRAW)
-  SS(STENCIL_BUFFER_BIT)
-  SS(T)
-  SS(T2F_C3F_V3F)
-  SS(T2F_C4F_N3F_V3F)
-  SS(T2F_C4UB_V3F)
-  SS(T2F_N3F_V3F)
-  SS(T2F_V3F)
-  SS(T4F_C4F_N3F_V4F)
-  SS(T4F_V4F)
-  SS(TEXTURE)
-  SS(TEXTURE_1D)
-  SS(TEXTURE_2D)
-  SS(TEXTURE_ALPHA_SIZE)
-  SS(TEXTURE_BINDING_2D)
-  SS(TEXTURE_BLUE_SIZE)
-  SS(TEXTURE_BORDER)
-  SS(TEXTURE_BORDER_COLOR)
-  SS(TEXTURE_COMPONENTS)
-  SS(TEXTURE_COORD_ARRAY)
-  SS(TEXTURE_COORD_ARRAY_BUFFER_BINDING);
-  SS(TEXTURE_ENV)
-  SS(TEXTURE_ENV_COLOR)
-  SS(TEXTURE_ENV_MODE)
-  SS(TEXTURE_GEN_MODE)
-  SS(TEXTURE_GEN_Q)
-  SS(TEXTURE_GEN_R)
-  SS(TEXTURE_GEN_S)
-  SS(TEXTURE_GEN_T)
-  SS(TEXTURE_GREEN_SIZE)
-  SS(TEXTURE_HEIGHT)
-  SS(TEXTURE_INTENSITY_SIZE)
-  SS(TEXTURE_LUMINANCE_SIZE)
-  SS(TEXTURE_MAG_FILTER)
-  SS(TEXTURE_MIN_FILTER)
-  SS(TEXTURE_RED_SIZE)
-  SS(TEXTURE_WRAP_S)
-  SS(TEXTURE_WRAP_T)
-  SS(TRIANGLES)
-  SS(TRIANGLE_FAN)
-  SS(TRIANGLE_STRIP)
-  SS(UNPACK_ALIGNMENT)
-  SS(UNPACK_ROW_LENGTH)
-  SS(UNSIGNED_BYTE)
-  SS(UNSIGNED_INT_8_8_8_8_REV)
-  SS(UNSIGNED_SHORT)
-  SS(V2F)
-  SS(V3F)
-  SS(VERTEX_ARRAY)
-  SS(VERTEX_ARRAY_BUFFER_BINDING);
-/*SS(COLOR_BUFFER_BIT) -- same value as GL_LIGHT0 */
-# undef SS
-  case (GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT):
-    return "DEPTH_BUFFER_BIT | COLOR_BUFFER_BIT";
-/* Oops, same as INVALID_ENUM.
-  case (GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT):
-    return "DEPTH_BUFFER_BIT | STENCIL_BUFFER_BIT";
-*/
-  case (GL_COLOR_BUFFER_BIT | GL_STENCIL_BUFFER_BIT):
-    return "COLOR_BUFFER_BIT | STENCIL_BUFFER_BIT";
-  case (GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT | GL_STENCIL_BUFFER_BIT):
-    return "DEPTH_BUFFER_BIT | COLOR_BUFFER_BIT | STENCIL_BUFFER_BIT";
-  default:
+  switch (mode)
     {
-      static char buf[255];
-      sprintf (buf, "0x%04X", mode);
-      return buf;
+#define SS(X) case GL_##X: return STRINGIFY(X);
+      SS(ALPHA)
+      SS(ALPHA_TEST)
+      SS(AMBIENT)
+      SS(AMBIENT_AND_DIFFUSE)
+      SS(ARRAY_BUFFER)
+      SS(AUTO_NORMAL)
+      SS(BACK)
+      SS(BLEND)
+      SS(BLEND_DST)
+      SS(BLEND_SRC)
+      SS(BLEND_SRC_ALPHA)
+      SS(BYTE)
+      SS(C3F_V3F)
+      SS(C4F_N3F_V3F)
+      SS(C4UB_V2F)
+      SS(C4UB_V3F)
+      SS(CCW)
+      SS(CLAMP)
+      SS(COLOR_ARRAY)
+      SS(COLOR_ARRAY_BUFFER_BINDING);
+      SS(COLOR_MATERIAL)
+      SS(COLOR_MATERIAL_FACE)
+      SS(COLOR_MATERIAL_PARAMETER)
+      SS(COMPILE)
+      SS(CULL_FACE)
+      SS(CW)
+      SS(DECAL)
+      SS(DEPTH_BUFFER_BIT)
+      SS(DEPTH_TEST)
+      SS(DIFFUSE)
+      SS(DOUBLEBUFFER)
+      SS(DST_ALPHA)
+      SS(DST_COLOR)
+      SS(DYNAMIC_DRAW)
+      SS(ELEMENT_ARRAY_BUFFER)
+      SS(EYE_LINEAR)
+      SS(EYE_PLANE)
+      SS(FEEDBACK)
+      SS(FILL)
+      SS(FLAT)
+      SS(FLOAT)
+      SS(FOG)
+      SS(FRONT)
+      SS(FRONT_AND_BACK)
+      SS(GREATER)
+      SS(INTENSITY)
+      SS(INVALID_ENUM)
+      SS(INVALID_OPERATION)
+      SS(INVALID_VALUE)
+      SS(LESS)
+      SS(LIGHT0)
+      SS(LIGHT1)
+      SS(LIGHT2)
+      SS(LIGHT3)
+      SS(LIGHTING)
+      SS(LIGHT_MODEL_AMBIENT)
+      SS(LIGHT_MODEL_COLOR_CONTROL)
+      SS(LIGHT_MODEL_LOCAL_VIEWER)
+      SS(LIGHT_MODEL_TWO_SIDE)
+      SS(LINE)
+      SS(LINEAR)
+      SS(LINEAR_MIPMAP_LINEAR)
+      SS(LINEAR_MIPMAP_NEAREST)
+      SS(LINES)
+      SS(LINE_LOOP)
+      SS(LINE_STRIP)
+      SS(LUMINANCE)
+      SS(LUMINANCE_ALPHA)
+      SS(MATRIX_MODE)
+      SS(MODELVIEW)
+      SS(MODULATE)
+      SS(N3F_V3F)
+      SS(NEAREST)
+      SS(NEAREST_MIPMAP_LINEAR)
+      SS(NEAREST_MIPMAP_NEAREST)
+      SS(NORMALIZE)
+      SS(NORMAL_ARRAY)
+      SS(NORMAL_ARRAY_BUFFER_BINDING);
+      SS(OBJECT_LINEAR)
+      SS(OBJECT_PLANE)
+      SS(ONE_MINUS_DST_ALPHA)
+      SS(ONE_MINUS_DST_COLOR)
+      SS(ONE_MINUS_SRC_ALPHA)
+      SS(ONE_MINUS_SRC_COLOR)
+      SS(OUT_OF_MEMORY)
+      SS(PACK_ALIGNMENT)
+      SS(POINTS)
+      SS(POLYGON)
+      SS(POLYGON_OFFSET_FILL)
+      SS(POLYGON_SMOOTH)
+      SS(POLYGON_STIPPLE)
+      SS(POSITION)
+      SS(PROJECTION)
+      SS(Q)
+      SS(QUADS)
+      SS(QUAD_STRIP)
+      SS(R)
+      SS(RENDER)
+      SS(REPEAT)
+      SS(RGB)
+      SS(RGBA)
+      SS(RGBA_MODE)
+      SS(S)
+      SS(SELECT)
+      SS(SEPARATE_SPECULAR_COLOR)
+      SS(SHADE_MODEL)
+      SS(SHININESS)
+      SS(SHORT)
+      SS(SINGLE_COLOR)
+      SS(SMOOTH)
+      SS(SPECULAR)
+      SS(SPHERE_MAP)
+      SS(SRC_ALPHA)
+      SS(SRC_ALPHA_SATURATE)
+      SS(SRC_COLOR)
+      SS(STACK_OVERFLOW)
+      SS(STACK_UNDERFLOW)
+      SS(STATIC_DRAW)
+      SS(STENCIL_BUFFER_BIT)
+      SS(T)
+      SS(T2F_C3F_V3F)
+      SS(T2F_C4F_N3F_V3F)
+      SS(T2F_C4UB_V3F)
+      SS(T2F_N3F_V3F)
+      SS(T2F_V3F)
+      SS(T4F_C4F_N3F_V4F)
+      SS(T4F_V4F)
+      SS(TEXTURE)
+      SS(TEXTURE_1D)
+      SS(TEXTURE_2D)
+      SS(TEXTURE_ALPHA_SIZE)
+      SS(TEXTURE_BINDING_2D)
+      SS(TEXTURE_BLUE_SIZE)
+      SS(TEXTURE_BORDER)
+      SS(TEXTURE_BORDER_COLOR)
+      SS(TEXTURE_COMPONENTS)
+      SS(TEXTURE_COORD_ARRAY)
+      SS(TEXTURE_COORD_ARRAY_BUFFER_BINDING);
+      SS(TEXTURE_ENV)
+      SS(TEXTURE_ENV_COLOR)
+      SS(TEXTURE_ENV_MODE)
+      SS(TEXTURE_GEN_MODE)
+      SS(TEXTURE_GEN_Q)
+      SS(TEXTURE_GEN_R)
+      SS(TEXTURE_GEN_S)
+      SS(TEXTURE_GEN_T)
+      SS(TEXTURE_GREEN_SIZE)
+      SS(TEXTURE_HEIGHT)
+      SS(TEXTURE_INTENSITY_SIZE)
+      SS(TEXTURE_LUMINANCE_SIZE)
+      SS(TEXTURE_MAG_FILTER)
+      SS(TEXTURE_MIN_FILTER)
+      SS(TEXTURE_RED_SIZE)
+      SS(TEXTURE_WRAP_S)
+      SS(TEXTURE_WRAP_T)
+      SS(TRIANGLES)
+      SS(TRIANGLE_FAN)
+      SS(TRIANGLE_STRIP)
+      SS(UNPACK_ALIGNMENT)
+      SS(UNPACK_ROW_LENGTH)
+      SS(UNSIGNED_BYTE)
+      SS(UNSIGNED_INT_8_8_8_8_REV)
+      SS(UNSIGNED_SHORT)
+      SS(V2F)
+      SS(V3F)
+      SS(VERTEX_ARRAY)
+      SS(VERTEX_ARRAY_BUFFER_BINDING);
+/*SS(COLOR_BUFFER_BIT) -- same value as GL_LIGHT0 */
+#undef SS
+      case (GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT) :
+        return "DEPTH_BUFFER_BIT | COLOR_BUFFER_BIT";
+        /* Oops, same as INVALID_ENUM.
+          case (GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT):
+            return "DEPTH_BUFFER_BIT | STENCIL_BUFFER_BIT";
+        */
+      case (GL_COLOR_BUFFER_BIT | GL_STENCIL_BUFFER_BIT) :
+        return "COLOR_BUFFER_BIT | STENCIL_BUFFER_BIT";
+      case (GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT | GL_STENCIL_BUFFER_BIT) :
+        return "DEPTH_BUFFER_BIT | COLOR_BUFFER_BIT | STENCIL_BUFFER_BIT";
+      default :
+        {
+          static char buf [ 255 ];
+          sprintf(buf, "0x%04X", mode);
+          return buf;
+        }
     }
-  }
 }
 
 static void
-jwzgles_check_gl_error (const char *s)
+  jwzgles_check_gl_error(
+    const char *s)
 {
-  GLenum i = glGetError();
+  GLenum i= glGetError();
   if (i == GL_NO_ERROR) return;
-  fprintf (stderr, "jwzgles: GL ERROR: %s: %s\n", s, mode_desc(i));
+  fprintf(stderr, "jwzgles: GL ERROR: %s: %s\n", s, mode_desc(i));
 }
 
 #endif /* DEBUG */
 
 
 static void
-make_room (const char *name, void **array, int span, int *count, int *size)
+  make_room(
+    const char *name,
+    void **array,
+    int span,
+    int *count,
+    int *size)
 {
   if (*count + 1 >= *size)
     {
-      int new_size = (*count + 20) * 1.2;   /* mildly exponential */
-      *array = realloc (*array, new_size * span);
-      Assert (*array, "out of memory");
+      int new_size= (*count + 20) * 1.2; /* mildly exponential */
+      *array= realloc(*array, new_size * span);
+      Assert(*array, "out of memory");
       /* LOG3("%s: grew %d -> %d", name, *size, new_size); */
-      *size = new_size;
+      *size= new_size;
     }
 }
 
 
-void
-jwzgles_free_state (void)
+void jwzgles_free_state(
+  void)
 {
   /* Tricky: jwzgles_make_state doesn't require an active GLES context, but
      jwzgles_free_state does.
@@ -657,52 +690,53 @@ jwzgles_free_state (void)
 
   if (state->lists.lists)
     {
-      state->compiling_list = 0;
+      state->compiling_list= 0;
       if (state->lists.count)
-        jwzgles_glDeleteLists (1, state->lists.count);
-      free (state->lists.lists);
+        jwzgles_glDeleteLists(1, state->lists.count);
+      free(state->lists.lists);
     }
 
-  if (state->set.verts)   free (state->set.verts);
-  if (state->set.norms)   free (state->set.norms);
-  if (state->set.tex)     free (state->set.tex);
-  if (state->set.color)   free (state->set.color);
+  if (state->set.verts) free(state->set.verts);
+  if (state->set.norms) free(state->set.norms);
+  if (state->set.tex) free(state->set.tex);
+  if (state->set.color) free(state->set.color);
 
-  free (state);
-  state = NULL;
+  free(state);
+  state= NULL;
 }
 
 
 jwzgles_state *
-jwzgles_make_state (void)
+  jwzgles_make_state(
+    void)
 {
-  jwzgles_state *s = (jwzgles_state *) calloc (1, sizeof (*s));
+  jwzgles_state *s= (jwzgles_state *) calloc(1, sizeof(*s));
 
   LOG1("jwzgles_make_state %p", s);
 
-  s->s.mode = s->t.mode = s->r.mode = s->q.mode = GL_EYE_LINEAR;
-  s->s.obj[0] = s->s.eye[0] = 1;  /* s = 1 0 0 0 */
-  s->t.obj[1] = s->t.eye[1] = 1;  /* t = 0 1 0 0 */
+  s->s.mode= s->t.mode= s->r.mode= s->q.mode= GL_EYE_LINEAR;
+  s->s.obj [ 0 ]= s->s.eye [ 0 ]= 1; /* s = 1 0 0 0 */
+  s->t.obj [ 1 ]= s->t.eye [ 1 ]= 1; /* t = 0 1 0 0 */
 
   return s;
 }
 
 
-void
-jwzgles_make_current (jwzgles_state *s)
+void jwzgles_make_current(
+  jwzgles_state *s)
 {
   LOG1("jwzgles_make_current %p", s);
-  state = s;
+  state= s;
 }
 
 
-int
-jwzgles_glGenLists (int n)
+int jwzgles_glGenLists(
+  int n)
 {
   int i;
-  int ret = 0;
+  int ret= 0;
 
-  Assert (!state->compiling_verts, "glGenLists not allowed inside glBegin");
+  Assert(! state->compiling_verts, "glGenLists not allowed inside glBegin");
 
   /* Ensure space in state->lists, clear the one at the end, and tick counter
      Note that lists are never really deleted, and we can never re-use elements
@@ -710,21 +744,22 @@ jwzgles_glGenLists (int n)
      the list ID is still valid for use with glNewList forever.
      #### So maybe this should be a linked list instead of an array.
   */
-  for (i = 0; i < n; i++)
+  for (i= 0; i < n; i++)
     {
       list *L;
-      int id = 0;
-      make_room ("glGenLists", 
-                 (void **) &state->lists.lists,
-                 sizeof (*state->lists.lists),
-                 &state->lists.count, &state->lists.size);
+      int id= 0;
+      make_room("glGenLists",
+        (void **) &state->lists.lists,
+        sizeof(*state->lists.lists),
+        &state->lists.count,
+        &state->lists.size);
       state->lists.count++;
-      id = state->lists.count;
-      L = &state->lists.lists[id-1];
+      id= state->lists.count;
+      L= &state->lists.lists [ id - 1 ];
 
-      memset (L, 0, sizeof (*L));
-      L->id = id;
-      if (ret == 0) ret = id;
+      memset(L, 0, sizeof(*L));
+      L->id= id;
+      if (ret == 0) ret= id;
       LOG1("glGenLists -> %d", L->id);
     }
 
@@ -734,182 +769,194 @@ jwzgles_glGenLists (int n)
 }
 
 
-void
-jwzgles_glNewList (int id, int mode)
+void jwzgles_glNewList(
+  int id,
+  int mode)
 {
   list *L;
-  Assert (id > 0 && id <= state->lists.count, "glNewList: bogus ID");
-  Assert (mode == GL_COMPILE, "glNewList: bad mode");
-  Assert (!state->compiling_verts, "glNewList not allowed inside glBegin");
-  Assert (!state->compiling_list, "nested glNewList");
-  Assert (state->set.count == 0, "missing glEnd");
+  Assert(id > 0 && id <= state->lists.count, "glNewList: bogus ID");
+  Assert(mode == GL_COMPILE, "glNewList: bad mode");
+  Assert(! state->compiling_verts, "glNewList not allowed inside glBegin");
+  Assert(! state->compiling_list, "nested glNewList");
+  Assert(state->set.count == 0, "missing glEnd");
 
-  L = &state->lists.lists[id-1];
-  Assert (L->id == id, "glNewList corrupted");
+  L= &state->lists.lists [ id - 1 ];
+  Assert(L->id == id, "glNewList corrupted");
 
-  if (L->count != 0) jwzgles_glDeleteLists (L->id, 1); /* Overwriting */
-  Assert (L->count == 0, "glNewList corrupted");
-  
-  state->compiling_list = id;
+  if (L->count != 0) jwzgles_glDeleteLists(L->id, 1); /* Overwriting */
+  Assert(L->count == 0, "glNewList corrupted");
 
-  state->list_enabled = state->enabled;
+  state->compiling_list= id;
+
+  state->list_enabled= state->enabled;
 
   LOG1("glNewList -> %d", id);
 }
 
 
-static void save_arrays (list_fn *, int);
-static void restore_arrays (list_fn *, int);
-static void copy_array_data (draw_array *, int, const char *);
-static void optimize_arrays (void);
-static void generate_texture_coords (GLuint, GLuint);
+static void save_arrays(list_fn *, int);
+static void restore_arrays(list_fn *, int);
+static void copy_array_data(draw_array *, int, const char *);
+static void optimize_arrays(void);
+static void generate_texture_coords(GLuint, GLuint);
 
 
-void
-jwzgles_glEndList (void)
+void jwzgles_glEndList(
+  void)
 {
-  Assert (state->compiling_list, "extra glEndList");
-  Assert (state->set.count == 0, "missing glEnd");
-  Assert (!state->compiling_verts, "glEndList not allowed inside glBegin");
+  Assert(state->compiling_list, "extra glEndList");
+  Assert(state->set.count == 0, "missing glEnd");
+  Assert(! state->compiling_verts, "glEndList not allowed inside glBegin");
   LOG1("glEndList %d", state->compiling_list);
   optimize_arrays();
-  state->compiling_list = 0;
-  state->list_enabled = state->enabled;
+  state->compiling_list= 0;
+  state->list_enabled= state->enabled;
 }
 
 
 static void
-list_push (const char * const name, 
-           list_fn_cb fn, fn_proto proto, void_int *av)
+  list_push(
+    const char *const name,
+    list_fn_cb fn,
+    fn_proto proto,
+    void_int *av)
 {
   list *L;
   list_fn *F;
   int i;
 
-  Assert (state->compiling_list > 0, "not inside glNewList");
-  Assert (state->compiling_list <= state->lists.count, "glNewList corrupted");
+  Assert(state->compiling_list > 0, "not inside glNewList");
+  Assert(state->compiling_list <= state->lists.count, "glNewList corrupted");
 
-  L = &state->lists.lists[state->compiling_list-1];
-  Assert (L, "glNewList: no list");
+  L= &state->lists.lists [ state->compiling_list - 1 ];
+  Assert(L, "glNewList: no list");
 
-  make_room ("glNewLists", 
-             (void **) &L->fns, sizeof (*L->fns),
-             &L->count, &L->size);
-  memset (&L->fns[L->count], 0, sizeof (*L->fns));
-  F = L->fns + L->count;
+  make_room("glNewLists",
+    (void **) &L->fns,
+    sizeof(*L->fns),
+    &L->count,
+    &L->size);
+  memset(&L->fns [ L->count ], 0, sizeof(*L->fns));
+  F= L->fns + L->count;
 
-  F->name = name;
-  F->fn = fn;
-  F->proto = proto;
+  F->name= name;
+  F->fn= fn;
+  F->proto= proto;
   if (proto != PROTO_VOID)
-    for (i = 0; i < countof(F->argv); i++)
-      F->argv[i] = av[i];
+    for (i= 0; i < countof(F->argv); i++)
+      F->argv [ i ]= av [ i ];
 
-# ifdef DEBUG
-  switch (proto) {
-  case PROTO_VOID:
-    LOG1 ("  push %-12s", name);
-    break;
-  case PROTO_I:
-    if (fn == (list_fn_cb) &jwzgles_glBegin ||
-        fn == (list_fn_cb) &jwzgles_glFrontFace ||
-        fn == (list_fn_cb) &jwzgles_glEnable ||
-        fn == (list_fn_cb) &jwzgles_glDisable ||
-        fn == (list_fn_cb) &jwzgles_glEnableClientState ||
-        fn == (list_fn_cb) &jwzgles_glDisableClientState ||
-        fn == (list_fn_cb) &jwzgles_glShadeModel ||
-        fn == (list_fn_cb) &jwzgles_glMatrixMode)
-      LOG2 ("  push %-12s %s", name, mode_desc (av[0].i));
-    else
-      LOG2 ("  push %-12s %d", name, av[0].i);
-    break;
-  case PROTO_F:
-    LOG2 ("  push %-12s %7.3f", name, av[0].f);
-    break;
-  case PROTO_II:
-    if (fn == (list_fn_cb) &jwzgles_glBindTexture ||
-        fn == (list_fn_cb) &jwzgles_glBindBuffer)
-      LOG3 ("  push %-12s %s %d", name, mode_desc (av[0].i), av[1].i);
-    else
-      LOG3 ("  push %-12s %d %d", name, av[0].i, av[1].i);
-    break;
-  case PROTO_FF:
-    LOG3 ("  push %-12s %7.3f %7.3f", name, av[0].f, av[1].f);
-    break;
-  case PROTO_IF:
-    LOG3 ("  push %-12s %s %7.3f", name, mode_desc (av[0].i), av[1].f);
-    break;
-  case PROTO_III:
-  case PROTO_ARRAYS:
-    if (fn == (list_fn_cb) &jwzgles_glDrawArrays ||
-        fn == (list_fn_cb) &jwzgles_glTexParameteri)
-      LOG4 ("  push %-12s %s %d %d", name, mode_desc (av[0].i), 
-            av[1].i, av[2].i);
-    else
-      LOG4 ("  push %-12s %d %d %d", name, av[0].i, av[1].i, av[2].i);
-    break;
-  case PROTO_FFF:
-    LOG4 ("  push %-12s %7.3f %7.3f %7.3f", name, av[0].f, av[1].f, av[2].f);
-    break;
-  case PROTO_IIF:
-    LOG4 ("  push %-12s %s %s %7.3f", name,
-             mode_desc(av[0].i), mode_desc(av[1].i), av[2].f);
-    break;
-  case PROTO_IIII:
-    LOG5 ("  push %-12s %d %d %d %d", name, 
-          av[0].i, av[1].i, av[2].i, av[3].i);
-    break;
-  case PROTO_FFFF:
-    LOG5 ("  push %-12s %7.3f %7.3f %7.3f %7.3f", name,
-             av[0].f, av[1].f, av[2].f, av[3].f);
-    break;
-  case PROTO_IFV:
-    LOG6 ("  push %-12s %s %3.1f %3.1f %3.1f %3.1f", name, mode_desc (av[0].i),
-             av[1].f, av[2].f, av[3].f, av[4].f);
-    break;
-  case PROTO_IIV:
-    LOG6 ("  push %-12s %s %d %d %d %d", name, mode_desc (av[0].i),
-             av[1].i, av[2].i, av[3].i, av[4].i);
-    break;
-  case PROTO_IIFV:
-    LOG7 ("  push %-12s %s %-8s %3.1f %3.1f %3.1f %3.1f", name,
-          mode_desc (av[0].i), mode_desc (av[1].i),
-             av[2].f, av[3].f, av[4].f, av[5].f);
-    break;
-  case PROTO_IIIV:
-    LOG7 ("  push %-12s %s %-8s %3d %3d %3d %3d", name,
-          mode_desc (av[0].i), mode_desc (av[1].i),
-             av[2].i, av[3].i, av[4].i, av[5].i);
-    break;
-  case PROTO_FV16:
-    LOG17 ("  push %-12s ["
-           "%8.3f %8.3f %8.3f %8.3f "	"\n\t\t\t       "
-           "%8.3f %8.3f %8.3f %8.3f "	"\n\t\t\t       "
-           "%8.3f %8.3f %8.3f %8.3f "	"\n\t\t\t       "
-           "%8.3f %8.3f %8.3f %8.3f ]",
-           name,
-           av[0].f,  av[1].f,  av[2].f,  av[3].f,
-           av[4].f,  av[5].f,  av[6].f,  av[7].f,
-           av[8].f,  av[9].f,  av[10].f, av[11].f,
-           av[12].f, av[13].f, av[14].f, av[15].f);
-    break;
-  default:
-    Assert (0, "bogus prototype");
-    break;
-  }
-# endif /* DEBUG */
+#ifdef DEBUG
+  switch (proto)
+    {
+      case PROTO_VOID :
+        LOG1("  push %-12s", name);
+        break;
+      case PROTO_I :
+        if (fn == (list_fn_cb) &jwzgles_glBegin ||
+          fn == (list_fn_cb) &jwzgles_glFrontFace ||
+          fn == (list_fn_cb) &jwzgles_glEnable ||
+          fn == (list_fn_cb) &jwzgles_glDisable ||
+          fn == (list_fn_cb) &jwzgles_glEnableClientState ||
+          fn == (list_fn_cb) &jwzgles_glDisableClientState ||
+          fn == (list_fn_cb) &jwzgles_glShadeModel ||
+          fn == (list_fn_cb) &jwzgles_glMatrixMode)
+          LOG2("  push %-12s %s", name, mode_desc(av [ 0 ].i));
+        else
+          LOG2("  push %-12s %d", name, av [ 0 ].i);
+        break;
+      case PROTO_F :
+        LOG2("  push %-12s %7.3f", name, av [ 0 ].f);
+        break;
+      case PROTO_II :
+        if (fn == (list_fn_cb) &jwzgles_glBindTexture ||
+          fn == (list_fn_cb) &jwzgles_glBindBuffer)
+          LOG3("  push %-12s %s %d", name, mode_desc(av [ 0 ].i), av [ 1 ].i);
+        else
+          LOG3("  push %-12s %d %d", name, av [ 0 ].i, av [ 1 ].i);
+        break;
+      case PROTO_FF :
+        LOG3("  push %-12s %7.3f %7.3f", name, av [ 0 ].f, av [ 1 ].f);
+        break;
+      case PROTO_IF :
+        LOG3("  push %-12s %s %7.3f", name, mode_desc(av [ 0 ].i), av [ 1 ].f);
+        break;
+      case PROTO_III :
+      case PROTO_ARRAYS :
+        if (fn == (list_fn_cb) &jwzgles_glDrawArrays ||
+          fn == (list_fn_cb) &jwzgles_glTexParameteri)
+          LOG4("  push %-12s %s %d %d", name, mode_desc(av [ 0 ].i), av [ 1 ].i, av [ 2 ].i);
+        else
+          LOG4("  push %-12s %d %d %d", name, av [ 0 ].i, av [ 1 ].i, av [ 2 ].i);
+        break;
+      case PROTO_FFF :
+        LOG4("  push %-12s %7.3f %7.3f %7.3f", name, av [ 0 ].f, av [ 1 ].f, av [ 2 ].f);
+        break;
+      case PROTO_IIF :
+        LOG4("  push %-12s %s %s %7.3f", name, mode_desc(av [ 0 ].i), mode_desc(av [ 1 ].i), av [ 2 ].f);
+        break;
+      case PROTO_IIII :
+        LOG5("  push %-12s %d %d %d %d", name, av [ 0 ].i, av [ 1 ].i, av [ 2 ].i, av [ 3 ].i);
+        break;
+      case PROTO_FFFF :
+        LOG5("  push %-12s %7.3f %7.3f %7.3f %7.3f", name, av [ 0 ].f, av [ 1 ].f, av [ 2 ].f, av [ 3 ].f);
+        break;
+      case PROTO_IFV :
+        LOG6("  push %-12s %s %3.1f %3.1f %3.1f %3.1f", name, mode_desc(av [ 0 ].i), av [ 1 ].f, av [ 2 ].f, av [ 3 ].f, av [ 4 ].f);
+        break;
+      case PROTO_IIV :
+        LOG6("  push %-12s %s %d %d %d %d", name, mode_desc(av [ 0 ].i), av [ 1 ].i, av [ 2 ].i, av [ 3 ].i, av [ 4 ].i);
+        break;
+      case PROTO_IIFV :
+        LOG7("  push %-12s %s %-8s %3.1f %3.1f %3.1f %3.1f", name, mode_desc(av [ 0 ].i), mode_desc(av [ 1 ].i), av [ 2 ].f, av [ 3 ].f, av [ 4 ].f, av [ 5 ].f);
+        break;
+      case PROTO_IIIV :
+        LOG7("  push %-12s %s %-8s %3d %3d %3d %3d", name, mode_desc(av [ 0 ].i), mode_desc(av [ 1 ].i), av [ 2 ].i, av [ 3 ].i, av [ 4 ].i, av [ 5 ].i);
+        break;
+      case PROTO_FV16 :
+        LOG17(
+          "  push %-12s ["
+          "%8.3f %8.3f %8.3f %8.3f "
+          "\n\t\t\t       "
+          "%8.3f %8.3f %8.3f %8.3f "
+          "\n\t\t\t       "
+          "%8.3f %8.3f %8.3f %8.3f "
+          "\n\t\t\t       " "%8.3f %8.3f %8.3f %8.3f ]",
+          name,
+          av [ 0 ].f,
+          av [ 1 ].f,
+          av [ 2 ].f,
+          av [ 3 ].f,
+          av [ 4 ].f,
+          av [ 5 ].f,
+          av [ 6 ].f,
+          av [ 7 ].f,
+          av [ 8 ].f,
+          av [ 9 ].f,
+          av [ 10 ].f,
+          av [ 11 ].f,
+          av [ 12 ].f,
+          av [ 13 ].f,
+          av [ 14 ].f,
+          av [ 15 ].f);
+        break;
+      default :
+        Assert(0, "bogus prototype");
+        break;
+    }
+#endif /* DEBUG */
 
   if (proto == PROTO_ARRAYS) /* glDrawArrays */
-    save_arrays (F, av[1].i + av[2].i);
+    save_arrays(F, av [ 1 ].i + av [ 2 ].i);
 
   L->count++;
 }
 
 
-void
-jwzgles_glBegin (int mode)
+void jwzgles_glBegin(
+  int mode)
 {
-  Assert (!state->compiling_verts, "nested glBegin");
+  Assert(! state->compiling_verts, "nested glBegin");
   state->compiling_verts++;
 
   /* Only these commands are allowed inside glBegin:
@@ -932,508 +979,566 @@ jwzgles_glBegin (int mode)
      glCallLists
    */
 
-  if (!state->replaying_list)
-    LOG2 ("%sglBegin %s", 
-          (state->compiling_list || state->replaying_list ? "  " : ""),
-          mode_desc (mode));
+  if (! state->replaying_list)
+    LOG2("%sglBegin %s",
+      (state->compiling_list || state->replaying_list ? "  " : ""),
+      mode_desc(mode));
 
-  Assert (state->set.count == 0, "glBegin corrupted");
-  state->set.mode   = mode;
-  state->set.count  = 0;
-  state->set.ncount = 0;
-  state->set.tcount = 0;
-  state->set.ccount = 0;
+  Assert(state->set.count == 0, "glBegin corrupted");
+  state->set.mode= mode;
+  state->set.count= 0;
+  state->set.ncount= 0;
+  state->set.tcount= 0;
+  state->set.ccount= 0;
 }
 
 
-void
-jwzgles_glDeleteLists (int id0, int range)
+void jwzgles_glDeleteLists(
+  int id0,
+  int range)
 {
-  Assert (!state->compiling_verts, "glDeleteLists not allowed inside glBegin");
+  Assert(! state->compiling_verts, "glDeleteLists not allowed inside glBegin");
 
   if (state->compiling_list)
     {
-      void_int vv[2];
-      vv[0].i = id0;
-      vv[1].i = range;
-      list_push ("glDeleteLists", (list_fn_cb) &jwzgles_glDeleteLists, 
-                 PROTO_II, vv);
+      void_int vv [ 2 ];
+      vv [ 0 ].i= id0;
+      vv [ 1 ].i= range;
+      list_push("glDeleteLists", (list_fn_cb) &jwzgles_glDeleteLists, PROTO_II, vv);
     }
   else
     {
       int id;
 
-      if (!state->replaying_list)
-        LOG2 ("glDeleteLists %d %d", id0, range);
+      if (! state->replaying_list)
+        LOG2("glDeleteLists %d %d", id0, range);
 
-      for (id = id0 + range - 1; id >= id0; id--)
+      for (id= id0 + range - 1; id >= id0; id--)
         {
           int i;
           list *L;
-          if (id == 0) continue;  /* People do this stupid thing */
-          if (id > state->lists.count) break;	/* this too */
-          Assert (id > 0 && id <= state->lists.count,
-                  "glDeleteLists: bogus ID");
-          L = &state->lists.lists[id-1];
-          Assert (L->id == id, "glDeleteLists corrupted");
+          if (id == 0) continue;              /* People do this stupid thing */
+          if (id > state->lists.count) break; /* this too */
+          Assert(id > 0 && id <= state->lists.count,
+            "glDeleteLists: bogus ID");
+          L= &state->lists.lists [ id - 1 ];
+          Assert(L->id == id, "glDeleteLists corrupted");
 
-          for (i = 0; i < L->count; i++)
+          for (i= 0; i < L->count; i++)
             {
-              list_fn *lf = &L->fns[i];
+              list_fn *lf= &L->fns [ i ];
               if (lf->arrays)
                 {
                   int j;
-                  for (j = 0; j < 4; j++)
-                    /* If there's a binding, 'data' is an index, not a ptr. */
-                    if (!lf->arrays[j].binding &&
-                        lf->arrays[j].data)
-                      free (lf->arrays[j].data);
-                  free (lf->arrays);
+                  for (j= 0; j < 4; j++)
+                    {
+                      /* If there's a binding, 'data' is an index, not a ptr. */
+                      if (! lf->arrays [ j ].binding &&
+                        lf->arrays [ j ].data)
+                        free(lf->arrays [ j ].data);
+                    }
+                  free(lf->arrays);
                 }
             }
-          if (L->fns) 
-            free (L->fns);
+          if (L->fns)
+            free(L->fns);
           if (L->buffer)
-            glDeleteBuffers (1, &L->buffer);
+            glDeleteBuffers(1, &L->buffer);
 
-          memset (L, 0, sizeof (*L));
-          L->id = id;
+          memset(L, 0, sizeof(*L));
+          L->id= id;
         }
     }
 }
 
 
 extern GLboolean
-jwzgles_glIsList (GLuint id)
+  jwzgles_glIsList(
+    GLuint id)
 {
   return (id > 0 && id < state->lists.count);
 }
 
 
 
-void
-jwzgles_glNormal3fv (const GLfloat *v)
+void jwzgles_glNormal3fv(
+  const GLfloat *v)
 {
-  if (state->compiling_list && !state->compiling_verts)
+  if (state->compiling_list && ! state->compiling_verts)
     {
-      void_int vv[3];
-      vv[0].f = v[0];
-      vv[1].f = v[1];
-      vv[2].f = v[2];
-      list_push ("glNormal3f", (list_fn_cb) &jwzgles_glNormal3f, 
-                 PROTO_FFF, vv);
+      void_int vv [ 3 ];
+      vv [ 0 ].f= v [ 0 ];
+      vv [ 1 ].f= v [ 1 ];
+      vv [ 2 ].f= v [ 2 ];
+      list_push("glNormal3f", (list_fn_cb) &jwzgles_glNormal3f, PROTO_FFF, vv);
     }
   else
     {
-      if (!state->replaying_list)
-        LOG5 ("%s%sglNormal3f   %7.3f %7.3f %7.3f",
-              (state->compiling_list || state->replaying_list ? "  " : ""),
-              (state->compiling_verts ? "  rec  " : ""),
-              v[0], v[1], v[2]);
+      if (! state->replaying_list)
+        LOG5("%s%sglNormal3f   %7.3f %7.3f %7.3f",
+          (state->compiling_list || state->replaying_list ? "  " : ""),
+          (state->compiling_verts ? "  rec  " : ""),
+          v [ 0 ],
+          v [ 1 ],
+          v [ 2 ]);
 
-      if (state->compiling_verts)	/* inside glBegin */
+      if (state->compiling_verts) /* inside glBegin */
         {
-          state->set.cnorm.x = v[0];
-          state->set.cnorm.y = v[1];
-          state->set.cnorm.z = v[2];
+          state->set.cnorm.x= v [ 0 ];
+          state->set.cnorm.y= v [ 1 ];
+          state->set.cnorm.z= v [ 2 ];
           state->set.ncount++;
-          if (state->set.count > 0 && state->set.ncount == 1)  /* not first! */
+          if (state->set.count > 0 && state->set.ncount == 1) /* not first! */
             state->set.ncount++;
         }
-      else				/* outside glBegin */
+      else /* outside glBegin */
         {
-          glNormal3f (v[0], v[1], v[2]);
+          glNormal3f(v [ 0 ], v [ 1 ], v [ 2 ]);
           CHECK("glNormal3f");
         }
     }
 }
 
 
-void
-jwzgles_glNormal3f (GLfloat x, GLfloat y, GLfloat z)
+void jwzgles_glNormal3f(
+  GLfloat x,
+  GLfloat y,
+  GLfloat z)
 {
-  GLfloat v[3];
-  v[0] = x;
-  v[1] = y;
-  v[2] = z;
-  jwzgles_glNormal3fv (v);
+  GLfloat v [ 3 ];
+  v [ 0 ]= x;
+  v [ 1 ]= y;
+  v [ 2 ]= z;
+  jwzgles_glNormal3fv(v);
 }
 
 
-void
-jwzgles_glTexCoord4fv (const GLfloat *v)
+void jwzgles_glTexCoord4fv(
+  const GLfloat *v)
 {
-  if (state->compiling_list && !state->compiling_verts)
+  if (state->compiling_list && ! state->compiling_verts)
     {
-      void_int vv[4];
-      vv[0].f = v[0];
-      vv[1].f = v[1];
-      vv[2].f = v[2];
-      vv[3].f = v[3];
-      list_push ("glTexCoord4f", (list_fn_cb) &jwzgles_glTexCoord4f,
-                 PROTO_FFFF, vv);
+      void_int vv [ 4 ];
+      vv [ 0 ].f= v [ 0 ];
+      vv [ 1 ].f= v [ 1 ];
+      vv [ 2 ].f= v [ 2 ];
+      vv [ 3 ].f= v [ 3 ];
+      list_push("glTexCoord4f", (list_fn_cb) &jwzgles_glTexCoord4f, PROTO_FFFF, vv);
     }
   else
     {
-      if (!state->replaying_list)
-        LOG6 ("%s%sglTexCoord4f %7.3f %7.3f %7.3f %7.3f", 
-              (state->compiling_list || state->replaying_list ? "  " : ""),
-              (state->compiling_verts ? "  rec  " : ""),
-              v[0], v[1], v[2], v[3]);
+      if (! state->replaying_list)
+        LOG6("%s%sglTexCoord4f %7.3f %7.3f %7.3f %7.3f",
+          (state->compiling_list || state->replaying_list ? "  " : ""),
+          (state->compiling_verts ? "  rec  " : ""),
+          v [ 0 ],
+          v [ 1 ],
+          v [ 2 ],
+          v [ 3 ]);
 
-      Assert (state->compiling_verts, "glTexCoord4fv outside glBegin");
+      Assert(state->compiling_verts, "glTexCoord4fv outside glBegin");
 
-      if (state->compiling_verts)	/* inside glBegin */
+      if (state->compiling_verts) /* inside glBegin */
         {
-          state->set.ctex.s = v[0];
-          state->set.ctex.t = v[1];
-          state->set.ctex.r = v[2];
-          state->set.ctex.q = v[3];
+          state->set.ctex.s= v [ 0 ];
+          state->set.ctex.t= v [ 1 ];
+          state->set.ctex.r= v [ 2 ];
+          state->set.ctex.q= v [ 3 ];
           state->set.tcount++;
-          if (state->set.count > 0 && state->set.tcount == 1)  /* not first! */
+          if (state->set.count > 0 && state->set.tcount == 1) /* not first! */
             state->set.tcount++;
         }
     }
 }
 
 
-void
-jwzgles_glTexCoord4f (GLfloat s, GLfloat t, GLfloat r, GLfloat q)
+void jwzgles_glTexCoord4f(
+  GLfloat s,
+  GLfloat t,
+  GLfloat r,
+  GLfloat q)
 {
-  GLfloat v[4];
-  v[0] = s;
-  v[1] = t;
-  v[2] = r;
-  v[3] = q;
-  jwzgles_glTexCoord4fv (v);
+  GLfloat v [ 4 ];
+  v [ 0 ]= s;
+  v [ 1 ]= t;
+  v [ 2 ]= r;
+  v [ 3 ]= q;
+  jwzgles_glTexCoord4fv(v);
 }
 
 
-void
-jwzgles_glTexCoord3fv (const GLfloat *v)
+void jwzgles_glTexCoord3fv(
+  const GLfloat *v)
 {
-  GLfloat vv[4];
-  vv[0] = v[0];
-  vv[1] = v[1];
-  vv[2] = v[2];
-  vv[3] = 1;
-  jwzgles_glTexCoord4fv (vv);
+  GLfloat vv [ 4 ];
+  vv [ 0 ]= v [ 0 ];
+  vv [ 1 ]= v [ 1 ];
+  vv [ 2 ]= v [ 2 ];
+  vv [ 3 ]= 1;
+  jwzgles_glTexCoord4fv(vv);
 }
 
 
-void
-jwzgles_glTexCoord2fv (const GLfloat *v)
+void jwzgles_glTexCoord2fv(
+  const GLfloat *v)
 {
-  GLfloat vv[4];
-  vv[0] = v[0];
-  vv[1] = v[1];
-  vv[2] = 0;
-  vv[3] = 1;
-  jwzgles_glTexCoord4fv (vv);
+  GLfloat vv [ 4 ];
+  vv [ 0 ]= v [ 0 ];
+  vv [ 1 ]= v [ 1 ];
+  vv [ 2 ]= 0;
+  vv [ 3 ]= 1;
+  jwzgles_glTexCoord4fv(vv);
 }
 
 
-void
-jwzgles_glTexCoord3f (GLfloat s, GLfloat t, GLfloat r)
+void jwzgles_glTexCoord3f(
+  GLfloat s,
+  GLfloat t,
+  GLfloat r)
 {
-  jwzgles_glTexCoord4f (s, t, r, 1);
+  jwzgles_glTexCoord4f(s, t, r, 1);
 }
 
 
-void
-jwzgles_glTexCoord2f (GLfloat s, GLfloat t)
+void jwzgles_glTexCoord2f(
+  GLfloat s,
+  GLfloat t)
 {
-  jwzgles_glTexCoord4f (s, t, 0, 1);
+  jwzgles_glTexCoord4f(s, t, 0, 1);
 }
 
 
-void
-jwzgles_glTexCoord1f (GLfloat s)
+void jwzgles_glTexCoord1f(
+  GLfloat s)
 {
-  jwzgles_glTexCoord4f (s, 0, 0, 1);
+  jwzgles_glTexCoord4f(s, 0, 0, 1);
 }
 
 
 /* glColor: GLfloat */
 
-void
-jwzgles_glColor4fv (const GLfloat *v)
+void jwzgles_glColor4fv(
+  const GLfloat *v)
 {
-  if (state->compiling_list && !state->compiling_verts)
+  if (state->compiling_list && ! state->compiling_verts)
     {
-      void_int vv[4];
-      vv[0].f = v[0];
-      vv[1].f = v[1];
-      vv[2].f = v[2];
-      vv[3].f = v[3];
-      list_push ("glColor4f", (list_fn_cb) &jwzgles_glColor4f, 
-                 PROTO_FFFF, vv);
+      void_int vv [ 4 ];
+      vv [ 0 ].f= v [ 0 ];
+      vv [ 1 ].f= v [ 1 ];
+      vv [ 2 ].f= v [ 2 ];
+      vv [ 3 ].f= v [ 3 ];
+      list_push("glColor4f", (list_fn_cb) &jwzgles_glColor4f, PROTO_FFFF, vv);
     }
   else
     {
-      if (!state->replaying_list)
-        LOG6 ("%s%sglColor4f    %7.3f %7.3f %7.3f %7.3f", 
-              (state->compiling_list || state->replaying_list ? "  " : ""),
-              (state->compiling_verts ? "  rec  " : ""),
-              v[0], v[1], v[2], v[3]);
+      if (! state->replaying_list)
+        LOG6("%s%sglColor4f    %7.3f %7.3f %7.3f %7.3f",
+          (state->compiling_list || state->replaying_list ? "  " : ""),
+          (state->compiling_verts ? "  rec  " : ""),
+          v [ 0 ],
+          v [ 1 ],
+          v [ 2 ],
+          v [ 3 ]);
 
-      if (state->compiling_verts)	/* inside glBegin */
+      if (state->compiling_verts) /* inside glBegin */
         {
-          state->set.ccolor.r = v[0];
-          state->set.ccolor.g = v[1];
-          state->set.ccolor.b = v[2];
-          state->set.ccolor.a = v[3];
+          state->set.ccolor.r= v [ 0 ];
+          state->set.ccolor.g= v [ 1 ];
+          state->set.ccolor.b= v [ 2 ];
+          state->set.ccolor.a= v [ 3 ];
           state->set.ccount++;
-          if (state->set.count > 0 && state->set.ccount == 1)  /* not first! */
+          if (state->set.count > 0 && state->set.ccount == 1) /* not first! */
             state->set.ccount++;
         }
-      else				/* outside glBegin */
+      else /* outside glBegin */
         {
-          glColor4f (v[0], v[1], v[2], v[3]);
+          glColor4f(v [ 0 ], v [ 1 ], v [ 2 ], v [ 3 ]);
           CHECK("glColor4");
         }
     }
 }
 
 
-void
-jwzgles_glColor4f (GLfloat r, GLfloat g, GLfloat b, GLfloat a)
+void jwzgles_glColor4f(
+  GLfloat r,
+  GLfloat g,
+  GLfloat b,
+  GLfloat a)
 {
-  GLfloat v[4];
-  v[0] = r;
-  v[1] = g;
-  v[2] = b;
-  v[3] = a;
-  jwzgles_glColor4fv (v);
+  GLfloat v [ 4 ];
+  v [ 0 ]= r;
+  v [ 1 ]= g;
+  v [ 2 ]= b;
+  v [ 3 ]= a;
+  jwzgles_glColor4fv(v);
 }
 
-void
-jwzgles_glColor3f (GLfloat r, GLfloat g, GLfloat b)
+void jwzgles_glColor3f(
+  GLfloat r,
+  GLfloat g,
+  GLfloat b)
 {
-  jwzgles_glColor4f (r, g, b, 1);
+  jwzgles_glColor4f(r, g, b, 1);
 }
 
-void
-jwzgles_glColor3fv (const GLfloat *v)
+void jwzgles_glColor3fv(
+  const GLfloat *v)
 {
-  jwzgles_glColor3f (v[0], v[1], v[2]);
+  jwzgles_glColor3f(v [ 0 ], v [ 1 ], v [ 2 ]);
 }
 
 
 /* glColor: GLdouble */
 
-void
-jwzgles_glColor4d (GLdouble r, GLdouble g, GLdouble b, GLdouble a)
+void jwzgles_glColor4d(
+  GLdouble r,
+  GLdouble g,
+  GLdouble b,
+  GLdouble a)
 {
-  jwzgles_glColor4f (r, g, b, a);
+  jwzgles_glColor4f(r, g, b, a);
 }
 
-void
-jwzgles_glColor4dv (const GLdouble *v)
+void jwzgles_glColor4dv(
+  const GLdouble *v)
 {
-  jwzgles_glColor4d (v[0], v[1], v[2], v[3]);
+  jwzgles_glColor4d(v [ 0 ], v [ 1 ], v [ 2 ], v [ 3 ]);
 }
 
-void
-jwzgles_glColor3d (GLdouble r, GLdouble g, GLdouble b)
+void jwzgles_glColor3d(
+  GLdouble r,
+  GLdouble g,
+  GLdouble b)
 {
-  jwzgles_glColor4d (r, g, b, 1.0);
+  jwzgles_glColor4d(r, g, b, 1.0);
 }
 
-void
-jwzgles_glColor3dv (const GLdouble *v)
+void jwzgles_glColor3dv(
+  const GLdouble *v)
 {
-  jwzgles_glColor3d (v[0], v[1], v[2]);
+  jwzgles_glColor3d(v [ 0 ], v [ 1 ], v [ 2 ]);
 }
 
 
 /* glColor: GLint (INT_MIN - INT_MAX) */
 
-void
-jwzgles_glColor4i (GLint r, GLint g, GLint b, GLint a)
+void jwzgles_glColor4i(
+  GLint r,
+  GLint g,
+  GLint b,
+  GLint a)
 {
   /* -0x8000000 - 0x7FFFFFFF  =>  0.0 - 1.0 */
-  jwzgles_glColor4f (0.5 + (double) r / 0xFFFFFFFF,	/* Not GLfloat */
-                     0.5 + (double) g / 0xFFFFFFFF, 
-                     0.5 + (double) b / 0xFFFFFFFF,
-                     0.5 + (double) a / 0xFFFFFFFF);
+  jwzgles_glColor4f(0.5 + (double) r / 0xFFFFFFFF, /* Not GLfloat */
+    0.5 + (double) g / 0xFFFFFFFF,
+    0.5 + (double) b / 0xFFFFFFFF,
+    0.5 + (double) a / 0xFFFFFFFF);
 }
 
-void
-jwzgles_glColor4iv (const GLint *v)
+void jwzgles_glColor4iv(
+  const GLint *v)
 {
-  jwzgles_glColor4i (v[0], v[1], v[2], v[3]);
+  jwzgles_glColor4i(v [ 0 ], v [ 1 ], v [ 2 ], v [ 3 ]);
 }
 
 
-void
-jwzgles_glColor3i (GLint r, GLint g, GLint b)
+void jwzgles_glColor3i(
+  GLint r,
+  GLint g,
+  GLint b)
 {
-  jwzgles_glColor4i (r, g, b, 0x7FFFFFFF);
+  jwzgles_glColor4i(r, g, b, 0x7FFFFFFF);
 }
 
-void
-jwzgles_glColor3iv (const GLint *v)
+void jwzgles_glColor3iv(
+  const GLint *v)
 {
-  jwzgles_glColor3i (v[0], v[1], v[2]);
+  jwzgles_glColor3i(v [ 0 ], v [ 1 ], v [ 2 ]);
 }
 
 
 /* glColor: GLuint (0 - UINT_MAX) */
 
-void
-jwzgles_glColor4ui (GLuint r, GLuint g, GLuint b, GLuint a)
+void jwzgles_glColor4ui(
+  GLuint r,
+  GLuint g,
+  GLuint b,
+  GLuint a)
 {
   /* 0 - 0xFFFFFFFF  =>  0.0 - 1.0 */
-  jwzgles_glColor4f ((double) r / 0xFFFFFFFF,	/* Not GLfloat */
-                     (double) g / 0xFFFFFFFF, 
-                     (double) b / 0xFFFFFFFF,
-                     (double) a / 0xFFFFFFFF);
+  jwzgles_glColor4f((double) r / 0xFFFFFFFF, /* Not GLfloat */
+    (double) g / 0xFFFFFFFF,
+    (double) b / 0xFFFFFFFF,
+    (double) a / 0xFFFFFFFF);
 }
 
-void
-jwzgles_glColor4uiv (const GLuint *v)
+void jwzgles_glColor4uiv(
+  const GLuint *v)
 {
-  jwzgles_glColor4ui (v[0], v[1], v[2], v[3]);
+  jwzgles_glColor4ui(v [ 0 ], v [ 1 ], v [ 2 ], v [ 3 ]);
 }
 
-void
-jwzgles_glColor3ui (GLuint r, GLuint g, GLuint b)
+void jwzgles_glColor3ui(
+  GLuint r,
+  GLuint g,
+  GLuint b)
 {
-  jwzgles_glColor4ui (r, g, b, 0xFFFFFFFF);
+  jwzgles_glColor4ui(r, g, b, 0xFFFFFFFF);
 }
 
-void
-jwzgles_glColor3uiv (const GLuint *v)
+void jwzgles_glColor3uiv(
+  const GLuint *v)
 {
-  jwzgles_glColor3ui (v[0], v[1], v[2]);
+  jwzgles_glColor3ui(v [ 0 ], v [ 1 ], v [ 2 ]);
 }
 
 
 /* glColor: GLshort (SHRT_MIN - SHRT_MAX) */
 
-void
-jwzgles_glColor4s (GLshort r, GLshort g, GLshort b, GLshort a)
+void jwzgles_glColor4s(
+  GLshort r,
+  GLshort g,
+  GLshort b,
+  GLshort a)
 {
   /* -0x8000 - 0x7FFF  =>  0.0 - 1.0 */
-  jwzgles_glColor4f (0.5 + (double) r / 0xFFFF, 	/* Not GLfloat */
-                     0.5 + (double) g / 0xFFFF,
-                     0.5 + (double) b / 0xFFFF,
-                     0.5 + (double) a / 0xFFFF);
+  jwzgles_glColor4f(0.5 + (double) r / 0xFFFF, /* Not GLfloat */
+    0.5 + (double) g / 0xFFFF,
+    0.5 + (double) b / 0xFFFF,
+    0.5 + (double) a / 0xFFFF);
 }
 
-void
-jwzgles_glColor4sv (const GLshort *v)
+void jwzgles_glColor4sv(
+  const GLshort *v)
 {
-  jwzgles_glColor4s (v[0], v[1], v[2], v[3]);
+  jwzgles_glColor4s(v [ 0 ], v [ 1 ], v [ 2 ], v [ 3 ]);
 }
 
-void
-jwzgles_glColor3s (GLshort r, GLshort g, GLshort b)
+void jwzgles_glColor3s(
+  GLshort r,
+  GLshort g,
+  GLshort b)
 {
-  jwzgles_glColor4s (r, g, b, 0x7FFF);
+  jwzgles_glColor4s(r, g, b, 0x7FFF);
 }
 
-void
-jwzgles_glColor3sv (const GLshort *v)
+void jwzgles_glColor3sv(
+  const GLshort *v)
 {
-  jwzgles_glColor3s (v[0], v[1], v[2]);
+  jwzgles_glColor3s(v [ 0 ], v [ 1 ], v [ 2 ]);
 }
 
 
 /* glColor: GLushort (0 - USHRT_MAX) */
 
-void
-jwzgles_glColor4us (GLushort r, GLushort g, GLushort b, GLushort a)
+void jwzgles_glColor4us(
+  GLushort r,
+  GLushort g,
+  GLushort b,
+  GLushort a)
 {
   /* 0 - 0xFFFF  =>  0.0 - 1.0 */
-  jwzgles_glColor4f ((GLfloat) r / 0xFFFF,
-                     (GLfloat) g / 0xFFFF,
-                     (GLfloat) b / 0xFFFF,
-                     (GLfloat) a / 0xFFFF);
+  jwzgles_glColor4f((GLfloat) r / 0xFFFF,
+    (GLfloat) g / 0xFFFF,
+    (GLfloat) b / 0xFFFF,
+    (GLfloat) a / 0xFFFF);
 }
 
-void
-jwzgles_glColor4usv (const GLushort *v)
+void jwzgles_glColor4usv(
+  const GLushort *v)
 {
-  jwzgles_glColor4us (v[0], v[1], v[2], v[3]);
+  jwzgles_glColor4us(v [ 0 ], v [ 1 ], v [ 2 ], v [ 3 ]);
 }
 
-void
-jwzgles_glColor3us (GLushort r, GLushort g, GLushort b)
+void jwzgles_glColor3us(
+  GLushort r,
+  GLushort g,
+  GLushort b)
 {
-  jwzgles_glColor4us (r, g, b, 0xFFFF);
+  jwzgles_glColor4us(r, g, b, 0xFFFF);
 }
 
-void
-jwzgles_glColor3usv (const GLushort *v)
+void jwzgles_glColor3usv(
+  const GLushort *v)
 {
-  jwzgles_glColor3us (v[0], v[1], v[2]);
+  jwzgles_glColor3us(v [ 0 ], v [ 1 ], v [ 2 ]);
 }
 
 
 /* glColor: GLbyte (-128 - 127) */
 
-void
-jwzgles_glColor4b (GLbyte r, GLbyte g, GLbyte b, GLbyte a)
+void jwzgles_glColor4b(
+  GLbyte r,
+  GLbyte g,
+  GLbyte b,
+  GLbyte a)
 {
   /* -128 - 127  =>  0.0 - 1.0 */
-  jwzgles_glColor4f (0.5 + (double) r / 255,	/* Not GLfloat */
-                     0.5 + (double) g / 255,
-                     0.5 + (double) b / 255,
-                     0.5 + (double) a / 255);
+  jwzgles_glColor4f(0.5 + (double) r / 255, /* Not GLfloat */
+    0.5 + (double) g / 255,
+    0.5 + (double) b / 255,
+    0.5 + (double) a / 255);
 }
 
-void
-jwzgles_glColor4bv (const GLbyte *v)
+void jwzgles_glColor4bv(
+  const GLbyte *v)
 {
-  jwzgles_glColor4b (v[0], v[1], v[2], v[3]);
+  jwzgles_glColor4b(v [ 0 ], v [ 1 ], v [ 2 ], v [ 3 ]);
 }
 
-void
-jwzgles_glColor3b (GLbyte r, GLbyte g, GLbyte b)
+void jwzgles_glColor3b(
+  GLbyte r,
+  GLbyte g,
+  GLbyte b)
 {
-  jwzgles_glColor4b (r, g, b, 127);
+  jwzgles_glColor4b(r, g, b, 127);
 }
 
-void
-jwzgles_glColor3bv (const GLbyte *v)
+void jwzgles_glColor3bv(
+  const GLbyte *v)
 {
-  jwzgles_glColor3b (v[0], v[1], v[2]);
+  jwzgles_glColor3b(v [ 0 ], v [ 1 ], v [ 2 ]);
 }
 
 
 /* glColor: GLubyte (0 - 255) */
 
-void
-jwzgles_glColor4ub (GLubyte r, GLubyte g, GLubyte b, GLubyte a)
+void jwzgles_glColor4ub(
+  GLubyte r,
+  GLubyte g,
+  GLubyte b,
+  GLubyte a)
 {
   /* 0 - 255  =>  0.0 - 1.0 */
-  jwzgles_glColor4f (r / 255.0, g / 255.0, b / 255.0, a / 255.0);
+  jwzgles_glColor4f(r / 255.0, g / 255.0, b / 255.0, a / 255.0);
 }
 
-void
-jwzgles_glColor4ubv (const GLubyte *v)
+void jwzgles_glColor4ubv(
+  const GLubyte *v)
 {
-  jwzgles_glColor4ub (v[0], v[1], v[2], v[3]);
+  jwzgles_glColor4ub(v [ 0 ], v [ 1 ], v [ 2 ], v [ 3 ]);
 }
 
-void
-jwzgles_glColor3ub (GLubyte r, GLubyte g, GLubyte b)
+void jwzgles_glColor3ub(
+  GLubyte r,
+  GLubyte g,
+  GLubyte b)
 {
-  jwzgles_glColor4ub (r, g, b, 255);
+  jwzgles_glColor4ub(r, g, b, 255);
 }
 
-void
-jwzgles_glColor3ubv (const GLubyte *v)
+void jwzgles_glColor3ubv(
+  const GLubyte *v)
 {
-  jwzgles_glColor3ub (v[0], v[1], v[2]);
+  jwzgles_glColor3ub(v [ 0 ], v [ 1 ], v [ 2 ]);
 }
 
 
 
-void
-jwzgles_glMaterialfv (GLenum face, GLenum pname, const GLfloat *color)
+void jwzgles_glMaterialfv(
+  GLenum face,
+  GLenum pname,
+  const GLfloat *color)
 {
   /* If this is called inside glBegin/glEnd with a front ambient color,
      then treat it the same as glColor: set the color of the upcoming
@@ -1444,30 +1549,32 @@ jwzgles_glMaterialfv (GLenum face, GLenum pname, const GLfloat *color)
 
   if (state->compiling_verts)
     {
-      if ((face == GL_FRONT || 
-           face == GL_FRONT_AND_BACK) &&
-          (pname == GL_AMBIENT || 
-           pname == GL_DIFFUSE || 
-           pname == GL_AMBIENT_AND_DIFFUSE))
+      if ((face == GL_FRONT ||
+            face == GL_FRONT_AND_BACK) &&
+        (pname == GL_AMBIENT ||
+          pname == GL_DIFFUSE ||
+          pname == GL_AMBIENT_AND_DIFFUSE))
         {
-          jwzgles_glColor4f (color[0], color[1], color[2], color[3]);
+          jwzgles_glColor4f(color [ 0 ], color [ 1 ], color [ 2 ], color [ 3 ]);
           state->set.materialistic++;
         }
       else
-        LOG2 ("  IGNORING glMaterialfv %s %s",
-              mode_desc(face), mode_desc(pname));
+        {
+          LOG2("  IGNORING glMaterialfv %s %s",
+            mode_desc(face),
+            mode_desc(pname));
+        }
     }
   else if (state->compiling_list)
     {
-      void_int vv[6];
-      vv[0].i = face;
-      vv[1].i = pname;
-      vv[2].f = color[0];
-      vv[3].f = color[1];
-      vv[4].f = color[2];
-      vv[5].f = color[3];
-      list_push ("glMaterialfv", (list_fn_cb) &jwzgles_glMaterialfv, 
-                 PROTO_IIFV, vv);
+      void_int vv [ 6 ];
+      vv [ 0 ].i= face;
+      vv [ 1 ].i= pname;
+      vv [ 2 ].f= color [ 0 ];
+      vv [ 3 ].f= color [ 1 ];
+      vv [ 4 ].f= color [ 2 ];
+      vv [ 5 ].f= color [ 3 ];
+      list_push("glMaterialfv", (list_fn_cb) &jwzgles_glMaterialfv, PROTO_IIFV, vv);
     }
   else
     {
@@ -1481,13 +1588,13 @@ jwzgles_glMaterialfv (GLenum face, GLenum pname, const GLfloat *color)
          I'm not sure if this will have other inappropriate side effects...
        */
       if ((face == GL_FRONT ||
-           face == GL_FRONT_AND_BACK) &&
-          (pname == GL_AMBIENT ||
-           pname == GL_DIFFUSE ||
-           pname == GL_AMBIENT_AND_DIFFUSE))
+            face == GL_FRONT_AND_BACK) &&
+        (pname == GL_AMBIENT ||
+          pname == GL_DIFFUSE ||
+          pname == GL_AMBIENT_AND_DIFFUSE))
         {
-          jwzgles_glEnable (GL_COLOR_MATERIAL);
-          jwzgles_glColor4f (color[0], color[1], color[2], color[3]);
+          jwzgles_glEnable(GL_COLOR_MATERIAL);
+          jwzgles_glColor4f(color [ 0 ], color [ 1 ], color [ 2 ], color [ 3 ]);
         }
 
       /* OpenGLES seems to throw "invalid enum" for GL_FRONT -- but it
@@ -1495,52 +1602,57 @@ jwzgles_glMaterialfv (GLenum face, GLenum pname, const GLfloat *color)
          always use GL_FRONT_AND_BACK.
        */
       if (face == GL_FRONT)
-        face = GL_FRONT_AND_BACK;
+        face= GL_FRONT_AND_BACK;
       if (! state->replaying_list)
-        LOG7 ("direct %-12s %s %s %7.3f %7.3f %7.3f %7.3f", "glMaterialfv",
-              mode_desc(face), mode_desc(pname),
-              color[0], color[1], color[2], color[3]);
-      glMaterialfv (face, pname, color);  /* the real one */
+        LOG7("direct %-12s %s %s %7.3f %7.3f %7.3f %7.3f", "glMaterialfv", mode_desc(face), mode_desc(pname), color [ 0 ], color [ 1 ], color [ 2 ], color [ 3 ]);
+      glMaterialfv(face, pname, color); /* the real one */
       CHECK("glMaterialfv");
     }
 }
 
 
-void
-jwzgles_glMaterialiv (GLenum face, GLenum pname, const GLint *v)
+void jwzgles_glMaterialiv(
+  GLenum face,
+  GLenum pname,
+  const GLint *v)
 {
-  GLfloat vv[4];
-  vv[0] = v[0];
-  vv[1] = v[1];
-  vv[2] = v[2];
-  vv[3] = 1;
-  jwzgles_glMaterialfv (face, pname, vv);
+  GLfloat vv [ 4 ];
+  vv [ 0 ]= v [ 0 ];
+  vv [ 1 ]= v [ 1 ];
+  vv [ 2 ]= v [ 2 ];
+  vv [ 3 ]= 1;
+  jwzgles_glMaterialfv(face, pname, vv);
 }
 
-void
-jwzgles_glMaterialf (GLenum face, GLenum pname, const GLfloat c)
+void jwzgles_glMaterialf(
+  GLenum face,
+  GLenum pname,
+  const GLfloat c)
 {
-  GLfloat vv[4];
-  vv[0] = c;
-  vv[1] = c;
-  vv[2] = c;
-  vv[3] = 1;
-  jwzgles_glMaterialfv (face, pname, vv);
-}
-
-
-void
-jwzgles_glMateriali (GLenum face, GLenum pname, const GLuint c)
-{
-  jwzgles_glMaterialf (face, pname, c);
+  GLfloat vv [ 4 ];
+  vv [ 0 ]= c;
+  vv [ 1 ]= c;
+  vv [ 2 ]= c;
+  vv [ 3 ]= 1;
+  jwzgles_glMaterialfv(face, pname, vv);
 }
 
 
-void
-jwzgles_glColorMaterial (GLenum face, GLenum mode)
+void jwzgles_glMateriali(
+  GLenum face,
+  GLenum pname,
+  const GLuint c)
 {
-  Assert (!state->compiling_verts,
-          "glColorMaterial not allowed inside glBegin");
+  jwzgles_glMaterialf(face, pname, c);
+}
+
+
+void jwzgles_glColorMaterial(
+  GLenum face,
+  GLenum mode)
+{
+  Assert(! state->compiling_verts,
+    "glColorMaterial not allowed inside glBegin");
 #if 0
   if (state->compiling_list)
     {
@@ -1562,247 +1674,276 @@ jwzgles_glColorMaterial (GLenum face, GLenum mode)
 
 
 
-void
-jwzgles_glVertex4fv (const GLfloat *v)
+void jwzgles_glVertex4fv(
+  const GLfloat *v)
 {
-  vert_set *s = &state->set;
-  int count = s->count;
+  vert_set *s= &state->set;
+  int count= s->count;
 
-  Assert (state->compiling_verts, "glVertex4fv not inside glBegin");
+  Assert(state->compiling_verts, "glVertex4fv not inside glBegin");
 
   LOG5("%s  rec  glVertex4f   %7.3f %7.3f %7.3f %7.3f",
-       (state->compiling_list || state->replaying_list ? "  " : ""),
-       v[0], v[1], v[2], v[3]);
+    (state->compiling_list || state->replaying_list ? "  " : ""),
+    v [ 0 ],
+    v [ 1 ],
+    v [ 2 ],
+    v [ 3 ]);
 
   if (count >= s->size - 1)
     {
-      int new_size = 20 + (s->size * 1.2);
+      int new_size= 20 + (s->size * 1.2);
 
       /* 4 arrays, different element sizes...
          We allocate all 4 arrays just in case we need them,
          but we might not end up using them all at the end.
       */
 
-      s->verts = (XYZW *) realloc (s->verts, new_size * sizeof (*s->verts));
-      Assert (s->verts, "out of memory");
+      s->verts= (XYZW *) realloc(s->verts, new_size * sizeof(*s->verts));
+      Assert(s->verts, "out of memory");
 
-      s->norms = (XYZ *) realloc (s->norms, new_size * sizeof (*s->norms));
-      Assert (s->norms, "out of memory");
+      s->norms= (XYZ *) realloc(s->norms, new_size * sizeof(*s->norms));
+      Assert(s->norms, "out of memory");
 
-      s->tex = (STRQ *) realloc (s->tex, new_size * sizeof (*s->tex));
-      Assert (s->tex, "out of memory");
+      s->tex= (STRQ *) realloc(s->tex, new_size * sizeof(*s->tex));
+      Assert(s->tex, "out of memory");
 
-      s->color = (RGBA *) realloc (s->color, new_size * sizeof (*s->color));
-      Assert (s->color, "out of memory");
+      s->color= (RGBA *) realloc(s->color, new_size * sizeof(*s->color));
+      Assert(s->color, "out of memory");
 
-      s->size = new_size;
+      s->size= new_size;
     }
 
-  s->verts [count].x = v[0];
-  s->verts [count].y = v[1];
-  s->verts [count].z = v[2];
-  s->verts [count].w = v[3];
-  s->norms [count] = s->cnorm;
-  s->tex   [count] = s->ctex;
-  s->color [count] = s->ccolor;
+  s->verts [ count ].x= v [ 0 ];
+  s->verts [ count ].y= v [ 1 ];
+  s->verts [ count ].z= v [ 2 ];
+  s->verts [ count ].w= v [ 3 ];
+  s->norms [ count ]= s->cnorm;
+  s->tex [ count ]= s->ctex;
+  s->color [ count ]= s->ccolor;
   s->count++;
 }
 
 
-void
-jwzgles_glVertex4f (GLfloat x, GLfloat y, GLfloat z, GLfloat w)
+void jwzgles_glVertex4f(
+  GLfloat x,
+  GLfloat y,
+  GLfloat z,
+  GLfloat w)
 {
-  GLfloat v[4];
-  v[0] = x;
-  v[1] = y;
-  v[2] = z;
-  v[3] = w;
-  jwzgles_glVertex4fv (v);
+  GLfloat v [ 4 ];
+  v [ 0 ]= x;
+  v [ 1 ]= y;
+  v [ 2 ]= z;
+  v [ 3 ]= w;
+  jwzgles_glVertex4fv(v);
 }
 
-void
-jwzgles_glVertex4i (GLint x, GLint y, GLint z, GLint w)
+void jwzgles_glVertex4i(
+  GLint x,
+  GLint y,
+  GLint z,
+  GLint w)
 {
-  jwzgles_glVertex4f (x, y, z, w);
+  jwzgles_glVertex4f(x, y, z, w);
 }
 
-void
-jwzgles_glVertex3f (GLfloat x, GLfloat y, GLfloat z)
+void jwzgles_glVertex3f(
+  GLfloat x,
+  GLfloat y,
+  GLfloat z)
 {
-  GLfloat v[4];
-  v[0] = x;
-  v[1] = y;
-  v[2] = z;
-  v[3] = 1;
-  jwzgles_glVertex4fv (v);
+  GLfloat v [ 4 ];
+  v [ 0 ]= x;
+  v [ 1 ]= y;
+  v [ 2 ]= z;
+  v [ 3 ]= 1;
+  jwzgles_glVertex4fv(v);
 }
 
-void
-jwzgles_glVertex3i (GLint x, GLint y, GLint z)
+void jwzgles_glVertex3i(
+  GLint x,
+  GLint y,
+  GLint z)
 {
-  jwzgles_glVertex3f (x, y, z);
+  jwzgles_glVertex3f(x, y, z);
 }
 
-void
-jwzgles_glVertex3fv (const GLfloat *v)
+void jwzgles_glVertex3fv(
+  const GLfloat *v)
 {
-  jwzgles_glVertex3f (v[0], v[1], v[2]);
+  jwzgles_glVertex3f(v [ 0 ], v [ 1 ], v [ 2 ]);
 }
 
-void
-jwzgles_glVertex3dv (const GLdouble *v)
+void jwzgles_glVertex3dv(
+  const GLdouble *v)
 {
-  jwzgles_glVertex3f (v[0], v[1], v[2]);
-}
-
-
-void
-jwzgles_glVertex2f (GLfloat x, GLfloat y)
-{
-  GLfloat v[3];
-  v[0] = x;
-  v[1] = y;
-  v[2] = 0;
-  jwzgles_glVertex3fv (v);
-}
-
-void
-jwzgles_glVertex2dv (const GLdouble *v)
-{
-  jwzgles_glVertex2f (v[0], v[1]);
-}
-
-void
-jwzgles_glVertex2fv (const GLfloat *v)
-{
-  jwzgles_glVertex2f (v[0], v[1]);
-}
-
-void
-jwzgles_glVertex2i (GLint x, GLint y)
-{
-  jwzgles_glVertex2f (x, y);
+  jwzgles_glVertex3f(v [ 0 ], v [ 1 ], v [ 2 ]);
 }
 
 
-void
-jwzgles_glLightiv (GLenum light, GLenum pname, const GLint *params)
+void jwzgles_glVertex2f(
+  GLfloat x,
+  GLfloat y)
 {
-  GLfloat v[4];
-  v[0] = params[0];
-  v[1] = params[1];
-  v[2] = params[2];
-  v[3] = params[3];
-  jwzgles_glLightfv (light, pname, v);
+  GLfloat v [ 3 ];
+  v [ 0 ]= x;
+  v [ 1 ]= y;
+  v [ 2 ]= 0;
+  jwzgles_glVertex3fv(v);
 }
 
-void
-jwzgles_glLightModeliv (GLenum pname, const GLint *params)
+void jwzgles_glVertex2dv(
+  const GLdouble *v)
 {
-  GLfloat v[4];
-  v[0] = params[0];
-  v[1] = params[1];
-  v[2] = params[2];
-  v[3] = params[3];
-  jwzgles_glLightModelfv (pname, v);
+  jwzgles_glVertex2f(v [ 0 ], v [ 1 ]);
 }
 
-void
-jwzgles_glFogiv (GLenum pname, const GLint *params)
+void jwzgles_glVertex2fv(
+  const GLfloat *v)
 {
-  GLfloat v[4];
-  v[0] = params[0];
-  v[1] = params[1];
-  v[2] = params[2];
-  v[3] = params[3];
-  jwzgles_glFogfv (pname, v);
+  jwzgles_glVertex2f(v [ 0 ], v [ 1 ]);
 }
 
-void
-jwzgles_glLighti (GLenum light, GLenum pname, GLint param)
+void jwzgles_glVertex2i(
+  GLint x,
+  GLint y)
 {
-  jwzgles_glLightf (light, pname, param);
-}
-
-void
-jwzgles_glLightModeli (GLenum pname, GLint param)
-{
-  jwzgles_glLightModelf (pname, param);
-}
-
-void
-jwzgles_glFogi (GLenum pname, GLint param)
-{
-  jwzgles_glFogf (pname, param);
+  jwzgles_glVertex2f(x, y);
 }
 
 
-void
-jwzgles_glRotated (GLdouble angle, GLdouble x, GLdouble y, GLdouble z)
+void jwzgles_glLightiv(
+  GLenum light,
+  GLenum pname,
+  const GLint *params)
 {
-  jwzgles_glRotatef (angle, x, y, z);
+  GLfloat v [ 4 ];
+  v [ 0 ]= params [ 0 ];
+  v [ 1 ]= params [ 1 ];
+  v [ 2 ]= params [ 2 ];
+  v [ 3 ]= params [ 3 ];
+  jwzgles_glLightfv(light, pname, v);
+}
+
+void jwzgles_glLightModeliv(
+  GLenum pname,
+  const GLint *params)
+{
+  GLfloat v [ 4 ];
+  v [ 0 ]= params [ 0 ];
+  v [ 1 ]= params [ 1 ];
+  v [ 2 ]= params [ 2 ];
+  v [ 3 ]= params [ 3 ];
+  jwzgles_glLightModelfv(pname, v);
+}
+
+void jwzgles_glFogiv(
+  GLenum pname,
+  const GLint *params)
+{
+  GLfloat v [ 4 ];
+  v [ 0 ]= params [ 0 ];
+  v [ 1 ]= params [ 1 ];
+  v [ 2 ]= params [ 2 ];
+  v [ 3 ]= params [ 3 ];
+  jwzgles_glFogfv(pname, v);
+}
+
+void jwzgles_glLighti(
+  GLenum light,
+  GLenum pname,
+  GLint param)
+{
+  jwzgles_glLightf(light, pname, param);
+}
+
+void jwzgles_glLightModeli(
+  GLenum pname,
+  GLint param)
+{
+  jwzgles_glLightModelf(pname, param);
+}
+
+void jwzgles_glFogi(
+  GLenum pname,
+  GLint param)
+{
+  jwzgles_glFogf(pname, param);
 }
 
 
-void
-jwzgles_glClipPlane (GLenum plane, const GLdouble *equation)
+void jwzgles_glRotated(
+  GLdouble angle,
+  GLdouble x,
+  GLdouble y,
+  GLdouble z)
 {
-  Assert (state->compiling_verts, "glClipPlane not inside glBegin");
-  Assert (0, "glClipPlane unimplemented");  /* no GLES equivalent... */
+  jwzgles_glRotatef(angle, x, y, z);
 }
 
 
-void
-jwzgles_glPolygonMode (GLenum face, GLenum mode)
+void jwzgles_glClipPlane(
+  GLenum plane,
+  const GLdouble *equation)
 {
-  Assert (!state->compiling_verts, "not inside glBegin");
+  Assert(state->compiling_verts, "glClipPlane not inside glBegin");
+  Assert(0, "glClipPlane unimplemented"); /* no GLES equivalent... */
+}
+
+
+void jwzgles_glPolygonMode(
+  GLenum face,
+  GLenum mode)
+{
+  Assert(! state->compiling_verts, "not inside glBegin");
   if (state->compiling_list)
     {
-      void_int vv[2];
-      vv[0].i = face;
-      vv[1].i = mode;
-      list_push ("glPolygonMode", (list_fn_cb) &jwzgles_glPolygonMode, 
-                 PROTO_II, vv);
+      void_int vv [ 2 ];
+      vv [ 0 ].i= face;
+      vv [ 1 ].i= mode;
+      list_push("glPolygonMode", (list_fn_cb) &jwzgles_glPolygonMode, PROTO_II, vv);
     }
   else
     {
       /* POINT and LINE don't exist in GLES */
-      Assert (mode == GL_FILL, "glPolygonMode: unimplemented mode");
+      Assert(mode == GL_FILL, "glPolygonMode: unimplemented mode");
     }
 }
 
 
-void
-jwzgles_glDrawBuffer (GLenum buf)
+void jwzgles_glDrawBuffer(
+  GLenum buf)
 {
-  Assert (!state->compiling_verts, "not inside glBegin");
+  Assert(! state->compiling_verts, "not inside glBegin");
   if (state->compiling_list)
     {
-      void_int vv[1];
-      vv[0].i = buf;
-      list_push ("glDrawBuffer", (list_fn_cb) &jwzgles_glDrawBuffer, 
-                 PROTO_I, vv);
+      void_int vv [ 1 ];
+      vv [ 0 ].i= buf;
+      list_push("glDrawBuffer", (list_fn_cb) &jwzgles_glDrawBuffer, PROTO_I, vv);
     }
   else
     {
-      Assert (buf == GL_BACK, "glDrawBuffer: back buffer only");
-# if !defined(GL_VERSION_ES_CM_1_0)
+      Assert(buf == GL_BACK, "glDrawBuffer: back buffer only");
+#if ! defined(GL_VERSION_ES_CM_1_0)
       /* not compiling against OpenGLES 1.x */
       if (! state->replaying_list)
-        LOG1 ("direct %-12s", "glDrawBuffer");
-      glDrawBuffer (buf);      /* the real one */
+        LOG1("direct %-12s", "glDrawBuffer");
+      glDrawBuffer(buf); /* the real one */
       CHECK("glDrawBuffer");
-# endif
+#endif
     }
 }
 
 
-void jwzgles_glDrawElements (GLenum mode, GLsizei count, GLenum type,
-                             const GLvoid *indices)
+void jwzgles_glDrawElements(
+  GLenum mode,
+  GLsizei count,
+  GLenum type,
+  const GLvoid *indices)
 {
-  Assert (!state->compiling_verts, "not allowed inside glBegin");
-  Assert (!state->compiling_list,  "not allowed inside glNewList");
-# if 0
+  Assert(! state->compiling_verts, "not allowed inside glBegin");
+  Assert(! state->compiling_list, "not allowed inside glNewList");
+#if 0
   if (state->compiling_list)
     {
       void_int vv[1];
@@ -1812,11 +1953,11 @@ void jwzgles_glDrawElements (GLenum mode, GLsizei count, GLenum type,
                  PROTO_IIII, vv);
     }
   else
-# endif /* 0 */
-    {
-      glDrawElements (mode, count, type, indices);      /* the real one */
-      CHECK("glDrawElements");
-    }
+#endif /* 0 */
+  {
+    glDrawElements(mode, count, type, indices); /* the real one */
+    CHECK("glDrawElements");
+  }
 }
 
 
@@ -1824,106 +1965,121 @@ void jwzgles_glDrawElements (GLenum mode, GLsizei count, GLenum type,
    to an array of sets of 6 elements instead: ABCD becomes ABC BCD.
  */
 static int
-cq2t (unsigned char **arrayP, int stride, int count)
+  cq2t(
+    unsigned char **arrayP,
+    int stride,
+    int count)
 {
-  int count2 = count * 6 / 4;
-  int size  = stride * count;
-  int size2 = stride * count2;
-  const unsigned char    *oarray,  *in;
+  int count2= count * 6 / 4;
+  int size= stride * count;
+  int size2= stride * count2;
+  const unsigned char *oarray, *in;
   unsigned char *array2, *oarray2, *out;
   int i;
 
-  oarray = *arrayP;
-  if (!oarray || count == 0)
+  oarray= *arrayP;
+  if (! oarray || count == 0)
     return count2;
 
-  array2 = (unsigned char *) malloc (size2);
-  Assert (array2, "out of memory");
-  oarray2 = array2;
+  array2= (unsigned char *) malloc(size2);
+  Assert(array2, "out of memory");
+  oarray2= array2;
 
-  in =  oarray;
-  out = oarray2;
-  for (i = 0; i < count / 4; i++)
+  in= oarray;
+  out= oarray2;
+  for (i= 0; i < count / 4; i++)
     {
-      const unsigned char *a, *b, *c, *d;	/* the 4 corners */
-      a = in; in += stride;
-      b = in; in += stride;
-      c = in; in += stride;
-      d = in; in += stride;
+      const unsigned char *a, *b, *c, *d; /* the 4 corners */
+      a= in;
+      in+= stride;
+      b= in;
+      in+= stride;
+      c= in;
+      in+= stride;
+      d= in;
+      in+= stride;
 
-# define PUSH(IN) do {			\
+#define PUSH(IN) do {			\
          const unsigned char *ii = IN;	\
          int j;				\
          for (j = 0; j < stride; j++) {	\
            *out++ = *ii++;		\
          }} while(0)
 
-      PUSH (a); PUSH (b); PUSH (d);		/* the 2 triangles */
-      PUSH (b); PUSH (c); PUSH (d);
-# undef PUSH
+      PUSH(a);
+      PUSH(b);
+      PUSH(d); /* the 2 triangles */
+      PUSH(b);
+      PUSH(c);
+      PUSH(d);
+#undef PUSH
     }
 
-  Assert (in  == oarray  + size,  "convert_quads corrupted");
-  Assert (out == oarray2 + size2, "convert_quads corrupted");
+  Assert(in == oarray + size, "convert_quads corrupted");
+  Assert(out == oarray2 + size2, "convert_quads corrupted");
 
-  free (*arrayP);
-  *arrayP = oarray2;
+  free(*arrayP);
+  *arrayP= oarray2;
   return count2;
 }
-                              
+
 
 /* Convert all coordinates in a GL_QUADS vert_set to GL_TRIANGLES.
  */
 static void
-convert_quads_to_triangles (vert_set *s)
+  convert_quads_to_triangles(
+    vert_set *s)
 {
   int count2;
-  Assert (s->mode == GL_QUADS, "convert_quads bad mode");
-  count2 =
-   cq2t ((unsigned char **) &s->verts, sizeof(*s->verts), s->count);
-   cq2t ((unsigned char **) &s->norms, sizeof(*s->norms), s->count);
-   cq2t ((unsigned char **) &s->tex,   sizeof(*s->tex),   s->count);
-   cq2t ((unsigned char **) &s->color, sizeof(*s->color), s->count);
-  s->count = count2;
-  s->size  = count2;
-  s->mode = GL_TRIANGLES;
+  Assert(s->mode == GL_QUADS, "convert_quads bad mode");
+  count2=
+    cq2t((unsigned char **) &s->verts, sizeof(*s->verts), s->count);
+  cq2t((unsigned char **) &s->norms, sizeof(*s->norms), s->count);
+  cq2t((unsigned char **) &s->tex, sizeof(*s->tex), s->count);
+  cq2t((unsigned char **) &s->color, sizeof(*s->color), s->count);
+  s->count= count2;
+  s->size= count2;
+  s->mode= GL_TRIANGLES;
 }
 
 
-void
-jwzgles_glEnd (void)
+void jwzgles_glEnd(
+  void)
 {
-  vert_set *s = &state->set;
+  vert_set *s= &state->set;
   int was_norm, was_tex, was_color, was_mat;
-  int  is_norm,  is_tex,  is_color,  is_mat;
+  int is_norm, is_tex, is_color, is_mat;
 
-  Assert (state->compiling_verts == 1, "missing glBegin");
+  Assert(state->compiling_verts == 1, "missing glBegin");
   state->compiling_verts--;
 
-  Assert (!state->replaying_list, "how did glEnd get into a display list?");
+  Assert(! state->replaying_list, "how did glEnd get into a display list?");
 
-  if (!state->replaying_list)
+  if (! state->replaying_list)
     {
-      LOG5 ("%s  [V = %d, N = %d, T = %d, C = %d]",
-            (state->compiling_list || state->replaying_list ? "  " : ""),
-            s->count, s->ncount, s->tcount, s->ccount);
-      LOG1 ("%sglEnd",
-            (state->compiling_list || state->replaying_list ? "  " : ""));
+      LOG5("%s  [V = %d, N = %d, T = %d, C = %d]",
+        (state->compiling_list || state->replaying_list ? "  " : ""),
+        s->count,
+        s->ncount,
+        s->tcount,
+        s->ccount);
+      LOG1("%sglEnd",
+        (state->compiling_list || state->replaying_list ? "  " : ""));
     }
 
   if (s->count == 0) return;
 
   if (s->mode == GL_QUADS)
-    convert_quads_to_triangles (s);
+    convert_quads_to_triangles(s);
   else if (s->mode == GL_QUAD_STRIP)
-    s->mode = GL_TRIANGLE_STRIP;	/* They do the same thing! */
+    s->mode= GL_TRIANGLE_STRIP; /* They do the same thing! */
   else if (s->mode == GL_POLYGON)
-    s->mode = GL_TRIANGLE_FAN;		/* They do the same thing! */
+    s->mode= GL_TRIANGLE_FAN; /* They do the same thing! */
 
-  jwzgles_glColorPointer   (4,GL_FLOAT, sizeof(*s->color),s->color); /* RGBA */
-  jwzgles_glNormalPointer  (  GL_FLOAT, sizeof(*s->norms),s->norms); /* XYZ  */
-  jwzgles_glTexCoordPointer(4,GL_FLOAT, sizeof(*s->tex),  s->tex);   /* STRQ */
-  jwzgles_glVertexPointer  (4,GL_FLOAT, sizeof(*s->verts),s->verts); /* XYZW */
+  jwzgles_glColorPointer(4, GL_FLOAT, sizeof(*s->color), s->color);  /* RGBA */
+  jwzgles_glNormalPointer(GL_FLOAT, sizeof(*s->norms), s->norms);    /* XYZ  */
+  jwzgles_glTexCoordPointer(4, GL_FLOAT, sizeof(*s->tex), s->tex);   /* STRQ */
+  jwzgles_glVertexPointer(4, GL_FLOAT, sizeof(*s->verts), s->verts); /* XYZW */
   /* glVertexPointer must come after glTexCoordPointer */
 
   /* If there were no calls to glNormal3f inside of glBegin/glEnd,
@@ -1941,10 +2097,10 @@ jwzgles_glEnd (void)
      mistake.  (Remember that jwzgles_glIsEnabled() tracks the enablement
      of the list-in-progress as well as the global state.)
   */
-  was_norm  = jwzgles_glIsEnabled (GL_NORMAL_ARRAY);
-  was_tex   = jwzgles_glIsEnabled (GL_TEXTURE_COORD_ARRAY);
-  was_color = jwzgles_glIsEnabled (GL_COLOR_ARRAY);
-  was_mat   = jwzgles_glIsEnabled (GL_COLOR_MATERIAL);
+  was_norm= jwzgles_glIsEnabled(GL_NORMAL_ARRAY);
+  was_tex= jwzgles_glIsEnabled(GL_TEXTURE_COORD_ARRAY);
+  was_color= jwzgles_glIsEnabled(GL_COLOR_ARRAY);
+  was_mat= jwzgles_glIsEnabled(GL_COLOR_MATERIAL);
 
   /* If we're executing glEnd in immediate mode, not from inside a display
      list (which is the only way it happens, because glEnd doesn't go into
@@ -1952,86 +2108,86 @@ jwzgles_glEnd (void)
      in immediate mode, vertexes are client-side only.
    */
   if (! state->compiling_list)
-    jwzgles_glBindBuffer (GL_ARRAY_BUFFER, 0);
+    jwzgles_glBindBuffer(GL_ARRAY_BUFFER, 0);
 
   if (s->ncount > 1)
     {
-      is_norm = 1;
-      jwzgles_glEnableClientState (GL_NORMAL_ARRAY);
+      is_norm= 1;
+      jwzgles_glEnableClientState(GL_NORMAL_ARRAY);
     }
   else
     {
-      is_norm = 0;
+      is_norm= 0;
       if (s->ncount == 1)
-        jwzgles_glNormal3f (s->cnorm.x, s->cnorm.y, s->cnorm.z);
-      jwzgles_glDisableClientState (GL_NORMAL_ARRAY);
+        jwzgles_glNormal3f(s->cnorm.x, s->cnorm.y, s->cnorm.z);
+      jwzgles_glDisableClientState(GL_NORMAL_ARRAY);
     }
 
   if (s->tcount > 1 ||
-      ((state->compiling_list ? state->list_enabled : state->enabled)
-       & (ISENABLED_TEXTURE_GEN_S | ISENABLED_TEXTURE_GEN_T |
-          ISENABLED_TEXTURE_GEN_R | ISENABLED_TEXTURE_GEN_Q)))
+    ((state->compiling_list ? state->list_enabled : state->enabled) & (ISENABLED_TEXTURE_GEN_S | ISENABLED_TEXTURE_GEN_T | ISENABLED_TEXTURE_GEN_R | ISENABLED_TEXTURE_GEN_Q)))
     {
       /* Enable texture coords if any were specified; or if generation
          is on in immediate mode; or if this list turned on generation. */
-      is_tex = 1;
-      jwzgles_glEnableClientState (GL_TEXTURE_COORD_ARRAY);
+      is_tex= 1;
+      jwzgles_glEnableClientState(GL_TEXTURE_COORD_ARRAY);
     }
   else
     {
-      is_tex = 0;
+      is_tex= 0;
       if (s->tcount == 1)
-        jwzgles_glTexCoord4f (s->ctex.s, s->ctex.t, s->ctex.r, s->ctex.q);
-      jwzgles_glDisableClientState (GL_TEXTURE_COORD_ARRAY);
+        jwzgles_glTexCoord4f(s->ctex.s, s->ctex.t, s->ctex.r, s->ctex.q);
+      jwzgles_glDisableClientState(GL_TEXTURE_COORD_ARRAY);
     }
 
   if (s->ccount > 1)
     {
-      is_color = 1;
-      jwzgles_glEnableClientState (GL_COLOR_ARRAY);
+      is_color= 1;
+      jwzgles_glEnableClientState(GL_COLOR_ARRAY);
     }
   else
     {
-      is_color = 0;
+      is_color= 0;
       if (s->ccount == 1)
-        jwzgles_glColor4f (s->ccolor.r, s->ccolor.g, s->ccolor.b, s->ccolor.a);
-      jwzgles_glDisableClientState (GL_COLOR_ARRAY);
+        jwzgles_glColor4f(s->ccolor.r, s->ccolor.g, s->ccolor.b, s->ccolor.a);
+      jwzgles_glDisableClientState(GL_COLOR_ARRAY);
     }
 
-  jwzgles_glEnableClientState (GL_VERTEX_ARRAY);
+  jwzgles_glEnableClientState(GL_VERTEX_ARRAY);
 
   /* We translated the glMaterial calls to per-vertex colors, which are
      of the glColor sort, not the glMaterial sort, so automatically
      turn on material mapping.  Maybe this is a bad idea.
    */
-  if (s->materialistic && !jwzgles_glIsEnabled (GL_COLOR_MATERIAL))
+  if (s->materialistic && ! jwzgles_glIsEnabled(GL_COLOR_MATERIAL))
     {
-      is_mat = 1;
-      jwzgles_glEnable (GL_COLOR_MATERIAL);
+      is_mat= 1;
+      jwzgles_glEnable(GL_COLOR_MATERIAL);
     }
   else
-    is_mat = 0;
+    {
+      is_mat= 0;
+    }
 
-  glBindBuffer (GL_ARRAY_BUFFER, 0);    /* This comes later. */
-  jwzgles_glDrawArrays (s->mode, 0, s->count);
-  glBindBuffer (GL_ARRAY_BUFFER, 0);    /* Keep out of others' hands */
+  glBindBuffer(GL_ARRAY_BUFFER, 0); /* This comes later. */
+  jwzgles_glDrawArrays(s->mode, 0, s->count);
+  glBindBuffer(GL_ARRAY_BUFFER, 0); /* Keep out of others' hands */
 
-# define RESET(VAR,ENFN,DISFN,ARG) do { \
+#define RESET(VAR, ENFN, DISFN, ARG) do { \
          if (is_##VAR != was_##VAR) { \
             if (was_##VAR) jwzgles_gl##ENFN (ARG); \
             else jwzgles_gl##DISFN (ARG); \
          }} while(0)
-  RESET (norm,  EnableClientState, DisableClientState, GL_NORMAL_ARRAY);
-  RESET (tex,   EnableClientState, DisableClientState, GL_TEXTURE_COORD_ARRAY);
-  RESET (color, EnableClientState, DisableClientState, GL_COLOR_ARRAY);
-  RESET (mat,   Enable,            Disable,            GL_COLOR_MATERIAL);
-# undef RESET
+  RESET(norm, EnableClientState, DisableClientState, GL_NORMAL_ARRAY);
+  RESET(tex, EnableClientState, DisableClientState, GL_TEXTURE_COORD_ARRAY);
+  RESET(color, EnableClientState, DisableClientState, GL_COLOR_ARRAY);
+  RESET(mat, Enable, Disable, GL_COLOR_MATERIAL);
+#undef RESET
 
-  s->count  = 0;
-  s->ncount = 0;
-  s->tcount = 0;
-  s->ccount = 0;
-  s->materialistic = 0;
+  s->count= 0;
+  s->ncount= 0;
+  s->tcount= 0;
+  s->ccount= 0;
+  s->materialistic= 0;
 }
 
 
@@ -2048,40 +2204,41 @@ jwzgles_glEnd (void)
    The VBO persists in the GPU until the display list is deleted.
  */
 static void
-optimize_arrays (void)
+  optimize_arrays(
+    void)
 {
-  list *L = &state->lists.lists[state->compiling_list-1];
+  list *L= &state->lists.lists [ state->compiling_list - 1 ];
   int i, j;
-  GLfloat *combo = 0;
-  int combo_count = 0;
-  int combo_size = 0;
-  GLuint buf_name = 0;
+  GLfloat *combo= 0;
+  int combo_count= 0;
+  int combo_size= 0;
+  GLuint buf_name= 0;
 
-  Assert (state->compiling_list, "not compiling a list");
-  Assert (L, "no list");
-  Assert (!L->buffer, "list already has a buffer");
+  Assert(state->compiling_list, "not compiling a list");
+  Assert(L, "no list");
+  Assert(! L->buffer, "list already has a buffer");
 
-  glGenBuffers (1, &buf_name);
+  glGenBuffers(1, &buf_name);
   CHECK("glGenBuffers");
   if (! buf_name) return;
 
-  L->buffer = buf_name;
+  L->buffer= buf_name;
 
   /* Go through the list and dump the contents of the various saved arrays
      into one large array.
    */
-  for (i = 0; i < L->count; i++)
+  for (i= 0; i < L->count; i++)
     {
-      list_fn *F = &L->fns[i];
-/*      int count; */
+      list_fn *F= &L->fns [ i ];
+      /*      int count; */
       if (! F->arrays)
         continue;
-/*      count = F->argv[2].i;*/  /* 3rd arg to glDrawArrays */
+      /*      count = F->argv[2].i;*/ /* 3rd arg to glDrawArrays */
 
-      for (j = 0; j < 4; j++)
+      for (j= 0; j < 4; j++)
         {
-          draw_array *A = &F->arrays[j];
-          int ocount = combo_count;
+          draw_array *A= &F->arrays [ j ];
+          int ocount= combo_count;
 
           /* If some caller is using arrays that don't have floats in them,
              we just leave them as-is and ship them over at each call.
@@ -2090,47 +2247,51 @@ optimize_arrays (void)
           if (A->type != GL_FLOAT)
             continue;
 
-          if (! A->data)	/* No array. */
+          if (! A->data) /* No array. */
             continue;
 
-          Assert (A->bytes > 0, "no bytes in draw_array");
-          Assert (((unsigned long) A->data > 0xFFFF),
-                  "buffer data not a pointer");
+          Assert(A->bytes > 0, "no bytes in draw_array");
+          Assert(((unsigned long) A->data > 0xFFFF),
+            "buffer data not a pointer");
 
-          combo_count += A->bytes / sizeof(*combo);
-          make_room ("optimize_arrays",
-                     (void **) &combo, sizeof(*combo),
-                     &combo_count, &combo_size);
-          memcpy (combo + ocount, A->data, A->bytes);
-          A->binding = buf_name;
-          free (A->data);
+          combo_count+= A->bytes / sizeof(*combo);
+          make_room("optimize_arrays",
+            (void **) &combo,
+            sizeof(*combo),
+            &combo_count,
+            &combo_size);
+          memcpy(combo + ocount, A->data, A->bytes);
+          A->binding= buf_name;
+          free(A->data);
           /* 'data' is now the byte offset into the VBO. */
-          A->data = (void *) (ocount * sizeof(*combo));
+          A->data= (void *) (ocount * sizeof(*combo));
           /* LOG3("    loaded %lu floats to pos %d of buffer %d",
                A->bytes / sizeof(*combo), ocount, buf_name); */
         }
     }
 
-  if (combo_count == 0)		/* Nothing to do! */
+  if (combo_count == 0) /* Nothing to do! */
     {
-      if (combo) free (combo);
-      glDeleteBuffers (1, &buf_name);
-      L->buffer = 0;
+      if (combo) free(combo);
+      glDeleteBuffers(1, &buf_name);
+      L->buffer= 0;
       return;
     }
 
-  glBindBuffer (GL_ARRAY_BUFFER, buf_name);
-  glBufferData (GL_ARRAY_BUFFER, 
-                combo_count * sizeof (*combo),
-                combo,
-                GL_STATIC_DRAW);
-  glBindBuffer (GL_ARRAY_BUFFER, 0);    /* Keep out of others' hands */
+  glBindBuffer(GL_ARRAY_BUFFER, buf_name);
+  glBufferData(GL_ARRAY_BUFFER,
+    combo_count * sizeof(*combo),
+    combo,
+    GL_STATIC_DRAW);
+  glBindBuffer(GL_ARRAY_BUFFER, 0); /* Keep out of others' hands */
 
   LOG3("  loaded %d floats of list %d into VBO %d",
-       combo_count, state->compiling_list, buf_name);
+    combo_count,
+    state->compiling_list,
+    buf_name);
 
-# ifdef DEBUG
-#  if 0
+#ifdef DEBUG
+#if 0
   for (i = 0; i < combo_count; i++)
     {
       if (i % 4 == 0)
@@ -2138,23 +2299,23 @@ optimize_arrays (void)
       fprintf (stderr, " %7.3f", combo[i]);
     }
   fprintf (stderr, "\n");
-#  endif
-# endif /* DEBUG */
+#endif
+#endif /* DEBUG */
 
-  if (combo) free (combo);
+  if (combo) free(combo);
 }
 
 
-void
-jwzgles_glCallList (int id)
+void jwzgles_glCallList(
+  int id)
 {
   if (state->compiling_list)
     {
       /* Yes, you can call lists inside of lists.
          Yes, recursion would be a mistake. */
-      void_int vv[1];
-      vv[0].i = id;
-      list_push ("glCallList", (list_fn_cb) &jwzgles_glCallList, PROTO_I, vv);
+      void_int vv [ 1 ];
+      vv [ 0 ].i= id;
+      list_push("glCallList", (list_fn_cb) &jwzgles_glCallList, PROTO_I, vv);
     }
   else
     {
@@ -2163,199 +2324,195 @@ jwzgles_glCallList (int id)
 
       state->replaying_list++;
 
-# ifdef DEBUG
-      fprintf (stderr, "\n");
-      LOG1 ("glCallList %d", id);
-# endif
+#ifdef DEBUG
+      fprintf(stderr, "\n");
+      LOG1("glCallList %d", id);
+#endif
 
-      Assert (id > 0 && id <= state->lists.count, "glCallList: bogus ID");
-      L = &state->lists.lists[id-1];
-      Assert (id == L->id, "glCallList corrupted");
+      Assert(id > 0 && id <= state->lists.count, "glCallList: bogus ID");
+      L= &state->lists.lists [ id - 1 ];
+      Assert(id == L->id, "glCallList corrupted");
 
-      for (i = 0; i < L->count; i++)
+      for (i= 0; i < L->count; i++)
         {
-          list_fn *F = &L->fns[i];
-          list_fn_cb fn = F->fn;
-          void_int *av = F->argv;
+          list_fn *F= &L->fns [ i ];
+          list_fn_cb fn= F->fn;
+          void_int *av= F->argv;
 
-          switch (F->proto) {
-          case PROTO_VOID:
-            LOG1 ("  call %-12s", F->name);
-            ((void (*) (void)) fn) ();
-            break;
-
-          case PROTO_I:
-            if (fn == (list_fn_cb) &jwzgles_glBegin ||
-                fn == (list_fn_cb) &jwzgles_glFrontFace ||
-                fn == (list_fn_cb) &jwzgles_glEnable ||
-                fn == (list_fn_cb) &jwzgles_glDisable ||
-                fn == (list_fn_cb) &jwzgles_glEnableClientState ||
-                fn == (list_fn_cb) &jwzgles_glDisableClientState ||
-                fn == (list_fn_cb) &jwzgles_glShadeModel ||
-                fn == (list_fn_cb) &jwzgles_glMatrixMode)
-              LOG2 ("  call %-12s %s", F->name, mode_desc (av[0].i));
-            else
-              LOG2 ("  call %-12s %d", F->name, av[0].i);
-            ((void (*) (int)) fn) (av[0].i);
-            break;
-
-          case PROTO_F:
-            LOG2 ("  call %-12s %7.3f", F->name, av[0].f);
-            ((void (*) (GLfloat)) fn) (av[0].f);
-            break;
-
-          case PROTO_II:
-            if (fn == (list_fn_cb) &jwzgles_glBindTexture ||
-                fn == (list_fn_cb) &jwzgles_glBindBuffer)
-              LOG3 ("  call %-12s %s %d", F->name, 
-                    mode_desc (av[0].i), av[1].i);
-            else
-              LOG3 ("  call %-12s %d %d", F->name, av[0].i, av[1].i);
-            ((void (*) (int, int)) fn) (av[0].i, av[1].i);
-            break;
-
-          case PROTO_FF:
-            LOG3 ("  call %-12s %7.3f %7.3f", F->name, av[0].f, av[1].f);
-            ((void (*) (GLfloat, GLfloat)) fn) (av[0].f, av[1].f);
-            break;
-
-          case PROTO_IF:
-            LOG3 ("  call %-12s %s %7.3f", F->name, 
-                  mode_desc (av[0].f), av[1].f);
-            ((void (*) (GLint, GLfloat)) fn) (av[0].i, av[1].f);
-            break;
-
-          case PROTO_III: III:
-            if (fn == (list_fn_cb) &jwzgles_glDrawArrays ||
-                fn == (list_fn_cb) &jwzgles_glTexParameteri)
-              LOG4 ("  call %-12s %s %d %d", F->name, 
-                    mode_desc (av[0].i), av[1].i, av[2].i);
-            else
-              LOG4 ("  call %-12s %d %d %d", F->name, 
-                    av[0].i, av[1].i, av[2].i);
-            ((void (*) (int, int, int)) fn) (av[0].i, av[1].i, av[2].i);
-            break;
-
-          case PROTO_FFF:
-            LOG4 ("  call %-12s %7.3f %7.3f %7.3f", F->name,
-                  av[0].f, av[1].f, av[2].f);
-            ((void (*) (GLfloat, GLfloat, GLfloat)) fn)
-              (av[0].f, av[1].f, av[2].f);
-            break;
-
-          case PROTO_IIF:
-            LOG4 ("  call %-12s %s %s %7.3f", F->name,
-                  mode_desc (av[0].i), mode_desc (av[1].i), av[2].f);
-            ((void (*) (int, int, GLfloat)) fn) (av[0].i, av[1].i, av[2].f);
-            break;
-
-          case PROTO_IIII:
-            LOG5 ("  call %-12s %d %d %d %d", F->name,
-                  av[0].i, av[1].i, av[2].i, av[3].i);
-            ((void (*) (int, int, int, int)) fn) 
-              (av[0].i, av[1].i, av[2].i, av[3].i);
-            break;
-
-          case PROTO_FFFF:
-            LOG5 ("  call %-12s %7.3f %7.3f %7.3f %7.3f", F->name,
-                  av[0].f, av[1].f, av[2].f, av[3].f);
-            ((void (*) (GLfloat, GLfloat, GLfloat, GLfloat)) fn)
-              (av[0].f, av[1].f, av[2].f, av[3].f);
-            break;
-
-          case PROTO_IFV:
+          switch (F->proto)
             {
-              GLfloat v[4];
-              v[0] = av[1].f;
-              v[1] = av[2].f;
-              v[2] = av[3].f;
-              v[3] = av[4].f;
-              LOG6 ("  call %-12s %s %3.1f %3.1f %3.1f %3.1f", F->name,
-                    mode_desc (av[0].i),
-                    av[1].f, av[2].f, av[3].f, av[4].f);
-              ((void (*) (int, const GLfloat *)) fn) (av[0].i, v);
+              case PROTO_VOID :
+                LOG1("  call %-12s", F->name);
+                ((void (*)(void)) fn)();
+                break;
+
+              case PROTO_I :
+                if (fn == (list_fn_cb) &jwzgles_glBegin ||
+                  fn == (list_fn_cb) &jwzgles_glFrontFace ||
+                  fn == (list_fn_cb) &jwzgles_glEnable ||
+                  fn == (list_fn_cb) &jwzgles_glDisable ||
+                  fn == (list_fn_cb) &jwzgles_glEnableClientState ||
+                  fn == (list_fn_cb) &jwzgles_glDisableClientState ||
+                  fn == (list_fn_cb) &jwzgles_glShadeModel ||
+                  fn == (list_fn_cb) &jwzgles_glMatrixMode)
+                  LOG2("  call %-12s %s", F->name, mode_desc(av [ 0 ].i));
+                else
+                  LOG2("  call %-12s %d", F->name, av [ 0 ].i);
+                ((void (*)(int)) fn)(av [ 0 ].i);
+                break;
+
+              case PROTO_F :
+                LOG2("  call %-12s %7.3f", F->name, av [ 0 ].f);
+                ((void (*)(GLfloat)) fn)(av [ 0 ].f);
+                break;
+
+              case PROTO_II :
+                if (fn == (list_fn_cb) &jwzgles_glBindTexture ||
+                  fn == (list_fn_cb) &jwzgles_glBindBuffer)
+                  LOG3("  call %-12s %s %d", F->name, mode_desc(av [ 0 ].i), av [ 1 ].i);
+                else
+                  LOG3("  call %-12s %d %d", F->name, av [ 0 ].i, av [ 1 ].i);
+                ((void (*)(int, int)) fn)(av [ 0 ].i, av [ 1 ].i);
+                break;
+
+              case PROTO_FF :
+                LOG3("  call %-12s %7.3f %7.3f", F->name, av [ 0 ].f, av [ 1 ].f);
+                ((void (*)(GLfloat, GLfloat)) fn)(av [ 0 ].f, av [ 1 ].f);
+                break;
+
+              case PROTO_IF :
+                LOG3("  call %-12s %s %7.3f", F->name, mode_desc(av [ 0 ].f), av [ 1 ].f);
+                ((void (*)(GLint, GLfloat)) fn)(av [ 0 ].i, av [ 1 ].f);
+                break;
+
+              case PROTO_III :
+III:
+                if (fn == (list_fn_cb) &jwzgles_glDrawArrays ||
+                  fn == (list_fn_cb) &jwzgles_glTexParameteri)
+                  LOG4("  call %-12s %s %d %d", F->name, mode_desc(av [ 0 ].i), av [ 1 ].i, av [ 2 ].i);
+                else
+                  LOG4("  call %-12s %d %d %d", F->name, av [ 0 ].i, av [ 1 ].i, av [ 2 ].i);
+                ((void (*)(int, int, int)) fn)(av [ 0 ].i, av [ 1 ].i, av [ 2 ].i);
+                break;
+
+              case PROTO_FFF :
+                LOG4("  call %-12s %7.3f %7.3f %7.3f", F->name, av [ 0 ].f, av [ 1 ].f, av [ 2 ].f);
+                ((void (*)(GLfloat, GLfloat, GLfloat)) fn)(av [ 0 ].f, av [ 1 ].f, av [ 2 ].f);
+                break;
+
+              case PROTO_IIF :
+                LOG4("  call %-12s %s %s %7.3f", F->name, mode_desc(av [ 0 ].i), mode_desc(av [ 1 ].i), av [ 2 ].f);
+                ((void (*)(int, int, GLfloat)) fn)(av [ 0 ].i, av [ 1 ].i, av [ 2 ].f);
+                break;
+
+              case PROTO_IIII :
+                LOG5("  call %-12s %d %d %d %d", F->name, av [ 0 ].i, av [ 1 ].i, av [ 2 ].i, av [ 3 ].i);
+                ((void (*)(int, int, int, int)) fn)(av [ 0 ].i, av [ 1 ].i, av [ 2 ].i, av [ 3 ].i);
+                break;
+
+              case PROTO_FFFF :
+                LOG5("  call %-12s %7.3f %7.3f %7.3f %7.3f", F->name, av [ 0 ].f, av [ 1 ].f, av [ 2 ].f, av [ 3 ].f);
+                ((void (*)(GLfloat, GLfloat, GLfloat, GLfloat)) fn)(av [ 0 ].f, av [ 1 ].f, av [ 2 ].f, av [ 3 ].f);
+                break;
+
+              case PROTO_IFV :
+                {
+                  GLfloat v [ 4 ];
+                  v [ 0 ]= av [ 1 ].f;
+                  v [ 1 ]= av [ 2 ].f;
+                  v [ 2 ]= av [ 3 ].f;
+                  v [ 3 ]= av [ 4 ].f;
+                  LOG6("  call %-12s %s %3.1f %3.1f %3.1f %3.1f", F->name, mode_desc(av [ 0 ].i), av [ 1 ].f, av [ 2 ].f, av [ 3 ].f, av [ 4 ].f);
+                  ((void (*)(int, const GLfloat *)) fn)(av [ 0 ].i, v);
+                }
+                break;
+
+              case PROTO_IIFV :
+                {
+                  GLfloat v [ 4 ];
+                  v [ 0 ]= av [ 2 ].f;
+                  v [ 1 ]= av [ 3 ].f;
+                  v [ 2 ]= av [ 4 ].f;
+                  v [ 3 ]= av [ 5 ].f;
+                  LOG7("  call %-12s %s %-8s %3.1f %3.1f %3.1f %3.1f", F->name, mode_desc(av [ 0 ].i), mode_desc(av [ 1 ].i), av [ 2 ].f, av [ 3 ].f, av [ 4 ].f, av [ 5 ].f);
+                  ((void (*)(int, int, const GLfloat *)) fn)(av [ 0 ].i, av [ 1 ].i, v);
+                }
+                break;
+
+              case PROTO_IIV :
+                {
+                  int v [ 4 ];
+                  v [ 0 ]= av [ 1 ].i;
+                  v [ 1 ]= av [ 2 ].i;
+                  v [ 2 ]= av [ 3 ].i;
+                  v [ 3 ]= av [ 4 ].i;
+                  LOG6("  call %-12s %s %3d %3d %3d %3d", F->name, mode_desc(av [ 0 ].i), av [ 1 ].i, av [ 2 ].i, av [ 3 ].i, av [ 4 ].i);
+                  ((void (*)(int, const int *)) fn)(av [ 0 ].i, v);
+                }
+                break;
+
+              case PROTO_IIIV :
+                {
+                  int v [ 4 ];
+                  v [ 0 ]= av [ 2 ].i;
+                  v [ 1 ]= av [ 3 ].i;
+                  v [ 2 ]= av [ 4 ].i;
+                  v [ 3 ]= av [ 5 ].i;
+                  LOG7("  call %-12s %s %-8s %3d %3d %3d %3d", F->name, mode_desc(av [ 0 ].i), mode_desc(av [ 1 ].i), av [ 2 ].i, av [ 3 ].i, av [ 4 ].i, av [ 5 ].i);
+                  ((void (*)(int, int, const int *)) fn)(av [ 0 ].i, av [ 1 ].i, v);
+                }
+                break;
+
+              case PROTO_ARRAYS :
+                restore_arrays(F, av [ 1 ].i + av [ 2 ].i);
+                goto III;
+                break;
+
+              case PROTO_FV16 :
+                {
+                  GLfloat m [ 16 ];
+                  int i;
+                  for (i= 0; i < countof(m); i++)
+                    m [ i ]= av [ i ].f;
+                  LOG17(
+                    "  call %-12s ["
+                    "%8.3f %8.3f %8.3f %8.3f "
+                    "\n\t\t\t       "
+                    "%8.3f %8.3f %8.3f %8.3f "
+                    "\n\t\t\t       "
+                    "%8.3f %8.3f %8.3f %8.3f "
+                    "\n\t\t\t       " "%8.3f %8.3f %8.3f %8.3f ]",
+                    F->name,
+                    m [ 0 ],
+                    m [ 1 ],
+                    m [ 2 ],
+                    m [ 3 ],
+                    m [ 4 ],
+                    m [ 5 ],
+                    m [ 6 ],
+                    m [ 7 ],
+                    m [ 8 ],
+                    m [ 9 ],
+                    m [ 10 ],
+                    m [ 11 ],
+                    m [ 12 ],
+                    m [ 13 ],
+                    m [ 14 ],
+                    m [ 15 ]);
+                  ((void (*)(GLfloat *)) fn)(m);
+                }
+                break;
+
+              default :
+                Assert(0, "bogus prototype");
+                break;
             }
-            break;
-
-          case PROTO_IIFV:
-            {
-              GLfloat v[4];
-              v[0] = av[2].f;
-              v[1] = av[3].f;
-              v[2] = av[4].f;
-              v[3] = av[5].f;
-              LOG7 ("  call %-12s %s %-8s %3.1f %3.1f %3.1f %3.1f", F->name,
-                    mode_desc (av[0].i), mode_desc (av[1].i), 
-                    av[2].f, av[3].f, av[4].f, av[5].f);
-              ((void (*) (int, int, const GLfloat *)) fn) 
-                (av[0].i, av[1].i, v);
-            }
-            break;
-
-          case PROTO_IIV:
-            {
-              int v[4];
-              v[0] = av[1].i;
-              v[1] = av[2].i;
-              v[2] = av[3].i;
-              v[3] = av[4].i;
-              LOG6 ("  call %-12s %s %3d %3d %3d %3d", F->name, 
-                    mode_desc (av[0].i),
-                    av[1].i, av[2].i, av[3].i, av[4].i);
-              ((void (*) (int, const int *)) fn) (av[0].i, v);
-            }
-            break;
-
-          case PROTO_IIIV:
-            {
-              int v[4];
-              v[0] = av[2].i;
-              v[1] = av[3].i;
-              v[2] = av[4].i;
-              v[3] = av[5].i;
-              LOG7 ("  call %-12s %s %-8s %3d %3d %3d %3d", F->name,
-                    mode_desc (av[0].i), mode_desc (av[1].i), 
-                    av[2].i, av[3].i, av[4].i, av[5].i);
-              ((void (*) (int, int, const int *)) fn) 
-                (av[0].i, av[1].i, v);
-            }
-            break;
-
-          case PROTO_ARRAYS:
-            restore_arrays (F, av[1].i + av[2].i);
-            goto III;
-            break;
-
-          case PROTO_FV16:
-            {
-              GLfloat m[16];
-              int i;
-              for (i = 0; i < countof(m); i++)
-                m[i] = av[i].f;
-              LOG17 ("  call %-12s ["
-                     "%8.3f %8.3f %8.3f %8.3f "	"\n\t\t\t       "
-                     "%8.3f %8.3f %8.3f %8.3f "	"\n\t\t\t       "
-                     "%8.3f %8.3f %8.3f %8.3f "	"\n\t\t\t       "
-                     "%8.3f %8.3f %8.3f %8.3f ]",
-                     F->name,
-                     m[0],  m[1],  m[2],  m[3],
-                     m[4],  m[5],  m[6],  m[7],
-                     m[8],  m[9],  m[10], m[11],
-                     m[12], m[13], m[14], m[15]);
-              ((void (*) (GLfloat *)) fn) (m);
-            }
-            break;
-
-          default:
-            Assert (0, "bogus prototype");
-            break;
-          }
         }
 
-      LOG1 ("glCallList %d done\n", id);
+      LOG1("glCallList %d done\n", id);
 
       state->replaying_list--;
-      Assert (state->replaying_list >= 0, "glCallList corrupted");
+      Assert(state->replaying_list >= 0, "glCallList corrupted");
     }
 }
 
@@ -2365,102 +2522,110 @@ jwzgles_glCallList (int id)
    later.
  */
 static void
-save_arrays (list_fn *F, int count)
+  save_arrays(
+    list_fn *F,
+    int count)
 {
-  int i = 0;
-  draw_array *A = (draw_array *) calloc (4, sizeof (*A));
-  Assert (A, "out of memory");
+  int i= 0;
+  draw_array *A= (draw_array *) calloc(4, sizeof(*A));
+  Assert(A, "out of memory");
 
-/*  if (state->set.count > 0) */
-    {
-      jwzgles_glGetIntegerv (GL_VERTEX_ARRAY_BUFFER_BINDING, &A[i].binding);
-      jwzgles_glGetIntegerv (GL_VERTEX_ARRAY_SIZE,    &A[i].size);
-      jwzgles_glGetIntegerv (GL_VERTEX_ARRAY_TYPE,    &A[i].type);
-      jwzgles_glGetIntegerv (GL_VERTEX_ARRAY_STRIDE,  &A[i].stride);
-      jwzgles_glGetPointerv (GL_VERTEX_ARRAY_POINTER, &A[i].data);
-      CHECK("glGetPointerv");
-      copy_array_data (&A[i], count, "vert");
-    }
+  /*  if (state->set.count > 0) */
+  {
+    jwzgles_glGetIntegerv(GL_VERTEX_ARRAY_BUFFER_BINDING, &A [ i ].binding);
+    jwzgles_glGetIntegerv(GL_VERTEX_ARRAY_SIZE, &A [ i ].size);
+    jwzgles_glGetIntegerv(GL_VERTEX_ARRAY_TYPE, &A [ i ].type);
+    jwzgles_glGetIntegerv(GL_VERTEX_ARRAY_STRIDE, &A [ i ].stride);
+    jwzgles_glGetPointerv(GL_VERTEX_ARRAY_POINTER, &A [ i ].data);
+    CHECK("glGetPointerv");
+    copy_array_data(&A [ i ], count, "vert");
+  }
 
   i++;
   if (state->set.ncount > 1)
     {
-      A[i].size = 3;
-      jwzgles_glGetIntegerv (GL_NORMAL_ARRAY_BUFFER_BINDING, &A[i].binding);
-      jwzgles_glGetIntegerv (GL_NORMAL_ARRAY_TYPE,    &A[i].type);
-      jwzgles_glGetIntegerv (GL_NORMAL_ARRAY_STRIDE,  &A[i].stride);
-      jwzgles_glGetPointerv (GL_NORMAL_ARRAY_POINTER, &A[i].data);
+      A [ i ].size= 3;
+      jwzgles_glGetIntegerv(GL_NORMAL_ARRAY_BUFFER_BINDING, &A [ i ].binding);
+      jwzgles_glGetIntegerv(GL_NORMAL_ARRAY_TYPE, &A [ i ].type);
+      jwzgles_glGetIntegerv(GL_NORMAL_ARRAY_STRIDE, &A [ i ].stride);
+      jwzgles_glGetPointerv(GL_NORMAL_ARRAY_POINTER, &A [ i ].data);
       CHECK("glGetPointerv");
-      copy_array_data (&A[i], count, "norm");
+      copy_array_data(&A [ i ], count, "norm");
     }
 
   i++;
   if (state->set.tcount > 1)
     {
-      jwzgles_glGetIntegerv (GL_TEXTURE_COORD_ARRAY_BUFFER_BINDING, &A[i].binding);
-      jwzgles_glGetIntegerv (GL_TEXTURE_COORD_ARRAY_SIZE,    &A[i].size);
-      jwzgles_glGetIntegerv (GL_TEXTURE_COORD_ARRAY_TYPE,    &A[i].type);
-      jwzgles_glGetIntegerv (GL_TEXTURE_COORD_ARRAY_STRIDE,  &A[i].stride);
-      jwzgles_glGetPointerv (GL_TEXTURE_COORD_ARRAY_POINTER, &A[i].data);
+      jwzgles_glGetIntegerv(GL_TEXTURE_COORD_ARRAY_BUFFER_BINDING, &A [ i ].binding);
+      jwzgles_glGetIntegerv(GL_TEXTURE_COORD_ARRAY_SIZE, &A [ i ].size);
+      jwzgles_glGetIntegerv(GL_TEXTURE_COORD_ARRAY_TYPE, &A [ i ].type);
+      jwzgles_glGetIntegerv(GL_TEXTURE_COORD_ARRAY_STRIDE, &A [ i ].stride);
+      jwzgles_glGetPointerv(GL_TEXTURE_COORD_ARRAY_POINTER, &A [ i ].data);
       CHECK("glGetPointerv");
-      copy_array_data (&A[i], count, "tex ");
+      copy_array_data(&A [ i ], count, "tex ");
     }
 
   i++;
   if (state->set.ccount > 1)
     {
-      jwzgles_glGetIntegerv (GL_COLOR_ARRAY_BUFFER_BINDING, &A[i].binding);
-      jwzgles_glGetIntegerv (GL_COLOR_ARRAY_SIZE,    &A[i].size);
-      jwzgles_glGetIntegerv (GL_COLOR_ARRAY_TYPE,    &A[i].type);
-      jwzgles_glGetIntegerv (GL_COLOR_ARRAY_STRIDE,  &A[i].stride);
-      jwzgles_glGetPointerv (GL_COLOR_ARRAY_POINTER, &A[i].data);
+      jwzgles_glGetIntegerv(GL_COLOR_ARRAY_BUFFER_BINDING, &A [ i ].binding);
+      jwzgles_glGetIntegerv(GL_COLOR_ARRAY_SIZE, &A [ i ].size);
+      jwzgles_glGetIntegerv(GL_COLOR_ARRAY_TYPE, &A [ i ].type);
+      jwzgles_glGetIntegerv(GL_COLOR_ARRAY_STRIDE, &A [ i ].stride);
+      jwzgles_glGetPointerv(GL_COLOR_ARRAY_POINTER, &A [ i ].data);
       CHECK("glGetPointerv");
-      copy_array_data (&A[i], count, "col ");
+      copy_array_data(&A [ i ], count, "col ");
     }
 
   /* Freed by glDeleteLists. */
 
-  Assert (!F->arrays, "save_arrays corrupted");
-  F->arrays = A;
+  Assert(! F->arrays, "save_arrays corrupted");
+  F->arrays= A;
 }
 
 
 #ifdef DEBUG
 
 static void
-dump_array_data (draw_array *A, int count,
-                 const char *action, const char *name, const void *old)
+  dump_array_data(
+    draw_array *A,
+    int count,
+    const char *action,
+    const char *name,
+    const void *old)
 {
-  int bytes = count * A->stride;
+  int bytes= count * A->stride;
 
   if (A->binding)
     {
-      fprintf (stderr, 
-               "jwzgles:     %s %s %d %s %2d, %4d = %5d   bind %d @ %d\n", 
-               action, name,
-               A->size, mode_desc(A->type), A->stride, 
-               count, bytes, A->binding, (int) A->data);
+      fprintf(stderr,
+        "jwzgles:     %s %s %d %s %2d, %4d = %5d   bind %d @ %d\n",
+        action,
+        name,
+        A->size,
+        mode_desc(A->type),
+        A->stride,
+        count,
+        bytes,
+        A->binding,
+        (int) A->data);
     }
   else
     {
-      Assert (bytes == A->bytes, "array data corrupted");
+      Assert(bytes == A->bytes, "array data corrupted");
 
-      fprintf (stderr, "jwzgles:     %s %s %d %s %2d, %4d = %5d @ %lX", 
-               action, name,
-               A->size, mode_desc(A->type), A->stride, 
-               count, bytes, (unsigned long) A->data);
+      fprintf(stderr, "jwzgles:     %s %s %d %s %2d, %4d = %5d @ %lX", action, name, A->size, mode_desc(A->type), A->stride, count, bytes, (unsigned long) A->data);
       if (old)
-        fprintf (stderr, " / %lX", (unsigned long) old);
-      fprintf (stderr, "\n");
+        fprintf(stderr, " / %lX", (unsigned long) old);
+      fprintf(stderr, "\n");
     }
 
   if (A->binding)
     {
-      Assert (((unsigned long) A->binding < 0xFFFF),
-              "buffer binding should be a numeric index,"
-              " but looks like a pointer");
+      Assert(((unsigned long) A->binding < 0xFFFF),
+        "buffer binding should be a numeric index," " but looks like a pointer");
 
-# if 0
+#if 0
       /* glGetBufferSubData doesn't actually exist in OpenGLES, but this
          was helpful for debugging on real OpenGL... */
       GLfloat *d;
@@ -2479,9 +2644,9 @@ dump_array_data (draw_array *A, int count,
         }
       fprintf (stderr, "\n");
       free (d);
-# endif
+#endif
     }
-# if 0
+#if 0
   else
     {
       unsigned char *b = (unsigned char *) A->data;
@@ -2504,53 +2669,56 @@ dump_array_data (draw_array *A, int count,
           b += A->stride;
         }
     }
-# endif
+#endif
 }
 
 static void
-dump_direct_array_data (int count)
+  dump_direct_array_data(
+    int count)
 {
-  draw_array A = { 0, };
+  draw_array A= {
+    0,
+  };
 
-  if (jwzgles_glIsEnabled (GL_VERTEX_ARRAY))
+  if (jwzgles_glIsEnabled(GL_VERTEX_ARRAY))
     {
-      jwzgles_glGetIntegerv (GL_VERTEX_ARRAY_BUFFER_BINDING, &A.binding);
-      jwzgles_glGetIntegerv (GL_VERTEX_ARRAY_SIZE,    &A.size);
-      jwzgles_glGetIntegerv (GL_VERTEX_ARRAY_TYPE,    &A.type);
-      jwzgles_glGetIntegerv (GL_VERTEX_ARRAY_STRIDE,  &A.stride);
-      jwzgles_glGetPointerv (GL_VERTEX_ARRAY_POINTER, &A.data);
-      A.bytes = count * A.stride;
-      dump_array_data (&A, count, "direct", "vertex ", 0);
+      jwzgles_glGetIntegerv(GL_VERTEX_ARRAY_BUFFER_BINDING, &A.binding);
+      jwzgles_glGetIntegerv(GL_VERTEX_ARRAY_SIZE, &A.size);
+      jwzgles_glGetIntegerv(GL_VERTEX_ARRAY_TYPE, &A.type);
+      jwzgles_glGetIntegerv(GL_VERTEX_ARRAY_STRIDE, &A.stride);
+      jwzgles_glGetPointerv(GL_VERTEX_ARRAY_POINTER, &A.data);
+      A.bytes= count * A.stride;
+      dump_array_data(&A, count, "direct", "vertex ", 0);
     }
-  if (jwzgles_glIsEnabled (GL_NORMAL_ARRAY))
+  if (jwzgles_glIsEnabled(GL_NORMAL_ARRAY))
     {
-      A.size = 0;
-      jwzgles_glGetIntegerv (GL_NORMAL_ARRAY_BUFFER_BINDING, &A.binding);
-      jwzgles_glGetIntegerv (GL_NORMAL_ARRAY_TYPE,    &A.type);
-      jwzgles_glGetIntegerv (GL_NORMAL_ARRAY_STRIDE,  &A.stride);
-      jwzgles_glGetPointerv (GL_NORMAL_ARRAY_POINTER, &A.data);
-      A.bytes = count * A.stride;
-      dump_array_data (&A, count, "direct", "normal ", 0);
+      A.size= 0;
+      jwzgles_glGetIntegerv(GL_NORMAL_ARRAY_BUFFER_BINDING, &A.binding);
+      jwzgles_glGetIntegerv(GL_NORMAL_ARRAY_TYPE, &A.type);
+      jwzgles_glGetIntegerv(GL_NORMAL_ARRAY_STRIDE, &A.stride);
+      jwzgles_glGetPointerv(GL_NORMAL_ARRAY_POINTER, &A.data);
+      A.bytes= count * A.stride;
+      dump_array_data(&A, count, "direct", "normal ", 0);
     }
-  if (jwzgles_glIsEnabled (GL_TEXTURE_COORD_ARRAY))
+  if (jwzgles_glIsEnabled(GL_TEXTURE_COORD_ARRAY))
     {
-      jwzgles_glGetIntegerv (GL_TEXTURE_COORD_ARRAY_BUFFER_BINDING, &A.binding);
-      jwzgles_glGetIntegerv (GL_TEXTURE_COORD_ARRAY_SIZE,    &A.size);
-      jwzgles_glGetIntegerv (GL_TEXTURE_COORD_ARRAY_TYPE,    &A.type);
-      jwzgles_glGetIntegerv (GL_TEXTURE_COORD_ARRAY_STRIDE,  &A.stride);
-      jwzgles_glGetPointerv (GL_TEXTURE_COORD_ARRAY_POINTER, &A.data);
-      A.bytes = count * A.stride;
-      dump_array_data (&A, count, "direct", "texture", 0);
+      jwzgles_glGetIntegerv(GL_TEXTURE_COORD_ARRAY_BUFFER_BINDING, &A.binding);
+      jwzgles_glGetIntegerv(GL_TEXTURE_COORD_ARRAY_SIZE, &A.size);
+      jwzgles_glGetIntegerv(GL_TEXTURE_COORD_ARRAY_TYPE, &A.type);
+      jwzgles_glGetIntegerv(GL_TEXTURE_COORD_ARRAY_STRIDE, &A.stride);
+      jwzgles_glGetPointerv(GL_TEXTURE_COORD_ARRAY_POINTER, &A.data);
+      A.bytes= count * A.stride;
+      dump_array_data(&A, count, "direct", "texture", 0);
     }
-  if (jwzgles_glIsEnabled (GL_COLOR_ARRAY))
+  if (jwzgles_glIsEnabled(GL_COLOR_ARRAY))
     {
-      jwzgles_glGetIntegerv (GL_COLOR_ARRAY_BUFFER_BINDING, &A.binding);
-      jwzgles_glGetIntegerv (GL_COLOR_ARRAY_SIZE,    &A.size);
-      jwzgles_glGetIntegerv (GL_COLOR_ARRAY_TYPE,    &A.type);
-      jwzgles_glGetIntegerv (GL_COLOR_ARRAY_STRIDE,  &A.stride);
-      jwzgles_glGetPointerv (GL_COLOR_ARRAY_POINTER, &A.data);
-      A.bytes = count * A.stride;
-      dump_array_data (&A, count, "direct", "color ", 0);
+      jwzgles_glGetIntegerv(GL_COLOR_ARRAY_BUFFER_BINDING, &A.binding);
+      jwzgles_glGetIntegerv(GL_COLOR_ARRAY_SIZE, &A.size);
+      jwzgles_glGetIntegerv(GL_COLOR_ARRAY_TYPE, &A.type);
+      jwzgles_glGetIntegerv(GL_COLOR_ARRAY_STRIDE, &A.stride);
+      jwzgles_glGetPointerv(GL_COLOR_ARRAY_POINTER, &A.data);
+      A.bytes= count * A.stride;
+      dump_array_data(&A, count, "direct", "color ", 0);
     }
 }
 
@@ -2558,7 +2726,10 @@ dump_direct_array_data (int count)
 
 
 static void
-copy_array_data (draw_array *A, int count, const char *name)
+  copy_array_data(
+    draw_array *A,
+    int count,
+    const char *name)
 {
   /* Instead of just memcopy'ing the whole array and obeying its previous
      'stride' value, we make up a more compact array.  This is because if
@@ -2575,113 +2746,124 @@ copy_array_data (draw_array *A, int count, const char *name)
 
   if (((unsigned long) A->data) < 0xFFFF)
     {
-      Assert (0, "buffer data not a pointer");
+      Assert(0, "buffer data not a pointer");
       return;
     }
 
-  Assert (A->size >= 2 && A->size <= 4, "bogus array size");
+  Assert(A->size >= 2 && A->size <= 4, "bogus array size");
 
-  switch (A->type) {
-  case GL_FLOAT:         stride2 = A->size * sizeof(GLfloat); break;
-  case GL_UNSIGNED_BYTE: stride2 = A->size; break;
-  default: Assert (0, "bogus array type"); break;
-  }
+  switch (A->type)
+    {
+      case GL_FLOAT : stride2= A->size * sizeof(GLfloat); break;
+      case GL_UNSIGNED_BYTE : stride2= A->size; break;
+      default : Assert(0, "bogus array type"); break;
+    }
 
-  bytes = count * stride2;
-  Assert (bytes > 0, "bogus array count or stride");
-  Assert (A->data, "missing array data");
-  data2 = (void *) malloc (bytes);
-  Assert (data2, "out of memory");
+  bytes= count * stride2;
+  Assert(bytes > 0, "bogus array count or stride");
+  Assert(A->data, "missing array data");
+  data2= (void *) malloc(bytes);
+  Assert(data2, "out of memory");
 
-  IB = (const unsigned char *) A->data;
-  OB = (unsigned char *) data2;
-  IF = (const GLfloat *) A->data;
-  OF = (GLfloat *) data2;
+  IB= (const unsigned char *) A->data;
+  OB= (unsigned char *) data2;
+  IF= (const GLfloat *) A->data;
+  OF= (GLfloat *) data2;
 
-  switch (A->type) {
-  case GL_FLOAT:
-    for (i = 0; i < count; i++)
-      {
-        for (j = 0; j < A->size; j++)
-          *OF++ = IF[j];
-        IF = (const GLfloat *) (((const unsigned char *) IF) + A->stride);
-      }
-    break;
-  case GL_UNSIGNED_BYTE:
-    for (i = 0; i < count; i++)
-      {
-        for (j = 0; j < A->size; j++)
-          *OB++ = IB[j];
-        IB += A->stride;
-      }
-    break;
-  default:
-    Assert (0, "bogus array type");
-    break;
-  }
+  switch (A->type)
+    {
+      case GL_FLOAT :
+        for (i= 0; i < count; i++)
+          {
+            for (j= 0; j < A->size; j++)
+              *OF++= IF [ j ];
+            IF= (const GLfloat *) (((const unsigned char *) IF) + A->stride);
+          }
+        break;
+      case GL_UNSIGNED_BYTE :
+        for (i= 0; i < count; i++)
+          {
+            for (j= 0; j < A->size; j++)
+              *OB++= IB [ j ];
+            IB+= A->stride;
+          }
+        break;
+      default :
+        Assert(0, "bogus array type");
+        break;
+    }
 
-  A->data = data2;
-  A->bytes = bytes;
-  A->stride = stride2;
+  A->data= data2;
+  A->bytes= bytes;
+  A->stride= stride2;
 
-# ifdef DEBUG
-  dump_array_data (A, count, "saved", name, 0);
-# endif
+#ifdef DEBUG
+  dump_array_data(A, count, "saved", name, 0);
+#endif
 }
 
 
 static void
-restore_arrays (list_fn *F, int count)
+  restore_arrays(
+    list_fn *F,
+    int count)
 {
-  int i = 0;
-  draw_array *A = F->arrays;
-  Assert (A, "missing array");
+  int i= 0;
+  draw_array *A= F->arrays;
+  Assert(A, "missing array");
 
-  for (i = 0; i < 4; i++)
+  for (i= 0; i < 4; i++)
     {
-      const char *name = 0;
+      const char *name= 0;
 
-      if (!A[i].size)
+      if (! A [ i ].size)
         continue;
 
-      Assert ((A[i].binding || A[i].data),
-              "array has neither buffer binding nor data");
+      Assert((A [ i ].binding || A [ i ].data),
+        "array has neither buffer binding nor data");
 
-      glBindBuffer (GL_ARRAY_BUFFER, A[i].binding);
+      glBindBuffer(GL_ARRAY_BUFFER, A [ i ].binding);
       CHECK("glBindBuffer");
 
-      switch (i) {
-      case 0: jwzgles_glVertexPointer  (A[i].size, A[i].type, A[i].stride, A[i].data);
-        name = "vertex ";
-        CHECK("glVertexPointer");
-        break;
-      case 1: jwzgles_glNormalPointer  (           A[i].type, A[i].stride, A[i].data);
-        name = "normal ";
-        CHECK("glNormalPointer");
-        break;
-      case 2: jwzgles_glTexCoordPointer(A[i].size, A[i].type, A[i].stride, A[i].data);
-        name = "texture";
-        CHECK("glTexCoordPointer");
-        break;
-      case 3: jwzgles_glColorPointer   (A[i].size, A[i].type, A[i].stride, A[i].data);
-        name = "color  ";
-        CHECK("glColorPointer");
-        break;
-      default: Assert (0, "wat"); break;
-      }
+      switch (i)
+        {
+          case 0 :
+            jwzgles_glVertexPointer(A [ i ].size, A [ i ].type, A [ i ].stride, A [ i ].data);
+            name= "vertex ";
+            CHECK("glVertexPointer");
+            break;
+          case 1 :
+            jwzgles_glNormalPointer(A [ i ].type, A [ i ].stride, A [ i ].data);
+            name= "normal ";
+            CHECK("glNormalPointer");
+            break;
+          case 2 :
+            jwzgles_glTexCoordPointer(A [ i ].size, A [ i ].type, A [ i ].stride, A [ i ].data);
+            name= "texture";
+            CHECK("glTexCoordPointer");
+            break;
+          case 3 :
+            jwzgles_glColorPointer(A [ i ].size, A [ i ].type, A [ i ].stride, A [ i ].data);
+            name= "color  ";
+            CHECK("glColorPointer");
+            break;
+          default : Assert(0, "wat"); break;
+        }
 
-# ifdef DEBUG
-      dump_array_data (&A[i], count, "restored", name, 0);
-# endif
-      (void)name;
+#ifdef DEBUG
+      dump_array_data(&A [ i ], count, "restored", name, 0);
+#endif
+      (void) name;
     }
 
-  glBindBuffer (GL_ARRAY_BUFFER, 0);    /* Keep out of others' hands */
+  glBindBuffer(GL_ARRAY_BUFFER, 0); /* Keep out of others' hands */
 }
 
 
-void
-jwzgles_glDrawArrays (GLuint mode, GLuint first, GLuint count)
+void jwzgles_glDrawArrays(
+  GLuint mode,
+  GLuint first,
+  GLuint count)
 {
   /* If we are auto-generating texture coordinates, do that now, after
      the vertex array was installed, but before drawing, This happens
@@ -2689,495 +2871,519 @@ jwzgles_glDrawArrays (GLuint mode, GLuint first, GLuint count)
      before calling optimize_arrays() from glEndList().
    */
   if (! state->replaying_list &&
-      ((state->compiling_list ? state->list_enabled : state->enabled)
-       & (ISENABLED_TEXTURE_GEN_S | ISENABLED_TEXTURE_GEN_T |
-          ISENABLED_TEXTURE_GEN_R | ISENABLED_TEXTURE_GEN_Q)))
-    generate_texture_coords (first, count);
+    ((state->compiling_list ? state->list_enabled : state->enabled) & (ISENABLED_TEXTURE_GEN_S | ISENABLED_TEXTURE_GEN_T | ISENABLED_TEXTURE_GEN_R | ISENABLED_TEXTURE_GEN_Q)))
+    generate_texture_coords(first, count);
 
   if (state->compiling_list)
     {
-      void_int vv[3];
-      vv[0].i = mode;
-      vv[1].i = first;
-      vv[2].i = count;
-      list_push ("glDrawArrays", (list_fn_cb) &jwzgles_glDrawArrays,
-                 PROTO_ARRAYS, vv);
+      void_int vv [ 3 ];
+      vv [ 0 ].i= mode;
+      vv [ 1 ].i= first;
+      vv [ 2 ].i= count;
+      list_push("glDrawArrays", (list_fn_cb) &jwzgles_glDrawArrays, PROTO_ARRAYS, vv);
     }
   else
     {
-# ifdef DEBUG
-      if (! state->replaying_list) {
-        LOG4("direct %-12s %d %d %d", "glDrawArrays", mode, first, count);
-        dump_direct_array_data (first + count);
-      }
-# endif
-      glDrawArrays (mode, first, count);  /* the real one */
+#ifdef DEBUG
+      if (! state->replaying_list)
+        {
+          LOG4("direct %-12s %d %d %d", "glDrawArrays", mode, first, count);
+          dump_direct_array_data(first + count);
+        }
+#endif
+      glDrawArrays(mode, first, count); /* the real one */
       CHECK("glDrawArrays");
     }
 }
 
 
-void
-jwzgles_glInterleavedArrays (GLenum format, GLsizei stride, const void *data)
+void jwzgles_glInterleavedArrays(
+  GLenum format,
+  GLsizei stride,
+  const void *data)
 {
   /* We can implement this by calling the various *Pointer functions
      with offsets into the same data, taking advantage of stride.
    */
-  const unsigned char *c = (const unsigned char *) data;
-# define B 1
-# define F sizeof(GLfloat)
+  const unsigned char *c= (const unsigned char *) data;
+#define B 1
+#define F sizeof(GLfloat)
 
-  Assert (!state->compiling_verts,
-          "glInterleavedArrays not allowed inside glBegin");
+  Assert(! state->compiling_verts,
+    "glInterleavedArrays not allowed inside glBegin");
 
-  jwzgles_glEnableClientState (GL_VERTEX_ARRAY);
+  jwzgles_glEnableClientState(GL_VERTEX_ARRAY);
 
-  if (!state->replaying_list)
-    LOG4 ("%sglInterleavedArrays %s %d %lX", 
-          (state->compiling_list || state->replaying_list ? "  " : ""),
-          mode_desc (format), stride, (unsigned long) data);
+  if (! state->replaying_list)
+    LOG4("%sglInterleavedArrays %s %d %lX",
+      (state->compiling_list || state->replaying_list ? "  " : ""),
+      mode_desc(format),
+      stride,
+      (unsigned long) data);
 
-  switch (format) {
-  case GL_V2F:
-    jwzgles_glVertexPointer (2, GL_FLOAT, stride, c);
-    CHECK("glVertexPointer");
-    if (!state->replaying_list)
-      LOG3 ("%s  -> glVertexPointer 2 FLOAT %d %lX", 
+  switch (format)
+    {
+      case GL_V2F :
+        jwzgles_glVertexPointer(2, GL_FLOAT, stride, c);
+        CHECK("glVertexPointer");
+        if (! state->replaying_list)
+          LOG3("%s  -> glVertexPointer 2 FLOAT %d %lX",
             (state->compiling_list || state->replaying_list ? "  " : ""),
-            stride, (unsigned long) c);
-    break;
-  case GL_V3F:
-    jwzgles_glVertexPointer (3, GL_FLOAT, stride, c);
-    CHECK("glVertexPointer");
-    if (!state->replaying_list)
-      LOG3 ("%s  -> glVertexPointer 3 FLOAT %d %lX", 
+            stride,
+            (unsigned long) c);
+        break;
+      case GL_V3F :
+        jwzgles_glVertexPointer(3, GL_FLOAT, stride, c);
+        CHECK("glVertexPointer");
+        if (! state->replaying_list)
+          LOG3("%s  -> glVertexPointer 3 FLOAT %d %lX",
             (state->compiling_list || state->replaying_list ? "  " : ""),
-            stride, (unsigned long) c);
-    break;
-  case GL_C4UB_V2F:	
-    if (stride == 0)
-      stride = 4*B + 2*F;
-    jwzgles_glEnableClientState (GL_COLOR_ARRAY);
-    jwzgles_glColorPointer (4, GL_UNSIGNED_BYTE, stride, c);
-    CHECK("glColorPointer");
-    c += 4*B;	/* #### might be incorrect float-aligned address */
-    jwzgles_glVertexPointer (2, GL_FLOAT, stride, c);
-    break;
-  case GL_C4UB_V3F:
-    if (stride == 0)
-      stride = 4*B + 3*F;
-    jwzgles_glEnableClientState (GL_COLOR_ARRAY);
-    jwzgles_glColorPointer (4, GL_UNSIGNED_BYTE, stride, c);
-    CHECK("glColorPointer");
-    c += 4*B;
-    jwzgles_glVertexPointer (3, GL_FLOAT, stride, c);
-    CHECK("glVertexPointer");
-    break;
-  case GL_C3F_V3F:
-    if (stride == 0)
-      stride = 3*F + 3*F;
-    jwzgles_glEnableClientState (GL_COLOR_ARRAY);
-    jwzgles_glColorPointer (3, GL_FLOAT, stride, c);
-    CHECK("glColorPointer");
-    c += 3*F;
-    jwzgles_glVertexPointer (3, GL_FLOAT, stride, c);
-    CHECK("glVertexPointer");
-    break;
-  case GL_N3F_V3F:
-    if (stride == 0)
-      stride = 3*F + 3*F;
-    jwzgles_glEnableClientState (GL_NORMAL_ARRAY);
-    jwzgles_glNormalPointer (GL_FLOAT, stride, c);
-    CHECK("glNormalPointer");
-    if (!state->replaying_list)
-      LOG3 ("%s  -> glNormalPointer   FLOAT %d %lX", 
+            stride,
+            (unsigned long) c);
+        break;
+      case GL_C4UB_V2F :
+        if (stride == 0)
+          stride= 4 * B + 2 * F;
+        jwzgles_glEnableClientState(GL_COLOR_ARRAY);
+        jwzgles_glColorPointer(4, GL_UNSIGNED_BYTE, stride, c);
+        CHECK("glColorPointer");
+        c+= 4 * B; /* #### might be incorrect float-aligned address */
+        jwzgles_glVertexPointer(2, GL_FLOAT, stride, c);
+        break;
+      case GL_C4UB_V3F :
+        if (stride == 0)
+          stride= 4 * B + 3 * F;
+        jwzgles_glEnableClientState(GL_COLOR_ARRAY);
+        jwzgles_glColorPointer(4, GL_UNSIGNED_BYTE, stride, c);
+        CHECK("glColorPointer");
+        c+= 4 * B;
+        jwzgles_glVertexPointer(3, GL_FLOAT, stride, c);
+        CHECK("glVertexPointer");
+        break;
+      case GL_C3F_V3F :
+        if (stride == 0)
+          stride= 3 * F + 3 * F;
+        jwzgles_glEnableClientState(GL_COLOR_ARRAY);
+        jwzgles_glColorPointer(3, GL_FLOAT, stride, c);
+        CHECK("glColorPointer");
+        c+= 3 * F;
+        jwzgles_glVertexPointer(3, GL_FLOAT, stride, c);
+        CHECK("glVertexPointer");
+        break;
+      case GL_N3F_V3F :
+        if (stride == 0)
+          stride= 3 * F + 3 * F;
+        jwzgles_glEnableClientState(GL_NORMAL_ARRAY);
+        jwzgles_glNormalPointer(GL_FLOAT, stride, c);
+        CHECK("glNormalPointer");
+        if (! state->replaying_list)
+          LOG3("%s  -> glNormalPointer   FLOAT %d %lX",
             (state->compiling_list || state->replaying_list ? "  " : ""),
-            stride, (unsigned long) c);
-    c += 3*F;
-    jwzgles_glVertexPointer (3, GL_FLOAT, stride, c);
-    CHECK("glVertexPointer");
-    if (!state->replaying_list)
-      LOG3 ("%s  -> glVertexPointer 3 FLOAT %d %lX", 
+            stride,
+            (unsigned long) c);
+        c+= 3 * F;
+        jwzgles_glVertexPointer(3, GL_FLOAT, stride, c);
+        CHECK("glVertexPointer");
+        if (! state->replaying_list)
+          LOG3("%s  -> glVertexPointer 3 FLOAT %d %lX",
             (state->compiling_list || state->replaying_list ? "  " : ""),
-            stride, (unsigned long) c);
-    break;
-  case GL_C4F_N3F_V3F:
-    if (stride == 0)
-      stride = 4*F + 3*F + 3*F;
-    jwzgles_glEnableClientState (GL_COLOR_ARRAY);
-    jwzgles_glColorPointer (4, GL_FLOAT, stride, c);
-    CHECK("glColorPointer");
-    c += 4*F;
-    jwzgles_glEnableClientState (GL_NORMAL_ARRAY);
-    jwzgles_glNormalPointer (GL_FLOAT, stride, c);
-    CHECK("glNormalPointer");
-    c += 3*F;
-    jwzgles_glVertexPointer (3, GL_FLOAT, stride, c);
-    CHECK("glVertexPointer");
-    break;
-  case GL_T2F_V3F:
-    if (stride == 0)
-      stride = 2*F + 3*F;
-    jwzgles_glEnableClientState (GL_TEXTURE_COORD_ARRAY);
-    jwzgles_glTexCoordPointer (2, GL_FLOAT, stride, c);
-    CHECK("glTexCoordPointer");
-    c += 2*F;
-    jwzgles_glVertexPointer (3, GL_FLOAT, stride, c);
-    CHECK("glVertexPointer");
-    break;
-  case GL_T4F_V4F:
-    if (stride == 0)
-      stride = 4*F + 4*F;
-    jwzgles_glEnableClientState (GL_TEXTURE_COORD_ARRAY);
-    jwzgles_glTexCoordPointer (4, GL_FLOAT, stride, c);
-    CHECK("glTexCoordPointer");
-    c += 4*F;
-    jwzgles_glVertexPointer (4, GL_FLOAT, stride, c);
-    CHECK("glVertexPointer");
-    break;
-  case GL_T2F_C4UB_V3F:
-    if (stride == 0)
-      stride = 2*F + 4*B + 3*F;
-    jwzgles_glEnableClientState (GL_TEXTURE_COORD_ARRAY);
-    jwzgles_glTexCoordPointer (2, GL_FLOAT, stride, c);
-    CHECK("glTexCoordPointer");
-    c += 2*F;
-    jwzgles_glEnableClientState (GL_COLOR_ARRAY);
-    jwzgles_glColorPointer  (4, GL_UNSIGNED_BYTE, stride, c);
-    CHECK("glColorPointer");
-    c += 4*B;
-    jwzgles_glVertexPointer (3, GL_FLOAT, stride, c);
-    CHECK("glVertexPointer");
-    break;
-  case GL_T2F_C3F_V3F:
-    if (stride == 0)
-      stride = 2*F + 3*F + 3*F;
-    jwzgles_glEnableClientState (GL_TEXTURE_COORD_ARRAY);
-    jwzgles_glTexCoordPointer (2, GL_FLOAT, stride, c);
-    CHECK("glTexCoordPointer");
-    c += 2*F;
-    jwzgles_glEnableClientState (GL_COLOR_ARRAY);
-    jwzgles_glColorPointer  (3, GL_FLOAT, stride, c);
-    CHECK("glColorPointer");
-    c += 3*F;
-    jwzgles_glVertexPointer (3, GL_FLOAT, stride, c);
-    CHECK("glVertexPointer");
-    break;
-  case GL_T2F_N3F_V3F:
-    if (stride == 0)
-      stride = 2*F + 3*F + 3*F;
-    jwzgles_glEnableClientState (GL_TEXTURE_COORD_ARRAY);
-    jwzgles_glTexCoordPointer (2, GL_FLOAT, stride, c);
-    CHECK("glTexCoordPointer");
-    c += 2*F;
-    jwzgles_glEnableClientState (GL_NORMAL_ARRAY);
-    jwzgles_glNormalPointer (GL_FLOAT, stride, c);
-    CHECK("glNormalPointer");
-    c += 3*F;
-    jwzgles_glVertexPointer (3, GL_FLOAT, stride, c);
-    CHECK("glVertexPointer");
-    break;
-  case GL_T2F_C4F_N3F_V3F:
-    if (stride == 0)
-      stride = 2*F + 4*F + 3*F + 3*F;
-    jwzgles_glEnableClientState (GL_TEXTURE_COORD_ARRAY);
-    jwzgles_glTexCoordPointer (2, GL_FLOAT, stride, c);
-    CHECK("glTexCoordPointer");
-    c += 2*F;
-    jwzgles_glEnableClientState (GL_COLOR_ARRAY);
-    jwzgles_glColorPointer  (3, GL_FLOAT, stride, c);
-    CHECK("glColorPointer");
-    c += 3*F;
-    jwzgles_glEnableClientState (GL_NORMAL_ARRAY);
-    jwzgles_glNormalPointer (GL_FLOAT, stride, c);
-    CHECK("glNormalPointer");
-    c += 3*F;
-    jwzgles_glVertexPointer (3, GL_FLOAT, stride, c);
-    CHECK("glVertexPointer");
-    break;
-  case GL_T4F_C4F_N3F_V4F:
-    if (stride == 0)
-      stride = 4*F + 4*F + 3*F + 4*F;
-    jwzgles_glEnableClientState (GL_TEXTURE_COORD_ARRAY);
-    jwzgles_glTexCoordPointer (4, GL_FLOAT, stride, c);
-    CHECK("glTexCoordPointer");
-    c += 4*F;
-    jwzgles_glEnableClientState (GL_COLOR_ARRAY);
-    jwzgles_glColorPointer  (4, GL_FLOAT, stride, c);
-    CHECK("glColorPointer");
-    c += 4*F;
-    jwzgles_glEnableClientState (GL_NORMAL_ARRAY);
-    jwzgles_glNormalPointer (GL_FLOAT, stride, c);
-    CHECK("glNormalPointer");
-    c += 3*F;
-    jwzgles_glVertexPointer (3, GL_FLOAT, stride, c);
-    CHECK("glVertexPointer");
-    break;
-  default:
-    Assert (0, "glInterleavedArrays: bogus format");
-    break;
-  }
+            stride,
+            (unsigned long) c);
+        break;
+      case GL_C4F_N3F_V3F :
+        if (stride == 0)
+          stride= 4 * F + 3 * F + 3 * F;
+        jwzgles_glEnableClientState(GL_COLOR_ARRAY);
+        jwzgles_glColorPointer(4, GL_FLOAT, stride, c);
+        CHECK("glColorPointer");
+        c+= 4 * F;
+        jwzgles_glEnableClientState(GL_NORMAL_ARRAY);
+        jwzgles_glNormalPointer(GL_FLOAT, stride, c);
+        CHECK("glNormalPointer");
+        c+= 3 * F;
+        jwzgles_glVertexPointer(3, GL_FLOAT, stride, c);
+        CHECK("glVertexPointer");
+        break;
+      case GL_T2F_V3F :
+        if (stride == 0)
+          stride= 2 * F + 3 * F;
+        jwzgles_glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+        jwzgles_glTexCoordPointer(2, GL_FLOAT, stride, c);
+        CHECK("glTexCoordPointer");
+        c+= 2 * F;
+        jwzgles_glVertexPointer(3, GL_FLOAT, stride, c);
+        CHECK("glVertexPointer");
+        break;
+      case GL_T4F_V4F :
+        if (stride == 0)
+          stride= 4 * F + 4 * F;
+        jwzgles_glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+        jwzgles_glTexCoordPointer(4, GL_FLOAT, stride, c);
+        CHECK("glTexCoordPointer");
+        c+= 4 * F;
+        jwzgles_glVertexPointer(4, GL_FLOAT, stride, c);
+        CHECK("glVertexPointer");
+        break;
+      case GL_T2F_C4UB_V3F :
+        if (stride == 0)
+          stride= 2 * F + 4 * B + 3 * F;
+        jwzgles_glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+        jwzgles_glTexCoordPointer(2, GL_FLOAT, stride, c);
+        CHECK("glTexCoordPointer");
+        c+= 2 * F;
+        jwzgles_glEnableClientState(GL_COLOR_ARRAY);
+        jwzgles_glColorPointer(4, GL_UNSIGNED_BYTE, stride, c);
+        CHECK("glColorPointer");
+        c+= 4 * B;
+        jwzgles_glVertexPointer(3, GL_FLOAT, stride, c);
+        CHECK("glVertexPointer");
+        break;
+      case GL_T2F_C3F_V3F :
+        if (stride == 0)
+          stride= 2 * F + 3 * F + 3 * F;
+        jwzgles_glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+        jwzgles_glTexCoordPointer(2, GL_FLOAT, stride, c);
+        CHECK("glTexCoordPointer");
+        c+= 2 * F;
+        jwzgles_glEnableClientState(GL_COLOR_ARRAY);
+        jwzgles_glColorPointer(3, GL_FLOAT, stride, c);
+        CHECK("glColorPointer");
+        c+= 3 * F;
+        jwzgles_glVertexPointer(3, GL_FLOAT, stride, c);
+        CHECK("glVertexPointer");
+        break;
+      case GL_T2F_N3F_V3F :
+        if (stride == 0)
+          stride= 2 * F + 3 * F + 3 * F;
+        jwzgles_glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+        jwzgles_glTexCoordPointer(2, GL_FLOAT, stride, c);
+        CHECK("glTexCoordPointer");
+        c+= 2 * F;
+        jwzgles_glEnableClientState(GL_NORMAL_ARRAY);
+        jwzgles_glNormalPointer(GL_FLOAT, stride, c);
+        CHECK("glNormalPointer");
+        c+= 3 * F;
+        jwzgles_glVertexPointer(3, GL_FLOAT, stride, c);
+        CHECK("glVertexPointer");
+        break;
+      case GL_T2F_C4F_N3F_V3F :
+        if (stride == 0)
+          stride= 2 * F + 4 * F + 3 * F + 3 * F;
+        jwzgles_glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+        jwzgles_glTexCoordPointer(2, GL_FLOAT, stride, c);
+        CHECK("glTexCoordPointer");
+        c+= 2 * F;
+        jwzgles_glEnableClientState(GL_COLOR_ARRAY);
+        jwzgles_glColorPointer(3, GL_FLOAT, stride, c);
+        CHECK("glColorPointer");
+        c+= 3 * F;
+        jwzgles_glEnableClientState(GL_NORMAL_ARRAY);
+        jwzgles_glNormalPointer(GL_FLOAT, stride, c);
+        CHECK("glNormalPointer");
+        c+= 3 * F;
+        jwzgles_glVertexPointer(3, GL_FLOAT, stride, c);
+        CHECK("glVertexPointer");
+        break;
+      case GL_T4F_C4F_N3F_V4F :
+        if (stride == 0)
+          stride= 4 * F + 4 * F + 3 * F + 4 * F;
+        jwzgles_glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+        jwzgles_glTexCoordPointer(4, GL_FLOAT, stride, c);
+        CHECK("glTexCoordPointer");
+        c+= 4 * F;
+        jwzgles_glEnableClientState(GL_COLOR_ARRAY);
+        jwzgles_glColorPointer(4, GL_FLOAT, stride, c);
+        CHECK("glColorPointer");
+        c+= 4 * F;
+        jwzgles_glEnableClientState(GL_NORMAL_ARRAY);
+        jwzgles_glNormalPointer(GL_FLOAT, stride, c);
+        CHECK("glNormalPointer");
+        c+= 3 * F;
+        jwzgles_glVertexPointer(3, GL_FLOAT, stride, c);
+        CHECK("glVertexPointer");
+        break;
+      default :
+        Assert(0, "glInterleavedArrays: bogus format");
+        break;
+    }
 
-# undef B
-# undef F
+#undef B
+#undef F
 }
 
 
 
-void
-jwzgles_glMultMatrixf (const GLfloat *m)
+void jwzgles_glMultMatrixf(
+  const GLfloat *m)
 {
-  Assert (!state->compiling_verts,
-          "glMultMatrixf not allowed inside glBegin");
+  Assert(! state->compiling_verts,
+    "glMultMatrixf not allowed inside glBegin");
   if (state->compiling_list)
     {
-      void_int vv[16];
+      void_int vv [ 16 ];
       int i;
-      for (i = 0; i < countof(vv); i++)
-        vv[i].f = m[i];
-      list_push ("glMultMatrixf", (list_fn_cb) &jwzgles_glMultMatrixf,
-                 PROTO_FV16, vv);
+      for (i= 0; i < countof(vv); i++)
+        vv [ i ].f= m [ i ];
+      list_push("glMultMatrixf", (list_fn_cb) &jwzgles_glMultMatrixf, PROTO_FV16, vv);
     }
   else
     {
       if (! state->replaying_list)
-        LOG1 ("direct %-12s", "glMultMatrixf");
-      glMultMatrixf (m);  /* the real one */
+        LOG1("direct %-12s", "glMultMatrixf");
+      glMultMatrixf(m); /* the real one */
       CHECK("glMultMatrixf");
     }
 }
 
 
-void
-jwzgles_glClearIndex(GLfloat c)
+void jwzgles_glClearIndex(
+  GLfloat c)
 {
   /* Does GLES even do indexed color? */
-  Assert (0, "glClearIndex unimplemented");
+  Assert(0, "glClearIndex unimplemented");
 }
 
 
-void
-jwzgles_glBitmap (GLsizei width, GLsizei height, GLfloat xorig, GLfloat yorig,
-                  GLfloat xmove, GLfloat ymove, const GLubyte *bitmap)
+void jwzgles_glBitmap(
+  GLsizei width,
+  GLsizei height,
+  GLfloat xorig,
+  GLfloat yorig,
+  GLfloat xmove,
+  GLfloat ymove,
+  const GLubyte *bitmap)
 {
-  Assert (0, "glBitmap unimplemented");
+  Assert(0, "glBitmap unimplemented");
 }
 
-void
-jwzgles_glPushAttrib(int flags)
+void jwzgles_glPushAttrib(
+  int flags)
 {
-  Assert (0, "glPushAttrib unimplemented");
+  Assert(0, "glPushAttrib unimplemented");
 }
 
-void
-jwzgles_glPopAttrib(void)
+void jwzgles_glPopAttrib(
+  void)
 {
-  Assert (0, "glPopAttrib unimplemented");
+  Assert(0, "glPopAttrib unimplemented");
 }
 
 
 /* These are needed for object hit detection in pinion.
    Might need to rewrite that code entirely.  Punt for now.
  */
-void
-jwzgles_glInitNames (void)
+void jwzgles_glInitNames(
+  void)
 {
-/*  Assert (0, "glInitNames unimplemented");*/
+  /*  Assert (0, "glInitNames unimplemented");*/
 }
 
-void
-jwzgles_glPushName (GLuint name)
+void jwzgles_glPushName(
+  GLuint name)
 {
-/*  Assert (0, "glPushName unimplemented");*/
+  /*  Assert (0, "glPushName unimplemented");*/
 }
 
 GLuint
-jwzgles_glPopName (void)
+  jwzgles_glPopName(
+    void)
 {
-/*  Assert (0, "glPopName unimplemented");*/
+  /*  Assert (0, "glPopName unimplemented");*/
   return 0;
 }
 
 GLuint
-jwzgles_glRenderMode (GLuint mode)
+  jwzgles_glRenderMode(
+    GLuint mode)
 {
-/*  Assert (0, "glRenderMode unimplemented");*/
+  /*  Assert (0, "glRenderMode unimplemented");*/
   return 0;
 }
 
-void
-jwzgles_glSelectBuffer (GLsizei size, GLuint *buf)
+void jwzgles_glSelectBuffer(
+  GLsizei size,
+  GLuint *buf)
 {
-/*  Assert (0, "glSelectBuffer unimplemented");*/
+  /*  Assert (0, "glSelectBuffer unimplemented");*/
 }
 
 
-void
-jwzgles_glGenTextures (GLuint n, GLuint *ret)
+void jwzgles_glGenTextures(
+  GLuint n,
+  GLuint *ret)
 {
-  Assert (!state->compiling_verts,
-          "glGenTextures not allowed inside glBegin");
+  Assert(! state->compiling_verts,
+    "glGenTextures not allowed inside glBegin");
   /* technically legal, but stupid! */
-  Assert (!state->compiling_list,
-          "glGenTextures not allowed inside glNewList");
+  Assert(! state->compiling_list,
+    "glGenTextures not allowed inside glNewList");
   if (! state->replaying_list)
-    LOG1 ("direct %-12s", "glGenTextures");
-  glGenTextures (n, ret);  /* the real one */
+    LOG1("direct %-12s", "glGenTextures");
+  glGenTextures(n, ret); /* the real one */
   CHECK("glGenTextures");
 }
 
 
-void
-jwzgles_glTexImage1D (GLenum target, GLint level,
-                      GLint internalFormat,
-                      GLsizei width, GLint border,
-                      GLenum format, GLenum type,
-                      const GLvoid *data)
+void jwzgles_glTexImage1D(
+  GLenum target,
+  GLint level,
+  GLint internalFormat,
+  GLsizei width,
+  GLint border,
+  GLenum format,
+  GLenum type,
+  const GLvoid *data)
 {
-  Assert (!state->compiling_verts, "glTexImage1D not allowed inside glBegin");
+  Assert(! state->compiling_verts, "glTexImage1D not allowed inside glBegin");
   /* technically legal, but stupid! */
-  Assert (!state->compiling_list, "glTexImage1D inside glNewList");
-# ifndef HAVE_GLSL
+  Assert(! state->compiling_list, "glTexImage1D inside glNewList");
+#ifndef HAVE_GLSL
   /* If the underlying library is GLES2, then textures can be any size.
      Portable code should still be using pow2 sizes, unless it's in a branch
      that is guaranteed not to run in a GLES1 or OpenGL 1.3 context. */
-  Assert (width  == to_pow2(width), "width must be a power of 2");
-# endif
+  Assert(width == to_pow2(width), "width must be a power of 2");
+#endif
 
-  if (target == GL_TEXTURE_1D) target = GL_TEXTURE_2D;
-  jwzgles_glTexImage2D (target, level, internalFormat, width, 1,
-                        border, format, type, data);
+  if (target == GL_TEXTURE_1D) target= GL_TEXTURE_2D;
+  jwzgles_glTexImage2D(target, level, internalFormat, width, 1, border, format, type, data);
 }
 
-void
-jwzgles_glTexImage2D (GLenum target,
-                      GLint  	level,
-                      GLint  	internalFormat,
-                      GLsizei  	width,
-                      GLsizei  	height,
-                      GLint  	border,
-                      GLenum  	format,
-                      GLenum  	type,
-                      const GLvoid *data)
+void jwzgles_glTexImage2D(
+  GLenum target,
+  GLint level,
+  GLint internalFormat,
+  GLsizei width,
+  GLsizei height,
+  GLint border,
+  GLenum format,
+  GLenum type,
+  const GLvoid *data)
 {
-  GLvoid *d2 = (GLvoid *) data;
-  Assert (!state->compiling_verts, "glTexImage2D not allowed inside glBegin");
-  Assert (!state->compiling_list,  /* technically legal, but stupid! */
-          "glTexImage2D not allowed inside glNewList");
+  GLvoid *d2= (GLvoid *) data;
+  Assert(! state->compiling_verts, "glTexImage2D not allowed inside glBegin");
+  Assert(! state->compiling_list, /* technically legal, but stupid! */
+    "glTexImage2D not allowed inside glNewList");
 
-# ifndef HAVE_GLSL
+#ifndef HAVE_GLSL
   /* If the underlying library is GLES2, then textures can be any size.
      Portable code should still be using pow2 sizes, unless it's in a branch
      that is guaranteed not to run in a GLES1 or OpenGL 1.3 context. */
-  Assert (width  == to_pow2(width),   "width must be a power of 2");
-  Assert (height == to_pow2(height), "height must be a power of 2");
-# endif
+  Assert(width == to_pow2(width), "width must be a power of 2");
+  Assert(height == to_pow2(height), "height must be a power of 2");
+#endif
 
   /* OpenGLES no longer supports "4" as a synonym for "RGBA". */
-  switch (internalFormat) {
-  case 1: internalFormat = GL_LUMINANCE; break;
-  case 2: internalFormat = GL_LUMINANCE_ALPHA; break;
-  case 3: internalFormat = GL_RGB; break;
-  case 4: internalFormat = GL_RGBA; break;
-  }
+  switch (internalFormat)
+    {
+      case 1 : internalFormat= GL_LUMINANCE; break;
+      case 2 : internalFormat= GL_LUMINANCE_ALPHA; break;
+      case 3 : internalFormat= GL_RGB; break;
+      case 4 : internalFormat= GL_RGBA; break;
+    }
 
   /* GLES does not let us omit the data pointer to create a blank texture. */
   if (! data)
     {
-      d2 = (GLvoid *) calloc (1, width * height * sizeof(GLfloat) * 4);
-      Assert (d2, "out of memory");
+      d2= (GLvoid *) calloc(1, width * height * sizeof(GLfloat) * 4);
+      Assert(d2, "out of memory");
     }
 
   if (internalFormat == GL_RGB && format == GL_RGBA)
-    internalFormat = GL_RGBA;  /* WTF */
+    internalFormat= GL_RGBA; /* WTF */
   if (type == GL_UNSIGNED_INT_8_8_8_8_REV)
-    type = GL_UNSIGNED_BYTE;
+    type= GL_UNSIGNED_BYTE;
 
   if (! state->replaying_list)
-    LOG10 ("direct %-12s %s %d %s %d %d %d %s %s 0x%lX", "glTexImage2D", 
-           mode_desc(target), level, mode_desc(internalFormat),
-           width, height, border, mode_desc(format), mode_desc(type),
-           (unsigned long) d2);
-  glTexImage2D (target, level, internalFormat, width, height, border,
-                format, type, d2);  /* the real one */
+    LOG10("direct %-12s %s %d %s %d %d %d %s %s 0x%lX", "glTexImage2D", mode_desc(target), level, mode_desc(internalFormat), width, height, border, mode_desc(format), mode_desc(type), (unsigned long) d2);
+  glTexImage2D(target, level, internalFormat, width, height, border, format, type, d2); /* the real one */
   CHECK("glTexImage2D");
 
-  if (d2 != data) free (d2);
+  if (d2 != data) free(d2);
 }
 
-void
-jwzgles_glTexImage3D (GLenum	target,
-                      GLint  	level,
-                      GLint  	internalFormat,
-                      GLsizei  	width,
-                      GLsizei  	height,
-                      GLsizei  	depth,
-                      GLint  	border,
-                      GLenum  	format,
-                      GLenum  	type,
-                      const GLvoid *data)
+void jwzgles_glTexImage3D(
+  GLenum target,
+  GLint level,
+  GLint internalFormat,
+  GLsizei width,
+  GLsizei height,
+  GLsizei depth,
+  GLint border,
+  GLenum format,
+  GLenum type,
+  const GLvoid *data)
 {
-# ifdef HAVE_GLSL
-  glTexImage3D (target, level, internalFormat, width, height, depth, border,
-                format, type, data);
-# endif
+#ifdef HAVE_GLSL
+  glTexImage3D(target, level, internalFormat, width, height, depth, border, format, type, data);
+#endif
 }
 
-void
-jwzgles_glTexSubImage2D (GLenum target, GLint level,
-                         GLint xoffset, GLint yoffset,
-                         GLsizei width, GLsizei height,
-                         GLenum format, GLenum type,
-                         const GLvoid *pixels)
+void jwzgles_glTexSubImage2D(
+  GLenum target,
+  GLint level,
+  GLint xoffset,
+  GLint yoffset,
+  GLsizei width,
+  GLsizei height,
+  GLenum format,
+  GLenum type,
+  const GLvoid *pixels)
 {
-  Assert (!state->compiling_verts,
-          "glTexSubImage2D not allowed inside glBegin");
-  Assert (!state->compiling_list,   /* technically legal, but stupid! */
-          "glTexSubImage2D not allowed inside glNewList");
+  Assert(! state->compiling_verts,
+    "glTexSubImage2D not allowed inside glBegin");
+  Assert(! state->compiling_list, /* technically legal, but stupid! */
+    "glTexSubImage2D not allowed inside glNewList");
 
   if (! state->replaying_list)
-    LOG10 ("direct %-12s %s %d %d %d %d %d %s %s 0x%lX", "glTexSubImage2D", 
-           mode_desc(target), level, xoffset, yoffset, width, height,
-           mode_desc (format), mode_desc (type), (unsigned long) pixels);
-  glTexSubImage2D (target, level, xoffset, yoffset, width, height,
-                   format, type, pixels);  /* the real one */
+    LOG10("direct %-12s %s %d %d %d %d %d %s %s 0x%lX", "glTexSubImage2D", mode_desc(target), level, xoffset, yoffset, width, height, mode_desc(format), mode_desc(type), (unsigned long) pixels);
+  glTexSubImage2D(target, level, xoffset, yoffset, width, height, format, type, pixels); /* the real one */
   CHECK("glTexSubImage2D");
 }
 
-void
-jwzgles_glCopyTexImage2D (GLenum target, GLint level, GLenum internalformat,
-                          GLint x, GLint y, GLsizei width, GLsizei height,
-                          GLint border)
+void jwzgles_glCopyTexImage2D(
+  GLenum target,
+  GLint level,
+  GLenum internalformat,
+  GLint x,
+  GLint y,
+  GLsizei width,
+  GLsizei height,
+  GLint border)
 {
-  Assert (!state->compiling_verts, 
-          "glCopyTexImage2D not allowed inside glBegin");
-  Assert (!state->compiling_list,    /* technically legal, but stupid! */
-          "glCopyTexImage2D not allowed inside glNewList");
+  Assert(! state->compiling_verts,
+    "glCopyTexImage2D not allowed inside glBegin");
+  Assert(! state->compiling_list, /* technically legal, but stupid! */
+    "glCopyTexImage2D not allowed inside glNewList");
   if (! state->replaying_list)
-    LOG9 ("direct %-12s %s %d %s %d %d %d %d %d", "glCopyTexImage2D", 
-          mode_desc(target), level, mode_desc(internalformat),
-          x, y, width, height, border);
-  glCopyTexImage2D (target, level, internalformat, x, y, width, height,
-                    border);  /* the real one */
+    LOG9("direct %-12s %s %d %s %d %d %d %d %d", "glCopyTexImage2D", mode_desc(target), level, mode_desc(internalformat), x, y, width, height, border);
+  glCopyTexImage2D(target, level, internalformat, x, y, width, height, border); /* the real one */
   CHECK("glCopyTexImage2D");
 }
 
 
-void
-jwzgles_glCopyTexSubImage2D (GLenum target, GLint level, 
-                             GLint xoff, GLint yoff, 
-                             GLint x, GLint y, 
-                             GLsizei width, GLsizei height)
+void jwzgles_glCopyTexSubImage2D(
+  GLenum target,
+  GLint level,
+  GLint xoff,
+  GLint yoff,
+  GLint x,
+  GLint y,
+  GLsizei width,
+  GLsizei height)
 {
-  Assert (!state->compiling_verts, 
-          "glCopyTexSubImage2D not allowed inside glBegin");
-  Assert (!state->compiling_list,    /* technically legal, but stupid! */
-          "glCopyTexSubImage2D not allowed inside glNewList");
+  Assert(! state->compiling_verts,
+    "glCopyTexSubImage2D not allowed inside glBegin");
+  Assert(! state->compiling_list, /* technically legal, but stupid! */
+    "glCopyTexSubImage2D not allowed inside glNewList");
   if (! state->replaying_list)
-    LOG9 ("direct %-12s %s %d %d %d %d %d %d %d", "glCopyTexSubImage2D", 
-          mode_desc(target), level, xoff, yoff, x, y, width, height);
-  glCopyTexSubImage2D (target, level,   /* the real one */
-                       xoff, yoff, x, y, width, height);
+    LOG9("direct %-12s %s %d %d %d %d %d %d %d", "glCopyTexSubImage2D", mode_desc(target), level, xoff, yoff, x, y, width, height);
+  glCopyTexSubImage2D(target, level, /* the real one */
+    xoff,
+    yoff,
+    x,
+    y,
+    width,
+    height);
   CHECK("glCopyTexSubImage2D");
 }
 
@@ -3186,88 +3392,113 @@ jwzgles_glCopyTexSubImage2D (GLenum target, GLint level,
    "Oh, just rewrite that code to use GPU shaders", they say.
    How fucking convenient.
  */
-void
-jwzgles_glTexGenfv (GLenum coord, GLenum pname, const GLfloat *params)
+void jwzgles_glTexGenfv(
+  GLenum coord,
+  GLenum pname,
+  const GLfloat *params)
 {
   texgen_state *s;
 
   if (pname == GL_TEXTURE_GEN_MODE)
-    LOG5 ("%sdirect %-12s %s %s %s", 
-          (state->compiling_list || state->replaying_list ? "  " : ""),
-          "glTexGenfv",
-          mode_desc(coord), mode_desc(pname), mode_desc(params[0]));
+    LOG5("%sdirect %-12s %s %s %s",
+      (state->compiling_list || state->replaying_list ? "  " : ""),
+      "glTexGenfv",
+      mode_desc(coord),
+      mode_desc(pname),
+      mode_desc(params [ 0 ]));
   else
-    LOG8 ("%sdirect %-12s %s %s %3.1f %3.1f %3.1f %3.1f",
-          (state->compiling_list || state->replaying_list ? "  " : ""),
-          "glTexGenfv",
-          mode_desc(coord), mode_desc(pname),
-          params[0], params[1], params[2], params[3]);
+    LOG8("%sdirect %-12s %s %s %3.1f %3.1f %3.1f %3.1f",
+      (state->compiling_list || state->replaying_list ? "  " : ""),
+      "glTexGenfv",
+      mode_desc(coord),
+      mode_desc(pname),
+      params [ 0 ],
+      params [ 1 ],
+      params [ 2 ],
+      params [ 3 ]);
 
-  switch (coord) {
-  case GL_S: s = &state->s; break;
-  case GL_T: s = &state->t; break;
-  case GL_R: s = &state->r; break;
-  case GL_Q: s = &state->q; break;
-  default: Assert (0, "glGetTexGenfv: unknown coord"); break;
-  }
+  switch (coord)
+    {
+      case GL_S : s= &state->s; break;
+      case GL_T : s= &state->t; break;
+      case GL_R : s= &state->r; break;
+      case GL_Q : s= &state->q; break;
+      default : Assert(0, "glGetTexGenfv: unknown coord"); break;
+    }
 
-  switch (pname) {
-  case GL_TEXTURE_GEN_MODE: s->mode = params[0]; break;
-  case GL_OBJECT_PLANE:     memcpy (s->obj, params, sizeof(s->obj)); break;
-  case GL_EYE_PLANE:        memcpy (s->eye, params, sizeof(s->eye)); break;
-  default: Assert (0, "glTexGenfv: unknown pname"); break;
-  }
+  switch (pname)
+    {
+      case GL_TEXTURE_GEN_MODE : s->mode= params [ 0 ]; break;
+      case GL_OBJECT_PLANE : memcpy(s->obj, params, sizeof(s->obj)); break;
+      case GL_EYE_PLANE : memcpy(s->eye, params, sizeof(s->eye)); break;
+      default : Assert(0, "glTexGenfv: unknown pname"); break;
+    }
 }
 
-void
-jwzgles_glTexGeni (GLenum coord, GLenum pname, GLint param)
+void jwzgles_glTexGeni(
+  GLenum coord,
+  GLenum pname,
+  GLint param)
 {
-  GLfloat v = param;
-  jwzgles_glTexGenfv (coord, pname, &v);
+  GLfloat v= param;
+  jwzgles_glTexGenfv(coord, pname, &v);
 }
 
-void
-jwzgles_glGetTexGenfv (GLenum coord, GLenum pname, GLfloat *params)
+void jwzgles_glGetTexGenfv(
+  GLenum coord,
+  GLenum pname,
+  GLfloat *params)
 {
   texgen_state *s;
 
-  switch (coord) {
-  case GL_S: s = &state->s; break;
-  case GL_T: s = &state->t; break;
-  case GL_R: s = &state->r; break;
-  case GL_Q: s = &state->q; break;
-  default: Assert (0, "glGetTexGenfv: unknown coord"); break;
-  }
+  switch (coord)
+    {
+      case GL_S : s= &state->s; break;
+      case GL_T : s= &state->t; break;
+      case GL_R : s= &state->r; break;
+      case GL_Q : s= &state->q; break;
+      default : Assert(0, "glGetTexGenfv: unknown coord"); break;
+    }
 
-  switch (pname) {
-  case GL_TEXTURE_GEN_MODE: params[0] = s->mode; break;
-  case GL_OBJECT_PLANE:     memcpy (params, s->obj, sizeof(s->obj)); break;
-  case GL_EYE_PLANE:        memcpy (params, s->eye, sizeof(s->eye)); break;
-  default: Assert (0, "glGetTexGenfv: unknown pname"); break;
-  }
+  switch (pname)
+    {
+      case GL_TEXTURE_GEN_MODE : params [ 0 ]= s->mode; break;
+      case GL_OBJECT_PLANE : memcpy(params, s->obj, sizeof(s->obj)); break;
+      case GL_EYE_PLANE : memcpy(params, s->eye, sizeof(s->eye)); break;
+      default : Assert(0, "glGetTexGenfv: unknown pname"); break;
+    }
 
   if (pname == GL_TEXTURE_GEN_MODE)
-    LOG5 ("%sdirect %-12s %s %s -> %s", 
-          (state->compiling_list || state->replaying_list ? "  " : ""),
-          "glGetTexGenfv",
-          mode_desc(coord), mode_desc(pname), mode_desc(params[0]));
+    LOG5("%sdirect %-12s %s %s -> %s",
+      (state->compiling_list || state->replaying_list ? "  " : ""),
+      "glGetTexGenfv",
+      mode_desc(coord),
+      mode_desc(pname),
+      mode_desc(params [ 0 ]));
   else
-    LOG8 ("%sdirect %-12s %s %s -> %3.1f %3.1f %3.1f %3.1f",
-          (state->compiling_list || state->replaying_list ? "  " : ""),
-          "glGetTexGenfv",
-          mode_desc(coord), mode_desc(pname),
-          params[0], params[1], params[2], params[3]);
+    LOG8("%sdirect %-12s %s %s -> %3.1f %3.1f %3.1f %3.1f",
+      (state->compiling_list || state->replaying_list ? "  " : ""),
+      "glGetTexGenfv",
+      mode_desc(coord),
+      mode_desc(pname),
+      params [ 0 ],
+      params [ 1 ],
+      params [ 2 ],
+      params [ 3 ]);
 }
 
 
 static GLfloat
-dot_product (int rank, GLfloat *a, GLfloat *b)
+  dot_product(
+    int rank,
+    GLfloat *a,
+    GLfloat *b)
 {
   /* A dot B  =>  (A[1] * B[1]) + ... + (A[n] * B[n]) */
-  GLfloat ret = 0;
+  GLfloat ret= 0;
   int i;
-  for (i = 0; i < rank; i++) 
-    ret += a[i] * b[i];
+  for (i= 0; i < rank; i++)
+    ret+= a [ i ] * b [ i ];
   return ret;
 }
 
@@ -3277,77 +3508,95 @@ dot_product (int rank, GLfloat *a, GLfloat *b)
    http://www.opengl.org/wiki/Mathematics_of_glTexGen
  */
 static void
-generate_texture_coords (GLuint first, GLuint count)
+  generate_texture_coords(
+    GLuint first,
+    GLuint count)
 {
   GLfloat *tex_out, *tex_array;
   GLsizei tex_stride;
   GLuint i;
-  draw_array A = { 0, };
+  draw_array A= {
+    0,
+  };
   char *verts_in;
 
-  struct { GLuint which, flag, mode; GLfloat plane[4]; } tg[4] = {
-    { GL_S, ISENABLED_TEXTURE_GEN_S, 0, { 0, } },
-    { GL_T, ISENABLED_TEXTURE_GEN_T, 0, { 0, } },
-    { GL_R, ISENABLED_TEXTURE_GEN_R, 0, { 0, } },
-    { GL_Q, ISENABLED_TEXTURE_GEN_Q, 0, { 0, }}};
-                                                    
-  int tcoords = 0;
+  struct
+  {
+      GLuint which, flag, mode;
+      GLfloat plane [ 4 ];
+  } tg [ 4 ]= {
+    {GL_S, ISENABLED_TEXTURE_GEN_S, 0, {
+                                         0,
+                                       }},
+    {GL_T, ISENABLED_TEXTURE_GEN_T, 0, {
+                                         0,
+                                       }},
+    {GL_R, ISENABLED_TEXTURE_GEN_R, 0, {
+                                         0,
+                                       }},
+    {GL_Q, ISENABLED_TEXTURE_GEN_Q, 0, {
+                                         0,
+                                       }}};
+
+  int tcoords= 0;
 
   /* Read the texture plane configs that were stored with glTexGen.
    */
-  for (i = 0; i < countof(tg); i++)
+  for (i= 0; i < countof(tg); i++)
     {
-      GLfloat mode = 0;
-      if (! ((state->compiling_list ? state->list_enabled : state->enabled)
-             & tg[i].flag))
+      GLfloat mode= 0;
+      if (! ((state->compiling_list ? state->list_enabled : state->enabled) & tg [ i ].flag))
         continue;
-      jwzgles_glGetTexGenfv (tg[i].which, GL_TEXTURE_GEN_MODE, &mode);
-      jwzgles_glGetTexGenfv (tg[i].which, GL_OBJECT_PLANE, tg[i].plane);
-      tg[i].mode = mode;
+      jwzgles_glGetTexGenfv(tg [ i ].which, GL_TEXTURE_GEN_MODE, &mode);
+      jwzgles_glGetTexGenfv(tg [ i ].which, GL_OBJECT_PLANE, tg [ i ].plane);
+      tg [ i ].mode= mode;
       tcoords++;
     }
 
-  if (tcoords == 0) return;  /* Nothing to do! */
+  if (tcoords == 0) return; /* Nothing to do! */
 
 
   /* Make the array to store our texture coords in. */
 
-  tex_stride = tcoords * sizeof(GLfloat);
-  tex_array = (GLfloat *) calloc (first + count, tex_stride);
-  tex_out = tex_array;
+  tex_stride= tcoords * sizeof(GLfloat);
+  tex_array= (GLfloat *) calloc(first + count, tex_stride);
+  tex_out= tex_array;
 
 
   /* Read the prevailing vertex array, that was stored with
      glVertexPointer or glInterleavedArrays.
    */
-  jwzgles_glGetIntegerv (GL_VERTEX_ARRAY_BUFFER_BINDING, &A.binding);
-  jwzgles_glGetIntegerv (GL_VERTEX_ARRAY_SIZE,    &A.size);
-  jwzgles_glGetIntegerv (GL_VERTEX_ARRAY_TYPE,    &A.type);
-  jwzgles_glGetIntegerv (GL_VERTEX_ARRAY_STRIDE,  &A.stride);
-  jwzgles_glGetPointerv (GL_VERTEX_ARRAY_POINTER, &A.data);
-  A.bytes = count * A.stride;
+  jwzgles_glGetIntegerv(GL_VERTEX_ARRAY_BUFFER_BINDING, &A.binding);
+  jwzgles_glGetIntegerv(GL_VERTEX_ARRAY_SIZE, &A.size);
+  jwzgles_glGetIntegerv(GL_VERTEX_ARRAY_TYPE, &A.type);
+  jwzgles_glGetIntegerv(GL_VERTEX_ARRAY_STRIDE, &A.stride);
+  jwzgles_glGetPointerv(GL_VERTEX_ARRAY_POINTER, &A.data);
+  A.bytes= count * A.stride;
 
-  verts_in = (char *) A.data;
+  verts_in= (char *) A.data;
 
   /* Iterate over each vertex we're drawing.
      We just skip the ones < start, but the tex array has
      left room for zeroes there anyway.
    */
-  for (i = first; i < first + count; i++)
+  for (i= first; i < first + count; i++)
     {
-      GLfloat vert[4] = { 0, };
+      GLfloat vert [ 4 ]= {
+        0,
+      };
       int j, k;
 
       /* Extract this vertex into `vert' as a float, whatever its type was. */
-      for (j = 0; j < A.size; j++)
+      for (j= 0; j < A.size; j++)
         {
-          switch (A.type) {
-          case GL_SHORT:  vert[j] = ((GLshort *)  verts_in)[j]; break;
-          case GL_INT:    vert[j] = ((GLint *)    verts_in)[j]; break;
-          case GL_FLOAT:  vert[j] = ((GLfloat *)  verts_in)[j]; break;
-          case GL_DOUBLE: vert[j] = ((GLdouble *) verts_in)[j]; break;
-          default: Assert (0, "unknown vertex type"); break;
-          }
+          switch (A.type)
+            {
+              case GL_SHORT : vert [ j ]= ((GLshort *) verts_in) [ j ]; break;
+              case GL_INT : vert [ j ]= ((GLint *) verts_in) [ j ]; break;
+              case GL_FLOAT : vert [ j ]= ((GLfloat *) verts_in) [ j ]; break;
+              case GL_DOUBLE : vert [ j ]= ((GLdouble *) verts_in) [ j ]; break;
+              default : Assert(0, "unknown vertex type"); break;
+            }
         }
 
       /* Compute the texture coordinate for this vertex.
@@ -3358,19 +3607,19 @@ generate_texture_coords (GLuint first, GLuint count)
          Unfortunately, our verts and norms are gone by then, dumped down
          into the VBO and discarded from CPU RAM.  Bleh.
        */
-      for (j = 0, k = 0; j < countof(tg); j++)
+      for (j= 0, k= 0; j < countof(tg); j++)
         {
-          if (! ((state->compiling_list ? state->list_enabled : state->enabled)
-                 & tg[j].flag))
+          if (! ((state->compiling_list ? state->list_enabled : state->enabled) & tg [ j ].flag))
             continue;
-          switch (tg[j].mode) {
-          case GL_OBJECT_LINEAR:
-            tex_out[k] = dot_product (4, vert, tg[j].plane);
-            break;
-          default:
-            Assert (0, "unimplemented texture mode");
-            break;
-          }
+          switch (tg [ j ].mode)
+            {
+              case GL_OBJECT_LINEAR :
+                tex_out [ k ]= dot_product(4, vert, tg [ j ].plane);
+                break;
+              default :
+                Assert(0, "unimplemented texture mode");
+                break;
+            }
           k++;
         }
 
@@ -3378,45 +3627,45 @@ generate_texture_coords (GLuint first, GLuint count)
                i, vert[0], vert[1], vert[2], tex_out[0], tex_out[1]); */
 
       /* Move verts_in and tex_out forward to the next vertex by stride. */
-      verts_in += A.stride;
-      tex_out = (GLfloat *) (((char *) tex_out) + tex_stride);
+      verts_in+= A.stride;
+      tex_out= (GLfloat *) (((char *) tex_out) + tex_stride);
     }
 
-  jwzgles_glEnableClientState (GL_TEXTURE_COORD_ARRAY);
-  jwzgles_glTexCoordPointer (tcoords, GL_FLOAT, tex_stride,
-                             (GLvoid *) tex_array);
-  free (tex_array);
+  jwzgles_glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+  jwzgles_glTexCoordPointer(tcoords, GL_FLOAT, tex_stride, (GLvoid *) tex_array);
+  free(tex_array);
 }
 
 
-int
-jwzgles_gluBuild2DMipmaps (GLenum target,
-                           GLint  	internalFormat,
-                           GLsizei  	width,
-                           GLsizei  	height,
-                           GLenum  	format,
-                           GLenum  	type,
-                           const GLvoid *data)
+int jwzgles_gluBuild2DMipmaps(
+  GLenum target,
+  GLint internalFormat,
+  GLsizei width,
+  GLsizei height,
+  GLenum format,
+  GLenum type,
+  const GLvoid *data)
 {
   /* Not really bothering with mipmapping; only making one level.
      Note that this required a corresponding hack in glTexParameterf().
    */
 
-  GLsizei w2 = (GLsizei)to_pow2(width);
-  GLsizei h2 = (GLsizei)to_pow2(height);
+  GLsizei w2= (GLsizei) to_pow2(width);
+  GLsizei h2= (GLsizei) to_pow2(height);
 
-  void *d2 = (void *) data;
+  void *d2= (void *) data;
 
   /* OpenGLES no longer supports "4" as a synonym for "RGBA". */
-  switch (internalFormat) {
-  case 1: internalFormat = GL_LUMINANCE; break;
-  case 2: internalFormat = GL_LUMINANCE_ALPHA; break;
-  case 3: internalFormat = GL_RGB; break;
-  case 4: internalFormat = GL_RGBA; break;
-  }
+  switch (internalFormat)
+    {
+      case 1 : internalFormat= GL_LUMINANCE; break;
+      case 2 : internalFormat= GL_LUMINANCE_ALPHA; break;
+      case 3 : internalFormat= GL_RGB; break;
+      case 4 : internalFormat= GL_RGBA; break;
+    }
 
-/*  if (w2 < h2) w2 = h2;
-  if (h2 < w2) h2 = w2;*/
+  /*  if (w2 < h2) w2 = h2;
+    if (h2 < w2) h2 = w2;*/
 
   if (w2 != width || h2 != height)
     {
@@ -3425,69 +3674,74 @@ jwzgles_gluBuild2DMipmaps (GLenum target,
          the texture bits go to texture coordinates 1.0 x 1.0.
          This could be more efficient, but it doesn't happen often.
       */
-      int istride = (format == GL_RGBA ? 4 : 3);
-      int ostride = 4;
-      int ibpl = istride * width;
-      int obpl = ostride * w2;
+      int istride= (format == GL_RGBA ? 4 : 3);
+      int ostride= 4;
+      int ibpl= istride * width;
+      int obpl= ostride * w2;
       int oy;
-      const unsigned char *in = (unsigned char *) data;
-      unsigned char *out = (void *) malloc (h2 * obpl);
-      Assert (out, "out of memory");
-      d2 = out;
+      const unsigned char *in= (unsigned char *) data;
+      unsigned char *out= (void *) malloc(h2 * obpl);
+      Assert(out, "out of memory");
+      d2= out;
 
-      for (oy = 0; oy < h2; oy++)
+      for (oy= 0; oy < h2; oy++)
         {
-          int iy = oy * height / h2;
-          const unsigned char *iline = in  + (iy * ibpl);
-          unsigned char       *oline = out + (oy * obpl);
+          int iy= oy * height / h2;
+          const unsigned char *iline= in + (iy * ibpl);
+          unsigned char *oline= out + (oy * obpl);
           int ox;
-          for (ox = 0; ox < w2; ox++)
+          for (ox= 0; ox < w2; ox++)
             {
-              int ix = ox * width / w2;
-              const unsigned char *i = iline + (ix * istride);
-              unsigned char       *o = oline + (ox * ostride);
-              *o++ = *i++;  /* R */
-              *o++ = *i++;  /* G */
-              *o++ = *i++;  /* B */
-              *o++ = (istride == 4 ? *i : 0xFF); /* A */
+              int ix= ox * width / w2;
+              const unsigned char *i= iline + (ix * istride);
+              unsigned char *o= oline + (ox * ostride);
+              *o++= *i++;                       /* R */
+              *o++= *i++;                       /* G */
+              *o++= *i++;                       /* B */
+              *o++= (istride == 4 ? *i : 0xFF); /* A */
             }
         }
       /* width  = w2; */
       /* height = h2; */
-      internalFormat = GL_RGBA;
-      format = GL_RGBA;
+      internalFormat= GL_RGBA;
+      format= GL_RGBA;
     }
 
-  jwzgles_glTexImage2D (target, 0, internalFormat, w2, h2, 0, 
-                        format, type, d2);
-  if (d2 != data) free (d2);
+  jwzgles_glTexImage2D(target, 0, internalFormat, w2, h2, 0, format, type, d2);
+  if (d2 != data) free(d2);
 
   return 0;
 }
 
 
-void
-jwzgles_glRectf (GLfloat x1, GLfloat y1, GLfloat x2, GLfloat y2)
+void jwzgles_glRectf(
+  GLfloat x1,
+  GLfloat y1,
+  GLfloat x2,
+  GLfloat y2)
 {
-  jwzgles_glBegin (GL_POLYGON);
-  jwzgles_glVertex2f (x1, y1);
-  jwzgles_glVertex2f (x2, y1);
-  jwzgles_glVertex2f (x2, y2);
-  jwzgles_glVertex2f (x1, y2);
-  jwzgles_glEnd ();
+  jwzgles_glBegin(GL_POLYGON);
+  jwzgles_glVertex2f(x1, y1);
+  jwzgles_glVertex2f(x2, y1);
+  jwzgles_glVertex2f(x2, y2);
+  jwzgles_glVertex2f(x1, y2);
+  jwzgles_glEnd();
 }
 
-void
-jwzgles_glRecti (GLint x1, GLint y1, GLint x2, GLint y2)
+void jwzgles_glRecti(
+  GLint x1,
+  GLint y1,
+  GLint x2,
+  GLint y2)
 {
-  jwzgles_glRectf (x1, y1, x2, y2);
+  jwzgles_glRectf(x1, y1, x2, y2);
 }
 
-void
-jwzgles_glClearDepth (GLfloat d)
+void jwzgles_glClearDepth(
+  GLfloat d)
 {
   /* Not sure what to do here */
-  Assert (d == 1.0, "glClearDepth unimplemented");
+  Assert(d == 1.0, "glClearDepth unimplemented");
 }
 
 
@@ -3501,94 +3755,126 @@ jwzgles_glClearDepth (GLfloat d)
    set: 1 = set, -1 = clear, 0 = query.
 */
 static int
-enable_disable (GLuint bit, int set)
+  enable_disable(
+    GLuint bit,
+    int set)
 {
-  int result = (set > 0);
-  int omitp = 0;
-  int csp = 0;
-  unsigned long flag = 0;
+  int result= (set > 0);
+  int omitp= 0;
+  int csp= 0;
+  unsigned long flag= 0;
 
-  switch (bit) {
-  case GL_TEXTURE_1D:     /* We implement 1D textures as 2D textures. */
-  case GL_TEXTURE_2D:     flag = ISENABLED_TEXTURE_2D;		     break;
-  case GL_TEXTURE_GEN_S:  flag = ISENABLED_TEXTURE_GEN_S; omitp = 1; break;
-  case GL_TEXTURE_GEN_T:  flag = ISENABLED_TEXTURE_GEN_T; omitp = 1; break;
-  case GL_TEXTURE_GEN_R:  flag = ISENABLED_TEXTURE_GEN_R; omitp = 1; break;
-  case GL_TEXTURE_GEN_Q:  flag = ISENABLED_TEXTURE_GEN_Q; omitp = 1; break;
-  case GL_LIGHTING:       flag = ISENABLED_LIGHTING;		     break;
-  case GL_BLEND:          flag = ISENABLED_BLEND;		     break;
-  case GL_DEPTH_TEST:     flag = ISENABLED_DEPTH_TEST;		     break;
-  case GL_ALPHA_TEST:     flag = ISENABLED_ALPHA_TEST;		     break;
-  case GL_CULL_FACE:      flag = ISENABLED_CULL_FACE;		     break;
-  case GL_NORMALIZE:      flag = ISENABLED_NORMALIZE;		     break;
-  case GL_FOG:            flag = ISENABLED_FOG;			     break;
-  case GL_COLOR_MATERIAL: flag = ISENABLED_COLMAT;		     break;
-
-  /* Maybe technically these only work with glEnableClientState,
-     but we treat that as synonymous with glEnable. */
-  case GL_VERTEX_ARRAY:   flag = ISENABLED_VERT_ARRAY;     csp = 1;  break;
-  case GL_NORMAL_ARRAY:   flag = ISENABLED_NORM_ARRAY;     csp = 1;  break;
-  case GL_COLOR_ARRAY:    flag = ISENABLED_COLOR_ARRAY;    csp = 1;  break;
-  case GL_TEXTURE_COORD_ARRAY: flag = ISENABLED_TEX_ARRAY; csp = 1;  break;
-
-  default:
-    Assert (set != 0, "glIsEnabled unimplemented bit");
-    break;
-  }
-
-  if (set)  /* setting or unsetting, not querying */
+  switch (bit)
     {
-      const char *fns[4] = { "glEnable", "glDisable",
-                             "glEnableClientState", "glDisableClientState" };
-      list_fn_cb fs[4] = { (list_fn_cb) &jwzgles_glEnable,
-                           (list_fn_cb) &jwzgles_glDisable,
-                           (list_fn_cb) &jwzgles_glEnableClientState,
-                           (list_fn_cb) &jwzgles_glDisableClientState };
-      const char *fn = fns[(csp ? 2 : 0) + (set < 0 ? 1 : 0)];
-      list_fn_cb  f  =  fs[(csp ? 2 : 0) + (set < 0 ? 1 : 0)];
+      case GL_TEXTURE_1D : /* We implement 1D textures as 2D textures. */
+      case GL_TEXTURE_2D : flag= ISENABLED_TEXTURE_2D; break;
+      case GL_TEXTURE_GEN_S :
+        flag= ISENABLED_TEXTURE_GEN_S;
+        omitp= 1;
+        break;
+      case GL_TEXTURE_GEN_T :
+        flag= ISENABLED_TEXTURE_GEN_T;
+        omitp= 1;
+        break;
+      case GL_TEXTURE_GEN_R :
+        flag= ISENABLED_TEXTURE_GEN_R;
+        omitp= 1;
+        break;
+      case GL_TEXTURE_GEN_Q :
+        flag= ISENABLED_TEXTURE_GEN_Q;
+        omitp= 1;
+        break;
+      case GL_LIGHTING : flag= ISENABLED_LIGHTING; break;
+      case GL_BLEND : flag= ISENABLED_BLEND; break;
+      case GL_DEPTH_TEST : flag= ISENABLED_DEPTH_TEST; break;
+      case GL_ALPHA_TEST : flag= ISENABLED_ALPHA_TEST; break;
+      case GL_CULL_FACE : flag= ISENABLED_CULL_FACE; break;
+      case GL_NORMALIZE : flag= ISENABLED_NORMALIZE; break;
+      case GL_FOG : flag= ISENABLED_FOG; break;
+      case GL_COLOR_MATERIAL : flag= ISENABLED_COLMAT; break;
 
-      Assert (!state->compiling_verts,
-              "glEnable/glDisable not allowed inside glBegin");
+      /* Maybe technically these only work with glEnableClientState,
+         but we treat that as synonymous with glEnable. */
+      case GL_VERTEX_ARRAY :
+        flag= ISENABLED_VERT_ARRAY;
+        csp= 1;
+        break;
+      case GL_NORMAL_ARRAY :
+        flag= ISENABLED_NORM_ARRAY;
+        csp= 1;
+        break;
+      case GL_COLOR_ARRAY :
+        flag= ISENABLED_COLOR_ARRAY;
+        csp= 1;
+        break;
+      case GL_TEXTURE_COORD_ARRAY :
+        flag= ISENABLED_TEX_ARRAY;
+        csp= 1;
+        break;
+
+      default :
+        Assert(set != 0, "glIsEnabled unimplemented bit");
+        break;
+    }
+
+  if (set) /* setting or unsetting, not querying */
+    {
+      const char *fns [ 4 ]= {"glEnable", "glDisable", "glEnableClientState", "glDisableClientState"};
+      list_fn_cb fs [ 4 ]= {(list_fn_cb) &jwzgles_glEnable,
+        (list_fn_cb) &jwzgles_glDisable,
+        (list_fn_cb) &jwzgles_glEnableClientState,
+        (list_fn_cb) &jwzgles_glDisableClientState};
+      const char *fn= fns [ (csp ? 2 : 0) + (set < 0 ? 1 : 0) ];
+      list_fn_cb f= fs [ (csp ? 2 : 0) + (set < 0 ? 1 : 0) ];
+
+      Assert(! state->compiling_verts,
+        "glEnable/glDisable not allowed inside glBegin");
 
       if (state->compiling_list)
         {
-          void_int vv[1];
-          vv[0].i = bit;
-          list_push (fn, f,PROTO_I, vv);
+          void_int vv [ 1 ];
+          vv [ 0 ].i= bit;
+          list_push(fn, f, PROTO_I, vv);
         }
 
       if (! state->replaying_list &&
-          ! state->compiling_list)
-        LOG2 ("direct %-12s %s", fn, mode_desc(bit));
+        ! state->compiling_list)
+        LOG2("direct %-12s %s", fn, mode_desc(bit));
 
-      if (csp && !state->compiling_verts)
+      if (csp && ! state->compiling_verts)
         {
           if (set > 0)
-            switch (bit) {
-            case GL_NORMAL_ARRAY: state->set.ncount        += 2; break;
-            case GL_TEXTURE_COORD_ARRAY: state->set.tcount += 2; break;
-            case GL_COLOR_ARRAY: state->set.ccount         += 2; break;
-            default: break;
+            {
+              switch (bit)
+                {
+                  case GL_NORMAL_ARRAY : state->set.ncount+= 2; break;
+                  case GL_TEXTURE_COORD_ARRAY : state->set.tcount+= 2; break;
+                  case GL_COLOR_ARRAY : state->set.ccount+= 2; break;
+                  default : break;
+                }
             }
           else
-            switch (bit) {
-            case GL_NORMAL_ARRAY: state->set.ncount        = 0; break;
-            case GL_TEXTURE_COORD_ARRAY: state->set.tcount = 0; break;
-            case GL_COLOR_ARRAY: state->set.ccount         = 0; break;
-            default: break;
+            {
+              switch (bit)
+                {
+                  case GL_NORMAL_ARRAY : state->set.ncount= 0; break;
+                  case GL_TEXTURE_COORD_ARRAY : state->set.tcount= 0; break;
+                  case GL_COLOR_ARRAY : state->set.ccount= 0; break;
+                  default : break;
+                }
             }
         }
 
       if (omitp || state->compiling_list)
         ;
       else if (set > 0 && csp)
-        glEnableClientState (bit);	/* the real one */
+        glEnableClientState(bit); /* the real one */
       else if (set < 0 && csp)
-        glDisableClientState (bit);	/* the real one */
+        glDisableClientState(bit); /* the real one */
       else if (set > 0)
-        glEnable (bit);			/* the real one */
+        glEnable(bit); /* the real one */
       else
-        glDisable (bit);		/* the real one */
+        glDisable(bit); /* the real one */
 
       CHECK(fn);
     }
@@ -3597,49 +3883,48 @@ enable_disable (GLuint bit, int set)
    */
   if (flag)
     {
-      unsigned long *enabled = (state->compiling_list
-                                ? &state->list_enabled
-                                : &state->enabled);
+      unsigned long *enabled= (state->compiling_list ? &state->list_enabled : &state->enabled);
       if (set > 0)
-        *enabled |= flag;
+        *enabled|= flag;
       else if (set < 0)
-        *enabled &= ~flag;
+        *enabled&= ~flag;
       else
-        result = !!(*enabled & flag);
+        result= ! ! (*enabled & flag);
     }
 
   return result;
 }
 
 
-void
-jwzgles_glEnable (GLuint bit)
+void jwzgles_glEnable(
+  GLuint bit)
 {
-  enable_disable (bit, 1);
+  enable_disable(bit, 1);
 }
 
-void
-jwzgles_glDisable (GLuint bit)
+void jwzgles_glDisable(
+  GLuint bit)
 {
-  enable_disable (bit, -1);
+  enable_disable(bit, -1);
 }
 
 GLboolean
-jwzgles_glIsEnabled (GLuint bit)
+  jwzgles_glIsEnabled(
+    GLuint bit)
 {
-  return enable_disable (bit, 0);
+  return enable_disable(bit, 0);
 }
 
-void
-jwzgles_glEnableClientState (GLuint cap)
+void jwzgles_glEnableClientState(
+  GLuint cap)
 {
-  enable_disable (cap, 1);
+  enable_disable(cap, 1);
 }
 
-void
-jwzgles_glDisableClientState (GLuint cap)
+void jwzgles_glDisableClientState(
+  GLuint cap)
 {
-  enable_disable (cap, -1);
+  enable_disable(cap, -1);
 }
 
 
@@ -3662,63 +3947,65 @@ jwzgles_glDisableClientState (GLuint cap)
    glMultMatrixf, glRotatef, etc.  Right now, we're only keeping track of the
    gl*Pointer functions.
  */
-void
-jwzgles_glGetFloatv (GLenum pname, GLfloat *params)
+void jwzgles_glGetFloatv(
+  GLenum pname,
+  GLfloat *params)
 {
   if (! state->replaying_list)
-    LOG2 ("direct %-12s %s", "glGetFloatv", mode_desc(pname));
+    LOG2("direct %-12s %s", "glGetFloatv", mode_desc(pname));
 
   switch (pname)
-  {
-  /* OpenGL ES 1.0 omits a few dozen properties that 1.1 supports. The
-     following, however, is sufficient to get things basically working in the
-     Android emulator.
-   */
+    {
+      /* OpenGL ES 1.0 omits a few dozen properties that 1.1 supports. The
+         following, however, is sufficient to get things basically working in the
+         Android emulator.
+       */
 
-  GET(GL_VERTEX_ARRAY_BUFFER_BINDING,        state->varray.binding)
-  GET(GL_VERTEX_ARRAY_SIZE,                  state->varray.size)
-  GET(GL_VERTEX_ARRAY_TYPE,                  state->varray.type)
-  GET(GL_VERTEX_ARRAY_STRIDE,                state->varray.stride)
+      GET(GL_VERTEX_ARRAY_BUFFER_BINDING, state->varray.binding)
+      GET(GL_VERTEX_ARRAY_SIZE, state->varray.size)
+      GET(GL_VERTEX_ARRAY_TYPE, state->varray.type)
+      GET(GL_VERTEX_ARRAY_STRIDE, state->varray.stride)
 
-  GET(GL_NORMAL_ARRAY_BUFFER_BINDING,        state->narray.binding)
-  GET(GL_NORMAL_ARRAY_TYPE,                  state->narray.type)
-  GET(GL_NORMAL_ARRAY_STRIDE,                state->narray.stride)
+      GET(GL_NORMAL_ARRAY_BUFFER_BINDING, state->narray.binding)
+      GET(GL_NORMAL_ARRAY_TYPE, state->narray.type)
+      GET(GL_NORMAL_ARRAY_STRIDE, state->narray.stride)
 
-  GET(GL_COLOR_ARRAY_BUFFER_BINDING,         state->carray.binding)
-  GET(GL_COLOR_ARRAY_SIZE,                   state->carray.size)
-  GET(GL_COLOR_ARRAY_TYPE,                   state->carray.type)
-  GET(GL_COLOR_ARRAY_STRIDE,                 state->carray.stride)
+      GET(GL_COLOR_ARRAY_BUFFER_BINDING, state->carray.binding)
+      GET(GL_COLOR_ARRAY_SIZE, state->carray.size)
+      GET(GL_COLOR_ARRAY_TYPE, state->carray.type)
+      GET(GL_COLOR_ARRAY_STRIDE, state->carray.stride)
 
-  GET(GL_TEXTURE_COORD_ARRAY_BUFFER_BINDING, state->tarray.binding)
-  GET(GL_TEXTURE_COORD_ARRAY_SIZE,           state->tarray.size)
-  GET(GL_TEXTURE_COORD_ARRAY_TYPE,           state->tarray.type)
-  GET(GL_TEXTURE_COORD_ARRAY_STRIDE,         state->tarray.stride)
+      GET(GL_TEXTURE_COORD_ARRAY_BUFFER_BINDING, state->tarray.binding)
+      GET(GL_TEXTURE_COORD_ARRAY_SIZE, state->tarray.size)
+      GET(GL_TEXTURE_COORD_ARRAY_TYPE, state->tarray.type)
+      GET(GL_TEXTURE_COORD_ARRAY_STRIDE, state->tarray.stride)
 
-  default:
-    glGetFloatv (pname, params);  /* the real one */
-    break;
-  }
+      default :
+        glGetFloatv(pname, params); /* the real one */
+        break;
+    }
 
   CHECK("glGetFloatv");
 }
 
 
-void
-jwzgles_glGetPointerv (GLenum pname, GLvoid **params)
+void jwzgles_glGetPointerv(
+  GLenum pname,
+  GLvoid **params)
 {
   if (! state->replaying_list)
-    LOG2 ("direct %-12s %s", "glGetPointerv", mode_desc(pname));
+    LOG2("direct %-12s %s", "glGetPointerv", mode_desc(pname));
 
   switch (pname)
-  {
-  GET(GL_VERTEX_ARRAY_POINTER,           state->varray.data)
-  GET(GL_NORMAL_ARRAY_POINTER,           state->narray.data)
-  GET(GL_COLOR_ARRAY_POINTER,            state->carray.data)
-  GET(GL_TEXTURE_COORD_ARRAY_POINTER,    state->tarray.data)
+    {
+      GET(GL_VERTEX_ARRAY_POINTER, state->varray.data)
+      GET(GL_NORMAL_ARRAY_POINTER, state->narray.data)
+      GET(GL_COLOR_ARRAY_POINTER, state->carray.data)
+      GET(GL_TEXTURE_COORD_ARRAY_POINTER, state->tarray.data)
 
-  default:
-    glGetPointerv (pname, params);  /* the real one */
-  }
+      default :
+        glGetPointerv(pname, params); /* the real one */
+    }
 
   CHECK("glGetPointerv");
 }
@@ -3731,94 +4018,100 @@ jwzgles_glGetPointerv (GLenum pname, GLvoid **params)
    if they asked for a single-value parameter.
  */
 static int
-glGet_ret_count (GLenum pname)
+  glGet_ret_count(
+    GLenum pname)
 {
-  switch (pname) {
-/*case GL_COLOR_MATRIX: */
-  case GL_MODELVIEW_MATRIX:
-  case GL_PROJECTION_MATRIX:
-  case GL_TEXTURE_MATRIX:
-/*case GL_TRANSPOSE_COLOR_MATRIX: */
-/*case GL_TRANSPOSE_MODELVIEW_MATRIX: */
-/*case GL_TRANSPOSE_PROJECTION_MATRIX: */
-/*case GL_TRANSPOSE_TEXTURE_MATRIX: */
-    return 16;
-/*case GL_ACCUM_CLEAR_VALUE: */
-/*case GL_BLEND_COLOR: */
-  case GL_COLOR_CLEAR_VALUE:
-  case GL_COLOR_WRITEMASK:
-  case GL_CURRENT_COLOR:
-/*case GL_CURRENT_RASTER_COLOR: */
-/*case GL_CURRENT_RASTER_POSITION: */
-/*case GL_CURRENT_RASTER_SECONDARY_COLOR: */
-/*case GL_CURRENT_RASTER_TEXTURE_COORDS: */
-/*case GL_CURRENT_SECONDARY_COLOR: */
-  case GL_CURRENT_TEXTURE_COORDS:
-  case GL_FOG_COLOR:
-  case GL_LIGHT_MODEL_AMBIENT:
-/*case GL_MAP2_GRID_DOMAIN: */
-  case GL_SCISSOR_BOX:
-  case GL_VIEWPORT:
-    return 4;
-  case GL_CURRENT_NORMAL:
-  case GL_POINT_DISTANCE_ATTENUATION:
-    return 3;
-  case GL_ALIASED_LINE_WIDTH_RANGE:
-  case GL_ALIASED_POINT_SIZE_RANGE:
-  case GL_DEPTH_RANGE:
-/*case GL_LINE_WIDTH_RANGE: */
-/*case GL_MAP1_GRID_DOMAIN: */
-/*case GL_MAP2_GRID_SEGMENTS: */
-  case GL_MAX_VIEWPORT_DIMS:
-/*case GL_POINT_SIZE_RANGE: */
-  case GL_POLYGON_MODE:
-  case GL_SMOOTH_LINE_WIDTH_RANGE:
-  case GL_SMOOTH_POINT_SIZE_RANGE:
-    return 2;
-  default:
-    return 1;
-  }
+  switch (pname)
+    {
+        /*case GL_COLOR_MATRIX: */
+      case GL_MODELVIEW_MATRIX :
+      case GL_PROJECTION_MATRIX :
+      case GL_TEXTURE_MATRIX :
+        /*case GL_TRANSPOSE_COLOR_MATRIX: */
+        /*case GL_TRANSPOSE_MODELVIEW_MATRIX: */
+        /*case GL_TRANSPOSE_PROJECTION_MATRIX: */
+        /*case GL_TRANSPOSE_TEXTURE_MATRIX: */
+        return 16;
+        /*case GL_ACCUM_CLEAR_VALUE: */
+        /*case GL_BLEND_COLOR: */
+      case GL_COLOR_CLEAR_VALUE :
+      case GL_COLOR_WRITEMASK :
+      case GL_CURRENT_COLOR :
+        /*case GL_CURRENT_RASTER_COLOR: */
+        /*case GL_CURRENT_RASTER_POSITION: */
+        /*case GL_CURRENT_RASTER_SECONDARY_COLOR: */
+        /*case GL_CURRENT_RASTER_TEXTURE_COORDS: */
+        /*case GL_CURRENT_SECONDARY_COLOR: */
+      case GL_CURRENT_TEXTURE_COORDS :
+      case GL_FOG_COLOR :
+      case GL_LIGHT_MODEL_AMBIENT :
+        /*case GL_MAP2_GRID_DOMAIN: */
+      case GL_SCISSOR_BOX :
+      case GL_VIEWPORT :
+        return 4;
+      case GL_CURRENT_NORMAL :
+      case GL_POINT_DISTANCE_ATTENUATION :
+        return 3;
+      case GL_ALIASED_LINE_WIDTH_RANGE :
+      case GL_ALIASED_POINT_SIZE_RANGE :
+      case GL_DEPTH_RANGE :
+        /*case GL_LINE_WIDTH_RANGE: */
+        /*case GL_MAP1_GRID_DOMAIN: */
+        /*case GL_MAP2_GRID_SEGMENTS: */
+      case GL_MAX_VIEWPORT_DIMS :
+        /*case GL_POINT_SIZE_RANGE: */
+      case GL_POLYGON_MODE :
+      case GL_SMOOTH_LINE_WIDTH_RANGE :
+      case GL_SMOOTH_POINT_SIZE_RANGE :
+        return 2;
+      default :
+        return 1;
+    }
 }
 
 
-void
-jwzgles_glGetDoublev (GLenum pname, GLdouble *params)
+void jwzgles_glGetDoublev(
+  GLenum pname,
+  GLdouble *params)
 {
-  GLfloat m[16];
-  int i, j = glGet_ret_count (pname);
-  jwzgles_glGetFloatv (pname, m);
-  for (i = 0; i < j; i++)
-    params[i] = m[i];
+  GLfloat m [ 16 ];
+  int i, j= glGet_ret_count(pname);
+  jwzgles_glGetFloatv(pname, m);
+  for (i= 0; i < j; i++)
+    params [ i ]= m [ i ];
 }
 
 
-void
-jwzgles_glGetIntegerv (GLenum pname, GLint *params)
+void jwzgles_glGetIntegerv(
+  GLenum pname,
+  GLint *params)
 {
-  GLfloat m[16];
-  int i, j = glGet_ret_count (pname);
-  jwzgles_glGetFloatv (pname, m);
-  for (i = 0; i < j; i++)
-    params[i] = m[i];
+  GLfloat m [ 16 ];
+  int i, j= glGet_ret_count(pname);
+  jwzgles_glGetFloatv(pname, m);
+  for (i= 0; i < j; i++)
+    params [ i ]= m [ i ];
 }
 
 
-void
-jwzgles_glGetBooleanv (GLenum pname, GLboolean *params)
+void jwzgles_glGetBooleanv(
+  GLenum pname,
+  GLboolean *params)
 {
-  GLfloat m[16];
-  int i, j = glGet_ret_count (pname);
-  jwzgles_glGetFloatv (pname, m);
-  for (i = 0; i < j; i++)
-    params[i] = (m[i] != 0.0);
+  GLfloat m [ 16 ];
+  int i, j= glGet_ret_count(pname);
+  jwzgles_glGetFloatv(pname, m);
+  for (i= 0; i < j; i++)
+    params [ i ]= (m [ i ] != 0.0);
 }
 
 
 const char *
-jwzgles_gluErrorString (GLenum error)
+  jwzgles_gluErrorString(
+    GLenum error)
 {
-  static char s[20];
-  sprintf (s, "0x%lX", (unsigned long) error);
+  static char s [ 20 ];
+  sprintf(s, "0x%lX", (unsigned long) error);
   return s;
 }
 
@@ -3828,167 +4121,174 @@ jwzgles_gluErrorString (GLenum error)
    anyway, because their data is recorded in the list by the
    subsequently-recorded call to glDrawArrays.  This is a little weird.
  */
-void
-jwzgles_glVertexPointer (GLuint size, GLuint type, GLuint stride, 
-                         const GLvoid *ptr)
+void jwzgles_glVertexPointer(
+  GLuint size,
+  GLuint type,
+  GLuint stride,
+  const GLvoid *ptr)
 {
   if (! state->replaying_list)
-    LOG5 ("direct %-12s %d %s %d 0x%lX", "glVertexPointer", 
-          size, mode_desc(type), stride, (unsigned long) ptr);
+    LOG5("direct %-12s %d %s %d 0x%lX", "glVertexPointer", size, mode_desc(type), stride, (unsigned long) ptr);
 
-  state->varray.size = size;
-  state->varray.type = type;
-  state->varray.stride = stride;
-  state->varray.data = (GLvoid *)ptr;
+  state->varray.size= size;
+  state->varray.type= type;
+  state->varray.stride= stride;
+  state->varray.data= (GLvoid *) ptr;
 
-  glVertexPointer (size, type, stride, ptr);  /* the real one */
+  glVertexPointer(size, type, stride, ptr); /* the real one */
   CHECK("glVertexPointer");
 }
 
 
-void
-jwzgles_glNormalPointer (GLuint type, GLuint stride, const GLvoid *ptr)
+void jwzgles_glNormalPointer(
+  GLuint type,
+  GLuint stride,
+  const GLvoid *ptr)
 {
   if (! state->replaying_list)
-    LOG4 ("direct %-12s %s %d 0x%lX", "glNormalPointer", 
-          mode_desc(type), stride, (unsigned long) ptr);
+    LOG4("direct %-12s %s %d 0x%lX", "glNormalPointer", mode_desc(type), stride, (unsigned long) ptr);
 
-  state->narray.type = type;
-  state->narray.stride = stride;
-  state->narray.data = (GLvoid *)ptr;
+  state->narray.type= type;
+  state->narray.stride= stride;
+  state->narray.data= (GLvoid *) ptr;
 
-  glNormalPointer (type, stride, ptr);  /* the real one */
+  glNormalPointer(type, stride, ptr); /* the real one */
   CHECK("glNormalPointer");
 }
 
-void
-jwzgles_glColorPointer (GLuint size, GLuint type, GLuint stride, 
-                        const GLvoid *ptr)
+void jwzgles_glColorPointer(
+  GLuint size,
+  GLuint type,
+  GLuint stride,
+  const GLvoid *ptr)
 {
   if (! state->replaying_list)
-    LOG5 ("direct %-12s %d %s %d 0x%lX", "glColorPointer", 
-          size, mode_desc(type), stride, (unsigned long) ptr);
+    LOG5("direct %-12s %d %s %d 0x%lX", "glColorPointer", size, mode_desc(type), stride, (unsigned long) ptr);
 
-  state->carray.size = size;
-  state->carray.type = type;
-  state->carray.stride = stride;
-  state->carray.data = (GLvoid *)ptr;
+  state->carray.size= size;
+  state->carray.type= type;
+  state->carray.stride= stride;
+  state->carray.data= (GLvoid *) ptr;
 
-  glColorPointer (size, type, stride, ptr);  /* the real one */
+  glColorPointer(size, type, stride, ptr); /* the real one */
   CHECK("glColorPointer");
 }
 
-void
-jwzgles_glTexCoordPointer (GLuint size, GLuint type, GLuint stride, 
-                           const GLvoid *ptr)
+void jwzgles_glTexCoordPointer(
+  GLuint size,
+  GLuint type,
+  GLuint stride,
+  const GLvoid *ptr)
 {
   if (! state->replaying_list)
-    LOG5 ("direct %-12s %d %s %d 0x%lX", "glTexCoordPointer", 
-          size, mode_desc(type), stride, (unsigned long) ptr);
+    LOG5("direct %-12s %d %s %d 0x%lX", "glTexCoordPointer", size, mode_desc(type), stride, (unsigned long) ptr);
 
-  state->tarray.size = size;
-  state->tarray.type = type;
-  state->tarray.stride = stride;
-  state->tarray.data = (GLvoid *)ptr;
+  state->tarray.size= size;
+  state->tarray.type= type;
+  state->tarray.stride= stride;
+  state->tarray.data= (GLvoid *) ptr;
 
-  glTexCoordPointer (size, type, stride, ptr);  /* the real one */
+  glTexCoordPointer(size, type, stride, ptr); /* the real one */
   CHECK("glTexCoordPointer");
 }
 
-void
-jwzgles_glBindBuffer (GLuint target, GLuint buffer)
+void jwzgles_glBindBuffer(
+  GLuint target,
+  GLuint buffer)
 {
   if (! state->replaying_list)
-    LOG3 ("direct %-12s %s %d", "glBindBuffer", mode_desc(target), buffer);
-  glBindBuffer (target, buffer);  /* the real one */
+    LOG3("direct %-12s %s %d", "glBindBuffer", mode_desc(target), buffer);
+  glBindBuffer(target, buffer); /* the real one */
   CHECK("glBindBuffer");
 }
 
-void
-jwzgles_glBufferData (GLenum target, GLsizeiptr size, const void *data,
-                      GLenum usage)
+void jwzgles_glBufferData(
+  GLenum target,
+  GLsizeiptr size,
+  const void *data,
+  GLenum usage)
 {
   if (! state->replaying_list)
-    LOG5 ("direct %-12s %s %ld 0x%lX %s", "glBufferData",
-          mode_desc(target), size, (unsigned long) data, mode_desc(usage));
-  glBufferData (target, size, data, usage);  /* the real one */
+    LOG5("direct %-12s %s %ld 0x%lX %s", "glBufferData", mode_desc(target), size, (unsigned long) data, mode_desc(usage));
+  glBufferData(target, size, data, usage); /* the real one */
   CHECK("glBufferData");
 }
 
 
-void
-jwzgles_glTexParameterf (GLuint target, GLuint pname, GLfloat param)
+void jwzgles_glTexParameterf(
+  GLuint target,
+  GLuint pname,
+  GLfloat param)
 {
-  Assert (!state->compiling_verts,
-          "glTexParameterf not allowed inside glBegin");
+  Assert(! state->compiling_verts,
+    "glTexParameterf not allowed inside glBegin");
 
   /* We don't *really* implement mipmaps, so just turn this off. */
-  if (param == GL_LINEAR_MIPMAP_LINEAR)   param = GL_LINEAR;
-  if (param == GL_NEAREST_MIPMAP_LINEAR)  param = GL_LINEAR;
-  if (param == GL_LINEAR_MIPMAP_NEAREST)  param = GL_NEAREST;
-  if (param == GL_NEAREST_MIPMAP_NEAREST) param = GL_NEAREST;
+  if (param == GL_LINEAR_MIPMAP_LINEAR) param= GL_LINEAR;
+  if (param == GL_NEAREST_MIPMAP_LINEAR) param= GL_LINEAR;
+  if (param == GL_LINEAR_MIPMAP_NEAREST) param= GL_NEAREST;
+  if (param == GL_NEAREST_MIPMAP_NEAREST) param= GL_NEAREST;
 
   /* We implement 1D textures as 2D textures. */
-  if (target == GL_TEXTURE_1D) target = GL_TEXTURE_2D;
+  if (target == GL_TEXTURE_1D) target= GL_TEXTURE_2D;
 
   /* Apparently this is another invalid enum. Just ignore it. */
   if ((pname == GL_TEXTURE_WRAP_S || pname == GL_TEXTURE_WRAP_T) &&
-      param == GL_CLAMP)
+    param == GL_CLAMP)
     return;
 
   if (state->compiling_list)
     {
-      void_int vv[3];
-      vv[0].i = target;
-      vv[1].i = pname;
-      vv[2].f = param;
-      list_push ("glTexParameterf", (list_fn_cb) &jwzgles_glTexParameterf,
-                 PROTO_IIF, vv);
+      void_int vv [ 3 ];
+      vv [ 0 ].i= target;
+      vv [ 1 ].i= pname;
+      vv [ 2 ].f= param;
+      list_push("glTexParameterf", (list_fn_cb) &jwzgles_glTexParameterf, PROTO_IIF, vv);
     }
   else
     {
       if (! state->replaying_list)
-        LOG4 ("direct %-12s %s %s %7.3f", "glTexParameterf", 
-              mode_desc(target), mode_desc(pname), param);
-      glTexParameterf (target, pname, param);  /* the real one */
+        LOG4("direct %-12s %s %s %7.3f", "glTexParameterf", mode_desc(target), mode_desc(pname), param);
+      glTexParameterf(target, pname, param); /* the real one */
       CHECK("glTexParameterf");
     }
 }
 
-void
-jwzgles_glTexParameteri (GLuint target, GLuint pname, GLuint param)
+void jwzgles_glTexParameteri(
+  GLuint target,
+  GLuint pname,
+  GLuint param)
 {
-  jwzgles_glTexParameterf (target, pname, param);
+  jwzgles_glTexParameterf(target, pname, param);
 }
 
 
-void
-jwzgles_glBindTexture (GLuint target, GLuint texture)
+void jwzgles_glBindTexture(
+  GLuint target,
+  GLuint texture)
 {
-  Assert (!state->compiling_verts,
-          "glBindTexture not allowed inside glBegin");
+  Assert(! state->compiling_verts,
+    "glBindTexture not allowed inside glBegin");
 
   /* We implement 1D textures as 2D textures. */
-  if (target == GL_TEXTURE_1D) target = GL_TEXTURE_2D;
+  if (target == GL_TEXTURE_1D) target= GL_TEXTURE_2D;
 
   if (state->compiling_list)
     {
-      void_int vv[2];
-      vv[0].i = target;
-      vv[1].i = texture;
-      list_push ("glBindTexture", (list_fn_cb) &jwzgles_glBindTexture,
-                 PROTO_II, vv);
+      void_int vv [ 2 ];
+      vv [ 0 ].i= target;
+      vv [ 1 ].i= texture;
+      list_push("glBindTexture", (list_fn_cb) &jwzgles_glBindTexture, PROTO_II, vv);
     }
 
   /* Do it immediately as well, for generate_texture_coords */
   /* else */
-    {
-      if (! state->replaying_list)
-        LOG3 ("direct %-12s %s %d", "glBindTexture", 
-              mode_desc(target), texture);
-      glBindTexture (target, texture);  /* the real one */
-      CHECK("glBindTexture");
-    }
+  {
+    if (! state->replaying_list)
+      LOG3("direct %-12s %s %d", "glBindTexture", mode_desc(target), texture);
+    glBindTexture(target, texture); /* the real one */
+    CHECK("glBindTexture");
+  }
 }
 
 
@@ -3996,207 +4296,276 @@ jwzgles_glBindTexture (GLuint target, GLuint texture)
 /* Matrix functions, mostly cribbed from Mesa.
  */
 
-void
-jwzgles_glFrustum (GLfloat left,   GLfloat right,
-                   GLfloat bottom, GLfloat top,
-                   GLfloat near,   GLfloat far)
+void jwzgles_glFrustum(
+  GLfloat left,
+  GLfloat right,
+  GLfloat bottom,
+  GLfloat top,
+  GLfloat near,
+  GLfloat far)
 {
-  GLfloat m[16];
-  GLfloat x = (2 * near)        / (right-left);
-  GLfloat y = (2 * near)        / (top - bottom);
-  GLfloat a = (right + left)    / (right - left);
-  GLfloat b = (top + bottom)    / (top - bottom);
-  GLfloat c = -(far + near)     / (far - near);
-  GLfloat d = -(2 * far * near) / (far - near);
+  GLfloat m [ 16 ];
+  GLfloat x= (2 * near) / (right - left);
+  GLfloat y= (2 * near) / (top - bottom);
+  GLfloat a= (right + left) / (right - left);
+  GLfloat b= (top + bottom) / (top - bottom);
+  GLfloat c= -(far + near) / (far - near);
+  GLfloat d= -(2 * far * near) / (far - near);
 
-# define M(X,Y)  m[Y * 4 + X]
-  M(0,0) = x; M(0,1) = 0; M(0,2) =  a; M(0,3) = 0;
-  M(1,0) = 0; M(1,1) = y; M(1,2) =  b; M(1,3) = 0;
-  M(2,0) = 0; M(2,1) = 0; M(2,2) =  c; M(2,3) = d;
-  M(3,0) = 0; M(3,1) = 0; M(3,2) = -1; M(3,3) = 0;
-# undef M
+#define M(X, Y)  m[Y * 4 + X]
+  M(0, 0)= x;
+  M(0, 1)= 0;
+  M(0, 2)= a;
+  M(0, 3)= 0;
+  M(1, 0)= 0;
+  M(1, 1)= y;
+  M(1, 2)= b;
+  M(1, 3)= 0;
+  M(2, 0)= 0;
+  M(2, 1)= 0;
+  M(2, 2)= c;
+  M(2, 3)= d;
+  M(3, 0)= 0;
+  M(3, 1)= 0;
+  M(3, 2)= -1;
+  M(3, 3)= 0;
+#undef M
 
-  jwzgles_glMultMatrixf (m);
+  jwzgles_glMultMatrixf(m);
 }
 
 
-void
-jwzgles_glOrtho (GLfloat left,   GLfloat right,
-                 GLfloat bottom, GLfloat top,
-                 GLfloat near,   GLfloat far)
+void jwzgles_glOrtho(
+  GLfloat left,
+  GLfloat right,
+  GLfloat bottom,
+  GLfloat top,
+  GLfloat near,
+  GLfloat far)
 {
-  GLfloat m[16];
-  GLfloat a = 2 / (right - left);
-  GLfloat b = -(right + left) / (right - left);
-  GLfloat c = 2 / (top - bottom);
-  GLfloat d = -(top + bottom) / (top - bottom);
-  GLfloat e = -2 / (far - near);
-  GLfloat f = -(far + near) / (far - near);
+  GLfloat m [ 16 ];
+  GLfloat a= 2 / (right - left);
+  GLfloat b= -(right + left) / (right - left);
+  GLfloat c= 2 / (top - bottom);
+  GLfloat d= -(top + bottom) / (top - bottom);
+  GLfloat e= -2 / (far - near);
+  GLfloat f= -(far + near) / (far - near);
 
-# define M(X,Y)  m[Y * 4 + X]
-  M(0,0) = a; M(0,1) = 0; M(0,2) = 0; M(0,3) = b;
-  M(1,0) = 0; M(1,1) = c; M(1,2) = 0; M(1,3) = d;
-  M(2,0) = 0; M(2,1) = 0; M(2,2) = e; M(2,3) = f;
-  M(3,0) = 0; M(3,1) = 0; M(3,2) = 0; M(3,3) = 1;
-# undef M
+#define M(X, Y)  m[Y * 4 + X]
+  M(0, 0)= a;
+  M(0, 1)= 0;
+  M(0, 2)= 0;
+  M(0, 3)= b;
+  M(1, 0)= 0;
+  M(1, 1)= c;
+  M(1, 2)= 0;
+  M(1, 3)= d;
+  M(2, 0)= 0;
+  M(2, 1)= 0;
+  M(2, 2)= e;
+  M(2, 3)= f;
+  M(3, 0)= 0;
+  M(3, 1)= 0;
+  M(3, 2)= 0;
+  M(3, 3)= 1;
+#undef M
 
-  jwzgles_glMultMatrixf (m);
+  jwzgles_glMultMatrixf(m);
 }
 
 
-void
-jwzgles_gluPerspective (GLdouble fovy, GLdouble aspect, 
-                        GLdouble near, GLdouble far)
+void jwzgles_gluPerspective(
+  GLdouble fovy,
+  GLdouble aspect,
+  GLdouble near,
+  GLdouble far)
 {
-  GLfloat m[16];
+  GLfloat m [ 16 ];
   double si, co, dz;
-  double rad = fovy / 2 * M_PI / 180;
+  double rad= fovy / 2 * M_PI / 180;
   double a, b, c, d;
 
-  dz = far - near;
-  si = sin(rad);
+  dz= far - near;
+  si= sin(rad);
   if (dz == 0 || si == 0 || aspect == 0)
     return;
-  co = cos(rad) / si;
+  co= cos(rad) / si;
 
-  a = co / aspect;
-  b = co;
-  c = -(far + near) / dz;
-  d = -2 * near * far / dz;
+  a= co / aspect;
+  b= co;
+  c= -(far + near) / dz;
+  d= -2 * near * far / dz;
 
-# define M(X,Y)  m[Y * 4 + X]
-  M(0,0) = a; M(0,1) = 0; M(0,2) = 0;  M(0,3) = 0;
-  M(1,0) = 0; M(1,1) = b; M(1,2) = 0;  M(1,3) = 0;
-  M(2,0) = 0; M(2,1) = 0; M(2,2) = c;  M(2,3) = d;
-  M(3,0) = 0; M(3,1) = 0; M(3,2) = -1; M(3,3) = 0;
-# undef M
+#define M(X, Y)  m[Y * 4 + X]
+  M(0, 0)= a;
+  M(0, 1)= 0;
+  M(0, 2)= 0;
+  M(0, 3)= 0;
+  M(1, 0)= 0;
+  M(1, 1)= b;
+  M(1, 2)= 0;
+  M(1, 3)= 0;
+  M(2, 0)= 0;
+  M(2, 1)= 0;
+  M(2, 2)= c;
+  M(2, 3)= d;
+  M(3, 0)= 0;
+  M(3, 1)= 0;
+  M(3, 2)= -1;
+  M(3, 3)= 0;
+#undef M
 
-  jwzgles_glMultMatrixf (m);
+  jwzgles_glMultMatrixf(m);
 }
 
 
-void
-jwzgles_gluLookAt (GLfloat eyex, GLfloat eyey, GLfloat eyez,
-                   GLfloat centerx, GLfloat centery, GLfloat centerz,
-                   GLfloat upx, GLfloat upy, GLfloat upz)
+void jwzgles_gluLookAt(
+  GLfloat eyex,
+  GLfloat eyey,
+  GLfloat eyez,
+  GLfloat centerx,
+  GLfloat centery,
+  GLfloat centerz,
+  GLfloat upx,
+  GLfloat upy,
+  GLfloat upz)
 {
-  GLfloat m[16];
-  GLfloat x[3], y[3], z[3];
+  GLfloat m [ 16 ];
+  GLfloat x [ 3 ], y [ 3 ], z [ 3 ];
   GLfloat mag;
-    
+
   /* Make rotation matrix */
-    
+
   /* Z vector */
-  z[0] = eyex - centerx;
-  z[1] = eyey - centery;
-  z[2] = eyez - centerz;
-  mag = sqrt(z[0] * z[0] + z[1] * z[1] + z[2] * z[2]);
-  if (mag) {          /* mpichler, 19950515 */
-    z[0] /= mag;
-    z[1] /= mag;
-    z[2] /= mag;
-  }
-    
+  z [ 0 ]= eyex - centerx;
+  z [ 1 ]= eyey - centery;
+  z [ 2 ]= eyez - centerz;
+  mag= sqrt(z [ 0 ] * z [ 0 ] + z [ 1 ] * z [ 1 ] + z [ 2 ] * z [ 2 ]);
+  if (mag)
+    { /* mpichler, 19950515 */
+      z [ 0 ]/= mag;
+      z [ 1 ]/= mag;
+      z [ 2 ]/= mag;
+    }
+
   /* Y vector */
-  y[0] = upx;
-  y[1] = upy;
-  y[2] = upz;
-    
+  y [ 0 ]= upx;
+  y [ 1 ]= upy;
+  y [ 2 ]= upz;
+
   /* X vector = Y cross Z */
-  x[0] = y[1] * z[2] - y[2] * z[1];
-  x[1] = -y[0] * z[2] + y[2] * z[0];
-  x[2] = y[0] * z[1] - y[1] * z[0];
-    
+  x [ 0 ]= y [ 1 ] * z [ 2 ] - y [ 2 ] * z [ 1 ];
+  x [ 1 ]= -y [ 0 ] * z [ 2 ] + y [ 2 ] * z [ 0 ];
+  x [ 2 ]= y [ 0 ] * z [ 1 ] - y [ 1 ] * z [ 0 ];
+
   /* Recompute Y = Z cross X */
-  y[0] = z[1] * x[2] - z[2] * x[1];
-  y[1] = -z[0] * x[2] + z[2] * x[0];
-  y[2] = z[0] * x[1] - z[1] * x[0];
-    
+  y [ 0 ]= z [ 1 ] * x [ 2 ] - z [ 2 ] * x [ 1 ];
+  y [ 1 ]= -z [ 0 ] * x [ 2 ] + z [ 2 ] * x [ 0 ];
+  y [ 2 ]= z [ 0 ] * x [ 1 ] - z [ 1 ] * x [ 0 ];
+
   /* mpichler, 19950515 */
   /* cross product gives area of parallelogram, which is < 1.0 for
    * non-perpendicular unit-length vectors; so normalize x, y here
    */
-    
-  mag = sqrt(x[0] * x[0] + x[1] * x[1] + x[2] * x[2]);
-  if (mag) {
-    x[0] /= mag;
-    x[1] /= mag;
-    x[2] /= mag;
-  }
-    
-  mag = sqrt(y[0] * y[0] + y[1] * y[1] + y[2] * y[2]);
-  if (mag) {
-    y[0] /= mag;
-    y[1] /= mag;
-    y[2] /= mag;
-  }
-    
-#define M(row,col)  m[col*4+row]
-  M(0, 0) = x[0]; M(0, 1) = x[1]; M(0, 2) = x[2]; M(0, 3) = 0.0;
-  M(1, 0) = y[0]; M(1, 1) = y[1]; M(1, 2) = y[2]; M(1, 3) = 0.0;
-  M(2, 0) = z[0]; M(2, 1) = z[1]; M(2, 2) = z[2]; M(2, 3) = 0.0;
-  M(3, 0) = 0.0;  M(3, 1) = 0.0;  M(3, 2) = 0.0;  M(3, 3) = 1.0;
+
+  mag= sqrt(x [ 0 ] * x [ 0 ] + x [ 1 ] * x [ 1 ] + x [ 2 ] * x [ 2 ]);
+  if (mag)
+    {
+      x [ 0 ]/= mag;
+      x [ 1 ]/= mag;
+      x [ 2 ]/= mag;
+    }
+
+  mag= sqrt(y [ 0 ] * y [ 0 ] + y [ 1 ] * y [ 1 ] + y [ 2 ] * y [ 2 ]);
+  if (mag)
+    {
+      y [ 0 ]/= mag;
+      y [ 1 ]/= mag;
+      y [ 2 ]/= mag;
+    }
+
+#define M(row, col)  m[col*4+row]
+  M(0, 0)= x [ 0 ];
+  M(0, 1)= x [ 1 ];
+  M(0, 2)= x [ 2 ];
+  M(0, 3)= 0.0;
+  M(1, 0)= y [ 0 ];
+  M(1, 1)= y [ 1 ];
+  M(1, 2)= y [ 2 ];
+  M(1, 3)= 0.0;
+  M(2, 0)= z [ 0 ];
+  M(2, 1)= z [ 1 ];
+  M(2, 2)= z [ 2 ];
+  M(2, 3)= 0.0;
+  M(3, 0)= 0.0;
+  M(3, 1)= 0.0;
+  M(3, 2)= 0.0;
+  M(3, 3)= 1.0;
 #undef M
 
   jwzgles_glMultMatrixf(m);
-    
+
   /* Translate Eye to Origin */
   jwzgles_glTranslatef(-eyex, -eyey, -eyez);
 }
 
 
-static void __gluMultMatrixVecd (const GLdouble matrix[16],
-                                 const GLdouble in[4],
-                                 GLdouble out[4])
+static void __gluMultMatrixVecd(
+  const GLdouble matrix [ 16 ],
+  const GLdouble in [ 4 ],
+  GLdouble out [ 4 ])
 {
   int i;
 
-  for (i=0; i<4; i++) {
-    out[i] = 
-      in[0] * matrix[0*4+i] +
-      in[1] * matrix[1*4+i] +
-      in[2] * matrix[2*4+i] +
-      in[3] * matrix[3*4+i];
-  }
+  for (i= 0; i < 4; i++)
+    out [ i ]=
+      in [ 0 ] * matrix [ 0 * 4 + i ] +
+      in [ 1 ] * matrix [ 1 * 4 + i ] +
+      in [ 2 ] * matrix [ 2 * 4 + i ] +
+      in [ 3 ] * matrix [ 3 * 4 + i ];
 }
 
-GLint
-jwzgles_gluProject (GLdouble objx, GLdouble objy, GLdouble objz, 
-                    const GLdouble modelMatrix[16], 
-                    const GLdouble projMatrix[16],
-                    const GLint viewport[4],
-                    GLdouble *winx, GLdouble *winy, GLdouble *winz)
+GLint jwzgles_gluProject(
+  GLdouble objx,
+  GLdouble objy,
+  GLdouble objz,
+  const GLdouble modelMatrix [ 16 ],
+  const GLdouble projMatrix [ 16 ],
+  const GLint viewport [ 4 ],
+  GLdouble *winx,
+  GLdouble *winy,
+  GLdouble *winz)
 {
-  GLdouble in[4];
-  GLdouble out[4];
+  GLdouble in [ 4 ];
+  GLdouble out [ 4 ];
 
   /* #### I suspect this is not working right.  I was seeing crazy values
      in lament.c.  Maybe there's some float-vs-double confusion going on?
    */
 
-  in[0]=objx;
-  in[1]=objy;
-  in[2]=objz;
-  in[3]=1.0;
+  in [ 0 ]= objx;
+  in [ 1 ]= objy;
+  in [ 2 ]= objz;
+  in [ 3 ]= 1.0;
   __gluMultMatrixVecd(modelMatrix, in, out);
   __gluMultMatrixVecd(projMatrix, out, in);
-  if (in[3] == 0.0) return(GL_FALSE);
-  in[0] /= in[3];
-  in[1] /= in[3];
-  in[2] /= in[3];
+  if (in [ 3 ] == 0.0) return (GL_FALSE);
+  in [ 0 ]/= in [ 3 ];
+  in [ 1 ]/= in [ 3 ];
+  in [ 2 ]/= in [ 3 ];
   /* Map x, y and z to range 0-1 */
-  in[0] = in[0] * 0.5 + 0.5;
-  in[1] = in[1] * 0.5 + 0.5;
-  in[2] = in[2] * 0.5 + 0.5;
+  in [ 0 ]= in [ 0 ] * 0.5 + 0.5;
+  in [ 1 ]= in [ 1 ] * 0.5 + 0.5;
+  in [ 2 ]= in [ 2 ] * 0.5 + 0.5;
 
   /* Map x,y to viewport */
-  in[0] = in[0] * viewport[2] + viewport[0];
-  in[1] = in[1] * viewport[3] + viewport[1];
+  in [ 0 ]= in [ 0 ] * viewport [ 2 ] + viewport [ 0 ];
+  in [ 1 ]= in [ 1 ] * viewport [ 3 ] + viewport [ 1 ];
 
-  *winx=in[0];
-  *winy=in[1];
-  *winz=in[2];
-  return(GL_TRUE);
+  *winx= in [ 0 ];
+  *winy= in [ 1 ];
+  *winz= in [ 2 ];
+  return (GL_TRUE);
 }
 
 
@@ -4204,36 +4573,42 @@ jwzgles_gluProject (GLdouble objx, GLdouble objy, GLdouble objz,
    principle for checking for extensions is the same.
  */
 GLboolean
-jwzgles_gluCheckExtension (const GLubyte *ext_name, const GLubyte *ext_string)
+  jwzgles_gluCheckExtension(
+    const GLubyte *ext_name,
+    const GLubyte *ext_string)
 {
-  size_t ext_len = strlen ((const char *)ext_name);
+  size_t ext_len= strlen((const char *) ext_name);
 
-  for (;;) {
-    char last_ch;
-    const GLubyte *found = (const GLubyte *)strstr ((const char *)ext_string,
-                                                    (const char *)ext_name);
-    if (!found)
-      break;
+  for (;;)
+    {
+      char last_ch;
+      const GLubyte *found= (const GLubyte *) strstr((const char *) ext_string,
+        (const char *) ext_name);
+      if (! found)
+        break;
 
-    last_ch = found[ext_len];
-    if ((found == ext_string || found[-1] == ' ') &&
-        (last_ch == ' ' || !last_ch)) {
-      return GL_TRUE;
+      last_ch= found [ ext_len ];
+      if ((found == ext_string || found [ -1 ] == ' ') &&
+        (last_ch == ' ' || ! last_ch))
+        return GL_TRUE;
+
+      ext_string= found + ext_len;
     }
-
-    ext_string = found + ext_len;
-  }
 
   return GL_FALSE;
 }
 
 
-void jwzgles_glViewport (GLuint x, GLuint y, GLuint w, GLuint h)
+void jwzgles_glViewport(
+  GLuint x,
+  GLuint y,
+  GLuint w,
+  GLuint h)
 {
-# if TARGET_IPHONE_SIMULATOR
+#if TARGET_IPHONE_SIMULATOR
 /*  fprintf (stderr, "glViewport %dx%d\n", w, h); */
-# endif
-  glViewport (x, y, w, h);  /* the real one */
+#endif
+  glViewport(x, y, w, h); /* the real one */
 }
 
 
@@ -4248,9 +4623,9 @@ void jwzgles_glViewport (GLuint x, GLuint y, GLuint w, GLuint h)
 #define PROTO_V   PROTO_VOID
 #define TYPE_V    GLuint
 #define ARGS_V    void
-#define VARS_V    /* */
+#define VARS_V /* */
 #define LOGS_V    "\n"
-#define FILL_V    /* */
+#define FILL_V /* */
 
 #define TYPE_I    GLuint
 #define TYPE_II   TYPE_I
@@ -4338,14 +4713,14 @@ void jwzgles_glViewport (GLuint x, GLuint y, GLuint w, GLuint h)
 		  vv[4].f = c[2]; vv[5].f = c[3];
 
 #ifdef DEBUG
-# define WLOG(NAME,ARGS) \
+#define WLOG(NAME, ARGS) \
   fprintf (stderr, "jwzgles: direct %-12s ", NAME); \
   fprintf (stderr, ARGS)
 #else
-# define WLOG(NAME,ARGS) /* */
+#define WLOG(NAME, ARGS) /* */
 #endif
 
-#define WRAP(NAME,SIG) \
+#define WRAP(NAME, SIG) \
 void jwzgles_##NAME (ARGS_##SIG)					\
 {									\
   Assert (!state->compiling_verts,					\
@@ -4364,49 +4739,133 @@ void jwzgles_##NAME (ARGS_##SIG)					\
   }									\
 }
 
-WRAP (glActiveTexture,	I)
-WRAP (glAlphaFunc,	IF)
-WRAP (glBlendFunc,	II)
-WRAP (glBlendColor,     FFFF)
-WRAP (glBlendEquation,  I)
-WRAP (glClear,		I)
-WRAP (glClearColor,	FFFF)
-WRAP (glClearStencil,	I)
-WRAP (glColorMask,	IIII)
-WRAP (glCullFace,	I)
-WRAP (glDepthFunc,	I)
-WRAP (glDepthMask,	I)
-WRAP (glFinish,		V)
-WRAP (glFlush,		V)
-WRAP (glFogf,		IF)
-WRAP (glFogfv,		IFV)
-WRAP (glFrontFace,	I)
-WRAP (glHint,		II)
-WRAP (glLightModelf,	IF)
-WRAP (glLightModelfv,	IFV)
-WRAP (glLightf,		IIF)
-WRAP (glLightfv,	IIFV)
-WRAP (glLineWidth,	F)
-WRAP (glLoadIdentity,	V)
-WRAP (glLogicOp,	I)
-WRAP (glMatrixMode,	I)
-WRAP (glPixelStorei,	II)
-WRAP (glPointSize,	F)
-WRAP (glPolygonOffset,	FF)
-WRAP (glPopMatrix,	V)
-WRAP (glPushMatrix,	V)
-WRAP (glRotatef,	FFFF)
-WRAP (glScalef,		FFF)
-WRAP (glScissor,	IIII)
-WRAP (glShadeModel,	I)
-WRAP (glStencilFunc,	III)
-WRAP (glStencilMask,	I)
-WRAP (glStencilOp,	III)
-WRAP (glTexEnvf,	IIF)
-WRAP (glTexEnvi,	III)
-WRAP (glTranslatef,	FFF)
-#undef  TYPE_IV
+WRAP(
+  glActiveTexture,
+  I)
+WRAP(
+  glAlphaFunc,
+  IF)
+WRAP(
+  glBlendFunc,
+  II)
+WRAP(
+  glBlendColor,
+  FFFF)
+WRAP(
+  glBlendEquation,
+  I)
+WRAP(
+  glClear,
+  I)
+WRAP(
+  glClearColor,
+  FFFF)
+WRAP(
+  glClearStencil,
+  I)
+WRAP(
+  glColorMask,
+  IIII)
+WRAP(
+  glCullFace,
+  I)
+WRAP(
+  glDepthFunc,
+  I)
+WRAP(
+  glDepthMask,
+  I)
+WRAP(
+  glFinish,
+  V)
+WRAP(
+  glFlush,
+  V)
+WRAP(
+  glFogf,
+  IF)
+WRAP(
+  glFogfv,
+  IFV)
+WRAP(
+  glFrontFace,
+  I)
+WRAP(
+  glHint,
+  II)
+WRAP(
+  glLightModelf,
+  IF)
+WRAP(
+  glLightModelfv,
+  IFV)
+WRAP(
+  glLightf,
+  IIF)
+WRAP(
+  glLightfv,
+  IIFV)
+WRAP(
+  glLineWidth,
+  F)
+WRAP(
+  glLoadIdentity,
+  V)
+WRAP(
+  glLogicOp,
+  I)
+WRAP(
+  glMatrixMode,
+  I)
+WRAP(
+  glPixelStorei,
+  II)
+WRAP(
+  glPointSize,
+  F)
+WRAP(
+  glPolygonOffset,
+  FF)
+WRAP(
+  glPopMatrix,
+  V)
+WRAP(
+  glPushMatrix,
+  V)
+WRAP(
+  glRotatef,
+  FFFF)
+WRAP(
+  glScalef,
+  FFF)
+WRAP(
+  glScissor,
+  IIII)
+WRAP(
+  glShadeModel,
+  I)
+WRAP(
+  glStencilFunc,
+  III)
+WRAP(
+  glStencilMask,
+  I)
+WRAP(
+  glStencilOp,
+  III)
+WRAP(
+  glTexEnvf,
+  IIF)
+WRAP(
+  glTexEnvi,
+  III)
+WRAP(
+  glTranslatef,
+  FFF)
+#undef TYPE_IV
 #define TYPE_IV GLuint
-WRAP (glDeleteTextures,	IIV)
+WRAP(
+  glDeleteTextures,
+  IIV)
 
 #endif /* HAVE_JWZGLES - whole file */

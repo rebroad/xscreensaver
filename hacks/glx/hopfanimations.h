@@ -53,69 +53,74 @@
 
 /* A data structure that holds the data for the animation state of a single
    object. */
-typedef struct {
-  int generator;
-  float p;
-  float q;
-  float r;
-  float offset;
-  float sector;
-  int n;
-  int num;
-  bool rotate;
-  float quat_base[4];
+typedef struct
+{
+    int generator;
+    float p;
+    float q;
+    float r;
+    float offset;
+    float sector;
+    int n;
+    int num;
+    bool rotate;
+    float quat_base [ 4 ];
 } animation_geometry;
 
 /* A data structure that holds the data for an animation using a single
    object. */
-typedef struct {
-  int generator;
-  float p_start, p_end;
-  int easing_function_p;
-  float q_start, q_end;
-  int easing_function_q;
-  float r_start, r_end;
-  int easing_function_r;
-  float offset_start, offset_end;
-  int easing_function_offset;
-  float sector_start, sector_end;
-  int easing_function_sector;
-  int n;
-  int num;
-  float rot_axis_base[3];
-  float angle_start, angle_end;
-  int easing_function_rotate;
+typedef struct
+{
+    int generator;
+    float p_start, p_end;
+    int easing_function_p;
+    float q_start, q_end;
+    int easing_function_q;
+    float r_start, r_end;
+    int easing_function_r;
+    float offset_start, offset_end;
+    int easing_function_offset;
+    float sector_start, sector_end;
+    int easing_function_sector;
+    int n;
+    int num;
+    float rot_axis_base [ 3 ];
+    float angle_start, angle_end;
+    int easing_function_rotate;
 } animation_single_obj;
 
 /* A data structure that holds the data for an animation using multiple
    objects that are animated at the same time. */
-typedef struct {
-  int num;
-  animation_single_obj *anim_so;
-  float rotate_prob;
-  int easing_function_rot_rnd;
-  float rot_axis_space[3];
-  float angle_start, angle_end;
-  int easing_function_rot_space;
-  int num_steps;
+typedef struct
+{
+    int num;
+    animation_single_obj *anim_so;
+    float rotate_prob;
+    int easing_function_rot_rnd;
+    float rot_axis_space [ 3 ];
+    float angle_start, angle_end;
+    int easing_function_rot_space;
+    int num_steps;
 } animation_multi_obj;
 
 /* A data structure that holds the data for an animation that consists of
    multiple phases that are animated consecutively. */
-typedef struct {
-  int num_phases;
-  animation_multi_obj **anim_mo;
+typedef struct
+{
+    int num_phases;
+    animation_multi_obj **anim_mo;
 } animation_phases;
 
 /* A data structure that holds a set of related animations. */
-typedef struct {
-  int num_anim;
-  animation_phases **anim;
+typedef struct
+{
+    int num_anim;
+    animation_phases **anim;
 } animations;
 
 
 /* The set of all possible animations. */
-extern animations *hopf_animations[NUM_ANIM_STATES][NUM_ANIM_STATES];
+extern animations *hopf_animations [ NUM_ANIM_STATES ][ NUM_ANIM_STATES ];
 
 
 #endif /* USE_GL */

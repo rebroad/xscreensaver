@@ -33,7 +33,7 @@ SU_EXPORT @interface SUAppcast : NSObject
 
 /**
  The collection of update items.
- 
+
  These `SUAppcastItem` items are in the same order as specified in the appcast XML feed and are thus not sorted by version.
  */
 @property (readonly, nonatomic, copy) NSArray<SUAppcastItem *> *items;

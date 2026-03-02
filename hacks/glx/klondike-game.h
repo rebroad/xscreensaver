@@ -27,10 +27,33 @@
 #define RANDOM_POSITION_OFFSET (bp->sloppy ? (((float)random()) / ((float)RAND_MAX) - 0.5) * 0.0125 : 0)
 
 
-typedef enum { DIAMONDS, CLUBS, HEARTS, SPADES } Suit;
-typedef enum { NONE=0, ACE, TWO, THREE, FOUR, FIVE, SIX, SEVEN, EIGHT, NINE, TEN, JACK, QUEEN, KING } Rank;
+typedef enum
+{
+  DIAMONDS,
+  CLUBS,
+  HEARTS,
+  SPADES
+} Suit;
+typedef enum
+{
+  NONE= 0,
+  ACE,
+  TWO,
+  THREE,
+  FOUR,
+  FIVE,
+  SIX,
+  SEVEN,
+  EIGHT,
+  NINE,
+  TEN,
+  JACK,
+  QUEEN,
+  KING
+} Rank;
 
-typedef struct {
+typedef struct
+{
     Suit suit;
     Rank rank;
     int is_face_up; // 0 for face down, 1 for face up
@@ -47,17 +70,18 @@ typedef struct {
     float angle;
     float start_angle;
     float end_angle;
-    float start_z;    
+    float start_z;
 } card_struct;
 
-typedef struct {
-    card_struct deck[NUM_CARDS];
-    card_struct tableau[7][MAX_TABLEAU];
-    int tableau_size[7];
-    card_struct waste[MAX_WASTE];
+typedef struct
+{
+    card_struct deck [ NUM_CARDS ];
+    card_struct tableau [ 7 ][ MAX_TABLEAU ];
+    int tableau_size [ 7 ];
+    card_struct waste [ MAX_WASTE ];
     int waste_size;
-    card_struct foundation[4][MAX_FOUNDATION];
-    int foundation_size[4];
+    card_struct foundation [ 4 ][ MAX_FOUNDATION ];
+    int foundation_size [ 4 ];
 
     int moves;
     int moves_since_waste_flip;
@@ -65,43 +89,44 @@ typedef struct {
     // todo: the tableaus do not track the number of face up cards. This is a bug.
 } game_state_struct;
 
-typedef struct {
-  GLXContext *glx_context;
-  card_struct foundation_placeholders[4];
-  card_struct tableau_placeholders[7];
-  float waste_x;
-  float waste_y;
-  float deck_x;
-  float deck_y;
+typedef struct
+{
+    GLXContext *glx_context;
+    card_struct foundation_placeholders [ 4 ];
+    card_struct tableau_placeholders [ 7 ];
+    float waste_x;
+    float waste_y;
+    float deck_x;
+    float deck_y;
 
-  float scale;
+    float scale;
 
-  int tick;
-  int universe_tick;
-  float camera_phase;
+    int tick;
+    int universe_tick;
+    float camera_phase;
 
-  int final_animation;
-  int redeal;
-    
-  game_state_struct *game_state;
+    int final_animation;
+    int redeal;
 
-  GLuint fronts[52];
-  GLuint back;
+    game_state_struct *game_state;
 
-  trackball_state *trackball;
-  Bool button_down_p;
+    GLuint fronts [ 52 ];
+    GLuint back;
 
-  // Preferences
-  GLuint animation_ticks;
-  int draw_count;
-  int camera_speed;
-  Bool sloppy;
+    trackball_state *trackball;
+    Bool button_down_p;
+
+    // Preferences
+    GLuint animation_ticks;
+    int draw_count;
+    int camera_speed;
+    Bool sloppy;
 
 } klondike_configuration;
 
 
 void klondike_initialize_deck(klondike_configuration *bp);
-void klondike_shuffle_deck(card_struct deck[]);
+void klondike_shuffle_deck(card_struct deck []);
 void klondike_deal_cards(klondike_configuration *bp);
 void klondike_free_game_state(game_state_struct *game_state);
 int klondike_deck_size(game_state_struct *game_state);

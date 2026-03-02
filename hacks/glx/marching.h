@@ -6,7 +6,7 @@
  * the above copyright notice appear in all copies and that both that
  * copyright notice and this permission notice appear in supporting
  * documentation.  No representations are made about the suitability of this
- * software for any purpose.  It is provided "as is" without express or 
+ * software for any purpose.  It is provided "as is" without express or
  * implied warranty.
  */
 
@@ -32,17 +32,16 @@
    returned there.
 */
 extern void
-marching_cubes (int grid_size,     /* density of the mesh */
-                double isolevel,   /* cutoff point for "in" versus "out" */
-                int wireframe_p,   /* wireframe, or solid */
-                int smooth_p,      /* smooth, or faceted */
+  marching_cubes(int grid_size, /* density of the mesh */
+    double isolevel,            /* cutoff point for "in" versus "out" */
+    int wireframe_p,            /* wireframe, or solid */
+    int smooth_p,               /* smooth, or faceted */
 
-                void * (*init_fn)    (double grid_size, void *closure1),
-                double (*compute_fn) (double x, double y, double z,
-                                      void *closure2),
-                void   (*free_fn)    (void *closure2),
-                void *closure1,
+    void *(*init_fn)(double grid_size, void *closure1),
+    double (*compute_fn)(double x, double y, double z, void *closure2),
+    void (*free_fn)(void *closure2),
+    void *closure1,
 
-                unsigned long *polygon_count);
+    unsigned long *polygon_count);
 
 #endif /* __MARCHING_H__ */

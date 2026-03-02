@@ -5,7 +5,7 @@
  * the above copyright notice appear in all copies and that both that
  * copyright notice and this permission notice appear in supporting
  * documentation.  No representations are made about the suitability of this
- * software for any purpose.  It is provided "as is" without express or 
+ * software for any purpose.  It is provided "as is" without express or
  * implied warranty.
  */
 
@@ -17,11 +17,11 @@
  */
 
 #ifdef HAVE_IPHONE
-# import <Foundation/Foundation.h>
-# import <UIKit/UIKit.h>
-# define NSUserDefaultsController NSUserDefaults
+#import <Foundation/Foundation.h>
+#import <UIKit/UIKit.h>
+#define NSUserDefaultsController NSUserDefaults
 #else
-# import <Cocoa/Cocoa.h>
+#import <Cocoa/Cocoa.h>
 #endif
 
 
@@ -31,26 +31,26 @@
 {
   NSString *saver_name;
 
-  NSUserDefaults *userDefaults;   // this is actually a 'ScreenSaverDefaults'
+  NSUserDefaults *userDefaults; // this is actually a 'ScreenSaverDefaults'
   NSUserDefaultsController *userDefaultsController;
 
   NSUserDefaults *globalDefaults; // for prefs shared by all xscreensavers.
   NSUserDefaultsController *globalDefaultsController;
 
-  NSDictionary *defaultOptions;   // Hardcoded defaults before any changes.
+  NSDictionary *defaultOptions; // Hardcoded defaults before any changes.
 }
 
-- (id) initWithName: (NSString *) name
-            xrmKeys: (const XrmOptionDescRec *) opts
-           defaults: (const char * const *) defs;
+- (id)initWithName:(NSString *)name
+           xrmKeys:(const XrmOptionDescRec *)opts
+          defaults:(const char *const *)defs;
 
-- (NSUserDefaultsController *) userDefaultsController;
-- (NSUserDefaultsController *) globalDefaultsController;
-- (NSDictionary *) defaultOptions;
+- (NSUserDefaultsController *)userDefaultsController;
+- (NSUserDefaultsController *)globalDefaultsController;
+- (NSDictionary *)defaultOptions;
 
-- (char *) getStringResource:  (const char *) name;
-- (double) getFloatResource:   (const char *) name;
-- (int)    getIntegerResource: (const char *) name;
-- (BOOL)   getBooleanResource: (const char *) name;
+- (char *)getStringResource:(const char *)name;
+- (double)getFloatResource:(const char *)name;
+- (int)getIntegerResource:(const char *)name;
+- (BOOL)getBooleanResource:(const char *)name;
 
 @end

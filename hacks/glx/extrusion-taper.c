@@ -1,6 +1,6 @@
-/* 
+/*
  * taper.c
- * 
+ *
  * FUNCTION:
  * Draws a tapered screw shape.
  *
@@ -28,7 +28,7 @@
 /* =========================================================== */
 
 #define SCALE 3.33333
-#define CONTOUR(x,y) {					\
+#define CONTOUR(x, y) {					\
    double ax, ay, alen;					\
    contour[i][0] = SCALE * (x);				\
    contour[i][1] = SCALE * (y);				\
@@ -45,75 +45,78 @@
 
 #define NUM_PTS (25)
 
-static double contour [NUM_PTS][2];
-static double norms [NUM_PTS][2];
+static double contour [ NUM_PTS ][ 2 ];
+static double norms [ NUM_PTS ][ 2 ];
 
-static void init_contour (void)
+static void init_contour(
+  void)
 {
-   int i;
+  int i;
 
-   /* outline of extrusion */
-   i=0;
-   CONTOUR (1.0, 1.0);
-   CONTOUR (1.0, 2.9);
-   CONTOUR (0.9, 3.0);
-   CONTOUR (-0.9, 3.0);
-   CONTOUR (-1.0, 2.9);
+  /* outline of extrusion */
+  i= 0;
+  CONTOUR(1.0, 1.0);
+  CONTOUR(1.0, 2.9);
+  CONTOUR(0.9, 3.0);
+  CONTOUR(-0.9, 3.0);
+  CONTOUR(-1.0, 2.9);
 
-   CONTOUR (-1.0, 1.0);
-   CONTOUR (-2.9, 1.0);
-   CONTOUR (-3.0, 0.9);
-   CONTOUR (-3.0, -0.9);
-   CONTOUR (-2.9, -1.0);
+  CONTOUR(-1.0, 1.0);
+  CONTOUR(-2.9, 1.0);
+  CONTOUR(-3.0, 0.9);
+  CONTOUR(-3.0, -0.9);
+  CONTOUR(-2.9, -1.0);
 
-   CONTOUR (-1.0, -1.0);
-   CONTOUR (-1.0, -2.9);
-   CONTOUR (-0.9, -3.0);
-   CONTOUR (0.9, -3.0);
-   CONTOUR (1.0, -2.9);
+  CONTOUR(-1.0, -1.0);
+  CONTOUR(-1.0, -2.9);
+  CONTOUR(-0.9, -3.0);
+  CONTOUR(0.9, -3.0);
+  CONTOUR(1.0, -2.9);
 
-   CONTOUR (1.0, -1.0);
-   CONTOUR (2.9, -1.0);
-   CONTOUR (3.0, -0.9);
-   CONTOUR (3.0, 0.9);
-   CONTOUR (2.9, 1.0);
+  CONTOUR(1.0, -1.0);
+  CONTOUR(2.9, -1.0);
+  CONTOUR(3.0, -0.9);
+  CONTOUR(3.0, 0.9);
+  CONTOUR(2.9, 1.0);
 
-   CONTOUR (1.0, 1.0);   /* repeat so that last normal is computed */
+  CONTOUR(1.0, 1.0); /* repeat so that last normal is computed */
 }
-   
+
 /* =========================================================== */
 
 #define PSIZE 40
-static double path[PSIZE][3];
-static double twist[PSIZE];
-static double taper[PSIZE];
+static double path [ PSIZE ][ 3 ];
+static double twist [ PSIZE ];
+static double taper [ PSIZE ];
 
-static void init_taper (void) {
-   int j;
-   double z, deltaz;
-   double ang, dang;
+static void init_taper(
+  void)
+{
+  int j;
+  double z, deltaz;
+  double ang, dang;
 
-   z = -10.0;
-   deltaz = 0.5;
+  z= -10.0;
+  deltaz= 0.5;
 
-   ang = 0.0;
-   dang = 20.0;
-   for (j=0; j<40; j++) {
-      path[j][0] = 0x0;
-      path[j][1] = 0x0;
-      path[j][2] = z;
+  ang= 0.0;
+  dang= 20.0;
+  for (j= 0; j < 40; j++)
+    {
+      path [ j ][ 0 ]= 0x0;
+      path [ j ][ 1 ]= 0x0;
+      path [ j ][ 2 ]= z;
 
-      twist[j] = ang;
-      ang += dang;
+      twist [ j ]= ang;
+      ang+= dang;
 
-      taper[j] = 0.1 * sqrt (9.51*9.51 - z*z);
+      taper [ j ]= 0.1 * sqrt(9.51 * 9.51 - z * z);
 
-      z += deltaz;
-   }
+      z+= deltaz;
+    }
 
-   taper[0] = taper[1];
-   taper[39] = taper[38];
-
+  taper [ 0 ]= taper [ 1 ];
+  taper [ 39 ]= taper [ 38 ];
 }
 
 /* =========================================================== */
@@ -122,97 +125,103 @@ static void init_taper (void) {
 extern float lastx;
 extern float lasty;
 
-void InitStuff_taper (void)
+void InitStuff_taper(
+  void)
 {
-   int style;
+  int style;
 
-   /* configure the pipeline */
-   style = TUBE_JN_CAP;
-   style |= TUBE_CONTOUR_CLOSED;
-   style |= TUBE_NORM_FACET;
-   style |= TUBE_JN_ANGLE;
-   gleSetJoinStyle (style);
+  /* configure the pipeline */
+  style= TUBE_JN_CAP;
+  style|= TUBE_CONTOUR_CLOSED;
+  style|= TUBE_NORM_FACET;
+  style|= TUBE_JN_ANGLE;
+  gleSetJoinStyle(style);
 
-   init_contour();
-   init_taper();
+  init_contour();
+  init_taper();
 }
 
 /* =========================================================== */
 
-static void gleTaper (int ncp, 
-               gleDouble contour[][2], 
-               gleDouble cont_normal[][2], 
-               gleDouble up[3],
-               int npoints,
-               gleDouble point_array[][3],
-               float color_array[][3],
-               gleDouble taper[],
-               gleDouble twist[])
+static void gleTaper(
+  int ncp,
+  gleDouble contour [][ 2 ],
+  gleDouble cont_normal [][ 2 ],
+  gleDouble up [ 3 ],
+  int npoints,
+  gleDouble point_array [][ 3 ],
+  float color_array [][ 3 ],
+  gleDouble taper [],
+  gleDouble twist [])
 {
-   int j;
-   gleAffine *xforms;
-   double co, si, angle;
+  int j;
+  gleAffine *xforms;
+  double co, si, angle;
 
-   /* malloc the extrusion array and the twist array */
-   xforms = (gleAffine *) malloc (npoints * sizeof(gleAffine));
+  /* malloc the extrusion array and the twist array */
+  xforms= (gleAffine *) malloc(npoints * sizeof(gleAffine));
 
-   for (j=0; j<npoints; j++) {
-      angle = (M_PI/180.0) * twist[j];
-      si = sin (angle);
-      co = cos (angle);
-      xforms[j][0][0] = taper[j] * co;
-      xforms[j][0][1] = - taper[j] * si;
-      xforms[j][0][2] = 0.0;
-      xforms[j][1][0] = taper[j] * si;
-      xforms[j][1][1] = taper[j] * co;
-      xforms[j][1][2] = 0.0;
-   }
+  for (j= 0; j < npoints; j++)
+    {
+      angle= (M_PI / 180.0) * twist [ j ];
+      si= sin(angle);
+      co= cos(angle);
+      xforms [ j ][ 0 ][ 0 ]= taper [ j ] * co;
+      xforms [ j ][ 0 ][ 1 ]= -taper [ j ] * si;
+      xforms [ j ][ 0 ][ 2 ]= 0.0;
+      xforms [ j ][ 1 ][ 0 ]= taper [ j ] * si;
+      xforms [ j ][ 1 ][ 1 ]= taper [ j ] * co;
+      xforms [ j ][ 1 ][ 2 ]= 0.0;
+    }
 
-   gleSuperExtrusion (ncp,               /* number of contour points */
-                contour,    /* 2D contour */
-                cont_normal, /* 2D contour normals */
-                up,           /* up vector for contour */
-                npoints,           /* numpoints in poly-line */
-                point_array,        /* polyline */
-                color_array,        /* color of polyline */
-                xforms);
+  gleSuperExtrusion(ncp, /* number of contour points */
+    contour,             /* 2D contour */
+    cont_normal,         /* 2D contour normals */
+    up,                  /* up vector for contour */
+    npoints,             /* numpoints in poly-line */
+    point_array,         /* polyline */
+    color_array,         /* color of polyline */
+    xforms);
 
-   free (xforms);
+  free(xforms);
 }
 
 /* =========================================================== */
 
-void DrawStuff_taper (void) {
-   int j;
-   double ang, dang;
-   double z, deltaz;
-   double ponent;
-   z=-1.0;
-   deltaz = 1.999/38;
-   ang = 0.0;
-   dang = lasty/40.0;
-   ponent = fabs (lastx/540.0);
-   for (j=1; j<39; j++) {
-      twist[j] = ang;
-      ang += dang;
+void DrawStuff_taper(
+  void)
+{
+  int j;
+  double ang, dang;
+  double z, deltaz;
+  double ponent;
+  z= -1.0;
+  deltaz= 1.999 / 38;
+  ang= 0.0;
+  dang= lasty / 40.0;
+  ponent= fabs(lastx / 540.0);
+  for (j= 1; j < 39; j++)
+    {
+      twist [ j ]= ang;
+      ang+= dang;
 
-      taper[j] = pow ((1.0 - pow (fabs(z), 1.0/ponent)), ponent);
-      z += deltaz;
-   }
+      taper [ j ]= pow((1.0 - pow(fabs(z), 1.0 / ponent)), ponent);
+      z+= deltaz;
+    }
 
-   glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-   glColor3f (0.5, 0.6, 0.6);
+  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+  glColor3f(0.5, 0.6, 0.6);
 
-   /* set up some matrices so that the object spins with the mouse */
-   glPushMatrix ();
-   /* glTranslatef (0.0, 0.0, -80.0); */
-   /* glRotatef (130.0, 0.0, 1.0, 0.0); */
-   /* glRotatef (65.0, 1.0, 0.0, 0.0); */
+  /* set up some matrices so that the object spins with the mouse */
+  glPushMatrix();
+  /* glTranslatef (0.0, 0.0, -80.0); */
+  /* glRotatef (130.0, 0.0, 1.0, 0.0); */
+  /* glRotatef (65.0, 1.0, 0.0, 0.0); */
 
-   /* draw the brand and the handle */
-   gleTaper (20, contour, norms,  NULL, 40, path, NULL, taper, twist);
+  /* draw the brand and the handle */
+  gleTaper(20, contour, norms, NULL, 40, path, NULL, taper, twist);
 
-   glPopMatrix ();
+  glPopMatrix();
 }
 
 /* ===================== END OF FILE ================== */

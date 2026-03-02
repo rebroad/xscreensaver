@@ -5,7 +5,7 @@
  * the above copyright notice appear in all copies and that both that
  * copyright notice and this permission notice appear in supporting
  * documentation.  No representations are made about the suitability of this
- * software for any purpose.  It is provided "as is" without express or 
+ * software for any purpose.  It is provided "as is" without express or
  * implied warranty.
  */
 
@@ -32,45 +32,50 @@
 /* Returns a pixmap of the xscreensaver logo.
  */
 Pixmap
-xscreensaver_logo (Screen *screen, Visual *visual,
-                   Drawable drawable, Colormap cmap,
-                   unsigned long background_color,
-                   unsigned long **pixels_ret, int *npixels_ret,
-                   Pixmap *mask_ret,
-                   int size)
+  xscreensaver_logo(
+    Screen *screen,
+    Visual *visual,
+    Drawable drawable,
+    Colormap cmap,
+    unsigned long background_color,
+    unsigned long **pixels_ret,
+    int *npixels_ret,
+    Pixmap *mask_ret,
+    int size)
 {
-  Display *dpy = DisplayOfScreen (screen);
+  Display *dpy= DisplayOfScreen(screen);
   int x, y;
   unsigned int w, h, bw;
   Window root;
   XImage *image;
-  Pixmap p = 0;
-  unsigned char *mask = 0;
+  Pixmap p= 0;
+  unsigned char *mask= 0;
   unsigned int depth;
   XGCValues gcv;
   GC gc;
 
-  XGetGeometry (dpy, drawable, &root, &x, &y, &w, &h, &bw, &depth);
+  XGetGeometry(dpy, drawable, &root, &x, &y, &w, &h, &bw, &depth);
 
-  image = minixpm_to_ximage (dpy, visual, cmap, depth, background_color,
-                             (size == 0 ? logo_50_xpm  :
-                              size == 1 ? logo_180_xpm : logo_360_xpm),
-                             &w, &h, pixels_ret, npixels_ret,
-                             (mask_ret ? &mask : 0));
+  image= minixpm_to_ximage(dpy, visual, cmap, depth, background_color, (size == 0 ? logo_50_xpm : size == 1 ? logo_180_xpm :
+                                                                                                              logo_360_xpm),
+    &w,
+    &h,
+    pixels_ret,
+    npixels_ret,
+    (mask_ret ? &mask : 0));
   if (! image) return 0;
 
-  p = XCreatePixmap (dpy, drawable, w, h, depth);
-  gc = XCreateGC (dpy, p, 0, &gcv);
-  XPutImage (dpy, p, gc, image, 0, 0, 0, 0, w, h);
-  XDestroyImage (image);
-  XFreeGC (dpy, gc);
+  p= XCreatePixmap(dpy, drawable, w, h, depth);
+  gc= XCreateGC(dpy, p, 0, &gcv);
+  XPutImage(dpy, p, gc, image, 0, 0, 0, 0, w, h);
+  XDestroyImage(image);
+  XFreeGC(dpy, gc);
 
   if (mask_ret && mask)
     {
-      *mask_ret = (Pixmap)
-        XCreatePixmapFromBitmapData (dpy, drawable, (char *) mask,
-                                     w, h, 1, 0, 1);
-      free (mask);
+      *mask_ret= (Pixmap)
+        XCreatePixmapFromBitmapData(dpy, drawable, (char *) mask, w, h, 1, 0, 1);
+      free(mask);
     }
 
   return p;

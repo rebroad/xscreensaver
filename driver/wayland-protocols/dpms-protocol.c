@@ -12,7 +12,7 @@
 #include "wayland-util.h"
 
 #ifndef __has_attribute
-# define __has_attribute(x) 0  /* Compatibility with non-clang compilers. */
+#define __has_attribute(x) 0  /* Compatibility with non-clang compilers. */
 #endif
 
 #if (__has_attribute(visibility) || defined(__GNUC__) && __GNUC__ >= 4)
@@ -24,36 +24,41 @@
 extern const struct wl_interface org_kde_kwin_dpms_interface;
 extern const struct wl_interface wl_output_interface;
 
-static const struct wl_interface *dpms_types[] = {
-	NULL,
-	&org_kde_kwin_dpms_interface,
-	&wl_output_interface,
+static const struct wl_interface *dpms_types []= {
+  NULL,
+  &org_kde_kwin_dpms_interface,
+  &wl_output_interface,
 };
 
-static const struct wl_message org_kde_kwin_dpms_manager_requests[] = {
-	{ "get", "no", dpms_types + 1 },
+static const struct wl_message org_kde_kwin_dpms_manager_requests []= {
+  {"get", "no", dpms_types + 1},
 };
 
-WL_PRIVATE const struct wl_interface org_kde_kwin_dpms_manager_interface = {
-	"org_kde_kwin_dpms_manager", 1,
-	1, org_kde_kwin_dpms_manager_requests,
-	0, NULL,
+WL_PRIVATE const struct wl_interface org_kde_kwin_dpms_manager_interface= {
+  "org_kde_kwin_dpms_manager",
+  1,
+  1,
+  org_kde_kwin_dpms_manager_requests,
+  0,
+  NULL,
 };
 
-static const struct wl_message org_kde_kwin_dpms_requests[] = {
-	{ "set", "u", dpms_types + 0 },
-	{ "release", "", dpms_types + 0 },
+static const struct wl_message org_kde_kwin_dpms_requests []= {
+  {"set", "u", dpms_types + 0},
+  {"release", "", dpms_types + 0},
 };
 
-static const struct wl_message org_kde_kwin_dpms_events[] = {
-	{ "supported", "u", dpms_types + 0 },
-	{ "mode", "u", dpms_types + 0 },
-	{ "done", "", dpms_types + 0 },
+static const struct wl_message org_kde_kwin_dpms_events []= {
+  {"supported", "u", dpms_types + 0},
+  {"mode", "u", dpms_types + 0},
+  {"done", "", dpms_types + 0},
 };
 
-WL_PRIVATE const struct wl_interface org_kde_kwin_dpms_interface = {
-	"org_kde_kwin_dpms", 1,
-	2, org_kde_kwin_dpms_requests,
-	3, org_kde_kwin_dpms_events,
+WL_PRIVATE const struct wl_interface org_kde_kwin_dpms_interface= {
+  "org_kde_kwin_dpms",
+  1,
+  2,
+  org_kde_kwin_dpms_requests,
+  3,
+  org_kde_kwin_dpms_events,
 };
-

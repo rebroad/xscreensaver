@@ -5,12 +5,12 @@
  * the above copyright notice appear in all copies and that both that
  * copyright notice and this permission notice appear in supporting
  * documentation.  No representations are made about the suitability of this
- * software for any purpose.  It is provided "as is" without express or 
+ * software for any purpose.  It is provided "as is" without express or
  * implied warranty.
  */
 
 #ifdef HAVE_CONFIG_H
-# include "config.h"
+#include "config.h"
 #endif
 
 #include <stdlib.h>
@@ -27,46 +27,50 @@
 extern Bool verbose_p;
 
 static int
-error_handler (Display *dpy, XErrorEvent *error)
+  error_handler(
+    Display *dpy,
+    XErrorEvent *error)
 {
   return 0;
 }
 
 
 Window
-find_screensaver_window (Display *dpy, char **version)
+  find_screensaver_window(
+    Display *dpy,
+    char **version)
 {
-  int nscreens = ScreenCount (dpy);
+  int nscreens= ScreenCount(dpy);
   int screen;
-  Window ret = 0;
+  Window ret= 0;
   XErrorHandler old_handler;
 
-  XSync (dpy, False);
-  old_handler = XSetErrorHandler (error_handler);
+  XSync(dpy, False);
+  old_handler= XSetErrorHandler(error_handler);
 
-  if (version) *version = 0;
+  if (version) *version= 0;
 
-  for (screen = 0; screen < nscreens; screen++)
+  for (screen= 0; screen < nscreens; screen++)
     {
-      Window root = RootWindow (dpy, screen);
+      Window root= RootWindow(dpy, screen);
       Window root2, parent, *kids;
       unsigned int nkids;
-      int i = 0;
+      int i= 0;
 
-      if (! XQueryTree (dpy, root, &root2, &parent, &kids, &nkids))
-        abort ();
+      if (! XQueryTree(dpy, root, &root2, &parent, &kids, &nkids))
+        abort();
       if (root != root2)
-        abort ();
+        abort();
       if (parent)
-        abort ();
+        abort();
       if (! (kids && nkids))
         goto DONE;
-      for (i = 0; i < nkids; i++)
+      for (i= 0; i < nkids; i++)
         {
           Atom type;
           int format;
           unsigned long nitems, bytesafter;
-          unsigned char *v = 0;
+          unsigned char *v= 0;
           int status;
 
           /* We're walking the list of root-level windows and trying to find
@@ -75,65 +79,58 @@ find_screensaver_window (Display *dpy, char **version)
              some random window might get deleted in the meantime.  (That
              window won't have been the one we're looking for.)
            */
-          status = XGetWindowProperty (dpy, kids[i],
-                                       XA_SCREENSAVER_VERSION,
-                                       0, 200, False, XA_STRING,
-                                       &type, &format, &nitems, &bytesafter,
-                                       &v);
+          status= XGetWindowProperty(dpy, kids [ i ], XA_SCREENSAVER_VERSION, 0, 200, False, XA_STRING, &type, &format, &nitems, &bytesafter, &v);
           if (status == Success && type != None)
             {
-              ret = kids[i];
+              ret= kids [ i ];
               if (version)
-                *version = (char *) v;
+                *version= (char *) v;
               else
-                XFree (v);
+                XFree(v);
               goto DONE;
             }
-          if (v) XFree (v);
+          if (v) XFree(v);
 
-        DONE:
+DONE:
           if (ret) break;
         }
-      if (kids) XFree (kids);
+      if (kids) XFree(kids);
       if (ret) break;
     }
 
-  XSetErrorHandler (old_handler);
+  XSetErrorHandler(old_handler);
   return ret;
 }
 
 
-void
-clientmessage_response (Display *dpy, XEvent *xev, Bool ok, const char *msg)
+void clientmessage_response(
+  Display *dpy,
+  XEvent *xev,
+  Bool ok,
+  const char *msg)
 {
   char *proto;
-  int L = 0;
+  int L= 0;
 
-  if (verbose_p || !ok)
+  if (verbose_p || ! ok)
     {
-      Atom cmd = xev->xclient.data.l[0];
-      char *name = XGetAtomName (dpy, cmd);
-      pid_t caller = (cmd == XA_DEACTIVATE
-                      ? (pid_t) xev->xclient.data.l[1]
-                      : 0);
+      Atom cmd= xev->xclient.data.l [ 0 ];
+      char *name= XGetAtomName(dpy, cmd);
+      pid_t caller= (cmd == XA_DEACTIVATE ? (pid_t) xev->xclient.data.l [ 1 ] : 0);
       if (caller)
-        fprintf (stderr, "%s: ClientMessage %s: %s (from pid %lu)\n", blurb(), 
-                 (name ? name : "???"), msg, (unsigned long) caller);
+        fprintf(stderr, "%s: ClientMessage %s: %s (from pid %lu)\n", blurb(), (name ? name : "???"), msg, (unsigned long) caller);
       else
-        fprintf (stderr, "%s: ClientMessage %s: %s\n", blurb(), 
-                 (name ? name : "???"), msg);
+        fprintf(stderr, "%s: ClientMessage %s: %s\n", blurb(), (name ? name : "???"), msg);
     }
 
-  L = strlen (msg);
-  proto = (char *) malloc (L + 2);
-  if (!proto) return;
-  proto[0] = (ok ? '+' : '-');
-  memcpy (proto+1, msg, L);
+  L= strlen(msg);
+  proto= (char *) malloc(L + 2);
+  if (! proto) return;
+  proto [ 0 ]= (ok ? '+' : '-');
+  memcpy(proto + 1, msg, L);
   L++;
-  proto[L] = 0;
+  proto [ L ]= 0;
 
-  XChangeProperty (dpy, xev->xclient.window,
-                   XA_SCREENSAVER_RESPONSE, XA_STRING, 8,
-		   PropModeReplace, (unsigned char *) proto, L);
-  free (proto);
+  XChangeProperty(dpy, xev->xclient.window, XA_SCREENSAVER_RESPONSE, XA_STRING, 8, PropModeReplace, (unsigned char *) proto, L);
+  free(proto);
 }

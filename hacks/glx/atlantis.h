@@ -17,9 +17,9 @@
  *
  * The original code for this mode was written by Mark J. Kilgard
  * as a demo for openGL programming.
- * 
- * Porting it to xlock  was possible by comparing the original Mesa's morph3d 
- * demo with it's ported version to xlock, so thanks for Marcelo F. Vianna 
+ *
+ * Porting it to xlock  was possible by comparing the original Mesa's morph3d
+ * demo with it's ported version to xlock, so thanks for Marcelo F. Vianna
  * (look at morph3d.c) for his indirect help.
  *
  * Thanks goes also to Brian Paul for making it possible and inexpensive
@@ -69,9 +69,9 @@
  */
 
 #ifdef STANDALONE
-# include "xlockmoreI.h"
+#include "xlockmoreI.h"
 #else
-# include "xlock.h"
+#include "xlock.h"
 #endif
 
 #include <math.h>
@@ -84,45 +84,47 @@
 #define SHARKSPEED 100
 #define SHARKSIZE 6000
 
-typedef struct _fishRec {
-	/* Position in global coordinate system */
-	float       x, y, z;
-	/* Three rotation angles to determine heading; phi=roll, psi=bearing/yaw, theta=elevation/pitch */
-	float phi, theta, psi;
-	/* Speed along forward direction vector. */
-	float v;
-	float       xt, yt, zt;
-	/* Tail position adjustments; htail controls the phase of the
-	   thrash animation for the whales and dolphin. */
-	float       htail, vtail;
-	/* Scale factor for the whale/dolphin tail thrash
-	   speed. Normally bigger creatures move more slowly; since
-	   the fish size isn’t stored anywhere adjust this speed
-	   instead. */
-	float       tail_speed_scale;
-	/* Scale factor for the size of the loop the whale/dolphin is
-	   swimming around in. */
-	float       loop_scale;
-	/* Parameters used for shark swimming */
-	float       dtheta;
-	int         spurt, attack;
-	int         sign;
+typedef struct _fishRec
+{
+    /* Position in global coordinate system */
+    float x, y, z;
+    /* Three rotation angles to determine heading; phi=roll, psi=bearing/yaw, theta=elevation/pitch */
+    float phi, theta, psi;
+    /* Speed along forward direction vector. */
+    float v;
+    float xt, yt, zt;
+    /* Tail position adjustments; htail controls the phase of the
+       thrash animation for the whales and dolphin. */
+    float htail, vtail;
+    /* Scale factor for the whale/dolphin tail thrash
+       speed. Normally bigger creatures move more slowly; since
+       the fish size isn’t stored anywhere adjust this speed
+       instead. */
+    float tail_speed_scale;
+    /* Scale factor for the size of the loop the whale/dolphin is
+       swimming around in. */
+    float loop_scale;
+    /* Parameters used for shark swimming */
+    float dtheta;
+    int spurt, attack;
+    int sign;
 } fishRec;
 
-typedef struct {
-	GLint       WinH, WinW;
-	GLXContext *glx_context;
-	int         num_sharks;
-	float       sharkspeed, whalespeed;
-	int         sharksize;
-	int         wire;
-	Bool        whaledir;
-	fishRec    *sharks;
-	fishRec     momWhale;
-	fishRec     babyWhale;
-	fishRec     dolph;
+typedef struct
+{
+    GLint WinH, WinW;
+    GLXContext *glx_context;
+    int num_sharks;
+    float sharkspeed, whalespeed;
+    int sharksize;
+    int wire;
+    Bool whaledir;
+    fishRec *sharks;
+    fishRec momWhale;
+    fishRec babyWhale;
+    fishRec dolph;
 
-        XImage     *texture;	   /* water distortion overlay bits */
+    XImage *texture; /* water distortion overlay bits */
 } atlantisstruct;
 
 extern void FishTransform(fishRec *);

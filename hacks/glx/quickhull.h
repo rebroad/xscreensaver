@@ -21,27 +21,29 @@
 #ifndef __QUICKHULL_H__
 #define __QUICKHULL_H__
 
-typedef struct qh_vertex {
-  double x;
-  double y;
-  double z;
+typedef struct qh_vertex
+{
+    double x;
+    double y;
+    double z;
 } qh_vertex_t;
 
 typedef qh_vertex_t qh_vec3_t;
 
-typedef struct qh_mesh {
-  qh_vertex_t* vertices;
-  qh_vec3_t* normals;
-  unsigned int* indices;
-  unsigned int* normalindices;
-  unsigned int nindices;
-  unsigned int nvertices;
-  unsigned int nnormals;
+typedef struct qh_mesh
+{
+    qh_vertex_t* vertices;
+    qh_vec3_t* normals;
+    unsigned int* indices;
+    unsigned int* normalindices;
+    unsigned int nindices;
+    unsigned int nvertices;
+    unsigned int nnormals;
 } qh_mesh_t;
 
 /* If out of memory, returns a mesh with no vertices */
 extern qh_mesh_t qh_quickhull3d(qh_vertex_t const* vertices,
-                                unsigned int nvertices);
+  unsigned int nvertices);
 
 extern void qh_free_mesh(qh_mesh_t mesh);
 

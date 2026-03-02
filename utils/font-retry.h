@@ -5,7 +5,7 @@
  * the above copyright notice appear in all copies and that both that
  * copyright notice and this permission notice appear in supporting
  * documentation.  No representations are made about the suitability of this
- * software for any purpose.  It is provided "as is" without express or 
+ * software for any purpose.  It is provided "as is" without express or
  * implied warranty.
  */
 
@@ -18,11 +18,10 @@
    if there is no exact match, applies heuristics to the last font in the list
    until it finds a substitution.
  */
-extern XFontStruct *load_font_retry (Display *, const char *font_list);
+extern XFontStruct *load_font_retry(Display *, const char *font_list);
 
-# ifdef __XSCREENSAVER_XFT_H__  /* if xft.h has been included */
-extern XftFont *load_xft_font_retry (Display *, int screen,
-                                     const char *font_list);
-# endif
+#ifdef __XSCREENSAVER_XFT_H__ /* if xft.h has been included */
+extern XftFont *load_xft_font_retry(Display *, int screen, const char *font_list);
+#endif
 
 #endif /* __FONT_RETRY_H__ */

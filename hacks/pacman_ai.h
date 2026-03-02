@@ -24,9 +24,8 @@
 #ifndef __PACMAN_AI_H__
 #define __PACMAN_AI_H__
 
-extern void pacman_ghost_update (pacmangamestruct * pp, ghoststruct * g);
-extern void pacman_clear_trace (pacmanstruct * p);
-extern void pacman_update (ModeInfo * mi, pacmangamestruct * pp,
-                        pacmanstruct * p);
+extern void pacman_ghost_update(pacmangamestruct* pp, ghoststruct* g);
+extern void pacman_clear_trace(pacmanstruct* p);
+extern void pacman_update(ModeInfo* mi, pacmangamestruct* pp, pacmanstruct* p);
 
 #endif /* __PACMAN_AI_H__ */

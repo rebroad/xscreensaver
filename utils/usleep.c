@@ -6,32 +6,32 @@
  * the above copyright notice appear in all copies and that both that
  * copyright notice and this permission notice appear in supporting
  * documentation.  No representations are made about the suitability of this
- * software for any purpose.  It is provided "as is" without express or 
+ * software for any purpose.  It is provided "as is" without express or
  * implied warranty.
  */
 
 #ifdef HAVE_CONFIG_H
-# include "config.h"
-#else  /* !HAVE_CONFIG_H */
-# ifndef NO_SELECT
-#  define HAVE_SELECT
-# endif
+#include "config.h"
+#else /* !HAVE_CONFIG_H */
+#ifndef NO_SELECT
+#define HAVE_SELECT
+#endif
 #endif /* !HAVE_CONFIG_H */
 
 #ifdef __STDC__
-# include <stdlib.h>
+#include <stdlib.h>
 #endif
 
 #ifdef HAVE_UNISTD_H
-# include <unistd.h>
+#include <unistd.h>
 #endif
 
 #if defined(VMS)
-# include <descrip.h>
-# include <stdio.h>
-# include <lib$routines.h>
+#include <descrip.h>
+#include <stdio.h>
+#include <lib$routines.h>
 #elif defined(HAVE_SELECT)
-# include <sys/time.h>		/* for struct timeval */
+#include <sys/time.h> /* for struct timeval */
 #endif
 
 
@@ -39,26 +39,27 @@
 ERROR, do not include that here
 #endif
 
-extern void screenhack_usleep (unsigned long usecs); /* suppress warning */
+  extern void
+  screenhack_usleep(unsigned long usecs); /* suppress warning */
 
-void
-screenhack_usleep (unsigned long usecs)
+void screenhack_usleep(
+  unsigned long usecs)
 {
-# if defined(VMS)
-  float seconds = ((float) usecs)/1000000.0;
-  unsigned long int statvms = lib$wait(&seconds);
+#if defined(VMS)
+  float seconds= ((float) usecs) / 1000000.0;
+  unsigned long int statvms= lib$wait(&seconds);
 
 #elif defined(HAVE_SELECT)
   /* usleep() doesn't exist everywhere, and select() is faster anyway. */
   struct timeval tv;
-  tv.tv_sec  = usecs / 1000000L;
-  tv.tv_usec = usecs % 1000000L;
-  (void) select (0, 0, 0, 0, &tv);
+  tv.tv_sec= usecs / 1000000L;
+  tv.tv_usec= usecs % 1000000L;
+  (void) select(0, 0, 0, 0, &tv);
 
 #else /* !VMS && !HAVE_SELECT */
   /* If you don't have select() or usleep(), I guess you lose...
      Maybe you have napms() instead?  Let me know. */
-  usleep (usecs);
+  usleep(usecs);
 
 #endif /* !VMS && !HAVE_SELECT */
 }

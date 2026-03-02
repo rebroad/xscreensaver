@@ -5,12 +5,12 @@
  * the above copyright notice appear in all copies and that both that
  * copyright notice and this permission notice appear in supporting
  * documentation.  No representations are made about the suitability of this
- * software for any purpose.  It is provided "as is" without express or 
+ * software for any purpose.  It is provided "as is" without express or
  * implied warranty.
  */
 
 #ifdef HAVE_CONFIG_H
-# include "config.h"
+#include "config.h"
 #endif
 
 #include "blurb.h"
@@ -19,51 +19,51 @@
 #include <time.h>
 #include <sys/time.h>
 
-const char *progname = "";
-int verbose_p = 0;
+const char *progname= "";
+int verbose_p= 0;
 
 /* #define BLURB_CENTISECONDS */
 
 const char *
-blurb (void)
+  blurb(
+    void)
 {
-  static char buf[255] = { 0 };
+  static char buf [ 255 ]= {0};
   struct tm tm;
   struct timeval now;
   int i;
 
-# ifdef GETTIMEOFDAY_TWO_ARGS
+#ifdef GETTIMEOFDAY_TWO_ARGS
   struct timezone tzp;
-  gettimeofday (&now, &tzp);
-# else
-  gettimeofday (&now);
-# endif
+  gettimeofday(&now, &tzp);
+#else
+  gettimeofday(&now);
+#endif
 
-  localtime_r (&now.tv_sec, &tm);
-  i = strlen (progname);
-  if (i > 40) i = 40;
-  memcpy (buf, progname, i);
-  buf[i++] = ':';
-  buf[i++] = ' ';
-  buf[i++] = '0' + (tm.tm_hour >= 10 ? tm.tm_hour/10 : 0);
-  buf[i++] = '0' + (tm.tm_hour % 10);
-  buf[i++] = ':';
-  buf[i++] = '0' + (tm.tm_min >= 10 ? tm.tm_min/10 : 0);
-  buf[i++] = '0' + (tm.tm_min % 10);
-  buf[i++] = ':';
-  buf[i++] = '0' + (tm.tm_sec >= 10 ? tm.tm_sec/10 : 0);
-  buf[i++] = '0' + (tm.tm_sec % 10);
+  localtime_r(&now.tv_sec, &tm);
+  i= strlen(progname);
+  if (i > 40) i= 40;
+  memcpy(buf, progname, i);
+  buf [ i++ ]= ':';
+  buf [ i++ ]= ' ';
+  buf [ i++ ]= '0' + (tm.tm_hour >= 10 ? tm.tm_hour / 10 : 0);
+  buf [ i++ ]= '0' + (tm.tm_hour % 10);
+  buf [ i++ ]= ':';
+  buf [ i++ ]= '0' + (tm.tm_min >= 10 ? tm.tm_min / 10 : 0);
+  buf [ i++ ]= '0' + (tm.tm_min % 10);
+  buf [ i++ ]= ':';
+  buf [ i++ ]= '0' + (tm.tm_sec >= 10 ? tm.tm_sec / 10 : 0);
+  buf [ i++ ]= '0' + (tm.tm_sec % 10);
 
-# ifdef BLURB_CENTISECONDS
+#ifdef BLURB_CENTISECONDS
   {
-    int c = now.tv_usec / 10000;
-    buf[i++] = '.';
-    buf[i++] = '0' + (c >= 10 ? c/10 : 0);
-    buf[i++] = '0' + (c % 10);
+    int c= now.tv_usec / 10000;
+    buf [ i++ ]= '.';
+    buf [ i++ ]= '0' + (c >= 10 ? c / 10 : 0);
+    buf [ i++ ]= '0' + (c % 10);
   }
-# endif
+#endif
 
-  buf[i] = 0;
+  buf [ i ]= 0;
   return buf;
 }
-

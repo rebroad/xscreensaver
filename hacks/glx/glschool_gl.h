@@ -6,7 +6,7 @@
  * the above copyright notice appear in all copies and that both that
  * copyright notice and this permission notice appear in supporting
  * documentation.  No representations are made about the suitability of this
- * software for any purpose.  It is provided "as is" without express or 
+ * software for any purpose.  It is provided "as is" without express or
  * implied warranty.
  */
 #ifndef __GLSCHOOL_GL_H__
@@ -24,7 +24,6 @@ extern void glschool_getColorVect(XColor *, int, double *);
 extern int glschool_drawBoundingBox(BBox *, Bool);
 extern int glschool_createBBoxList(BBox *, GLuint *, int);
 extern void glschool_createDrawLists(BBox *, GLuint *, GLuint *, GLuint *, int *, int *, Bool);
-extern void glschool_drawSchool(XColor *, School *, GLuint, GLuint, GLuint, int, Bool, Bool, 
-                       int, int, unsigned long *);
+extern void glschool_drawSchool(XColor *, School *, GLuint, GLuint, GLuint, int, Bool, Bool, int, int, unsigned long *);
 
 #endif /* __GLSCHOOL_GL_H__ */

@@ -11,42 +11,45 @@
 
 #include "pow2.h"
 
-int
-i_log2 (size_t x)
+int i_log2(
+  size_t x)
 {
   /* -1 works best for to_pow2. */
-  if (!x)
+  if (! x)
     return -1;
 
   /* GCC 3.4 also has this. */
   /* The preprocessor criteria here must match what's in pow2.h, to prevent
    * infinite recursion.
    */
-# if defined __GNUC__ && __GNUC__ >= 4 || defined __clang__
+#if defined __GNUC__ && __GNUC__ >= 4 || defined __clang__
   return i_log2_fast(x);
-# else
+#else
   {
-    unsigned bits = sizeof(x) * CHAR_BIT;
-    size_t mask = (size_t)-1;
-    unsigned result = bits - 1;
+    unsigned bits= sizeof(x) * CHAR_BIT;
+    size_t mask= (size_t) -1;
+    unsigned result= bits - 1;
 
-    while (bits) {
-      if (!(x & mask)) {
-        result -= bits;
-        x <<= bits;
+    while (bits)
+      {
+        if (! (x & mask))
+          {
+            result-= bits;
+            x<<= bits;
+          }
+
+        bits>>= 1;
+        mask<<= bits;
       }
-
-      bits >>= 1;
-      mask <<= bits;
-    }
 
     return result;
   }
-# endif
+#endif
 }
 
 size_t
-to_pow2 (size_t x)
+  to_pow2(
+    size_t x)
 {
-  return !x ? 1 : 1 << (i_log2(x - 1) + 1);
+  return ! x ? 1 : 1 << (i_log2(x - 1) + 1);
 }

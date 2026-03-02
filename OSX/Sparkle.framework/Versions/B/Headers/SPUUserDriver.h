@@ -26,13 +26,13 @@ NS_ASSUME_NONNULL_BEGIN
 
 /**
  The API in Sparkle for controlling the user interaction.
- 
+
  This protocol is used for implementing a user interface for the Sparkle updater. Sparkle's internal drivers tell
  an object that implements this protocol what actions to take and show to the user.
- 
+
  Every method in this protocol can be assumed to be called from the main thread.
  */
-SU_EXPORT @protocol SPUUserDriver <NSObject>
+SU_EXPORT @protocol SPUUserDriver<NSObject>
 
 /**
  * Show an updater permission request to the user
@@ -295,7 +295,8 @@ SU_EXPORT @protocol SPUUserDriver <NSObject>
 
 - (void)showSendingTerminationSignal __deprecated_msg("Implement -showInstallingUpdateWithApplicationTerminated:retryTerminatingApplication: instead.");
 
-- (void)showInstallingUpdateWithApplicationTerminated:(BOOL)applicationTerminated __deprecated_msg("Implement -showInstallingUpdateWithApplicationTerminated:retryTerminatingApplication: instead.");;
+- (void)showInstallingUpdateWithApplicationTerminated:(BOOL)applicationTerminated __deprecated_msg("Implement -showInstallingUpdateWithApplicationTerminated:retryTerminatingApplication: instead.");
+;
 
 @end
 

@@ -5,7 +5,7 @@
  * the above copyright notice appear in all copies and that both that
  * copyright notice and this permission notice appear in supporting
  * documentation.  No representations are made about the suitability of this
- * software for any purpose.  It is provided "as is" without express or 
+ * software for any purpose.  It is provided "as is" without express or
  * implied warranty.
  */
 
@@ -19,7 +19,7 @@
 
 typedef struct jwxyz_sources_data jwxyz_sources_data;
 
-extern jwxyz_sources_data *jwxyz_sources_init (XtAppContext);
-extern void jwxyz_sources_free (jwxyz_sources_data *);
+extern jwxyz_sources_data *jwxyz_sources_init(XtAppContext);
+extern void jwxyz_sources_free(jwxyz_sources_data *);
 
 #endif /* __JWXYZ_TIMERS_H__ */

@@ -6,7 +6,7 @@
  * the above copyright notice appear in all copies and that both that
  * copyright notice and this permission notice appear in supporting
  * documentation.  No representations are made about the suitability of this
- * software for any purpose.  It is provided "as is" without express or 
+ * software for any purpose.  It is provided "as is" without express or
  * implied warranty.
  */
 
@@ -18,7 +18,7 @@
    slices = number of clockwise/counterclockwise divisions (longitude)
    Returns number of polygons used.
  */
-extern int unit_sphere (int stacks, int slices, int wire_p);
-extern int unit_dome (int stacks, int slices, int wire_p);
+extern int unit_sphere(int stacks, int slices, int wire_p);
+extern int unit_dome(int stacks, int slices, int wire_p);
 
 #endif /* __SPHERE_H__ */

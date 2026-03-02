@@ -6,12 +6,12 @@
  * the above copyright notice appear in all copies and that both that
  * copyright notice and this permission notice appear in supporting
  * documentation.  No representations are made about the suitability of this
- * software for any purpose.  It is provided "as is" without express or 
+ * software for any purpose.  It is provided "as is" without express or
  * implied warranty.
  */
 
 #ifdef HAVE_CONFIG_H
-# include "config.h"
+#include "config.h"
 #endif
 
 #include <stdio.h>
@@ -29,96 +29,104 @@
 #define HeightOfScreen(s) 10240
 
 static const char *
-failstr (monitor_sanity san)
+  failstr(
+    monitor_sanity san)
 {
-  switch (san) {
-  case S_SANE:      return "OK";
-  case S_ENCLOSED:  return "ENC";
-  case S_DUPLICATE: return "DUP";
-  case S_OVERLAP:   return "OVR";
-  case S_OFFSCREEN: return "OFF";
-  case S_DISABLED:  return "DIS";
-  default: abort(); break;
-  }
+  switch (san)
+    {
+      case S_SANE : return "OK";
+      case S_ENCLOSED : return "ENC";
+      case S_DUPLICATE : return "DUP";
+      case S_OVERLAP : return "OVR";
+      case S_OFFSCREEN : return "OFF";
+      case S_DISABLED : return "DIS";
+      default : abort(); break;
+    }
 }
 
 
 static void
-test (int testnum, const char *screens, const char *desired)
+  test(
+    int testnum,
+    const char *screens,
+    const char *desired)
 {
-  monitor *monitors[100];
-  char result[2048];
-  char *out = result;
-  int i, nscreens = 0;
-  char *token = strtok (strdup(screens), ",");
+  monitor *monitors [ 100 ];
+  char result [ 2048 ];
+  char *out= result;
+  int i, nscreens= 0;
+  char *token= strtok(strdup(screens), ",");
   while (token)
     {
-      monitor *m = calloc (1, sizeof (monitor));
+      monitor *m= calloc(1, sizeof(monitor));
       char c;
-      m->id = (testnum * 1000) + nscreens;
-      if (5 == sscanf (token, "%dx%d+%d+%d@%d%c", 
-                       &m->width, &m->height, &m->x, &m->y, 
-                       (int *) &m->screen, &c))
+      m->id= (testnum * 1000) + nscreens;
+      if (5 == sscanf(token, "%dx%d+%d+%d@%d%c", &m->width, &m->height, &m->x, &m->y, (int *) &m->screen, &c))
         ;
-      else if (4 != sscanf (token, "%dx%d+%d+%d%c", 
-                            &m->width, &m->height, &m->x, &m->y, &c))
+      else if (4 != sscanf(token, "%dx%d+%d+%d%c", &m->width, &m->height, &m->x, &m->y, &c))
         {
-          fprintf (stderr, "%s: unparsable geometry: %s\n", blurb(), token);
-          exit (1);
+          fprintf(stderr, "%s: unparsable geometry: %s\n", blurb(), token);
+          exit(1);
         }
-      monitors[nscreens] = m;
+      monitors [ nscreens ]= m;
       nscreens++;
-      token = strtok (0, ",");
+      token= strtok(0, ",");
     }
-  monitors[nscreens] = 0;
+  monitors [ nscreens ]= 0;
 
-  check_monitor_sanity (monitors);
+  check_monitor_sanity(monitors);
 
-  *out = 0;
-  for (i = 0; i < nscreens; i++)
+  *out= 0;
+  for (i= 0; i < nscreens; i++)
     {
-      monitor *m = monitors[i];
-      if (out != result) *out++ = ',';
+      monitor *m= monitors [ i ];
+      if (out != result) *out++= ',';
       if (m->sanity == S_SANE)
         {
-          sprintf (out, "%dx%d+%d+%d", m->width, m->height, m->x, m->y);
+          sprintf(out, "%dx%d+%d+%d", m->width, m->height, m->x, m->y);
           if (m->screen)
-            sprintf (out + strlen(out), "@%ld", (long) m->screen);
+            sprintf(out + strlen(out), "@%ld", (long) m->screen);
         }
       else
-        strcpy (out, failstr (m->sanity));
-      out += strlen(out);
+        {
+          strcpy(out, failstr(m->sanity));
+        }
+      out+= strlen(out);
     }
-  *out = 0;
+  *out= 0;
 
-  if (!strcmp (result, desired))
-    fprintf (stderr, "%s: test %2d OK\n", blurb(), testnum);
+  if (! strcmp(result, desired))
+    fprintf(stderr, "%s: test %2d OK\n", blurb(), testnum);
   else
-    fprintf (stderr, "%s: test %2d FAILED:\n"
-             "%s:   given: %s\n"
-             "%s:  wanted: %s\n"
-             "%s:     got: %s\n",
-             blurb(), testnum,
-             blurb(), screens, 
-             blurb(), desired, 
-             blurb(), result);
+    fprintf(stderr,
+      "%s: test %2d FAILED:\n"
+      "%s:   given: %s\n"
+      "%s:  wanted: %s\n" "%s:     got: %s\n",
+      blurb(),
+      testnum,
+      blurb(),
+      screens,
+      blurb(),
+      desired,
+      blurb(),
+      result);
 
-# if 0
+#if 0
   {
     saver_info SI;
     SI.monitor_layout = monitors;
     describe_monitor_layout (&SI);
   }
-# endif
-
+#endif
 }
 
 static void
-run_tests(void)
+  run_tests(
+    void)
 {
-  int i = 1;
-# define A(a)   test (i++, a, a);
-# define B(a,b) test (i++, a, b)
+  int i= 1;
+#define A(a)   test (i++, a, a);
+#define B(a, b) test (i++, a, b)
 
   A("");
   A("1024x768+0+0");
@@ -170,20 +178,21 @@ run_tests(void)
 }
 
 
-int
-main (int argc, char **argv)
+int main(
+  int argc,
+  char **argv)
 {
   char *s;
-  progname = argv[0];
-  s = strrchr(progname, '/');
-  if (s) progname = s+1;
+  progname= argv [ 0 ];
+  s= strrchr(progname, '/');
+  if (s) progname= s + 1;
   if (argc != 1)
     {
-      fprintf (stderr, "usage: %s\n", argv[0]);
-      exit (1);
+      fprintf(stderr, "usage: %s\n", argv [ 0 ]);
+      exit(1);
     }
 
   run_tests();
 
-  exit (0);
+  exit(0);
 }

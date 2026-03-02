@@ -5,12 +5,12 @@
  * the above copyright notice appear in all copies and that both that
  * copyright notice and this permission notice appear in supporting
  * documentation.  No representations are made about the suitability of this
- * software for any purpose.  It is provided "as is" without express or 
+ * software for any purpose.  It is provided "as is" without express or
  * implied warranty.
  */
 
 #ifdef HAVE_CONFIG_H
-# include "config.h"
+#include "config.h"
 #endif
 
 #include <stdio.h>
@@ -20,16 +20,16 @@
 #include <sys/types.h>
 
 #ifdef HAVE_UNISTD_H
-# include <unistd.h>
+#include <unistd.h>
 #endif
 
 /* #include <X11/Xproto.h>	/ * for CARD32 */
 #include <X11/Xlib.h>
 #include <X11/Xatom.h>
-#include <X11/Xutil.h>		/* for XGetClassHint() */
+#include <X11/Xutil.h> /* for XGetClassHint() */
 #include <X11/Xos.h>
 
-#include <X11/Intrinsic.h>	/* only needed to get through xscreensaver.h */
+#include <X11/Intrinsic.h> /* only needed to get through xscreensaver.h */
 
 #include "blurb.h"
 #include "remote.h"
@@ -37,16 +37,18 @@
 #include "atoms.h"
 
 #ifdef _VROOT_H_
-ERROR! you must not include vroot.h in this file
+ERROR ! you must not include vroot.h in this file
 #endif
 
-static char *screensaver_version;
-# ifdef __GNUC__
-  __extension__   /* don't warn about "string length is greater than the
-                     length ISO C89 compilers are required to support" in the
-                     usage string... */
-# endif
-static char *usage = "\n\
+  static char *
+  screensaver_version;
+#ifdef __GNUC__
+__extension__ /* don't warn about "string length is greater than the
+                 length ISO C89 compilers are required to support" in the
+                 usage string... */
+#endif
+  static char *usage=
+    "\n\
 usage: %s -<option>\n\
 \n\
   This program provides external control of a running xscreensaver process.\n\
@@ -124,154 +126,229 @@ usage: %s -<option>\n\
   For updates, check https://www.jwz.org/xscreensaver/\n\
 \n";
 
-#define USAGE(A,B) do { \
+#define USAGE(A, B) do { \
  fprintf (stderr, "%s: %s: %s\n%s: try --help\n",     \
           progname, (A), ((B) ? (B) : ""), progname); \
  exit (1);                                            \
  } while(0)
 
-static int watch (Display *);
+static int watch(Display *);
 
-int
-main (int argc, char **argv)
+int main(
+  int argc,
+  char **argv)
 {
   Display *dpy;
   int i;
-  char *dpyname = 0;
-  Atom *cmd = 0;
-  const char *cmdstr = 0;
-  long arg = 0L;
+  char *dpyname= 0;
+  Atom *cmd= 0;
+  const char *cmdstr= 0;
+  long arg= 0L;
   char *s;
-  Atom XA_WATCH = 0;  /* kludge: not really an atom */
-  char year[5];
-  Bool verbose_p = TRUE;
+  Atom XA_WATCH= 0; /* kludge: not really an atom */
+  char year [ 5 ];
+  Bool verbose_p= TRUE;
 
-  progname = argv[0];
-  s = strrchr (progname, '/');
-  if (s) progname = s+1;
+  progname= argv [ 0 ];
+  s= strrchr(progname, '/');
+  if (s) progname= s + 1;
 
-  screensaver_version = strdup (screensaver_id + 17);
-  s = strchr (screensaver_version, ' ');
-  *s = 0;
+  screensaver_version= strdup(screensaver_id + 17);
+  s= strchr(screensaver_version, ' ');
+  *s= 0;
 
-  s = strchr (screensaver_id, '-');
-  s = strrchr (s, '-');
+  s= strchr(screensaver_id, '-');
+  s= strrchr(s, '-');
   s++;
-  strncpy (year, s, 4);
-  year[4] = 0;
+  strncpy(year, s, 4);
+  year [ 4 ]= 0;
 
-  for (i = 1; i < argc; i++)
+  for (i= 1; i < argc; i++)
     {
-      const char *s = argv [i];
+      const char *s= argv [ i ];
       int L;
-      if (s[0] == '-' && s[1] == '-') s++;
-      L = strlen (s);
-      if (L < 2) USAGE ("unrecognized", argv[i]);
-      if (!strncmp (s, "-display", L))	       dpyname = argv [++i];
-      else if (!strncmp (s, "-dpy", L))        dpyname = argv [++i];
-      else if (!strncmp (s, "-quiet", L))      verbose_p = FALSE;
-      else if (!strcmp  (s, "-verbose"))       verbose_p = TRUE;
-      else if (!strcmp  (s, "-v"))             verbose_p = TRUE;
-      else if (!strcmp  (s, "-vv"))            verbose_p = 2;
-      else if (!strcmp  (s, "-vvv"))           verbose_p = 3;
-      else if (!strcmp  (s, "-vvvv"))          verbose_p = 4;
-      else if (cmd) USAGE("extraneous", argv[i]);
-      else if (!strncmp (s, "-activate", L))   cmd = &XA_ACTIVATE;
-      else if (!strncmp (s, "-deactivate", L)) cmd = &XA_DEACTIVATE;
-      else if (!strncmp (s, "-suspend", L))    cmd = &XA_SUSPEND;
-      else if (!strncmp (s, "-cycle", L))      cmd = &XA_CYCLE;
-      else if (!strncmp (s, "-next", L))       cmd = &XA_NEXT;
-      else if (!strncmp (s, "-prev", L))       cmd = &XA_PREV;
-      else if (!strncmp (s, "-select", L))     cmd = &XA_SELECT;
-      else if (!strncmp (s, "-exit", L))       cmd = &XA_EXIT;
-      else if (!strncmp (s, "-restart", L))    cmd = &XA_RESTART;
-      else if (!strncmp (s, "-demo", L))       cmd = &XA_DEMO;
-      else if (!strncmp (s, "-lock", L))       cmd = &XA_LOCK;
-      else if (!strncmp (s, "-version", L))    cmd = &XA_SCREENSAVER_VERSION;
-      else if (!strncmp (s, "-time", L))       cmd = &XA_SCREENSAVER_STATUS;
-      else if (!strncmp (s, "-watch", L))      cmd = &XA_WATCH;
-      else if (!strncmp (s, "-help", L))
+      if (s [ 0 ] == '-' && s [ 1 ] == '-') s++;
+      L= strlen(s);
+      if (L < 2) USAGE("unrecognized", argv [ i ]);
+      if (! strncmp(s, "-display", L))
         {
-          fprintf (stderr, usage, progname, screensaver_version, year);
-          exit (1);
+          dpyname= argv [ ++i ];
         }
-      else USAGE ("unrecognized", argv[i]);
-      cmdstr = argv[i];
+      else if (! strncmp(s, "-dpy", L))
+        {
+          dpyname= argv [ ++i ];
+        }
+      else if (! strncmp(s, "-quiet", L))
+        {
+          verbose_p= FALSE;
+        }
+      else if (! strcmp(s, "-verbose"))
+        {
+          verbose_p= TRUE;
+        }
+      else if (! strcmp(s, "-v"))
+        {
+          verbose_p= TRUE;
+        }
+      else if (! strcmp(s, "-vv"))
+        {
+          verbose_p= 2;
+        }
+      else if (! strcmp(s, "-vvv"))
+        {
+          verbose_p= 3;
+        }
+      else if (! strcmp(s, "-vvvv"))
+        {
+          verbose_p= 4;
+        }
+      else if (cmd)
+        {
+          USAGE("extraneous", argv [ i ]);
+        }
+      else if (! strncmp(s, "-activate", L))
+        {
+          cmd= &XA_ACTIVATE;
+        }
+      else if (! strncmp(s, "-deactivate", L))
+        {
+          cmd= &XA_DEACTIVATE;
+        }
+      else if (! strncmp(s, "-suspend", L))
+        {
+          cmd= &XA_SUSPEND;
+        }
+      else if (! strncmp(s, "-cycle", L))
+        {
+          cmd= &XA_CYCLE;
+        }
+      else if (! strncmp(s, "-next", L))
+        {
+          cmd= &XA_NEXT;
+        }
+      else if (! strncmp(s, "-prev", L))
+        {
+          cmd= &XA_PREV;
+        }
+      else if (! strncmp(s, "-select", L))
+        {
+          cmd= &XA_SELECT;
+        }
+      else if (! strncmp(s, "-exit", L))
+        {
+          cmd= &XA_EXIT;
+        }
+      else if (! strncmp(s, "-restart", L))
+        {
+          cmd= &XA_RESTART;
+        }
+      else if (! strncmp(s, "-demo", L))
+        {
+          cmd= &XA_DEMO;
+        }
+      else if (! strncmp(s, "-lock", L))
+        {
+          cmd= &XA_LOCK;
+        }
+      else if (! strncmp(s, "-version", L))
+        {
+          cmd= &XA_SCREENSAVER_VERSION;
+        }
+      else if (! strncmp(s, "-time", L))
+        {
+          cmd= &XA_SCREENSAVER_STATUS;
+        }
+      else if (! strncmp(s, "-watch", L))
+        {
+          cmd= &XA_WATCH;
+        }
+      else if (! strncmp(s, "-help", L))
+        {
+          fprintf(stderr, usage, progname, screensaver_version, year);
+          exit(1);
+        }
+      else
+        {
+          USAGE("unrecognized", argv [ i ]);
+        }
+      cmdstr= argv [ i ];
 
       if (cmd == &XA_SELECT || cmd == &XA_DEMO)
-	{
-	  long a;
-	  char c;
-	  if (i+1 < argc && (1 == sscanf(argv[i+1], " %ld %c", &a, &c)))
-	    {
-              cmdstr = argv[i+1];
-	      arg = a;
-	      i++;
-	    }
-	}
+        {
+          long a;
+          char c;
+          if (i + 1 < argc && (1 == sscanf(argv [ i + 1 ], " %ld %c", &a, &c)))
+            {
+              cmdstr= argv [ i + 1 ];
+              arg= a;
+              i++;
+            }
+        }
     }
 
-  if (!cmd)
+  if (! cmd)
     USAGE("no commands", "");
 
   if (arg < 0)
-    /* no command may have a negative argument. */
-    USAGE("bad option", cmdstr);
+    {
+      /* no command may have a negative argument. */
+      USAGE("bad option", cmdstr);
+    }
   else if (arg == 0)
     {
       /* SELECT and DEMO must have a non-zero argument. */
       if (cmd == &XA_SELECT || cmd == &XA_DEMO)
-	USAGE("missing hack number", cmdstr);
+        USAGE("missing hack number", cmdstr);
     }
   else /* arg > 0 */
     {
       /* no command other than SELECT and DEMO may have a non-zero argument. */
       if (cmd != &XA_DEMO && cmd != &XA_SELECT)
-	USAGE("bad option", cmdstr);
+        USAGE("bad option", cmdstr);
     }
 
   /* Include the parent's pid with --deactivate so that the logs can give a
      hint as to what other process is preventing the screen from blanking. */
   if (cmd == &XA_DEACTIVATE)
-    arg = (long) getppid();
+    arg= (long) getppid();
 
-  if (!dpyname) dpyname = (char *) getenv ("DISPLAY");
+  if (! dpyname) dpyname= (char *) getenv("DISPLAY");
 
-  if (!dpyname)
+  if (! dpyname)
     {
-      dpyname = ":0.0";
-      fprintf (stderr,
-               "%s: warning: $DISPLAY is not set: defaulting to \"%s\"\n",
-               progname, dpyname);
+      dpyname= ":0.0";
+      fprintf(stderr,
+        "%s: warning: $DISPLAY is not set: defaulting to \"%s\"\n",
+        progname,
+        dpyname);
     }
 
   /* Make sure the X11 socket doesn't get allocated to stderr: >&- 2>&-. */
   {
-    int fd0 = open ("/dev/null", O_RDWR);
-    int fd1 = open ("/dev/null", O_RDWR);
-    int fd2 = open ("/dev/null", O_RDWR);
-    if (fd0 > 2) close (fd0);
-    if (fd1 > 2) close (fd1);
-    if (fd2 > 2) close (fd2);
+    int fd0= open("/dev/null", O_RDWR);
+    int fd1= open("/dev/null", O_RDWR);
+    int fd2= open("/dev/null", O_RDWR);
+    if (fd0 > 2) close(fd0);
+    if (fd1 > 2) close(fd1);
+    if (fd2 > 2) close(fd2);
   }
 
-  dpy = XOpenDisplay (dpyname);
-  if (!dpy)
+  dpy= XOpenDisplay(dpyname);
+  if (! dpy)
     {
-      fprintf (stderr, "%s: can't open display %s\n", progname,
-	       (dpyname ? dpyname : "(null)"));
-      exit (1);
+      fprintf(stderr, "%s: can't open display %s\n", progname, (dpyname ? dpyname : "(null)"));
+      exit(1);
     }
 
-  init_xscreensaver_atoms (dpy);
+  init_xscreensaver_atoms(dpy);
 
   if (cmd == &XA_WATCH)
     {
-      i = watch (dpy);
-      exit (i);
+      i= watch(dpy);
+      exit(i);
     }
 
-# if 0
+#if 0
   if (*cmd == XA_ACTIVATE || *cmd == XA_LOCK || *cmd == XA_SUSPEND || 
       *cmd == XA_NEXT || *cmd == XA_PREV || *cmd == XA_SELECT)
     /* People never guess that KeyRelease deactivates the screen saver too,
@@ -284,119 +361,126 @@ main (int argc, char **argv)
      */
     if (isatty(0))
       sleep (1);
-# endif
+#endif
 
-  i = xscreensaver_command (dpy, *cmd, arg, verbose_p, NULL);
-  if (i < 0) exit (i);
-  else exit (0);
+  i= xscreensaver_command(dpy, *cmd, arg, verbose_p, NULL);
+  if (i < 0)
+    exit(i);
+  else
+    exit(0);
 }
 
 
 static int
-watch (Display *dpy)
+  watch(
+    Display *dpy)
 {
-  char *v = 0;
-  Window window = RootWindow (dpy, 0);
+  char *v= 0;
+  Window window= RootWindow(dpy, 0);
   XWindowAttributes xgwa;
   XEvent event;
-  PROP32 *last = 0;
+  PROP32 *last= 0;
 
-  if (v) free (v);
-  XGetWindowAttributes (dpy, window, &xgwa);
-  XSelectInput (dpy, window, xgwa.your_event_mask | PropertyChangeMask);
+  if (v) free(v);
+  XGetWindowAttributes(dpy, window, &xgwa);
+  XSelectInput(dpy, window, xgwa.your_event_mask | PropertyChangeMask);
 
   while (1)
     {
-      XNextEvent (dpy, &event);
+      XNextEvent(dpy, &event);
       if (event.xany.type == PropertyNotify &&
-          event.xproperty.state == PropertyNewValue &&
-          event.xproperty.atom == XA_SCREENSAVER_STATUS)
+        event.xproperty.state == PropertyNewValue &&
+        event.xproperty.atom == XA_SCREENSAVER_STATUS)
         {
-	  Atom type;
-	  int format;
-	  unsigned long nitems, bytesafter;
-          unsigned char *dataP = 0;
+          Atom type;
+          int format;
+          unsigned long nitems, bytesafter;
+          unsigned char *dataP= 0;
 
           /* XA_SCREENSAVER_STATUS format documented in windows.c. */
-	  if (XGetWindowProperty (dpy,
-                                  RootWindow (dpy, 0),  /* always screen #0 */
-				  XA_SCREENSAVER_STATUS,
-				  0, 999, False, XA_INTEGER,
-				  &type, &format, &nitems, &bytesafter,
-				  &dataP)
-	      == Success
-              && type == XA_INTEGER
-              && nitems >= 3
-              && dataP)
-	    {
-              PROP32 *data = (PROP32 *) dataP;
-              time_t tt = (time_t)			/* 64 bit time_t */
-                ((((unsigned long) data[1] & 0xFFFFFFFFL) << 32) |
-                  ((unsigned long) data[2] & 0xFFFFFFFFL));
+          if (XGetWindowProperty(dpy,
+                RootWindow(dpy, 0), /* always screen #0 */
+                XA_SCREENSAVER_STATUS,
+                0,
+                999,
+                False,
+                XA_INTEGER,
+                &type,
+                &format,
+                &nitems,
+                &bytesafter,
+                &dataP) == Success &&
+            type == XA_INTEGER && nitems >= 3 && dataP)
+            {
+              PROP32 *data= (PROP32 *) dataP;
+              time_t tt= (time_t) /* 64 bit time_t */
+                ((((unsigned long) data [ 1 ] & 0xFFFFFFFFL) << 32) |
+                  ((unsigned long) data [ 2 ] & 0xFFFFFFFFL));
               char *s;
-              Bool changed = False;
-              Bool running = False;
-              Atom state = data[0];
+              Bool changed= False;
+              Bool running= False;
+              Atom state= data [ 0 ];
 
-              s = ctime(&tt);
-              if (s[strlen(s)-1] == '\n')
-                s[strlen(s)-1] = 0;
+              s= ctime(&tt);
+              if (s [ strlen(s) - 1 ] == '\n')
+                s [ strlen(s) - 1 ]= 0;
 
               /* Do not print changes to password dialog presence. */
-              if (state == XA_AUTH) state = XA_LOCK;
+              if (state == XA_AUTH) state= XA_LOCK;
 
-              if (!last || state != last[0])
+              if (! last || state != last [ 0 ])
                 {
                   /* State changed. */
                   if (state == XA_BLANK)
-                    printf ("BLANK %s\n", s);
+                    printf("BLANK %s\n", s);
                   else if (state == XA_LOCK)
-                    printf ("LOCK %s\n", s);
+                    printf("LOCK %s\n", s);
                   else if (state == 0)
-                    printf ("UNBLANK %s\n", s);
+                    printf("UNBLANK %s\n", s);
                   else
                     goto STATUS_LOSE;
                 }
 
-              if (!last)
-                changed = True;
+              if (! last)
+                {
+                  changed= True;
+                }
               else
                 {
                   int i;
-                  for (i = 2; i < nitems; i++)
+                  for (i= 2; i < nitems; i++)
                     {
-                      if (data[i] != last[i])
-                        changed = True;
-                      if (data[i])
-                        running = True;
+                      if (data [ i ] != last [ i ])
+                        changed= True;
+                      if (data [ i ])
+                        running= True;
                     }
                 }
 
               if (running && changed)
                 {
-                  int off = 3;
+                  int off= 3;
                   int i;
-                  fprintf (stdout, "RUN");
-                  for (i = off; i < nitems; i++)
-                    fprintf (stdout, " %d", (int) data[i]);
-                  fprintf (stdout, "\n");
+                  fprintf(stdout, "RUN");
+                  for (i= off; i < nitems; i++)
+                    fprintf(stdout, " %d", (int) data [ i ]);
+                  fprintf(stdout, "\n");
                 }
 
-              fflush (stdout);
+              fflush(stdout);
 
-              if (last) XFree (last);
-              last = data;
-	    }
-	  else
-	    {
-            STATUS_LOSE:
-	      fflush (stdout);
-	      fprintf (stderr, "%s: no saver status on root window\n",
-		       progname);
-	      if (last) XFree (last);
-	      if (dataP) XFree (dataP);
-	      return -1;
-	    }
+              if (last) XFree(last);
+              last= data;
+            }
+          else
+            {
+STATUS_LOSE:
+              fflush(stdout);
+              fprintf(stderr, "%s: no saver status on root window\n", progname);
+              if (last) XFree(last);
+              if (dataP) XFree(dataP);
+              return -1;
+            }
         }
     }
 }

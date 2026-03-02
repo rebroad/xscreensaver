@@ -5,7 +5,7 @@
  * the above copyright notice appear in all copies and that both that
  * copyright notice and this permission notice appear in supporting
  * documentation.  No representations are made about the suitability of this
- * software for any purpose.  It is provided "as is" without express or 
+ * software for any purpose.  It is provided "as is" without express or
  * implied warranty.
  */
 
@@ -18,22 +18,22 @@
 #import "XScreenSaverView.h"
 
 #ifdef HAVE_IPHONE
-# import <OpenGLES/EAGL.h>
-# import <OpenGLES/ES1/gl.h>
-# import <OpenGLES/ES1/glext.h>
-# import <QuartzCore/QuartzCore.h>
-# import "jwzglesI.h"
+#import <OpenGLES/EAGL.h>
+#import <OpenGLES/ES1/gl.h>
+#import <OpenGLES/ES1/glext.h>
+#import <QuartzCore/QuartzCore.h>
+#import "jwzglesI.h"
 #else
-# import <AppKit/NSOpenGL.h>
+#import <AppKit/NSOpenGL.h>
 #endif
 
 @interface XScreenSaverGLView : XScreenSaverView
 {
-# ifdef HAVE_IPHONE
+#ifdef HAVE_IPHONE
   GLuint gl_depthbuffer;
   BOOL _suppressRotationAnimation;
   jwzgles_state *_glesState;
-# endif /* HAVE_IPHONE */
+#endif /* HAVE_IPHONE */
 }
 
 @end

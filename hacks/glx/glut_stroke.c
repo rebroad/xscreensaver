@@ -5,18 +5,20 @@
    and is provided without guarantee or warrantee expressed or
    implied. This program is -not- in the public domain. */
 
-#if 0   /* for Mesa */
-# include "glutint.h"
-#else   /* for xscreensaver */
-# include "screenhackI.h"
-# undef APIENTRY
-# define APIENTRY /**/
+#if 0 /* for Mesa */
+#include "glutint.h"
+#else /* for xscreensaver */
+#include "screenhackI.h"
+#undef APIENTRY
+#define APIENTRY /**/
 #endif
 
 #include "glutstroke.h"
 
-void APIENTRY 
-glutStrokeCharacter(GLUTstrokeFont font, int c)
+void APIENTRY
+  glutStrokeCharacter(
+    GLUTstrokeFont font,
+    int c)
 {
   const StrokeCharRec *ch;
   const StrokeRec *stroke;
@@ -26,24 +28,27 @@ glutStrokeCharacter(GLUTstrokeFont font, int c)
 
 
 #if defined(_WIN32)
-  fontinfo = (StrokeFontPtr) __glutFont(font);
+  fontinfo= (StrokeFontPtr) __glutFont(font);
 #else
-  fontinfo = (StrokeFontPtr) font;
+  fontinfo= (StrokeFontPtr) font;
 #endif
 
   if (c < 0 || c >= fontinfo->num_chars)
     return;
-  ch = &(fontinfo->ch[c]);
-  if (ch) {
-    for (i = ch->num_strokes, stroke = ch->stroke;
-      i > 0; i--, stroke++) {
-      glBegin(GL_LINE_STRIP);
-      for (j = stroke->num_coords, coord = stroke->coord;
-        j > 0; j--, coord++) {
-        glVertex2f(coord->x, coord->y);
-      }
-      glEnd();
+  ch= &(fontinfo->ch [ c ]);
+  if (ch)
+    {
+      for (i= ch->num_strokes, stroke= ch->stroke;
+        i > 0;
+        i--, stroke++)
+        {
+          glBegin(GL_LINE_STRIP);
+          for (j= stroke->num_coords, coord= stroke->coord;
+            j > 0;
+            j--, coord++)
+            glVertex2f(coord->x, coord->y);
+          glEnd();
+        }
+      glTranslatef(ch->right, 0.0, 0.0);
     }
-    glTranslatef(ch->right, 0.0, 0.0);
-  }
 }

@@ -44,146 +44,148 @@ static const char sccsid[] = "@(#)vines.c	5.00 2000/11/01 xlockmore";
  */
 
 #ifdef STANDALONE
-# define MODE_vines
-# define DEFAULTS	"*delay: 200000 \n" \
+#define MODE_vines
+#define DEFAULTS	"*delay: 200000 \n" \
 					"*count: 0 \n" \
 					"*ncolors: 64 \n" \
-					"*fpsSolid: true \n" \
+					"*fpsSolid: true \n"
 
 /*				    "*lowrez: True \n" \ */
 
-# include "xlockmore.h"		/* in xscreensaver distribution */
-# define free_vines 0
-# define release_vines 0
-# define reshape_vines 0
-# define vines_handle_event 0
-#else /* STANDALONE */
-# include "xlock.h"		/* in xlockmore distribution */
-#endif /* STANDALONE */
+#include "xlockmore.h" /* in xscreensaver distribution */
+#define free_vines 0
+#define release_vines 0
+#define reshape_vines 0
+#define vines_handle_event 0
+#else              /* STANDALONE */
+#include "xlock.h" /* in xlockmore distribution */
+#endif             /* STANDALONE */
 
 #ifdef MODE_vines
 
-ENTRYPOINT ModeSpecOpt vines_opts =
-{0, (XrmOptionDescRec *) NULL, 0, (argtype *) NULL, (OptionStruct *) NULL};
+ENTRYPOINT ModeSpecOpt vines_opts=
+  {0, (XrmOptionDescRec *) NULL, 0, (argtype *) NULL, (OptionStruct *) NULL};
 
 #ifdef USE_MODULES
-ModStruct   vines_description =
-{"vines", "init_vines", "draw_vines", (char *) NULL,
- "refresh_vines", "init_vines", (char *) NULL, &vines_opts,
- 200000, 0, 1, 1, 64, 1.0, "",
- "Shows fractals", 0, NULL};
+ModStruct vines_description=
+  {"vines", "init_vines", "draw_vines", (char *) NULL, "refresh_vines", "init_vines", (char *) NULL, &vines_opts, 200000, 0, 1, 1, 64, 1.0, "", "Shows fractals", 0, NULL};
 
 #endif
 
-typedef struct {
-	int         a;
-	int         x1;
-	int         y1;
-	int         x2;
-	int         y2;
-	int         i;
-	int         length;
-	int         iterations;
-	int         constant;
-	int         ang;
-	int         centerx;
-	int         centery;
-	int         pscale;
+typedef struct
+{
+    int a;
+    int x1;
+    int y1;
+    int x2;
+    int y2;
+    int i;
+    int length;
+    int iterations;
+    int constant;
+    int ang;
+    int centerx;
+    int centery;
+    int pscale;
 } vinestruct;
 
-static vinestruct *vines = (vinestruct *) NULL;
+static vinestruct *vines= (vinestruct *) NULL;
 
 #ifndef STANDALONE
 ENTRYPOINT void
-refresh_vines(ModeInfo * mi)
+  refresh_vines(
+    ModeInfo *mi)
 {
-	MI_CLEARWINDOW(mi);
-}				/* refresh_vines */
+  MI_CLEARWINDOW(mi);
+} /* refresh_vines */
 #endif
 
 ENTRYPOINT void
-init_vines(ModeInfo * mi)
+  init_vines(
+    ModeInfo *mi)
 {
-	vinestruct *fp;
+  vinestruct *fp;
 
-	MI_INIT (mi, vines);
-	fp = &vines[MI_SCREEN(mi)];
+  MI_INIT(mi, vines);
+  fp= &vines [ MI_SCREEN(mi) ];
 
-	fp->i = 0;
-	fp->length = 0;
-	fp->iterations = 30 + NRAND(100);
+  fp->i= 0;
+  fp->length= 0;
+  fp->iterations= 30 + NRAND(100);
 
-    fp->pscale = 1;  /* Retina displays */
-    if (MI_WIDTH(mi) > 1280 || MI_HEIGHT(mi) > 1280) fp->pscale *= 3;
-    if (MI_WIDTH(mi) > 2560 || MI_HEIGHT(mi) > 2560) fp->pscale *= 2;
+  fp->pscale= 1; /* Retina displays */
+  if (MI_WIDTH(mi) > 1280 || MI_HEIGHT(mi) > 1280) fp->pscale*= 3;
+  if (MI_WIDTH(mi) > 2560 || MI_HEIGHT(mi) > 2560) fp->pscale*= 2;
 
-/*    XSetLineAttributes (MI_DISPLAY(mi), MI_GC(mi), fp->pscale,
-                          LineSolid, CapRound, JoinRound); */
+  /*    XSetLineAttributes (MI_DISPLAY(mi), MI_GC(mi), fp->pscale,
+                            LineSolid, CapRound, JoinRound); */
 
-	MI_CLEARWINDOW(mi);
-}				/* init_vines */
+  MI_CLEARWINDOW(mi);
+} /* init_vines */
 
 ENTRYPOINT void
-draw_vines(ModeInfo * mi)
+  draw_vines(
+    ModeInfo *mi)
 {
-	Display    *display = MI_DISPLAY(mi);
-	GC          gc = MI_GC(mi);
-	int         count;
-	vinestruct *fp;
+  Display *display= MI_DISPLAY(mi);
+  GC gc= MI_GC(mi);
+  int count;
+  vinestruct *fp;
 
-	if (vines == NULL)
-		return;
-	fp = &vines[MI_SCREEN(mi)];
+  if (vines == NULL)
+    return;
+  fp= &vines [ MI_SCREEN(mi) ];
 
-	MI_IS_DRAWN(mi) = True;
-	if (fp->i >= fp->length) {
-		if (--(fp->iterations) == 0) {
-			init_vines(mi);
-			return;
-		}
-		fp->centerx = NRAND(MI_WIDTH(mi));
-		fp->centery = NRAND(MI_HEIGHT(mi));
+  MI_IS_DRAWN(mi)= True;
+  if (fp->i >= fp->length)
+    {
+      if (--(fp->iterations) == 0)
+        {
+          init_vines(mi);
+          return;
+        }
+      fp->centerx= NRAND(MI_WIDTH(mi));
+      fp->centery= NRAND(MI_HEIGHT(mi));
 
-		fp->ang = 60 + NRAND(720);
-		fp->length = 100 + NRAND(3000);
-        fp->length *= fp->pscale;
-		fp->constant = fp->length * (10 + NRAND(10));
+      fp->ang= 60 + NRAND(720);
+      fp->length= 100 + NRAND(3000);
+      fp->length*= fp->pscale;
+      fp->constant= fp->length * (10 + NRAND(10));
 
-		fp->i = 0;
-		fp->a = 0;
-		fp->x1 = 0;
-		fp->y1 = 0;
-		fp->x2 = 1;
-		fp->y2 = 0;
+      fp->i= 0;
+      fp->a= 0;
+      fp->x1= 0;
+      fp->y1= 0;
+      fp->x2= 1;
+      fp->y2= 0;
 
-		if (MI_NPIXELS(mi) > 2)
-			XSetForeground(display, gc, MI_PIXEL(mi, NRAND(MI_NPIXELS(mi))));
-		else
-			XSetForeground(display, gc, MI_WHITE_PIXEL(mi));
-	}
-	count = fp->i + MI_COUNT(mi);
-	if ((count <= fp->i) || (count > fp->length))
-		count = fp->length;
+      if (MI_NPIXELS(mi) > 2)
+        XSetForeground(display, gc, MI_PIXEL(mi, NRAND(MI_NPIXELS(mi))));
+      else
+        XSetForeground(display, gc, MI_WHITE_PIXEL(mi));
+    }
+  count= fp->i + MI_COUNT(mi);
+  if ((count <= fp->i) || (count > fp->length))
+    count= fp->length;
 
-	while (fp->i < count) {
-		XDrawLine(display, MI_WINDOW(mi), gc,
-			  fp->centerx + (fp->x1 / fp->constant),
-			  fp->centery - (fp->y1 / fp->constant),
-			  fp->centerx + (fp->x2 / fp->constant),
-			  fp->centery - (fp->y2 / fp->constant));
+  while (fp->i < count)
+    {
+      XDrawLine(display, MI_WINDOW(mi), gc, fp->centerx + (fp->x1 / fp->constant), fp->centery - (fp->y1 / fp->constant), fp->centerx + (fp->x2 / fp->constant), fp->centery - (fp->y2 / fp->constant));
 
-		fp->a += (fp->ang * fp->i);
+      fp->a+= (fp->ang * fp->i);
 
-		fp->x1 = fp->x2;
-		fp->y1 = fp->y2;
+      fp->x1= fp->x2;
+      fp->y1= fp->y2;
 
-		fp->x2 += (int) (fp->i * (cos((double) fp->a) * 360.0) / (2.0 * M_PI));
-		fp->y2 += (int) (fp->i * (sin((double) fp->a) * 360.0) / (2.0 * M_PI));
-		fp->i++;
-	}
-}				/* draw_vines */
+      fp->x2+= (int) (fp->i * (cos((double) fp->a) * 360.0) / (2.0 * M_PI));
+      fp->y2+= (int) (fp->i * (sin((double) fp->a) * 360.0) / (2.0 * M_PI));
+      fp->i++;
+    }
+} /* draw_vines */
 
 
-XSCREENSAVER_MODULE ("Vines", vines)
+XSCREENSAVER_MODULE(
+  "Vines",
+  vines)
 
 #endif /* MODE_vines */

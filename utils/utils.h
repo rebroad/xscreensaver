@@ -5,12 +5,12 @@
  * the above copyright notice appear in all copies and that both that
  * copyright notice and this permission notice appear in supporting
  * documentation.  No representations are made about the suitability of this
- * software for any purpose.  It is provided "as is" without express or 
+ * software for any purpose.  It is provided "as is" without express or
  * implied warranty.
  */
 
 #ifdef HAVE_CONFIG_H
-# include "config.h"
+#include "config.h"
 #endif
 
 #include <stdlib.h>
@@ -19,9 +19,9 @@
 #include <math.h>
 
 #ifdef HAVE_JWXYZ
-# include "jwxyz.h"
+#include "jwxyz.h"
 #else /* real X11 */
-# include <X11/Xlib.h>
-# include <X11/Xutil.h>
-# include <X11/Xos.h>
+#include <X11/Xlib.h>
+#include <X11/Xutil.h>
+#include <X11/Xos.h>
 #endif /* !HAVE_JWXYZ */

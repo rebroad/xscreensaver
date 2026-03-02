@@ -5,7 +5,7 @@
  * the above copyright notice appear in all copies and that both that
  * copyright notice and this permission notice appear in supporting
  * documentation.  No representations are made about the suitability of this
- * software for any purpose.  It is provided "as is" without express or 
+ * software for any purpose.  It is provided "as is" without express or
  * implied warranty.
  *
  * XScreenSaver Daemon, version 6.
@@ -42,7 +42,7 @@
  */
 
 #ifdef HAVE_CONFIG_H
-# include "config.h"
+#include "config.h"
 #endif
 
 #include <stdio.h>
@@ -59,8 +59,8 @@
 #include <pwd.h>
 
 #ifdef ENABLE_NLS
-# include <locale.h>
-# include <libintl.h>
+#include <locale.h>
+#include <libintl.h>
 #endif
 
 #include "xscreensaver.h"
@@ -72,19 +72,18 @@
 #include "auth.h"
 
 #ifdef __GNUC__
- __extension__     /* shut up about "string length is greater than the length
-                      ISO C89 compilers are required to support" when including
-                      the .ad file... */
+__extension__ /* shut up about "string length is greater than the length
+                 ISO C89 compilers are required to support" when including
+                 the .ad file... */
 #endif
 
-static char *defaults[] = {
+  static char *defaults []= {
 #include "XScreenSaver_ad.h"
- 0
-};
+    0};
 
 
-char *progclass = 0;
-Bool debug_p = False;
+char *progclass= 0;
+Bool debug_p= False;
 
 
 #ifdef HAVE_PROC_OOM
@@ -126,57 +125,62 @@ Bool debug_p = False;
        echo vm.overcommit_memory = 2 >> /etc/sysctl.conf
  */
 static void
-oom_assassin_immunity (void)
+  oom_assassin_immunity(
+    void)
 {
-# define OOM_VAL "-1000"
-  char fn[1024];
+#define OOM_VAL "-1000"
+  char fn [ 1024 ];
   struct stat st;
   FILE *fd;
-  pid_t pid = getppid();  /* our parent, not us */
+  pid_t pid= getppid(); /* our parent, not us */
 
-  sprintf (fn, "/proc/%d/oom_score_adj", pid);
+  sprintf(fn, "/proc/%d/oom_score_adj", pid);
   if (stat(fn, &st) != 0)
     {
       if (verbose_p)
-        fprintf (stderr, "%s: OOM: %s does not exist\n", blurb(), fn);
+        fprintf(stderr, "%s: OOM: %s does not exist\n", blurb(), fn);
       return;
     }
-  fd = fopen (fn, "w");
-  if (!fd) goto FAIL;
-  if (fputs (OOM_VAL "\n", fd) <= 0) goto FAIL;
-  if (fclose (fd) != 0) goto FAIL;
+  fd= fopen(fn, "w");
+  if (! fd) goto FAIL;
+  if (fputs(OOM_VAL "\n", fd) <= 0) goto FAIL;
+  if (fclose(fd) != 0) goto FAIL;
 
   if (verbose_p)
-    fprintf (stderr, "%s: OOM: echo " OOM_VAL " > %s\n", blurb(), fn);
+    fprintf(stderr, "%s: OOM: echo " OOM_VAL " > %s\n", blurb(), fn);
   return;
 
- FAIL:
+FAIL:
   {
-    char buf[1024];
-    const char *b = blurb();
-    sprintf (buf, "%.40s: OOM: %.200s", b, fn);
-    perror (buf);
+    char buf [ 1024 ];
+    const char *b= blurb();
+    sprintf(buf, "%.40s: OOM: %.200s", b, fn);
+    perror(buf);
     if (getuid() == geteuid())
-      fprintf (stderr,
-               "%s:   To prevent the kernel from randomly unlocking\n"
-               "%s:   your screen via the out-of-memory killer,\n"
-               "%s:   \"%s\" must be setuid root.\n",
-               b, b, b, progname);
+      fprintf(stderr,
+        "%s:   To prevent the kernel from randomly unlocking\n"
+        "%s:   your screen via the out-of-memory killer,\n" "%s:   \"%s\" must be setuid root.\n",
+        b,
+        b,
+        b,
+        progname);
   }
 }
 #endif /* HAVE_PROC_OOM */
 
 
 #ifndef HAVE_DPMS_EXTENSION
-# define dpms_init (dpy) /** */
+#define dpms_init (dpy) /** */
 
 #else /* HAVE_DPMS_EXTENSION */
 
-# include <X11/Xproto.h>
-# include <X11/extensions/dpms.h>
+#include <X11/Xproto.h>
+#include <X11/extensions/dpms.h>
 
 static int
-ignore_all_errors_ehandler (Display *dpy, XErrorEvent *error)
+  ignore_all_errors_ehandler(
+    Display *dpy,
+    XErrorEvent *error)
 {
   return 0;
 }
@@ -206,105 +210,130 @@ ignore_all_errors_ehandler (Display *dpy, XErrorEvent *error)
    of linking only the bare minimum into the daemon itself.
  */
 static void
-dpms_init (Display *dpy)
+  dpms_init(
+    Display *dpy)
 {
   int ev, err;
   XErrorHandler old_handler;
-  XSync (dpy, False);
-  old_handler = XSetErrorHandler (ignore_all_errors_ehandler);
-  XSync (dpy, False);
+  XSync(dpy, False);
+  old_handler= XSetErrorHandler(ignore_all_errors_ehandler);
+  XSync(dpy, False);
 
-  if (DPMSQueryExtension (dpy, &ev, &err))
+  if (DPMSQueryExtension(dpy, &ev, &err))
     {
-      DPMSForceLevel (dpy, DPMSModeOn);
-      DPMSDisable (dpy);
+      DPMSForceLevel(dpy, DPMSModeOn);
+      DPMSDisable(dpy);
     }
-  XSetScreenSaver (dpy, 0, 0, 0, 0);
+  XSetScreenSaver(dpy, 0, 0, 0, 0);
 
-  XSync (dpy, False);
-  XSetErrorHandler (old_handler);
+  XSync(dpy, False);
+  XSetErrorHandler(old_handler);
 }
 #endif /* HAVE_DPMS_EXTENSION */
 
 
-int
-main (int argc, char **argv)
+int main(
+  int argc,
+  char **argv)
 {
   Display *dpy;
   XtAppContext app;
   Widget root_widget;
-  char *dpy_str = getenv ("DISPLAY");
-  Bool xsync_p = False;
-  int splash_p = 0;
-  Bool init_p = False;
+  char *dpy_str= getenv("DISPLAY");
+  Bool xsync_p= False;
+  int splash_p= 0;
+  Bool init_p= False;
   int i;
 
-# undef ya_rand_init
-  ya_rand_init (0);
+#undef ya_rand_init
+  ya_rand_init(0);
 
   /* For Xt and X resource database purposes, this program is
      "xscreensaver", not "xscreensaver-auth".
    */
   {
-    char *s = strrchr(argv[0], '/');
-    if (s) s++;
-    else s = argv[0];
-    if (strlen(s) > 20)	/* keep it short. */
-      s[20] = 0;
-    progname = s;
+    char *s= strrchr(argv [ 0 ], '/');
+    if (s)
+      s++;
+    else
+      s= argv [ 0 ];
+    if (strlen(s) > 20) /* keep it short. */
+      s [ 20 ]= 0;
+    progname= s;
   }
 
-  progclass = "XScreenSaver";
-  argv[0] = "xscreensaver";
+  progclass= "XScreenSaver";
+  argv [ 0 ]= "xscreensaver";
 
-  if (! dpy_str) dpy_str = ":0";
+  if (! dpy_str) dpy_str= ":0";
 
-  for (i = 1; i < argc; i++)
+  for (i= 1; i < argc; i++)
     {
-      const char *oa = argv[i];
+      const char *oa= argv [ i ];
       /* XScreenSaver predates the "--arg" convention. */
-      if (argv[i][0] == '-' && argv[i][1] == '-')
-        argv[i]++;
+      if (argv [ i ][ 0 ] == '-' && argv [ i ][ 1 ] == '-')
+        argv [ i ]++;
 
-      if (!strcmp (argv[i], "-v") || !strcmp (argv[i], "-verbose"))
-        verbose_p++;
-      else if (!strcmp (argv[i], "-vv"))   verbose_p += 2;
-      else if (!strcmp (argv[i], "-vvv"))  verbose_p += 3;
-      else if (!strcmp (argv[i], "-vvvv")) verbose_p += 4;
-      else if (!strcmp (argv[i], "-q") || !strcmp (argv[i], "-quiet"))
-        verbose_p = False;
-      else if (!strcmp (argv[i], "-debug"))
-        /* Does nothing else at the moment but warn that "xscreensaver"
-           is logging keystrokes to stderr. */
-        debug_p = True;
-      else if (!strcmp (argv[i], "-d") ||
-               !strcmp (argv[i], "-dpy") ||
-               !strcmp (argv[i], "-disp") ||
-               !strcmp (argv[i], "-display"))
+      if (! strcmp(argv [ i ], "-v") || ! strcmp(argv [ i ], "-verbose"))
         {
-          dpy_str = argv[++i];
-          if (!dpy_str) goto HELP;
+          verbose_p++;
         }
-      else if (!strcmp (argv[i], "-ver") ||
-               !strcmp (argv[i], "-vers") ||
-               !strcmp (argv[i], "-version"))
+      else if (! strcmp(argv [ i ], "-vv"))
         {
-          fprintf (stderr, "%s\n", screensaver_id+4);
-          exit (1);
+          verbose_p+= 2;
         }
-      else if (!strcmp (argv[i], "-sync") ||
-               !strcmp (argv[i], "-synch") ||
-               !strcmp (argv[i], "-synchronize") ||
-               !strcmp (argv[i], "-synchronise"))
-        xsync_p = True;
-      else if (!strcmp (argv[i], "-splash"))
-        splash_p++;  /* 0, 1 or 2 */
-      else if (!strcmp (argv[i], "-init"))
-        init_p = True;
-      else if (!strcmp (argv[i], "-h") || !strcmp (argv[i], "-help"))
+      else if (! strcmp(argv [ i ], "-vvv"))
         {
-        HELP:
-          fprintf (stderr,
+          verbose_p+= 3;
+        }
+      else if (! strcmp(argv [ i ], "-vvvv"))
+        {
+          verbose_p+= 4;
+        }
+      else if (! strcmp(argv [ i ], "-q") || ! strcmp(argv [ i ], "-quiet"))
+        {
+          verbose_p= False;
+        }
+      else if (! strcmp(argv [ i ], "-debug"))
+        {
+          /* Does nothing else at the moment but warn that "xscreensaver"
+             is logging keystrokes to stderr. */
+          debug_p= True;
+        }
+      else if (! strcmp(argv [ i ], "-d") ||
+        ! strcmp(argv [ i ], "-dpy") ||
+        ! strcmp(argv [ i ], "-disp") ||
+        ! strcmp(argv [ i ], "-display"))
+        {
+          dpy_str= argv [ ++i ];
+          if (! dpy_str) goto HELP;
+        }
+      else if (! strcmp(argv [ i ], "-ver") ||
+        ! strcmp(argv [ i ], "-vers") ||
+        ! strcmp(argv [ i ], "-version"))
+        {
+          fprintf(stderr, "%s\n", screensaver_id + 4);
+          exit(1);
+        }
+      else if (! strcmp(argv [ i ], "-sync") ||
+        ! strcmp(argv [ i ], "-synch") ||
+        ! strcmp(argv [ i ], "-synchronize") ||
+        ! strcmp(argv [ i ], "-synchronise"))
+        {
+          xsync_p= True;
+        }
+      else if (! strcmp(argv [ i ], "-splash"))
+        {
+          splash_p++; /* 0, 1 or 2 */
+        }
+      else if (! strcmp(argv [ i ], "-init"))
+        {
+          init_p= True;
+        }
+      else if (! strcmp(argv [ i ], "-h") || ! strcmp(argv [ i ], "-help"))
+        {
+HELP:
+          fprintf(stderr,
             "\n"
             "\txscreensaver-auth is launched by the xscreensaver daemon\n"
             "\tto authenticate the user by prompting for a password.\n"
@@ -314,98 +343,95 @@ main (int argc, char **argv)
             "\t\t--dpy host:display.screen\n"
             "\t\t--verbose --sync --splash --init\n"
             "\n"
-            "\tRun 'xscreensaver-settings' to configure.\n"
-            "\n");
-          exit (1);
+            "\tRun 'xscreensaver-settings' to configure.\n" "\n");
+          exit(1);
         }
       else
         {
-          fprintf (stderr, "\n%s: unknown option: %s\n", blurb(), oa);
+          fprintf(stderr, "\n%s: unknown option: %s\n", blurb(), oa);
           goto HELP;
         }
     }
 
-  if (!splash_p && init_p)
+  if (! splash_p && init_p)
     {
-      const char *v = XSCREENSAVER_VERSION;
-      if (strstr (v, "a") || strstr (v, "b"))
-        splash_p = True;  /* Not optional for alpha and beta releases */
+      const char *v= XSCREENSAVER_VERSION;
+      if (strstr(v, "a") || strstr(v, "b"))
+        splash_p= True; /* Not optional for alpha and beta releases */
     }
 
-# ifdef HAVE_PROC_OOM
+#ifdef HAVE_PROC_OOM
   if (splash_p == 1 || init_p)
-    oom_assassin_immunity ();
-# endif
+    oom_assassin_immunity();
+#endif
 
-  if (!splash_p && !init_p)
-    lock_priv_init ();
+  if (! splash_p && ! init_p)
+    lock_priv_init();
 
-  disavow_privileges ();
+  disavow_privileges();
 
-  if (!splash_p && !init_p)
-    lock_init ();
+  if (! splash_p && ! init_p)
+    lock_init();
 
   /* Setting the locale is necessary for XLookupString to return multi-byte
      characters, enabling their use in passwords.
    */
-# ifdef ENABLE_NLS
+#ifdef ENABLE_NLS
   {
-    bindtextdomain (GETTEXT_PACKAGE, LOCALEDIR);
-    textdomain (GETTEXT_PACKAGE);
-    bind_textdomain_codeset (GETTEXT_PACKAGE, "UTF-8");
-    if (!setlocale (LC_ALL, ""))
-      fprintf (stderr, "%s: warning: could not set default locale\n",
-               progname);
+    bindtextdomain(GETTEXT_PACKAGE, LOCALEDIR);
+    textdomain(GETTEXT_PACKAGE);
+    bind_textdomain_codeset(GETTEXT_PACKAGE, "UTF-8");
+    if (! setlocale(LC_ALL, ""))
+      fprintf(stderr, "%s: warning: could not set default locale\n", progname);
   }
-# endif /* ENABLE_NLS */
+#endif /* ENABLE_NLS */
 
 
   /* Copy the -dpy arg to $DISPLAY for subprocesses. */
   {
-    char *s = (char *) malloc (strlen(dpy_str) + 20);
-    sprintf (s, "DISPLAY=%s", dpy_str);
-    putenv (s);
-    /* free (s); */  /* some versions of putenv do not copy */
+    char *s= (char *) malloc(strlen(dpy_str) + 20);
+    sprintf(s, "DISPLAY=%s", dpy_str);
+    putenv(s);
+    /* free (s); */ /* some versions of putenv do not copy */
   }
 
   /* Open the display */
   {
     XrmOptionDescRec options;
-    argc = 1;   /* Xt does not receive any of our command-line options. */
-    root_widget = XtAppInitialize (&app, progclass, &options, 0,
-                                   &argc, argv, defaults, 0, 0);
+    argc= 1; /* Xt does not receive any of our command-line options. */
+    root_widget= XtAppInitialize(&app, progclass, &options, 0, &argc, argv, defaults, 0, 0);
   }
 
-  dpy = XtDisplay (root_widget);
-  if (xsync_p) XSynchronize (dpy, True);
-  init_xscreensaver_atoms (dpy);
+  dpy= XtDisplay(root_widget);
+  if (xsync_p) XSynchronize(dpy, True);
+  init_xscreensaver_atoms(dpy);
 
   if (splash_p == 1 || init_p)
-    dpms_init (dpy);
+    dpms_init(dpy);
 
-  if (!splash_p && init_p)
+  if (! splash_p && init_p)
     {
-      exit (0);
+      exit(0);
     }
   else if (splash_p)
     {
       /* Settings button is disabled with --splash --splash */
-      xscreensaver_splash (root_widget, splash_p > 1);
-      exit (0);
+      xscreensaver_splash(root_widget, splash_p > 1);
+      exit(0);
     }
-  else if (xscreensaver_auth ((void *) root_widget,
-                              xscreensaver_auth_conv,
-                              xscreensaver_auth_finished))
+  else if (xscreensaver_auth((void *) root_widget,
+             xscreensaver_auth_conv,
+             xscreensaver_auth_finished))
     {
       if (verbose_p)
-        fprintf (stderr, "%s: authentication succeeded\n", blurb());
-      exit (200);
+        fprintf(stderr, "%s: authentication succeeded\n", blurb());
+      exit(200);
     }
   else
     {
       if (verbose_p)
-        fprintf (stderr, "%s: authentication failed\n", blurb());
-      exit (-1);
+        fprintf(stderr, "%s: authentication failed\n", blurb());
+      exit(-1);
     }
 
   /* On timeout, xscreensaver_auth did exit(0) */

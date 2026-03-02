@@ -26,9 +26,9 @@
 
 /**
  Private API for determining if the system needs authorization access to update a bundle path
- 
+
  This API is not supported when used directly from a Sandboxed applications and will always return @c YES in that case.
- 
+
  @param bundlePath The bundle path to test if authorization is needed when performing an update that replaces this bundle.
  @return @c YES if Sparkle thinks authorization is needed to update the @c bundlePath, otherwise @c NO.
  */

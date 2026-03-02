@@ -5,19 +5,18 @@
  * the above copyright notice appear in all copies and that both that
  * copyright notice and this permission notice appear in supporting
  * documentation.  No representations are made about the suitability of this
- * software for any purpose.  It is provided "as is" without express or 
+ * software for any purpose.  It is provided "as is" without express or
  * implied warranty.
  */
 
 #ifndef _XSCREENSAVER_REMOTE_H_
 #define _XSCREENSAVER_REMOTE_H_
 
-extern int xscreensaver_command (Display *dpy, Atom command, long arg,
-				 Bool verbose_p, char **error_ret);
+extern int xscreensaver_command(Display *dpy, Atom command, long arg, Bool verbose_p, char **error_ret);
 
-extern void server_xscreensaver_version (Display *dpy,
-					 char **version_ret,
-					 char **user_ret,
-					 char **host_ret);
+extern void server_xscreensaver_version(Display *dpy,
+  char **version_ret,
+  char **user_ret,
+  char **host_ret);
 
 #endif /* _XSCREENSAVER_REMOTE_H_ */

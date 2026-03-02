@@ -6,7 +6,7 @@
  * the above copyright notice appear in all copies and that both that
  * copyright notice and this permission notice appear in supporting
  * documentation.  No representations are made about the suitability of this
- * software for any purpose.  It is provided "as is" without express or 
+ * software for any purpose.  It is provided "as is" without express or
  * implied warranty.
  */
 
@@ -18,29 +18,29 @@ typedef struct trackball_state trackball_state;
 /* Returns a trackball_state object, which encapsulates the stuff necessary
    to make dragging the mouse on the window of a GL program do the right thing.
  */
-extern trackball_state *gltrackball_init (int ignore_device_rotation_p);
-extern void gltrackball_free (trackball_state *);
+extern trackball_state *gltrackball_init(int ignore_device_rotation_p);
+extern void gltrackball_free(trackball_state *);
 
 /* Begin tracking the mouse: Call this when the mouse button goes down.
    x and y are the mouse position relative to the window.
    w and h are the size of the window.
  */
-extern void gltrackball_start (trackball_state *, int x, int y, int w, int h);
+extern void gltrackball_start(trackball_state *, int x, int y, int w, int h);
 
 /* Track the mouse: Call this each time the mouse moves with the button down.
    x and y are the new mouse position relative to the window.
    w and h are the size of the window.
  */
-extern void gltrackball_track (trackball_state *, int x, int y, int w, int h);
+extern void gltrackball_track(trackball_state *, int x, int y, int w, int h);
 
 /* Stop tracking the mouse: Call this when the mouse button goes up.
  */
-extern void gltrackball_stop (trackball_state *);
+extern void gltrackball_stop(trackball_state *);
 
 /* Execute the rotations current encapsulated in the trackball_state:
    this does something analogous to glRotatef().
  */
-extern void gltrackball_rotate (trackball_state *);
+extern void gltrackball_rotate(trackball_state *);
 
 /* Call this when a mouse-wheel click is detected.
    Clicks act like horizontal or vertical drags.
@@ -49,25 +49,28 @@ extern void gltrackball_rotate (trackball_state *);
    or 'Button5' or 'Button6' (for the horizontal wheel).
    If `flip_p' is true, swap the horizontal and vertical axes.
  */
-void gltrackball_mousewheel (trackball_state *ts,
-                             int button, int percent, int flip_p);
+void gltrackball_mousewheel(trackball_state *ts,
+  int button,
+  int percent,
+  int flip_p);
 
 /* Return the quaternion encapsulated by the trackball state.
  */
-extern void gltrackball_get_quaternion (trackball_state *ts, float q[4]);
+extern void gltrackball_get_quaternion(trackball_state *ts, float q [ 4 ]);
 
 /* Reset the trackball to the default unrotated state,
    plus an optional initial rotation.
  */
-extern void gltrackball_reset (trackball_state *ts, float x, float y);
+extern void gltrackball_reset(trackball_state *ts, float x, float y);
 
 /* A utility function for event-handler functions:
    Handles the various motion and click events related to trackballs.
    Returns True if the event was handled.
  */
-extern Bool gltrackball_event_handler (XEvent *,
-                                       trackball_state *,
-                                       int window_width, int window_height,
-                                       Bool *button_down_p);
+extern Bool gltrackball_event_handler(XEvent *,
+  trackball_state *,
+  int window_width,
+  int window_height,
+  Bool *button_down_p);
 
 #endif /* __GLTRACKBALL_H__ */

@@ -129,22 +129,22 @@ static const char sccsid[] = "@(#)juggle.c	5.10 2003/09/02 xlockmore";
 #undef MEMTEST
 
 #ifdef STANDALONE
-# define MODE_juggle
-# define DEFAULTS	"*delay:   10000 \n" \
+#define MODE_juggle
+#define DEFAULTS	"*delay:   10000 \n" \
 					"*count:   200   \n" \
 					"*cycles:  1000  \n" \
 					"*ncolors: 32    \n" \
 					"*font:    -*-helvetica-bold-r-normal-*-180-*\n" \
-					"*fpsSolid: true\n" \
+					"*fpsSolid: true\n"
 
-# define release_juggle 0
-# define reshape_juggle 0
-# define juggle_handle_event 0
-# undef SMOOTH_COLORS
-# include "xlockmore.h"		/* in xscreensaver distribution */
-#else /* STANDALONE */
-# include "xlock.h"		/* in xlockmore distribution */
-#endif /* STANDALONE */
+#define release_juggle 0
+#define reshape_juggle 0
+#define juggle_handle_event 0
+#undef SMOOTH_COLORS
+#include "xlockmore.h" /* in xscreensaver distribution */
+#else                  /* STANDALONE */
+#include "xlock.h"     /* in xlockmore distribution */
+#endif                 /* STANDALONE */
 
 #ifdef MODE_juggle
 
@@ -192,82 +192,95 @@ static Bool rings;
 static Bool bballs;
 static char *only;
 
-static XrmOptionDescRec opts[] =
-{
-  {"-pattern",  ".juggle.pattern",  XrmoptionSepArg, NULL  },
-  {"-tail",     ".juggle.tail",     XrmoptionSepArg, NULL  },
+static XrmOptionDescRec opts []=
+  {
+    {"-pattern", ".juggle.pattern", XrmoptionSepArg, NULL},
+    {"-tail", ".juggle.tail", XrmoptionSepArg, NULL},
 #ifdef UNI
-  {"-uni",      ".juggle.uni",      XrmoptionNoArg,  "on"  },
-  {"+uni",      ".juggle.uni",      XrmoptionNoArg,  "off" },
+    {"-uni", ".juggle.uni", XrmoptionNoArg, "on"},
+    {"+uni", ".juggle.uni", XrmoptionNoArg, "off"},
 #endif
-  {"-real",     ".juggle.real",     XrmoptionNoArg,  "on"  },
-  {"+real",     ".juggle.real",     XrmoptionNoArg,  "off" },
-  {"-describe", ".juggle.describe", XrmoptionNoArg,  "on"  },
-  {"+describe", ".juggle.describe", XrmoptionNoArg,  "off" },
-  {"-balls",    ".juggle.balls",    XrmoptionNoArg,  "on"  },
-  {"+balls",    ".juggle.balls",    XrmoptionNoArg,  "off" },
-  {"-clubs",    ".juggle.clubs",    XrmoptionNoArg,  "on"  },
-  {"+clubs",    ".juggle.clubs",    XrmoptionNoArg,  "off" },
-  {"-torches",  ".juggle.torches",  XrmoptionNoArg,  "on"  },
-  {"+torches",  ".juggle.torches",  XrmoptionNoArg,  "off" },
-  {"-knives",   ".juggle.knives",   XrmoptionNoArg,  "on"  },
-  {"+knives",   ".juggle.knives",   XrmoptionNoArg,  "off" },
-  {"-rings",    ".juggle.rings",    XrmoptionNoArg,  "on"  },
-  {"+rings",    ".juggle.rings",    XrmoptionNoArg,  "off" },
-  {"-bballs",   ".juggle.bballs",   XrmoptionNoArg,  "on"  },
-  {"+bballs",   ".juggle.bballs",   XrmoptionNoArg,  "off" },
-  {"-only",     ".juggle.only",     XrmoptionSepArg, NULL  },
+    {"-real", ".juggle.real", XrmoptionNoArg, "on"},
+    {"+real", ".juggle.real", XrmoptionNoArg, "off"},
+    {"-describe", ".juggle.describe", XrmoptionNoArg, "on"},
+    {"+describe", ".juggle.describe", XrmoptionNoArg, "off"},
+    {"-balls", ".juggle.balls", XrmoptionNoArg, "on"},
+    {"+balls", ".juggle.balls", XrmoptionNoArg, "off"},
+    {"-clubs", ".juggle.clubs", XrmoptionNoArg, "on"},
+    {"+clubs", ".juggle.clubs", XrmoptionNoArg, "off"},
+    {"-torches", ".juggle.torches", XrmoptionNoArg, "on"},
+    {"+torches", ".juggle.torches", XrmoptionNoArg, "off"},
+    {"-knives", ".juggle.knives", XrmoptionNoArg, "on"},
+    {"+knives", ".juggle.knives", XrmoptionNoArg, "off"},
+    {"-rings", ".juggle.rings", XrmoptionNoArg, "on"},
+    {"+rings", ".juggle.rings", XrmoptionNoArg, "off"},
+    {"-bballs", ".juggle.bballs", XrmoptionNoArg, "on"},
+    {"+bballs", ".juggle.bballs", XrmoptionNoArg, "off"},
+    {"-only", ".juggle.only", XrmoptionSepArg, NULL},
 };
-static argtype vars[] =
-{
-  { &pattern,  "pattern",  "Pattern",  DEF_PATTERN,  t_String },
-  { &tail,     "tail",     "Tail",     DEF_TAIL,     t_Int    },
+static argtype vars []=
+  {
+    {&pattern, "pattern", "Pattern", DEF_PATTERN, t_String},
+    {&tail, "tail", "Tail", DEF_TAIL, t_Int},
 #ifdef UNI
-  { &uni,      "uni",      "Uni",      DEF_UNI,      t_Bool   },
+    {&uni, "uni", "Uni", DEF_UNI, t_Bool},
 #endif
-  { &real,     "real",     "Real",     DEF_REAL,     t_Bool   },
-  { &describe, "describe", "Describe", DEF_DESCRIBE, t_Bool   },
-  { &balls,    "balls",    "Clubs",    DEF_BALLS,    t_Bool   },
-  { &clubs,    "clubs",    "Clubs",    DEF_CLUBS,    t_Bool   },
-  { &torches,  "torches",  "Torches",  DEF_TORCHES,  t_Bool   },
-  { &knives,   "knives",   "Knives",   DEF_KNIVES,   t_Bool   },
-  { &rings,    "rings",    "Rings",    DEF_RINGS,    t_Bool   },
-  { &bballs,   "bballs",   "BBalls",   DEF_BBALLS,   t_Bool   },
-  { &only,     "only",     "BBalls",   " ",          t_String },
+    {&real, "real", "Real", DEF_REAL, t_Bool},
+    {&describe, "describe", "Describe", DEF_DESCRIBE, t_Bool},
+    {&balls, "balls", "Clubs", DEF_BALLS, t_Bool},
+    {&clubs, "clubs", "Clubs", DEF_CLUBS, t_Bool},
+    {&torches, "torches", "Torches", DEF_TORCHES, t_Bool},
+    {&knives, "knives", "Knives", DEF_KNIVES, t_Bool},
+    {&rings, "rings", "Rings", DEF_RINGS, t_Bool},
+    {&bballs, "bballs", "BBalls", DEF_BBALLS, t_Bool},
+    {&only, "only", "BBalls", " ", t_String},
 };
-static OptionStruct desc[] =
-{
-  { "-pattern string", "Cambridge Juggling Pattern" },
-  { "-tail num",       "Trace Juggling Patterns" },
+static OptionStruct desc []=
+  {
+    {"-pattern string", "Cambridge Juggling Pattern"},
+    {"-tail num", "Trace Juggling Patterns"},
 #ifdef UNI
-  { "-/+uni",          "Unicycle" },
+    {"-/+uni", "Unicycle"},
 #endif
-  { "-/+real",         "Real-time" },
-  { "-/+describe",     "turn on/off pattern descriptions." },
-  { "-/+balls",        "turn on/off Balls." },
-  { "-/+clubs",        "turn on/off Clubs." },
-  { "-/+torches",      "turn on/off Flaming Torches." },
-  { "-/+knives",       "turn on/off Knives." },
-  { "-/+rings",        "turn on/off Rings." },
-  { "-/+bballs",       "turn on/off Bowling Balls." },
-  { "-only",           "Turn off all objects but the named one." },
+    {"-/+real", "Real-time"},
+    {"-/+describe", "turn on/off pattern descriptions."},
+    {"-/+balls", "turn on/off Balls."},
+    {"-/+clubs", "turn on/off Clubs."},
+    {"-/+torches", "turn on/off Flaming Torches."},
+    {"-/+knives", "turn on/off Knives."},
+    {"-/+rings", "turn on/off Rings."},
+    {"-/+bballs", "turn on/off Bowling Balls."},
+    {"-only", "Turn off all objects but the named one."},
 };
 
-ENTRYPOINT ModeSpecOpt juggle_opts =
-  { XtNumber(opts), opts, XtNumber(vars), vars, desc };
+ENTRYPOINT ModeSpecOpt juggle_opts=
+  {XtNumber(opts), opts, XtNumber(vars), vars, desc};
 
 #ifdef USE_MODULES
-ModStruct   juggle_description = {
-	"juggle", "init_juggle", "draw_juggle", (char *) NULL,
-	"draw_juggle", "change_juggle", "free_juggle", &juggle_opts,
-	10000, 200, 1000, 1, 64, 1.0, "",
-	"Shows a Juggler, juggling", 0, NULL
-};
+ModStruct juggle_description= {
+  "juggle",
+  "init_juggle",
+  "draw_juggle",
+  (char *) NULL,
+  "draw_juggle",
+  "change_juggle",
+  "free_juggle",
+  &juggle_opts,
+  10000,
+  200,
+  1000,
+  1,
+  64,
+  1.0,
+  "",
+  "Shows a Juggler, juggling",
+  0,
+  NULL};
 
 #endif
 
 #ifdef USE_XVMSUTILS
-# include <X11/unix_time.h>
+#include <X11/unix_time.h>
 #endif
 
 /* Note: All "lengths" are scaled by sp->scale = MI_HEIGHT/480.  All
@@ -302,16 +315,20 @@ ModStruct   juggle_description = {
  *                                                                  *
  ********************************************************************/
 
-typedef struct {double x, y; } DXPoint;
+typedef struct
+{
+    double x, y;
+} DXPoint;
 typedef struct trace *TracePtr;
-typedef struct trace {
-  TracePtr next, prev;
-  double x, y;
-  double angle;
-  int divisions;
-  DXPoint dlast;
+typedef struct trace
+{
+    TracePtr next, prev;
+    double x, y;
+    double angle;
+    int divisions;
+    DXPoint dlast;
 #ifdef MEMTEST
-  char pad[1024];
+    char pad [ 1024 ];
 #endif
 } Trace;
 
@@ -321,64 +338,79 @@ typedef struct trace {
  * These describe the various types of Object that can be juggled  *
  *                                                                 *
  *******************************************************************/
-typedef void (DrawProc)(ModeInfo*, unsigned long, Trace *);
+typedef void(DrawProc)(ModeInfo *, unsigned long, Trace *);
 
 static DrawProc show_ball, show_europeanclub, show_torch, show_knife;
 static DrawProc show_ring, show_bball;
 
-typedef enum {BALL, CLUB, TORCH, KNIFE, RING, BBALLS,
-			  NUM_OBJECT_TYPES} ObjType;
+typedef enum
+{
+  BALL,
+  CLUB,
+  TORCH,
+  KNIFE,
+  RING,
+  BBALLS,
+  NUM_OBJECT_TYPES
+} ObjType;
 #define OBJMIXPROB 20   /* inverse of the chances of using an odd
 						   object in the pattern */
 
-static const struct {
-  DrawProc *draw;                           /* Object Rendering function */
-  int       handle;                         /* Length of object's handle */
-  int       mintrail;                            /* Minimum trail length */
-  double    cor;      /* Coefficient of Restitution.  perfect bounce = 1 */
-  double    weight;          /* Heavier objects don't get thrown as high */
-} ObjectDefs[] = {
-  { /* Ball */
-	show_ball,
-	0,
-	1,
-	0.9,
-	1.0,
+static const struct
+{
+    DrawProc *draw; /* Object Rendering function */
+    int handle;     /* Length of object's handle */
+    int mintrail;   /* Minimum trail length */
+    double cor;     /* Coefficient of Restitution.  perfect bounce = 1 */
+    double weight;  /* Heavier objects don't get thrown as high */
+} ObjectDefs []= {
+  {
+    /* Ball */
+    show_ball,
+    0,
+    1,
+    0.9,
+    1.0,
   },
-  { /* Club */
-	show_europeanclub,
-	15,
-	1,
-	0.55, /* Clubs don't bounce too well */
-	1.0,
+  {
+    /* Club */
+    show_europeanclub,
+    15,
+    1,
+    0.55, /* Clubs don't bounce too well */
+    1.0,
   },
-  { /* Torch */
-	show_torch,
-	15,
-	20, /* Torches need flames */
-	0, /* Torches don't bounce -- fire risk! */
-	1.0,
+  {
+    /* Torch */
+    show_torch,
+    15,
+    20, /* Torches need flames */
+    0,  /* Torches don't bounce -- fire risk! */
+    1.0,
   },
-  { /* Knife */
-	show_knife,
-	15,
-	1,
-	0, /* Knives don't bounce */
-	1.0,
+  {
+    /* Knife */
+    show_knife,
+    15,
+    1,
+    0, /* Knives don't bounce */
+    1.0,
   },
-  { /* Ring */
-	show_ring,
-	15,
-	1,
-	0.8,
-	1.0,
+  {
+    /* Ring */
+    show_ring,
+    15,
+    1,
+    0.8,
+    1.0,
   },
-  { /* Bowling Ball */
-	show_bball,
-	0,
-	1,
-	0.2,
-	5.0,
+  {
+    /* Bowling Ball */
+    show_bball,
+    0,
+    1,
+    0.2,
+    5.0,
   },
 };
 
@@ -386,26 +418,60 @@ static const struct {
  * Trajectory definitions *
  **************************/
 
-typedef enum {HEIGHT, ADAM} Notation;
-typedef enum {Empty, Full, Ball} Throwable;
-typedef enum {LEFT, RIGHT} Hand;
-typedef enum {THROW, CATCH} Action;
-typedef enum {HAND, ELBOW, SHOULDER} Joint;
-typedef enum {ATCH, THRATCH, ACTION, LINKEDACTION,
-			  PTHRATCH, BPREDICTOR, PREDICTOR} TrajectoryStatus;
-typedef struct {double a, b, c, d; } Spline;
-typedef DXPoint Arm[3];
+typedef enum
+{
+  HEIGHT,
+  ADAM
+} Notation;
+typedef enum
+{
+  Empty,
+  Full,
+  Ball
+} Throwable;
+typedef enum
+{
+  LEFT,
+  RIGHT
+} Hand;
+typedef enum
+{
+  THROW,
+  CATCH
+} Action;
+typedef enum
+{
+  HAND,
+  ELBOW,
+  SHOULDER
+} Joint;
+typedef enum
+{
+  ATCH,
+  THRATCH,
+  ACTION,
+  LINKEDACTION,
+  PTHRATCH,
+  BPREDICTOR,
+  PREDICTOR
+} TrajectoryStatus;
+typedef struct
+{
+    double a, b, c, d;
+} Spline;
+typedef DXPoint Arm [ 3 ];
 
 /* A Wander contains a Spline and a time interval.  A list of Wanders
  * describes the performer's position as he moves around the screen.  */
 typedef struct wander *WanderPtr;
-typedef struct wander {
-  WanderPtr next, prev;
-  double x;
-  unsigned long finish;
-  Spline s;
+typedef struct wander
+{
+    WanderPtr next, prev;
+    double x;
+    unsigned long finish;
+    Spline s;
 #ifdef MEMTEST
-  char pad[1024];
+    char pad [ 1024 ];
 #endif
 } Wander;
 
@@ -414,19 +480,20 @@ typedef struct wander {
  * linked into a global Objects list.  Objects may include a Trace
  * list for tracking erasures. */
 typedef struct object *ObjectPtr;
-typedef struct object {
-  ObjectPtr next, prev;
+typedef struct object
+{
+    ObjectPtr next, prev;
 
-  ObjType type;
-  int     color;
-  int     count; /* reference count */
-  Bool    active; /* Object is in use */
+    ObjType type;
+    int color;
+    int count;   /* reference count */
+    Bool active; /* Object is in use */
 
-  Trace  *trace;
-  int     tracelen;
-  int     tail;
+    Trace *trace;
+    int tracelen;
+    int tail;
 #ifdef MEMTEST
-  char pad[1024];
+    char pad [ 1024 ];
 #endif
 } Object;
 
@@ -436,41 +503,42 @@ typedef struct object {
  * notation into rendering data. */
 
 typedef struct trajectory *TrajectoryPtr;
-typedef struct trajectory {
-  TrajectoryPtr prev, next;  /* for building list */
-  TrajectoryStatus status;
+typedef struct trajectory
+{
+    TrajectoryPtr prev, next; /* for building list */
+    TrajectoryStatus status;
 
-  /* Throw */
-  char posn;
-  int height;
-  int adam;
-  char *pattern;
-  char *name;
+    /* Throw */
+    char posn;
+    int height;
+    int adam;
+    char *pattern;
+    char *name;
 
-  /* Action */
-  Hand hand;
-  Action action;
+    /* Action */
+    Hand hand;
+    Action action;
 
-  /* LinkedAction */
-  int color;
-  Object *object;
-  int divisions;
-  double angle, spin;
-  TrajectoryPtr balllink;
-  TrajectoryPtr handlink;
+    /* LinkedAction */
+    int color;
+    Object *object;
+    int divisions;
+    double angle, spin;
+    TrajectoryPtr balllink;
+    TrajectoryPtr handlink;
 
-  /* PThratch */
-  double cx; /* Moving juggler */
-  double x, y; /* current position */
-  double dx, dy; /* initial velocity */
+    /* PThratch */
+    double cx;     /* Moving juggler */
+    double x, y;   /* current position */
+    double dx, dy; /* initial velocity */
 
-  /* Predictor */
-  Throwable type;
-  unsigned long start, finish;
-  Spline xp, yp;
+    /* Predictor */
+    Throwable type;
+    unsigned long start, finish;
+    Spline xp, yp;
 
 #ifdef MEMTEST
-  char pad[1024];
+    char pad [ 1024 ];
 #endif
 } Trajectory;
 
@@ -479,9 +547,10 @@ typedef struct trajectory {
  * Pattern Library *
  *******************/
 
-typedef struct {
-  const char * pattern;
-  const char * name;
+typedef struct
+{
+    const char *pattern;
+    const char *name;
 } patternstruct;
 
 /* List of popular patterns, in any order */
@@ -490,7 +559,7 @@ typedef struct {
    notation will be displayed automatically.  */
 /* Can't const this because it is qsorted.  This *should* be reentrant,
    I think... */
-static /*const*/ patternstruct portfolio[] = {
+static /*const*/ patternstruct portfolio []= {
   {"[+2 1]", /* +3 1 */ "Typical 2 ball juggler"},
   {"[2 0]", /* 4 0 */ "2 in 1 hand"},
   {"[2 0 1]", /* 5 0 1 */},
@@ -557,7 +626,9 @@ static /*const*/ patternstruct portfolio[] = {
   {"[_5 4 1 +4]", /* _9 5 1 5 */},
   {"[_5 4 +4 +4]", /* _8 4 +4 +4 */},
   {"[_5 4 4 4 1]", /* _9 5 5 5 1 */},
-  {"[_5 4 4 5 1]",},
+  {
+    "[_5 4 4 5 1]",
+  },
   {"[_5 4 4 +4 4 0]", /*_10 5 5 +5 5 0 */},
 
   {"[6]", /* 6 */ "6 cascade"},
@@ -577,37 +648,43 @@ static /*const*/ patternstruct portfolio[] = {
 
 
 
-typedef struct { int start; int number; } PatternIndex;
+typedef struct
+{
+    int start;
+    int number;
+} PatternIndex;
 
-struct patternindex {
-  int minballs;
-  int maxballs;
-  PatternIndex index[XtNumber(portfolio)];
+struct patternindex
+{
+    int minballs;
+    int maxballs;
+    PatternIndex index [ XtNumber(portfolio) ];
 };
 
 
 /* Jugglestruct: per-screen global data.  The master Wander, Object
  * and Trajectory lists are anchored here. */
-typedef struct {
-  double        scale;
-  Wander       *wander;
-  double        cx;
-  double        Gr;
-  Trajectory   *head;
-  Arm           arm[2][2];
-  char         *pattern;
-  int           count;
-  int           num_balls;
-  time_t        begintime; /* should make 'time' usable for at least 48 days
-							on a 32-bit machine */
-  unsigned long time; /* millisecond timer*/
-  ObjType       objtypes;
-  Object       *objects;
-  struct patternindex patternindex;
-  XFontStruct *mode_font;
+typedef struct
+{
+    double scale;
+    Wander *wander;
+    double cx;
+    double Gr;
+    Trajectory *head;
+    Arm arm [ 2 ][ 2 ];
+    char *pattern;
+    int count;
+    int num_balls;
+    time_t begintime;   /* should make 'time' usable for at least 48 days
+                         on a 32-bit machine */
+    unsigned long time; /* millisecond timer*/
+    ObjType objtypes;
+    Object *objects;
+    struct patternindex patternindex;
+    XFontStruct *mode_font;
 } jugglestruct;
 
-static jugglestruct *juggles = (jugglestruct *) NULL;
+static jugglestruct *juggles= (jugglestruct *) NULL;
 
 /*******************
  * list management *
@@ -638,171 +715,202 @@ static jugglestruct *juggles = (jugglestruct *) NULL;
   }
 
 static void
-object_destroy(Object* o)
+  object_destroy(
+    Object *o)
 {
-  if(o->trace != NULL) {
-	while(o->trace->next != o->trace) {
-	  Trace *s = o->trace->next;
-	  REMOVE(s); /* Don't eliminate 's' */
-	}
-	free(o->trace);
-  }
+  if (o->trace != NULL)
+    {
+      while (o->trace->next != o->trace)
+        {
+          Trace *s= o->trace->next;
+          REMOVE(s); /* Don't eliminate 's' */
+        }
+      free(o->trace);
+    }
   REMOVE(o);
 }
 
 static void
-trajectory_destroy(Trajectory *t) {
-  if(t->name != NULL) free(t->name);
-  if(t->pattern != NULL) free(t->pattern);
+  trajectory_destroy(
+    Trajectory *t)
+{
+  if (t->name != NULL) free(t->name);
+  if (t->pattern != NULL) free(t->pattern);
   /* Reduce object link count and call destructor if necessary */
-  if(t->object != NULL && --t->object->count < 1 && t->object->tracelen == 0) {
-	object_destroy(t->object);
-  }
+  if (t->object != NULL && --t->object->count < 1 && t->object->tracelen == 0)
+    object_destroy(t->object);
   REMOVE(t); /* Unlink and free */
 }
 
 ENTRYPOINT void
-free_juggle(ModeInfo * mi) {
-  jugglestruct *sp = &juggles[MI_SCREEN(mi)];
+  free_juggle(
+    ModeInfo *mi)
+{
+  jugglestruct *sp= &juggles [ MI_SCREEN(mi) ];
 
-  if (sp->head != NULL) {
-	while (sp->head->next != sp->head) {
-	  trajectory_destroy(sp->head->next);
-	}
-	free(sp->head);
-	sp->head = (Trajectory *) NULL;
-  }
-  if(sp->objects != NULL) {
-	while (sp->objects->next != sp->objects) {
-	  object_destroy(sp->objects->next);
-	}
-	free(sp->objects);
-	sp->objects = (Object*)NULL;
-  }
-  if(sp->wander != NULL) {
-	while (sp->wander->next != sp->wander) {
-	  Wander *w = sp->wander->next;
-	  REMOVE(w);
-	}
-	free(sp->wander);
-	sp->wander = (Wander*)NULL;
-  }
-  if(sp->pattern != NULL) {
-	free(sp->pattern);
-	sp->pattern = NULL;
-  }
-  if (sp->mode_font!=None) {
-	XFreeFontInfo(NULL,sp->mode_font,1);
-	sp->mode_font = None;
-  }
+  if (sp->head != NULL)
+    {
+      while (sp->head->next != sp->head)
+        trajectory_destroy(sp->head->next);
+      free(sp->head);
+      sp->head= (Trajectory *) NULL;
+    }
+  if (sp->objects != NULL)
+    {
+      while (sp->objects->next != sp->objects)
+        object_destroy(sp->objects->next);
+      free(sp->objects);
+      sp->objects= (Object *) NULL;
+    }
+  if (sp->wander != NULL)
+    {
+      while (sp->wander->next != sp->wander)
+        {
+          Wander *w= sp->wander->next;
+          REMOVE(w);
+        }
+      free(sp->wander);
+      sp->wander= (Wander *) NULL;
+    }
+  if (sp->pattern != NULL)
+    {
+      free(sp->pattern);
+      sp->pattern= NULL;
+    }
+  if (sp->mode_font != None)
+    {
+      XFreeFontInfo(NULL, sp->mode_font, 1);
+      sp->mode_font= None;
+    }
 }
 
 static Bool
-add_throw(ModeInfo *mi, char type, int h, Notation n, const char* name)
+  add_throw(
+    ModeInfo *mi,
+    char type,
+    int h,
+    Notation n,
+    const char *name)
 {
-  jugglestruct *sp = &juggles[MI_SCREEN(mi)];
+  jugglestruct *sp= &juggles [ MI_SCREEN(mi) ];
   Trajectory *t;
 
   ADD_ELEMENT(Trajectory, t, sp->head->prev);
-  if(t == NULL){ /* Out of Memory */
-	free_juggle(mi);
-	return False;
-  }
-  t->object = NULL;
-  if(name != NULL)
-	t->name = strdup(name);
-  t->posn = type;
-  if (n == ADAM) {
-	t->adam = h;
-	t->height = 0;
-	t->status = ATCH;
-  } else {
-	t->height = h;
-	t->status = THRATCH;
-  }
+  if (t == NULL)
+    { /* Out of Memory */
+      free_juggle(mi);
+      return False;
+    }
+  t->object= NULL;
+  if (name != NULL)
+    t->name= strdup(name);
+  t->posn= type;
+  if (n == ADAM)
+    {
+      t->adam= h;
+      t->height= 0;
+      t->status= ATCH;
+    }
+  else
+    {
+      t->height= h;
+      t->status= THRATCH;
+    }
   return True;
 }
 
 /* add a Thratch to the performance */
 static Bool
-program(ModeInfo *mi, const char *patn, const char *name, int cycles)
+  program(
+    ModeInfo *mi,
+    const char *patn,
+    const char *name,
+    int cycles)
 {
   const char *p;
   int w, h, i, seen;
   Notation notation;
   char type;
 
-  if (MI_IS_VERBOSE(mi)) {
-	(void) fprintf(stderr, "juggle[%d]: Programmed: %s x %d\n",
-				   MI_SCREEN(mi), (name == NULL) ? patn : name, cycles);
-  }
+  if (MI_IS_VERBOSE(mi))
+    (void) fprintf(stderr, "juggle[%d]: Programmed: %s x %d\n", MI_SCREEN(mi), (name == NULL) ? patn : name, cycles);
 
-  for(w=i=0; i < cycles; i++, w++) { /* repeat until at least "cycles" throws
-										have been programmed */
-	/* title is the pattern name to be supplied to the first throw of
-	   a sequence.  If no name if given, use an empty title so that
-	   the sequences are still delimited. */
-	const char *title = (name != NULL)? name : "";
-	type=' ';
-	h = 0;
-	seen = 0;
-	notation = HEIGHT;
-	for(p=patn; *p; p++) {
-	  if (*p >= '0' && *p <='9') {
-		seen = 1;
-		h = 10*h + (*p - '0');
-	  } else {
-		Notation nn = notation;
-		switch (*p) {
-		case '[':            /* begin Adam notation */
-		  notation = ADAM;
-		  break;
-		case '-':            /* Inside throw */
-		  type = ' ';
-		  break;
-		case '+':            /* Outside throw */
-		case '=':            /* Cross throw */
-		case '&':            /* Cross catch */
-		case 'x':            /* Cross throw and catch */
-		case '_':            /* Bounce */
-		case 'k':            /* Kickup */
-		  type = *p;
-		  break;
-		case '*':            /* Lose ball */
-		  seen = 1;
-		  h = -1;
-		  /* fall through */
-		case ']':             /* end Adam notation */
-		  nn = HEIGHT;
-		  /* fall through */
-		case ' ':
-		  if (seen) {
-			i++;
-			if (!add_throw(mi, type, h, notation, title))
-				return False;
-			title = NULL;
-			type=' ';
-			h = 0;
-			seen = 0;
-		  }
-		  notation = nn;
-		  break;
-		default:
-		  if(w == 0) { /* Only warn on first pass */
-			(void) fprintf(stderr,
-						   "juggle[%d]: Unexpected pattern instruction: '%c'\n",
-						   MI_SCREEN(mi), *p);
-		  }
-		  break;
-		}
-	  }
-	}
-	if (seen) { /* end of sequence */
-	  if (!add_throw(mi, type, h, notation, title))
-		return False;
-	  title = NULL;
-	}
-  }
+  for (w= i= 0; i < cycles; i++, w++)
+    { /* repeat until at least "cycles" throws
+         have been programmed */
+      /* title is the pattern name to be supplied to the first throw of
+         a sequence.  If no name if given, use an empty title so that
+         the sequences are still delimited. */
+      const char *title= (name != NULL) ? name : "";
+      type= ' ';
+      h= 0;
+      seen= 0;
+      notation= HEIGHT;
+      for (p= patn; *p; p++)
+        {
+          if (*p >= '0' && *p <= '9')
+            {
+              seen= 1;
+              h= 10 * h + (*p - '0');
+            }
+          else
+            {
+              Notation nn= notation;
+              switch (*p)
+                {
+                  case '[' : /* begin Adam notation */
+                    notation= ADAM;
+                    break;
+                  case '-' : /* Inside throw */
+                    type= ' ';
+                    break;
+                  case '+' : /* Outside throw */
+                  case '=' : /* Cross throw */
+                  case '&' : /* Cross catch */
+                  case 'x' : /* Cross throw and catch */
+                  case '_' : /* Bounce */
+                  case 'k' : /* Kickup */
+                    type= *p;
+                    break;
+                  case '*' : /* Lose ball */
+                    seen= 1;
+                    h= -1;
+                    /* fall through */
+                  case ']' : /* end Adam notation */
+                    nn= HEIGHT;
+                    /* fall through */
+                  case ' ' :
+                    if (seen)
+                      {
+                        i++;
+                        if (! add_throw(mi, type, h, notation, title))
+                          return False;
+                        title= NULL;
+                        type= ' ';
+                        h= 0;
+                        seen= 0;
+                      }
+                    notation= nn;
+                    break;
+                  default :
+                    if (w == 0)
+                      { /* Only warn on first pass */
+                        (void) fprintf(stderr,
+                          "juggle[%d]: Unexpected pattern instruction: '%c'\n",
+                          MI_SCREEN(mi),
+                          *p);
+                      }
+                    break;
+                }
+            }
+        }
+      if (seen)
+        { /* end of sequence */
+          if (! add_throw(mi, type, h, notation, title))
+            return False;
+          title= NULL;
+        }
+    }
   return True;
 }
 
@@ -823,72 +931,79 @@ program(ModeInfo *mi, const char *patn, const char *name, int cycles)
 
 /* Convert Adam notation into heights */
 static void
-adam(jugglestruct *sp)
+  adam(
+    jugglestruct *sp)
 {
   Trajectory *t, *p;
-  for(t = sp->head->next; t != sp->head; t = t->next) {
-	if (t->status == ATCH) {
-	  int a = t->adam;
-	  t->height = 0;
-	  for(p = t->next; a > 0; p = p->next) {
-		if(p == sp->head) {
-		  t->height = -9; /* Indicate end of processing for name() */
-		  return;
-		}
-		if (p->status != ATCH || p->adam < 0 || p->adam>= a) {
-		  a--;
-		}
-		t->height++;
-	  }
-	  if(t->height > BOUNCEOVER && t->posn == ' '){
-		t->posn = '_'; /* high defaults can be bounced */
-	  } else if(t->height < 3 && t->posn == '_') {
-		t->posn = ' '; /* Can't bounce short throws. */
-	  }
-	  if(t->height < KICKMIN && t->posn == 'k'){
-		t->posn = ' '; /* Can't kick short throws */
-	  }
-	  if(t->height > THROWMAX){
-		t->posn = 'k'; /* Use kicks for ridiculously high throws */
-	  }
-	  t->status = THRATCH;
-	}
-  }
+  for (t= sp->head->next; t != sp->head; t= t->next)
+    {
+      if (t->status == ATCH)
+        {
+          int a= t->adam;
+          t->height= 0;
+          for (p= t->next; a > 0; p= p->next)
+            {
+              if (p == sp->head)
+                {
+                  t->height= -9; /* Indicate end of processing for name() */
+                  return;
+                }
+              if (p->status != ATCH || p->adam < 0 || p->adam >= a)
+                a--;
+              t->height++;
+            }
+          if (t->height > BOUNCEOVER && t->posn == ' ')
+            t->posn= '_'; /* high defaults can be bounced */
+          else if (t->height < 3 && t->posn == '_')
+            t->posn= ' '; /* Can't bounce short throws. */
+          if (t->height < KICKMIN && t->posn == 'k')
+            t->posn= ' '; /* Can't kick short throws */
+          if (t->height > THROWMAX)
+            t->posn= 'k'; /* Use kicks for ridiculously high throws */
+          t->status= THRATCH;
+        }
+    }
 }
 
 /* Discover converted heights and update the sequence title */
 static void
-name(jugglestruct *sp)
+  name(
+    jugglestruct *sp)
 {
   Trajectory *t, *p;
-  char buffer[BUFSIZ];
+  char buffer [ BUFSIZ ];
   char *b;
-  for(t = sp->head->next; t != sp->head; t = t->next) {
-	if (t->status == THRATCH && t->name != NULL) {
-	  b = buffer;
-	  for(p = t; p == t || p->name == NULL; p = p->next) {
-		if(p == sp->head || p->height < 0) { /* end of reliable data */
-		  return;
-		}
-		if(p->posn == ' ') {
-		  b += sprintf(b, " %d", p->height);
-		} else {
-		  b += sprintf(b, " %c%d", p->posn, p->height);
-		}
-		if(b - buffer > 500) break; /* otherwise this could eventually
-									   overflow.  It'll be too big to
-									   display anyway. */
-	  }
-	  if(*t->name != 0) {
-		(void) sprintf(b, ", %s", t->name);
-	  }
-	  free(t->name); /* Don't need name any more, it's been converted
-						to pattern */
-	  t->name = NULL;
-	  if(t->pattern != NULL) free(t->pattern);
-	  t->pattern = strdup(buffer);
-	}
-  }
+  for (t= sp->head->next; t != sp->head; t= t->next)
+    {
+      if (t->status == THRATCH && t->name != NULL)
+        {
+          b= buffer;
+          for (p= t; p == t || p->name == NULL; p= p->next)
+            {
+              if (p == sp->head || p->height < 0)
+                { /* end of reliable data */
+                  return;
+                }
+              if (p->posn == ' ')
+                b+= sprintf(b, " %d", p->height);
+              else
+                b+= sprintf(b, " %c%d", p->posn, p->height);
+              if (b - buffer > 500)
+                {
+                  break; /* otherwise this could eventually
+                           overflow.  It'll be too big to
+                           display anyway. */
+                }
+            }
+          if (*t->name != 0)
+            (void) sprintf(b, ", %s", t->name);
+          free(t->name); /* Don't need name any more, it's been converted
+                            to pattern */
+          t->name= NULL;
+          if (t->pattern != NULL) free(t->pattern);
+          t->pattern= strdup(buffer);
+        }
+    }
 }
 
 /* Split Thratch notation into explicit throws and catches.
@@ -899,80 +1014,107 @@ name(jugglestruct *sp)
 /* ..nm.. -> .. LTn LC RTm RC .. */
 
 static Bool
-part(ModeInfo *mi)
+  part(
+    ModeInfo *mi)
 {
-  jugglestruct *sp = &juggles[MI_SCREEN(mi)];
+  jugglestruct *sp= &juggles [ MI_SCREEN(mi) ];
   Trajectory *t, *nt, *p;
-  Hand hand = (LRAND() & 1) ? RIGHT : LEFT;
+  Hand hand= (LRAND() & 1) ? RIGHT : LEFT;
 
-  for (t = sp->head->next; t != sp->head; t = t->next) {
-	if (t->status > THRATCH) {
-	  hand = t->hand;
-	} else if (t->status == THRATCH) {
-	  char posn = '=';
+  for (t= sp->head->next; t != sp->head; t= t->next)
+    {
+      if (t->status > THRATCH)
+        {
+          hand= t->hand;
+        }
+      else if (t->status == THRATCH)
+        {
+          char posn= '=';
 
-	  /* plausibility check */
-	  if (t->height <= 2 && t->posn == '_') {
-		t->posn = ' '; /* no short bounces */
-	  }
-	  if (t->height <= 1 && (t->posn == '=' || t->posn == '&')) {
-		t->posn = ' '; /* 1's need close catches */
-	  }
+          /* plausibility check */
+          if (t->height <= 2 && t->posn == '_')
+            t->posn= ' '; /* no short bounces */
+          if (t->height <= 1 && (t->posn == '=' || t->posn == '&'))
+            t->posn= ' '; /* 1's need close catches */
 
-	  switch (t->posn) {
-		  /*         throw          catch    */
-	  case ' ': posn = '-'; t->posn = '+'; break;
-	  case '+': posn = '+'; t->posn = '-'; break;
-	  case '=': posn = '='; t->posn = '+'; break;
-	  case '&': posn = '+'; t->posn = '='; break;
-	  case 'x': posn = '='; t->posn = '='; break;
-	  case '_': posn = '_'; t->posn = '-'; break;
-	  case 'k': posn = 'k'; t->posn = 'k'; break;
-	  default:
-		(void) fprintf(stderr, "juggle: unexpected posn %c\n", t->posn);
-		break;
-	  }
-	  hand = (Hand) ((hand + 1) % 2);
-	  t->status = ACTION;
-	  t->hand = hand;
-	  p = t->prev;
+          switch (t->posn)
+            {
+                /*         throw          catch    */
+              case ' ' :
+                posn= '-';
+                t->posn= '+';
+                break;
+              case '+' :
+                posn= '+';
+                t->posn= '-';
+                break;
+              case '=' :
+                posn= '=';
+                t->posn= '+';
+                break;
+              case '&' :
+                posn= '+';
+                t->posn= '=';
+                break;
+              case 'x' :
+                posn= '=';
+                t->posn= '=';
+                break;
+              case '_' :
+                posn= '_';
+                t->posn= '-';
+                break;
+              case 'k' :
+                posn= 'k';
+                t->posn= 'k';
+                break;
+              default :
+                (void) fprintf(stderr, "juggle: unexpected posn %c\n", t->posn);
+                break;
+            }
+          hand= (Hand) ((hand + 1) % 2);
+          t->status= ACTION;
+          t->hand= hand;
+          p= t->prev;
 
-	  if (t->height == 1 && p != sp->head) {
-		p = p->prev; /* '1's are thrown earlier than usual */
-	  }
+          if (t->height == 1 && p != sp->head)
+            p= p->prev; /* '1's are thrown earlier than usual */
 
 
 
-	  t->action = CATCH;
-	  ADD_ELEMENT(Trajectory, nt, p);
-	  if(nt == NULL){
-		free_juggle(mi);
-		return False;
-	  }
-	  nt->object = NULL;
-	  nt->status = ACTION;
-	  nt->action = THROW;
-	  nt->height = t->height;
-	  nt->hand = hand;
-	  nt->posn = posn;
-
-	}
-  }
+          t->action= CATCH;
+          ADD_ELEMENT(Trajectory, nt, p);
+          if (nt == NULL)
+            {
+              free_juggle(mi);
+              return False;
+            }
+          nt->object= NULL;
+          nt->status= ACTION;
+          nt->action= THROW;
+          nt->height= t->height;
+          nt->hand= hand;
+          nt->posn= posn;
+        }
+    }
   return True;
 }
 
 static ObjType
-choose_object(void) {
+  choose_object(
+    void)
+{
   ObjType o;
-  for (;;) {
-	o = (ObjType)NRAND((ObjType)NUM_OBJECT_TYPES);
-	if(balls && o == BALL) break;
-	if(clubs && o == CLUB) break;
-	if(torches && o == TORCH) break;
-	if(knives && o == KNIFE) break;
-	if(rings && o == RING) break;
-	if(bballs && o == BBALLS) break;
-  }
+  for (;;)
+    {
+      o= (ObjType) NRAND((ObjType) NUM_OBJECT_TYPES);
+      if (balls && o == BALL) break;
+      if (clubs && o == CLUB) break;
+      if (torches && o == TORCH) break;
+      if (knives && o == KNIFE) break;
+      if (rings && o == RING) break;
+      if (bballs && o == BBALLS) break;
+    }
   return o;
 }
 
@@ -980,136 +1122,157 @@ choose_object(void) {
    Do the same with the juggler's hands. */
 
 static void
-lob(ModeInfo *mi)
+  lob(
+    ModeInfo *mi)
 {
-  jugglestruct *sp = &juggles[MI_SCREEN(mi)];
+  jugglestruct *sp= &juggles [ MI_SCREEN(mi) ];
   Trajectory *t, *p;
   int h;
-  for (t = sp->head->next; t != sp->head; t = t->next) {
-	if (t->status == ACTION) {
-	  if (t->action == THROW) {
-		if (t->type == Empty) {
-		  /* Create new Object */
-		  ADD_ELEMENT(Object, t->object, sp->objects);
-		  t->object->count = 1;
-		  t->object->tracelen = 0;
-		  t->object->active = False;
-		  /* Initialise object's circular trace list */
-		  ADD_ELEMENT(Trace, t->object->trace, t->object->trace);
+  for (t= sp->head->next; t != sp->head; t= t->next)
+    {
+      if (t->status == ACTION)
+        {
+          if (t->action == THROW)
+            {
+              if (t->type == Empty)
+                {
+                  /* Create new Object */
+                  ADD_ELEMENT(Object, t->object, sp->objects);
+                  t->object->count= 1;
+                  t->object->tracelen= 0;
+                  t->object->active= False;
+                  /* Initialise object's circular trace list */
+                  ADD_ELEMENT(Trace, t->object->trace, t->object->trace);
 
-		  if (MI_NPIXELS(mi) > 2) {
-			t->object->color = 1 + NRAND(MI_NPIXELS(mi) - 2);
-		  } else {
+                  if (MI_NPIXELS(mi) > 2)
+                    {
+                      t->object->color= 1 + NRAND(MI_NPIXELS(mi) - 2);
+                    }
+                  else
+                    {
 #ifdef STANDALONE
-			t->object->color = 1;
+                      t->object->color= 1;
 #else
-			t->object->color = 0;
+                      t->object->color= 0;
 #endif
-		  }
+                    }
 
-		  /* Small chance of picking a random object instead of the
-			 current theme. */
-		  if(NRAND(OBJMIXPROB) == 0) {
-			t->object->type = choose_object();
-		  } else {
-			t->object->type = sp->objtypes;
-		  }
+                  /* Small chance of picking a random object instead of the
+                     current theme. */
+                  if (NRAND(OBJMIXPROB) == 0)
+                    t->object->type= choose_object();
+                  else
+                    t->object->type= sp->objtypes;
 
-		  /* Check to see if we need trails for this object */
-		  if(tail < ObjectDefs[t->object->type].mintrail) {
-			t->object->tail = ObjectDefs[t->object->type].mintrail;
-		  } else {
-			t->object->tail = tail;
-		  }
-		}
+                  /* Check to see if we need trails for this object */
+                  if (tail < ObjectDefs [ t->object->type ].mintrail)
+                    t->object->tail= ObjectDefs [ t->object->type ].mintrail;
+                  else
+                    t->object->tail= tail;
+                }
 
-		/* Balls can change divisions at each throw */
-		t->divisions = 2 * (NRAND(2) + 1);
+              /* Balls can change divisions at each throw */
+              t->divisions= 2 * (NRAND(2) + 1);
 
-		/* search forward for next catch in this hand */
-		for (p = t->next; t->handlink == NULL; p = p->next) {
-		  if(p->status < ACTION || p == sp->head) return;
-		  if (p->action == CATCH) {
-			if (t->handlink == NULL && p->hand == t->hand) {
-			  t->handlink = p;
-			}
-		  }
-		}
+              /* search forward for next catch in this hand */
+              for (p= t->next; t->handlink == NULL; p= p->next)
+                {
+                  if (p->status < ACTION || p == sp->head) return;
+                  if (p->action == CATCH)
+                    {
+                      if (t->handlink == NULL && p->hand == t->hand)
+                        t->handlink= p;
+                    }
+                }
 
-		if (t->height > 0) {
-		  h = t->height - 1;
+              if (t->height > 0)
+                {
+                  h= t->height - 1;
 
-		  /* search forward for next ball catch */
-		  for (p = t->next; t->balllink == NULL; p = p->next) {
-			if(p->status < ACTION || p == sp->head) {
-			  t->handlink = NULL;
-			  return;
-			}
-			if (p->action == CATCH) {
-			  if (t->balllink == NULL && --h < 1) { /* caught */
-				t->balllink = p; /* complete trajectory */
-# if 0
+                  /* search forward for next ball catch */
+                  for (p= t->next; t->balllink == NULL; p= p->next)
+                    {
+                      if (p->status < ACTION || p == sp->head)
+                        {
+                          t->handlink= NULL;
+                          return;
+                        }
+                      if (p->action == CATCH)
+                        {
+                          if (t->balllink == NULL && --h < 1)
+                            {                 /* caught */
+                              t->balllink= p; /* complete trajectory */
+#if 0
 				if (p->type == Full) {
 				  (void) fprintf(stderr, "juggle[%d]: Dropped %d\n",
 						  MI_SCREEN(mi), t->object->color);
 				}
 #endif
-				p->type = Full;
-				DUP_OBJECT(p, t); /* accept catch */
-				p->angle = t->angle;
-				p->divisions = t->divisions;
-			  }
-			}
-		  }
-		}
-		t->type = Empty; /* thrown */
-	  } else if (t->action == CATCH) {
-		/* search forward for next throw from this hand */
-		for (p = t->next; t->handlink == NULL; p = p->next) {
-		  if(p->status < ACTION || p == sp->head) return;
-		  if (p->action == THROW && p->hand == t->hand) {
-			p->type = t->type; /* pass ball */
-			DUP_OBJECT(p, t); /* pass object */
-			p->divisions = t->divisions;
-			t->handlink = p;
-		  }
-		}
-	  }
-	  t->status = LINKEDACTION;
-	}
-  }
+                              p->type= Full;
+                              DUP_OBJECT(p, t); /* accept catch */
+                              p->angle= t->angle;
+                              p->divisions= t->divisions;
+                            }
+                        }
+                    }
+                }
+              t->type= Empty; /* thrown */
+            }
+          else if (t->action == CATCH)
+            {
+              /* search forward for next throw from this hand */
+              for (p= t->next; t->handlink == NULL; p= p->next)
+                {
+                  if (p->status < ACTION || p == sp->head) return;
+                  if (p->action == THROW && p->hand == t->hand)
+                    {
+                      p->type= t->type; /* pass ball */
+                      DUP_OBJECT(p, t); /* pass object */
+                      p->divisions= t->divisions;
+                      t->handlink= p;
+                    }
+                }
+            }
+          t->status= LINKEDACTION;
+        }
+    }
 }
 
 /* Clap when both hands are empty */
 static void
-clap(jugglestruct *sp)
+  clap(
+    jugglestruct *sp)
 {
   Trajectory *t, *p;
-  for (t = sp->head->next; t != sp->head; t = t->next) {
-	if (t->status == LINKEDACTION &&
-		t->action == CATCH &&
-		t->type == Empty &&
-		t->handlink != NULL &&
-		t->handlink->height == 0) { /* Completely idle hand */
+  for (t= sp->head->next; t != sp->head; t= t->next)
+    {
+      if (t->status == LINKEDACTION &&
+        t->action == CATCH &&
+        t->type == Empty &&
+        t->handlink != NULL &&
+        t->handlink->height == 0)
+        { /* Completely idle hand */
 
-	  for (p = t->next; p != sp->head; p = p->next) {
-		if (p->status == LINKEDACTION &&
-			p->action == CATCH &&
-			p->hand != t->hand) { /* Next catch other hand */
-		  if(p->type == Empty &&
-			 p->handlink != NULL &&
-			 p->handlink->height == 0) { /* Also completely idle */
+          for (p= t->next; p != sp->head; p= p->next)
+            {
+              if (p->status == LINKEDACTION &&
+                p->action == CATCH &&
+                p->hand != t->hand)
+                { /* Next catch other hand */
+                  if (p->type == Empty &&
+                    p->handlink != NULL &&
+                    p->handlink->height == 0)
+                    { /* Also completely idle */
 
-			t->handlink->posn = '^'; /* Move first hand's empty throw */
-			p->posn = '^';           /* to meet second hand's empty
-										catch */
-
-		  }
-		  break; /* Only need first catch */
-		}
-	  }
-	}
-  }
+                      t->handlink->posn= '^'; /* Move first hand's empty throw */
+                      p->posn= '^';           /* to meet second hand's empty
+                                                 catch */
+                    }
+                  break; /* Only need first catch */
+                }
+            }
+        }
+    }
 }
 
 #define CUBIC(s, t) ((((s).a * (t) + (s).b) * (t) + (s).c) * (t) + (s).d)
@@ -1117,23 +1280,29 @@ clap(jugglestruct *sp)
 /* Compute single spline from x0 with velocity dx0 at time t0 to x1
    with velocity dx1 at time t1 */
 static Spline
-makeSpline(double x0, double dx0, int t0, double x1, double dx1, int t1)
+  makeSpline(
+    double x0,
+    double dx0,
+    int t0,
+    double x1,
+    double dx1,
+    int t1)
 {
   Spline s;
   double a, b, c, d;
   double x10;
   double t10;
 
-  x10 = x1 - x0;
-  t10 = t1 - t0;
-  a = ((dx0 + dx1)*t10 - 2*x10) / (t10*t10*t10);
-  b = (3*x10 - (2*dx0 + dx1)*t10) / (t10*t10);
-  c = dx0;
-  d = x0;
-  s.a = a;
-  s.b = -3*a*t0 + b;
-  s.c = (3*a*t0 - 2*b)*t0 + c;
-  s.d = ((-a*t0 + b)*t0 - c)*t0 +d;
+  x10= x1 - x0;
+  t10= t1 - t0;
+  a= ((dx0 + dx1) * t10 - 2 * x10) / (t10 * t10 * t10);
+  b= (3 * x10 - (2 * dx0 + dx1) * t10) / (t10 * t10);
+  c= dx0;
+  d= x0;
+  s.a= a;
+  s.b= -3 * a * t0 + b;
+  s.c= (3 * a * t0 - 2 * b) * t0 + c;
+  s.d= ((-a * t0 + b) * t0 - c) * t0 + d;
   return s;
 }
 
@@ -1142,22 +1311,28 @@ makeSpline(double x0, double dx0, int t0, double x1, double dx1, int t1)
    velocity dx2 at time t2.  The arrival and departure velocities at
    x1, t1 must be the same. */
 static double
-makeSplinePair(Spline *s1, Spline *s2,
-			   double x0, double dx0, int t0,
-			   double x1,             int t1,
-			   double x2, double dx2, int t2)
+  makeSplinePair(
+    Spline *s1,
+    Spline *s2,
+    double x0,
+    double dx0,
+    int t0,
+    double x1,
+    int t1,
+    double x2,
+    double dx2,
+    int t2)
 {
   double x10, x21, t21, t10, t20, dx1;
-  x10 = x1 - x0;
-  x21 = x2 - x1;
-  t21 = t2 - t1;
-  t10 = t1 - t0;
-  t20 = t2 - t0;
-  dx1 = (3*x10*t21*t21 + 3*x21*t10*t10 + 3*dx0*t10*t21*t21
-		 - dx2*t10*t10*t21 - 4*dx0*t10*t21*t21) /
-	(2*t10*t21*t20);
-  *s1 = makeSpline(x0, dx0, t0, x1, dx1, t1);
-  *s2 = makeSpline(x1, dx1, t1, x2, dx2, t2);
+  x10= x1 - x0;
+  x21= x2 - x1;
+  t21= t2 - t1;
+  t10= t1 - t0;
+  t20= t2 - t0;
+  dx1= (3 * x10 * t21 * t21 + 3 * x21 * t10 * t10 + 3 * dx0 * t10 * t21 * t21 - dx2 * t10 * t10 * t21 - 4 * dx0 * t10 * t21 * t21) /
+    (2 * t10 * t21 * t20);
+  *s1= makeSpline(x0, dx0, t0, x1, dx1, t1);
+  *s2= makeSpline(x1, dx1, t1, x2, dx2, t2);
   return dx1;
 }
 
@@ -1165,48 +1340,60 @@ makeSplinePair(Spline *s1, Spline *s2,
    from x at time t at constant velocity dx.  sy goes from y at time t
    with velocity dy and constant acceleration g. */
 static void
-makeParabola(Trajectory *n,
-			 double x, double dx, double y, double dy, double g)
+  makeParabola(
+    Trajectory *n,
+    double x,
+    double dx,
+    double y,
+    double dy,
+    double g)
 {
-  double t = (double)n->start;
-  n->xp.a = 0;
-  n->xp.b = 0;
-  n->xp.c = dx;
-  n->xp.d = -dx*t + x;
-  n->yp.a = 0;
-  n->yp.b = g/2;
-  n->yp.c = -g*t + dy;
-  n->yp.d = g/2*t*t - dy*t + y;
+  double t= (double) n->start;
+  n->xp.a= 0;
+  n->xp.b= 0;
+  n->xp.c= dx;
+  n->xp.d= -dx * t + x;
+  n->yp.a= 0;
+  n->yp.b= g / 2;
+  n->yp.c= -g * t + dy;
+  n->yp.d= g / 2 * t * t - dy * t + y;
 }
 
 
 
 /* Make juggler wander around the screen */
-static double wander(jugglestruct *sp, unsigned long time)
+static double wander(
+  jugglestruct *sp,
+  unsigned long time)
 {
-  Wander *w = NULL;
-  for (w = sp->wander->next; w != sp->wander; w = w->next) {
-	if (w->finish < sp->time) { /* expired */
-	  Wander *ww = w;
-	  w = w->prev;
-	  REMOVE(ww);
-	} else if(w->finish > time) {
-	  break;
-	}
-  }
-  if(w == sp->wander) { /* Need a new one */
-	ADD_ELEMENT(Wander, w, sp->wander->prev);
-	if(w == NULL) { /* Memory problem */
-	  return 0.0;
-	}
-	w->finish = time + 3*THROW_CATCH_INTERVAL + NRAND(10*THROW_CATCH_INTERVAL);
-	if(time == 0) {
-	  w->x = 0;
-	} else {
-	  w->x = w->prev->x * 0.9 + NRAND(40) - 20;
-	}
-	w->s = makeSpline(w->prev->x, 0.0, w->prev->finish, w->x, 0.0, w->finish);
-  }
+  Wander *w= NULL;
+  for (w= sp->wander->next; w != sp->wander; w= w->next)
+    {
+      if (w->finish < sp->time)
+        { /* expired */
+          Wander *ww= w;
+          w= w->prev;
+          REMOVE(ww);
+        }
+      else if (w->finish > time)
+        {
+          break;
+        }
+    }
+  if (w == sp->wander)
+    { /* Need a new one */
+      ADD_ELEMENT(Wander, w, sp->wander->prev);
+      if (w == NULL)
+        { /* Memory problem */
+          return 0.0;
+        }
+      w->finish= time + 3 * THROW_CATCH_INTERVAL + NRAND(10 * THROW_CATCH_INTERVAL);
+      if (time == 0)
+        w->x= 0;
+      else
+        w->x= w->prev->x * 0.9 + NRAND(40) - 20;
+      w->s= makeSpline(w->prev->x, 0.0, w->prev->finish, w->x, 0.0, w->finish);
+    }
   return CUBIC(w->s, time);
 }
 
@@ -1214,77 +1401,95 @@ static double wander(jugglestruct *sp, unsigned long time)
 
 /* Convert hand position symbols into actual time/space coordinates */
 static void
-positions(jugglestruct *sp)
+  positions(
+    jugglestruct *sp)
 {
   Trajectory *t;
-  unsigned long now = sp->time; /* Make sure we're not lost in the past */
-  for (t = sp->head->next; t != sp->head; t = t->next) {
-	if (t->status >= PTHRATCH) {
-	  now = t->start;
-	} else if (t->status == ACTION || t->status == LINKEDACTION) {
-	  /* Allow ACTIONs to be annotated, but we won't mark them ready
-		 for the next stage */
+  unsigned long now= sp->time; /* Make sure we're not lost in the past */
+  for (t= sp->head->next; t != sp->head; t= t->next)
+    {
+      if (t->status >= PTHRATCH)
+        {
+          now= t->start;
+        }
+      else if (t->status == ACTION || t->status == LINKEDACTION)
+        {
+          /* Allow ACTIONs to be annotated, but we won't mark them ready
+             for the next stage */
 
-	  double xo = 0, yo;
-	  double sx = SX;
-	  double pose = SX/2;
+          double xo= 0, yo;
+          double sx= SX;
+          double pose= SX / 2;
 
-	  /* time */
-	  if (t->action == CATCH) { /* Throw-to-catch */
-		if (t->type == Empty) {
-		  now += (int) THROW_NULL_INTERVAL; /* failed catch is short */
-		} else {     /* successful catch */
-		  now += (int)(THROW_CATCH_INTERVAL);
-		}
-	  } else { /* Catch-to-throw */
-		if(t->object != NULL) {
-		  now += (int) (CATCH_THROW_INTERVAL *
-						ObjectDefs[t->object->type].weight);
-		} else {
-		  now += (int) (CATCH_THROW_INTERVAL);
-		}
-	  }
+          /* time */
+          if (t->action == CATCH)
+            { /* Throw-to-catch */
+              if (t->type == Empty)
+                {
+                  now+= (int) THROW_NULL_INTERVAL; /* failed catch is short */
+                }
+              else
+                { /* successful catch */
+                  now+= (int) (THROW_CATCH_INTERVAL);
+                }
+            }
+          else
+            { /* Catch-to-throw */
+              if (t->object != NULL)
+                now+= (int) (CATCH_THROW_INTERVAL *
+                  ObjectDefs [ t->object->type ].weight);
+              else
+                now+= (int) (CATCH_THROW_INTERVAL);
+            }
 
-	  if(t->start == 0)
-		t->start = now;
-	  else /* Concatenated performances may need clock resync */
-		now = t->start;
+          if (t->start == 0)
+            t->start= now;
+          else /* Concatenated performances may need clock resync */
+            now= t->start;
 
-	  t->cx = wander(sp, t->start);
+          t->cx= wander(sp, t->start);
 
-	  /* space */
-	  yo = 90;
+          /* space */
+          yo= 90;
 
-	  /* Add room for the handle */
-	  if(t->action == CATCH && t->object != NULL)
-		yo -= ObjectDefs[t->object->type].handle;
+          /* Add room for the handle */
+          if (t->action == CATCH && t->object != NULL)
+            yo-= ObjectDefs [ t->object->type ].handle;
 
-	  switch (t->posn) {
-	  case '-': xo = sx - pose; break;
-	  case '_':
-	  case 'k':
-	  case '+': xo = sx + pose; break;
-	  case '~':
-	  case '=': xo = - sx - pose; yo += pose; break;
-	  case '^': xo = 0; yo += pose*2; break; /* clap */
-	  default:
-		(void) fprintf(stderr, "juggle: unexpected posn %c\n", t->posn);
-		break;
-	  }
+          switch (t->posn)
+            {
+              case '-' : xo= sx - pose; break;
+              case '_' :
+              case 'k' :
+              case '+' : xo= sx + pose; break;
+              case '~' :
+              case '=' :
+                xo= -sx - pose;
+                yo+= pose;
+                break;
+              case '^' :
+                xo= 0;
+                yo+= pose * 2;
+                break; /* clap */
+              default :
+                (void) fprintf(stderr, "juggle: unexpected posn %c\n", t->posn);
+                break;
+            }
 
-	  t->angle = (((t->hand == LEFT) ^
-				   (t->posn == '+' || t->posn == '_' || t->posn == 'k' ))?
-					-1 : 1) * M_PI/2;
+          t->angle= (((t->hand == LEFT) ^
+                       (t->posn == '+' || t->posn == '_' || t->posn == 'k')) ?
+                        -1 :
+                        1) *
+            M_PI / 2;
 
-	  t->x = t->cx + ((t->hand == LEFT) ? xo : -xo);
-	  t->y = yo;
+          t->x= t->cx + ((t->hand == LEFT) ? xo : -xo);
+          t->y= yo;
 
-	  /* Only mark complete if it was already linked */
-	  if(t->status == LINKEDACTION) {
-		t->status = PTHRATCH;
-	  }
-	}
-  }
+          /* Only mark complete if it was already linked */
+          if (t->status == LINKEDACTION)
+            t->status= PTHRATCH;
+        }
+    }
 }
 
 
@@ -1303,24 +1508,36 @@ positions(jugglestruct *sp)
    togo = partial club turns required to match hands
 */
 static double
-spinrate(ObjType type, Trajectory *h, double old, double dt,
-		 int height, int turns, double togo)
+  spinrate(
+    ObjType type,
+    Trajectory *h,
+    double old,
+    double dt,
+    int height,
+    int turns,
+    double togo)
 {
-  const int dir = (h->hand == LEFT) ^ (h->posn == '+')? -1 : 1;
+  const int dir= (h->hand == LEFT) ^ (h->posn == '+') ? -1 : 1;
 
-  if(ObjectDefs[type].handle != 0) { /* Clubs */
-	return (dir * turns * 2 * M_PI + togo) / dt;
-  } else if(height == 0) { /* Balls already spinning */
-	return old/2;
-  } else { /* Balls */
-	return dir * NRAND(height*10)/20/ObjectDefs[type].weight * 2 * M_PI / dt;
-  }
+  if (ObjectDefs [ type ].handle != 0)
+    { /* Clubs */
+      return (dir * turns * 2 * M_PI + togo) / dt;
+    }
+  else if (height == 0)
+    { /* Balls already spinning */
+      return old / 2;
+    }
+  else
+    { /* Balls */
+      return dir * NRAND(height * 10) / 20 / ObjectDefs [ type ].weight * 2 * M_PI / dt;
+    }
 }
 
 
 /* compute the angle at the end of a spinning trajectory */
 static double
-end_spin(Trajectory *t)
+  end_spin(
+    Trajectory *t)
 {
   return t->angle + t->spin * (t->finish - t->start);
 }
@@ -1329,405 +1546,428 @@ end_spin(Trajectory *t)
    the final angle of the throw n.  Also sets the angle of the
    subsequent throw to the same angle plus half a turn. */
 static void
-match_spins_on_catch(Trajectory *t, Trajectory *n)
+  match_spins_on_catch(
+    Trajectory *t,
+    Trajectory *n)
 {
-  if(ObjectDefs[t->balllink->object->type].handle == 0) {
-	t->balllink->angle = end_spin(n);
-	if(t->balllink->handlink != NULL) {
-	  t->balllink->handlink->angle = t->balllink->angle + M_PI;
-	}
-  }
+  if (ObjectDefs [ t->balllink->object->type ].handle == 0)
+    {
+      t->balllink->angle= end_spin(n);
+      if (t->balllink->handlink != NULL)
+        t->balllink->handlink->angle= t->balllink->angle + M_PI;
+    }
 }
 
 static double
-find_bounce(jugglestruct *sp,
-			double yo, double yf, double yc, double tc, double cor)
+  find_bounce(
+    jugglestruct *sp,
+    double yo,
+    double yf,
+    double yc,
+    double tc,
+    double cor)
 {
-  double tb, i, dy = 0;
-  const double e = 1; /* permissible error in yc */
+  double tb, i, dy= 0;
+  const double e= 1; /* permissible error in yc */
 
   /*
-	tb = time to bounce
-	yt = height at catch time after one bounce
-	one or three roots according to timing
-	find one by interval bisection
+    tb = time to bounce
+    yt = height at catch time after one bounce
+    one or three roots according to timing
+    find one by interval bisection
   */
-  tb = tc;
-  for(i = tc / 2; i > 0.0001; i/=2){
-	double dt, yt;
-	if(tb == 0){
-	  (void) fprintf(stderr, "juggle: bounce div by zero!\n");
-	  break;
-	}
-	dy = (yf - yo)/tb + sp->Gr/2*tb;
-	dt = tc - tb;
-	yt = -cor*dy*dt + sp->Gr/2*dt*dt + yf;
-	if(yt < yc + e){
-	  tb-=i;
-	}else if(yt > yc - e){
-	  tb+=i;
-	}else{
-	  break;
-	}
-  }
-  if(dy*THROW_CATCH_INTERVAL < -200) { /* bounce too hard */
-	tb = -1;
-  }
+  tb= tc;
+  for (i= tc / 2; i > 0.0001; i/= 2)
+    {
+      double dt, yt;
+      if (tb == 0)
+        {
+          (void) fprintf(stderr, "juggle: bounce div by zero!\n");
+          break;
+        }
+      dy= (yf - yo) / tb + sp->Gr / 2 * tb;
+      dt= tc - tb;
+      yt= -cor * dy * dt + sp->Gr / 2 * dt * dt + yf;
+      if (yt < yc + e)
+        tb-= i;
+      else if (yt > yc - e)
+        tb+= i;
+      else
+        break;
+    }
+  if (dy * THROW_CATCH_INTERVAL < -200)
+    { /* bounce too hard */
+      tb= -1;
+    }
   return tb;
 }
 
-static Trajectory*
-new_predictor(const Trajectory *t, int start, int finish, double angle)
+static Trajectory *
+  new_predictor(
+    const Trajectory *t,
+    int start,
+    int finish,
+    double angle)
 {
   Trajectory *n;
   ADD_ELEMENT(Trajectory, n, t->prev);
-  if(n == NULL){
-	return NULL;
-  }
+  if (n == NULL)
+    return NULL;
   DUP_OBJECT(n, t);
-  n->divisions = t->divisions;
-  n->type = Ball;
-  n->status = PREDICTOR;
+  n->divisions= t->divisions;
+  n->type= Ball;
+  n->status= PREDICTOR;
 
-  n->start = start;
-  n->finish = finish;
-  n->angle = angle;
+  n->start= start;
+  n->finish= finish;
+  n->angle= angle;
   return n;
 }
 
 /* Turn abstract timings into physically appropriate object trajectories. */
 static Bool
-projectile(jugglestruct *sp)
+  projectile(
+    jugglestruct *sp)
 {
   Trajectory *t;
-  const int yf = 0; /* Floor height */
+  const int yf= 0; /* Floor height */
 
-  for (t = sp->head->next; t != sp->head; t = t->next) {
-	if (t->status != PTHRATCH || t->action != THROW) {
-	  continue;
-	} else if (t->balllink == NULL) { /* Zero Throw */
-	  t->status = BPREDICTOR;
-	} else if (t->balllink->handlink == NULL) { /* Incomplete */
-	  return True;
-	} else if(t->balllink == t->handlink) {
-	  /* '2' height - hold on to ball.  Don't need to consider
-		 flourishes, 'hands' will do that automatically anyway */
+  for (t= sp->head->next; t != sp->head; t= t->next)
+    {
+      if (t->status != PTHRATCH || t->action != THROW)
+        {
+          continue;
+        }
+      else if (t->balllink == NULL)
+        { /* Zero Throw */
+          t->status= BPREDICTOR;
+        }
+      else if (t->balllink->handlink == NULL)
+        { /* Incomplete */
+          return True;
+        }
+      else if (t->balllink == t->handlink)
+        {
+          /* '2' height - hold on to ball.  Don't need to consider
+             flourishes, 'hands' will do that automatically anyway */
 
-	  t->type = Full;
-	  /* Zero spin to avoid wrist injuries */
-	  t->spin = 0;
-	  match_spins_on_catch(t, t);
-	  t->dx = t->dy = 0;
-	  t->status = BPREDICTOR;
-	  continue;
-	} else {
-	  if (t->posn == '_') { /* Bounce once */
+          t->type= Full;
+          /* Zero spin to avoid wrist injuries */
+          t->spin= 0;
+          match_spins_on_catch(t, t);
+          t->dx= t->dy= 0;
+          t->status= BPREDICTOR;
+          continue;
+        }
+      else
+        {
+          if (t->posn == '_')
+            { /* Bounce once */
 
-		const int tb = t->start +
-		  find_bounce(sp, t->y, (double) yf, t->balllink->y,
-					  (double) (t->balllink->start - t->start),
-					  ObjectDefs[t->object->type].cor);
+              const int tb= t->start +
+                find_bounce(sp, t->y, (double) yf, t->balllink->y, (double) (t->balllink->start - t->start), ObjectDefs [ t->object->type ].cor);
 
-		if(tb < t->start) { /* bounce too hard */
-		  t->posn = '+'; /* Use regular throw */
-		} else {
-		  Trajectory *n; /* First (throw) trajectory. */
-		  double dt; /* Time span of a trajectory */
-		  double dy; /* Distance span of a follow-on trajectory.
-						First trajectory uses t->dy */
-		  /* dx is constant across both trajectories */
-		  t->dx = (t->balllink->x - t->x) / (t->balllink->start - t->start);
+              if (tb < t->start)
+                {               /* bounce too hard */
+                  t->posn= '+'; /* Use regular throw */
+                }
+              else
+                {
+                  Trajectory *n; /* First (throw) trajectory. */
+                  double dt;     /* Time span of a trajectory */
+                  double dy;     /* Distance span of a follow-on trajectory.
+                                    First trajectory uses t->dy */
+                  /* dx is constant across both trajectories */
+                  t->dx= (t->balllink->x - t->x) / (t->balllink->start - t->start);
 
-		  { /* ball follows parabola down */
-			n = new_predictor(t, t->start, tb, t->angle);
-			if(n == NULL) return False;
-			dt = n->finish - n->start;
-			/* Ball rate 4, no flight or matching club turns */
-			n->spin = spinrate(t->object->type, t, 0.0, dt, 4, 0, 0.0);
-			t->dy = (yf - t->y)/dt - sp->Gr/2*dt;
-			makeParabola(n, t->x, t->dx, t->y, t->dy, sp->Gr);
-		  }
+                  { /* ball follows parabola down */
+                    n= new_predictor(t, t->start, tb, t->angle);
+                    if (n == NULL) return False;
+                    dt= n->finish - n->start;
+                    /* Ball rate 4, no flight or matching club turns */
+                    n->spin= spinrate(t->object->type, t, 0.0, dt, 4, 0, 0.0);
+                    t->dy= (yf - t->y) / dt - sp->Gr / 2 * dt;
+                    makeParabola(n, t->x, t->dx, t->y, t->dy, sp->Gr);
+                  }
 
-		  { /* ball follows parabola up */
-			Trajectory *m = new_predictor(t, n->finish, t->balllink->start,
-										  end_spin(n));
-			if(m == NULL) return False;
-			dt = m->finish - m->start;
-			/* Use previous ball rate, no flight club turns */
-			m->spin = spinrate(t->object->type, t, n->spin, dt, 0, 0,
-							   t->balllink->angle - m->angle);
-			match_spins_on_catch(t, m);
-			dy = (t->balllink->y - yf)/dt - sp->Gr/2 * dt;
-			makeParabola(m, t->balllink->x - t->dx * dt,
-						 t->dx, (double) yf, dy, sp->Gr);
-		  }
+                  { /* ball follows parabola up */
+                    Trajectory *m= new_predictor(t, n->finish, t->balllink->start, end_spin(n));
+                    if (m == NULL) return False;
+                    dt= m->finish - m->start;
+                    /* Use previous ball rate, no flight club turns */
+                    m->spin= spinrate(t->object->type, t, n->spin, dt, 0, 0, t->balllink->angle - m->angle);
+                    match_spins_on_catch(t, m);
+                    dy= (t->balllink->y - yf) / dt - sp->Gr / 2 * dt;
+                    makeParabola(m, t->balllink->x - t->dx * dt, t->dx, (double) yf, dy, sp->Gr);
+                  }
 
-		  t->status = BPREDICTOR;
-		  continue;
-		}
-	  } else if (t->posn == 'k') { /* Drop & Kick */
-		Trajectory *n; /* First (drop) trajectory. */
-		Trajectory *o; /* Second (rest) trajectory */
-		Trajectory *m; /* Third (kick) trajectory */
-		const int td = t->start + 2*THROW_CATCH_INTERVAL; /* Drop time */
-		const int tk = t->balllink->start - 5*THROW_CATCH_INTERVAL; /* Kick */
-		double dt, dy;
+                  t->status= BPREDICTOR;
+                  continue;
+                }
+            }
+          else if (t->posn == 'k')
+            {                                                              /* Drop & Kick */
+              Trajectory *n;                                               /* First (drop) trajectory. */
+              Trajectory *o;                                               /* Second (rest) trajectory */
+              Trajectory *m;                                               /* Third (kick) trajectory */
+              const int td= t->start + 2 * THROW_CATCH_INTERVAL;           /* Drop time */
+              const int tk= t->balllink->start - 5 * THROW_CATCH_INTERVAL; /* Kick */
+              double dt, dy;
 
-		{ /* Fall to ground */
-		  n = new_predictor(t, t->start, td, t->angle);
-		  if(n == NULL) return False;
-		  dt = n->finish - n->start;
-		  /* Ball spin rate 4, no flight club turns */
-		  n->spin = spinrate(t->object->type, t, 0.0, dt, 4, 0,
-							 t->balllink->angle - n->angle);
-		  t->dx = (t->balllink->x - t->x) / dt;
-		  t->dy = (yf - t->y)/dt - sp->Gr/2*dt;
-		  makeParabola(n, t->x, t->dx, t->y, t->dy, sp->Gr);
-		}
+              { /* Fall to ground */
+                n= new_predictor(t, t->start, td, t->angle);
+                if (n == NULL) return False;
+                dt= n->finish - n->start;
+                /* Ball spin rate 4, no flight club turns */
+                n->spin= spinrate(t->object->type, t, 0.0, dt, 4, 0, t->balllink->angle - n->angle);
+                t->dx= (t->balllink->x - t->x) / dt;
+                t->dy= (yf - t->y) / dt - sp->Gr / 2 * dt;
+                makeParabola(n, t->x, t->dx, t->y, t->dy, sp->Gr);
+              }
 
-		{ /* Rest on ground */
-		  o = new_predictor(t, n->finish, tk, end_spin(n));
-		  if(o == NULL) return False;
-		  o->spin = 0;
-		  makeParabola(o, t->balllink->x, 0.0, (double) yf, 0.0, 0.0);
-		}
+              { /* Rest on ground */
+                o= new_predictor(t, n->finish, tk, end_spin(n));
+                if (o == NULL) return False;
+                o->spin= 0;
+                makeParabola(o, t->balllink->x, 0.0, (double) yf, 0.0, 0.0);
+              }
 
-		/* Kick up */
-		{
-		  m = new_predictor(t, o->finish, t->balllink->start, end_spin(o));
-		  if(m == NULL) return False;
-		  dt = m->finish - m->start;
-		  /* Match receiving hand, ball rate 4, one flight club turn */
-		  m->spin = spinrate(t->object->type, t->balllink->handlink, 0.0, dt,
-							 4, 1, t->balllink->angle - m->angle);
-		  match_spins_on_catch(t, m);
-		  dy = (t->balllink->y - yf)/dt - sp->Gr/2 * dt;
-		  makeParabola(m, t->balllink->x, 0.0, (double) yf, dy, sp->Gr);
-		}
+              /* Kick up */
+              {
+                m= new_predictor(t, o->finish, t->balllink->start, end_spin(o));
+                if (m == NULL) return False;
+                dt= m->finish - m->start;
+                /* Match receiving hand, ball rate 4, one flight club turn */
+                m->spin= spinrate(t->object->type, t->balllink->handlink, 0.0, dt, 4, 1, t->balllink->angle - m->angle);
+                match_spins_on_catch(t, m);
+                dy= (t->balllink->y - yf) / dt - sp->Gr / 2 * dt;
+                makeParabola(m, t->balllink->x, 0.0, (double) yf, dy, sp->Gr);
+              }
 
-		t->status = BPREDICTOR;
-		continue;
-	  }
+              t->status= BPREDICTOR;
+              continue;
+            }
 
-	  /* Regular flight, no bounce */
-	  { /* ball follows parabola */
-		double dt;
-		Trajectory *n = new_predictor(t, t->start,
-									  t->balllink->start, t->angle);
-		if(n == NULL) return False;
-		dt = t->balllink->start - t->start;
-		/* Regular spin */
-		n->spin = spinrate(t->object->type, t, 0.0, dt, t->height, t->height/2,
-						   t->balllink->angle - n->angle);
-		match_spins_on_catch(t, n);
-		t->dx = (t->balllink->x - t->x) / dt;
-		t->dy = (t->balllink->y - t->y) / dt - sp->Gr/2 * dt;
-		makeParabola(n, t->x, t->dx, t->y, t->dy, sp->Gr);
-	  }
+          /* Regular flight, no bounce */
+          { /* ball follows parabola */
+            double dt;
+            Trajectory *n= new_predictor(t, t->start, t->balllink->start, t->angle);
+            if (n == NULL) return False;
+            dt= t->balllink->start - t->start;
+            /* Regular spin */
+            n->spin= spinrate(t->object->type, t, 0.0, dt, t->height, t->height / 2, t->balllink->angle - n->angle);
+            match_spins_on_catch(t, n);
+            t->dx= (t->balllink->x - t->x) / dt;
+            t->dy= (t->balllink->y - t->y) / dt - sp->Gr / 2 * dt;
+            makeParabola(n, t->x, t->dx, t->y, t->dy, sp->Gr);
+          }
 
-	  t->status = BPREDICTOR;
-	}
-  }
+          t->status= BPREDICTOR;
+        }
+    }
   return True;
 }
 
 /* Turn abstract hand motions into cubic splines. */
 static void
-hands(jugglestruct *sp)
+  hands(
+    jugglestruct *sp)
 {
   Trajectory *t, *u, *v;
 
-  for (t = sp->head->next; t != sp->head; t = t->next) {
-	/* no throw => no velocity */
-	if (t->status != BPREDICTOR) {
-	  continue;
-	}
+  for (t= sp->head->next; t != sp->head; t= t->next)
+    {
+      /* no throw => no velocity */
+      if (t->status != BPREDICTOR)
+        continue;
 
-	u = t->handlink;
-	if (u == NULL) { /* no next catch */
-	  continue;
-	}
-	v = u->handlink;
-	if (v == NULL) { /* no next throw */
-	  continue;
-	}
+      u= t->handlink;
+      if (u == NULL)
+        { /* no next catch */
+          continue;
+        }
+      v= u->handlink;
+      if (v == NULL)
+        { /* no next throw */
+          continue;
+        }
 
-	/* double spline takes hand from throw, thru catch, to
-	   next throw */
+      /* double spline takes hand from throw, thru catch, to
+         next throw */
 
-	t->finish = u->start;
-	t->status = PREDICTOR;
+      t->finish= u->start;
+      t->status= PREDICTOR;
 
-	u->finish = v->start;
-	u->status = PREDICTOR;
+      u->finish= v->start;
+      u->status= PREDICTOR;
 
 
-	/* FIXME: These adjustments leave a small glitch when alternating
-	   balls and clubs.  Just hope no-one notices.  :-) */
+      /* FIXME: These adjustments leave a small glitch when alternating
+         balls and clubs.  Just hope no-one notices.  :-) */
 
-	/* make sure empty hand spin matches the thrown object in case it
-	   had a handle */
+      /* make sure empty hand spin matches the thrown object in case it
+         had a handle */
 
-	t->spin = ((t->hand == LEFT)? -1 : 1 ) *
-	  fabs((u->angle - t->angle)/(u->start - t->start));
+      t->spin= ((t->hand == LEFT) ? -1 : 1) *
+        fabs((u->angle - t->angle) / (u->start - t->start));
 
-	u->spin = ((v->hand == LEFT) ^ (v->posn == '+')? -1 : 1 ) *
-	  fabs((v->angle - u->angle)/(v->start - u->start));
+      u->spin= ((v->hand == LEFT) ^ (v->posn == '+') ? -1 : 1) *
+        fabs((v->angle - u->angle) / (v->start - u->start));
 
-	(void) makeSplinePair(&t->xp, &u->xp,
-						  t->x, t->dx, t->start,
-						  u->x, u->start,
-						  v->x, v->dx, v->start);
-	(void) makeSplinePair(&t->yp, &u->yp,
-						  t->y, t->dy, t->start,
-						  u->y, u->start,
-						  v->y, v->dy, v->start);
+      (void) makeSplinePair(&t->xp, &u->xp, t->x, t->dx, t->start, u->x, u->start, v->x, v->dx, v->start);
+      (void) makeSplinePair(&t->yp, &u->yp, t->y, t->dy, t->start, u->y, u->start, v->y, v->dy, v->start);
 
-	t->status = PREDICTOR;
-  }
+      t->status= PREDICTOR;
+    }
 }
 
 /* Given target x, y find_elbow puts hand at target if possible,
  * otherwise makes hand point to the target */
 static void
-find_elbow(int armlength, DXPoint *h, DXPoint *e, DXPoint *p, DXPoint *s,
-		   int z)
+  find_elbow(
+    int armlength,
+    DXPoint *h,
+    DXPoint *e,
+    DXPoint *p,
+    DXPoint *s,
+    int z)
 {
   double r, h2, t;
-  double x = p->x - s->x;
-  double y = p->y - s->y;
-  h2 = x*x + y*y + z*z;
-  if (h2 > 4 * armlength * armlength) {
-	t = armlength/sqrt(h2);
-	e->x = t*x + s->x;
-	e->y = t*y + s->y;
-	h->x = 2 * t * x + s->x;
-	h->y = 2 * t * y + s->y;
-  } else {
-	r = sqrt((double)(x*x + z*z));
-	t = sqrt(4 * armlength * armlength / h2 - 1);
-	e->x = x*(1 + y*t/r)/2 + s->x;
-	e->y = (y - r*t)/2 + s->y;
-	h->x = x + s->x;
-	h->y = y + s->y;
-  }
+  double x= p->x - s->x;
+  double y= p->y - s->y;
+  h2= x * x + y * y + z * z;
+  if (h2 > 4 * armlength * armlength)
+    {
+      t= armlength / sqrt(h2);
+      e->x= t * x + s->x;
+      e->y= t * y + s->y;
+      h->x= 2 * t * x + s->x;
+      h->y= 2 * t * y + s->y;
+    }
+  else
+    {
+      r= sqrt((double) (x * x + z * z));
+      t= sqrt(4 * armlength * armlength / h2 - 1);
+      e->x= x * (1 + y * t / r) / 2 + s->x;
+      e->y= (y - r * t) / 2 + s->y;
+      h->x= x + s->x;
+      h->y= y + s->y;
+    }
 }
 
 
 /* NOTE: returned x, y adjusted for arm reach */
 static void
-reach_arm(ModeInfo * mi, Hand side, DXPoint *p)
+  reach_arm(
+    ModeInfo *mi,
+    Hand side,
+    DXPoint *p)
 {
-  jugglestruct *sp = &juggles[MI_SCREEN(mi)];
+  jugglestruct *sp= &juggles [ MI_SCREEN(mi) ];
   DXPoint h, e;
-  find_elbow(40, &h, &e, p, &sp->arm[1][side][SHOULDER], 25);
-  *p = sp->arm[1][side][HAND] = h;
-  sp->arm[1][side][ELBOW] = e;
+  find_elbow(40, &h, &e, p, &sp->arm [ 1 ][ side ][ SHOULDER ], 25);
+  *p= sp->arm [ 1 ][ side ][ HAND ]= h;
+  sp->arm [ 1 ][ side ][ ELBOW ]= e;
 }
 
 #if DEBUG
 /* dumps a human-readable rendition of the current state of the juggle
    pipeline to stderr for debugging */
 static void
-dump(jugglestruct *sp)
+  dump(
+    jugglestruct *sp)
 {
   Trajectory *t;
-  for (t = sp->head->next; t != sp->head; t = t->next) {
-	switch (t->status) {
-	case ATCH:
-	  (void) fprintf(stderr, "%p a %c%d\n", (void*)t, t->posn, t->adam);
-	  break;
-	case THRATCH:
-	  (void) fprintf(stderr, "%p T %c%d %s\n", (void*)t, t->posn, t->height,
-					 t->pattern == NULL?"":t->pattern);
-	  break;
-	case ACTION:
-	  if (t->action == CATCH)
-	    (void) fprintf(stderr, "%p A %c%cC\n",
-					 (void*)t, t->posn,
-					 t->hand ? 'R' : 'L');
-	  else
-	    (void) fprintf(stderr, "%p A %c%c%c%d\n",
-					 (void*)t, t->posn,
-					 t->hand ? 'R' : 'L',
-					 (t->action == THROW)?'T':'N',
-					 t->height);
-	  break;
-	case LINKEDACTION:
-	  (void) fprintf(stderr, "%p L %c%c%c%d %d %p %p\n",
-					 (void*)t, t->posn,
-					 t->hand?'R':'L',
-					 (t->action == THROW)?'T':(t->action == CATCH?'C':'N'),
-					 t->height, t->object == NULL?0:t->object->color,
-					 (void*)t->handlink, (void*)t->balllink);
-	  break;
-	case PTHRATCH:
-	  (void) fprintf(stderr, "%p O %c%c%c%d %d %2d %6lu %6lu\n",
-					 (void*)t, t->posn,
-					 t->hand?'R':'L',
-					 (t->action == THROW)?'T':(t->action == CATCH?'C':'N'),
-					 t->height, t->type, t->object == NULL?0:t->object->color,
-					 t->start, t->finish);
-	  break;
-	case BPREDICTOR:
-	  (void) fprintf(stderr, "%p B %c      %2d %6lu %6lu %g\n",
-					 (void*)t, t->type == Ball?'b':t->type == Empty?'e':'f',
-					 t->object == NULL?0:t->object->color,
-					 t->start, t->finish, t->yp.c);
-	  break;
-	case PREDICTOR:
-	  (void) fprintf(stderr, "%p P %c      %2d %6lu %6lu %g\n",
-					 (void*)t, t->type == Ball?'b':t->type == Empty?'e':'f',
-					 t->object == NULL?0:t->object->color,
-					 t->start, t->finish, t->yp.c);
-	  break;
-	default:
-	  (void) fprintf(stderr, "%p: status %d not implemented\n",
-					 (void*)t, t->status);
-	  break;
-	}
-  }
+  for (t= sp->head->next; t != sp->head; t= t->next)
+    {
+      switch (t->status)
+        {
+          case ATCH :
+            (void) fprintf(stderr, "%p a %c%d\n", (void *) t, t->posn, t->adam);
+            break;
+          case THRATCH :
+            (void) fprintf(stderr, "%p T %c%d %s\n", (void *) t, t->posn, t->height, t->pattern == NULL ? "" : t->pattern);
+            break;
+          case ACTION :
+            if (t->action == CATCH)
+              (void) fprintf(stderr, "%p A %c%cC\n", (void *) t, t->posn, t->hand ? 'R' : 'L');
+            else
+              (void) fprintf(stderr, "%p A %c%c%c%d\n", (void *) t, t->posn, t->hand ? 'R' : 'L', (t->action == THROW) ? 'T' : 'N', t->height);
+            break;
+          case LINKEDACTION :
+            (void) fprintf(stderr, "%p L %c%c%c%d %d %p %p\n", (void *) t, t->posn, t->hand ? 'R' : 'L', (t->action == THROW) ? 'T' : (t->action == CATCH ? 'C' : 'N'), t->height, t->object == NULL ? 0 : t->object->color, (void *) t->handlink, (void *) t->balllink);
+            break;
+          case PTHRATCH :
+            (void) fprintf(stderr, "%p O %c%c%c%d %d %2d %6lu %6lu\n", (void *) t, t->posn, t->hand ? 'R' : 'L', (t->action == THROW) ? 'T' : (t->action == CATCH ? 'C' : 'N'), t->height, t->type, t->object == NULL ? 0 : t->object->color, t->start, t->finish);
+            break;
+          case BPREDICTOR :
+            (void) fprintf(stderr, "%p B %c      %2d %6lu %6lu %g\n", (void *) t, t->type == Ball ? 'b' : t->type == Empty ? 'e' :
+                                                                                                                             'f',
+              t->object == NULL ? 0 : t->object->color,
+              t->start,
+              t->finish,
+              t->yp.c);
+            break;
+          case PREDICTOR :
+            (void) fprintf(stderr, "%p P %c      %2d %6lu %6lu %g\n", (void *) t, t->type == Ball ? 'b' : t->type == Empty ? 'e' :
+                                                                                                                             'f',
+              t->object == NULL ? 0 : t->object->color,
+              t->start,
+              t->finish,
+              t->yp.c);
+            break;
+          default :
+            (void) fprintf(stderr, "%p: status %d not implemented\n", (void *) t, t->status);
+            break;
+        }
+    }
   (void) fprintf(stderr, "---\n");
 }
 #endif
 
-static int get_num_balls(const char *j)
+static int get_num_balls(
+  const char *j)
 {
-  int balls = 0;
+  int balls= 0;
   const char *p;
-  int h = 0;
-  if (!j) abort();
-  for (p = j; *p; p++) {
-	if (*p >= '0' && *p <='9') { /* digit */
-	  h = 10*h + (*p - '0');
-	} else {
-	  if (h > balls) {
-		balls = h;
-	  }
-	  h = 0;
-	}
-  }
+  int h= 0;
+  if (! j) abort();
+  for (p= j; *p; p++)
+    {
+      if (*p >= '0' && *p <= '9')
+        { /* digit */
+          h= 10 * h + (*p - '0');
+        }
+      else
+        {
+          if (h > balls)
+            balls= h;
+          h= 0;
+        }
+    }
   return balls;
 }
 
 #ifdef __cplusplus
-extern "C" {
+extern "C"
+{
 #endif
 
-static int
-compare_num_balls(const void *p1, const void *p2)
-{
-  int i, j;
-  i = get_num_balls(((patternstruct*)p1)->pattern);
-  j = get_num_balls(((patternstruct*)p2)->pattern);
-  if (i > j) {
-	return (1);
-  } else if (i < j) {
-	return (-1);
-  } else {
-	return (0);
+  static int
+    compare_num_balls(
+      const void *p1,
+      const void *p2)
+  {
+    int i, j;
+    i= get_num_balls(((patternstruct *) p1)->pattern);
+    j= get_num_balls(((patternstruct *) p2)->pattern);
+    if (i > j)
+      return (1);
+    else if (i < j)
+      return (-1);
+    else
+      return (0);
   }
-}
 
 #ifdef __cplusplus
 }
@@ -1740,38 +1980,42 @@ compare_num_balls(const void *p1, const void *p2)
  **************************************************************************/
 
 static void
-show_arms(ModeInfo * mi, unsigned long color)
+  show_arms(
+    ModeInfo *mi,
+    unsigned long color)
 {
-  jugglestruct *sp = &juggles[MI_SCREEN(mi)];
+  jugglestruct *sp= &juggles [ MI_SCREEN(mi) ];
   unsigned int i, j;
   Hand side;
-  XPoint a[XtNumber(sp->arm[0][0])];
-  if(color == MI_BLACK_PIXEL(mi)) {
-	j = 0;
-  } else {
-	j = 1;
-  }
-  XSetLineAttributes(MI_DISPLAY(mi), MI_GC(mi),
-					 ARMWIDTH, LineSolid, CapRound, JoinRound);
+  XPoint a [ XtNumber(sp->arm [ 0 ][ 0 ]) ];
+  if (color == MI_BLACK_PIXEL(mi))
+    j= 0;
+  else
+    j= 1;
+  XSetLineAttributes(MI_DISPLAY(mi), MI_GC(mi), ARMWIDTH, LineSolid, CapRound, JoinRound);
   XSetForeground(MI_DISPLAY(mi), MI_GC(mi), color);
-  for(side = LEFT; side <= RIGHT; side = (Hand)((int)side + 1)) {
-	/* Translate into device coords */
-	for(i = 0; i < XtNumber(a); i++) {
-	  a[i].x = (short)(MI_WIDTH(mi)/2 + sp->arm[j][side][i].x*sp->scale);
-	  a[i].y = (short)(MI_HEIGHT(mi)  - sp->arm[j][side][i].y*sp->scale);
-	  if(j == 1)
-		sp->arm[0][side][i] = sp->arm[1][side][i];
-	}
-	XDrawLines(MI_DISPLAY(mi), MI_WINDOW(mi), MI_GC(mi),
-			   a, XtNumber(a), CoordModeOrigin);
-  }
+  for (side= LEFT; side <= RIGHT; side= (Hand) ((int) side + 1))
+    {
+      /* Translate into device coords */
+      for (i= 0; i < XtNumber(a); i++)
+        {
+          a [ i ].x= (short) (MI_WIDTH(mi) / 2 + sp->arm [ j ][ side ][ i ].x * sp->scale);
+          a [ i ].y= (short) (MI_HEIGHT(mi) - sp->arm [ j ][ side ][ i ].y * sp->scale);
+          if (j == 1)
+            sp->arm [ 0 ][ side ][ i ]= sp->arm [ 1 ][ side ][ i ];
+        }
+      XDrawLines(MI_DISPLAY(mi), MI_WINDOW(mi), MI_GC(mi), a, XtNumber(a), CoordModeOrigin);
+    }
 }
 
 static void
-show_figure(ModeInfo * mi, unsigned long color, Bool init)
+  show_figure(
+    ModeInfo *mi,
+    unsigned long color,
+    Bool init)
 {
-  jugglestruct *sp = &juggles[MI_SCREEN(mi)];
-  XPoint p[7];
+  jugglestruct *sp= &juggles [ MI_SCREEN(mi) ];
+  XPoint p [ 7 ];
   unsigned int i;
 
   /*      +-----+ 9
@@ -1791,224 +2035,227 @@ show_figure(ModeInfo * mi, unsigned long color, Bool init)
         7 +     + 8
   */
 
-  static const XPoint figure[] = {
-	{ 15,  70}, /* 0  Left Hip */
-	{  0,  90}, /* 1  Waist */
-	{ SX, 130}, /* 2  Left Shoulder */
-	{-SX, 130}, /* 3  Right Shoulder */
-	{-15,  70}, /* 4  Right Hip */
-	{  0, 130}, /* 5  Neck */
-	{  0, 140}, /* 6  Chin */
-	{ SX,   0}, /* 7  Left Foot */
-	{-SX,   0}, /* 8  Right Foot */
-	{-17, 174}, /* 9  Head1 */
-	{ 17, 140}, /* 10 Head2 */
+  static const XPoint figure []= {
+    {15, 70},   /* 0  Left Hip */
+    {0, 90},    /* 1  Waist */
+    {SX, 130},  /* 2  Left Shoulder */
+    {-SX, 130}, /* 3  Right Shoulder */
+    {-15, 70},  /* 4  Right Hip */
+    {0, 130},   /* 5  Neck */
+    {0, 140},   /* 6  Chin */
+    {SX, 0},    /* 7  Left Foot */
+    {-SX, 0},   /* 8  Right Foot */
+    {-17, 174}, /* 9  Head1 */
+    {17, 140},  /* 10 Head2 */
   };
-  XPoint a[XtNumber(figure)];
+  XPoint a [ XtNumber(figure) ];
 
   /* Translate into device coords */
-  for(i = 0; i < XtNumber(figure); i++) {
-	a[i].x = (short)(MI_WIDTH(mi)/2 + (sp->cx + figure[i].x)*sp->scale);
-	a[i].y = (short)(MI_HEIGHT(mi) - figure[i].y*sp->scale);
-  }
+  for (i= 0; i < XtNumber(figure); i++)
+    {
+      a [ i ].x= (short) (MI_WIDTH(mi) / 2 + (sp->cx + figure [ i ].x) * sp->scale);
+      a [ i ].y= (short) (MI_HEIGHT(mi) - figure [ i ].y * sp->scale);
+    }
 
-  XSetLineAttributes(MI_DISPLAY(mi), MI_GC(mi),
-		ARMWIDTH, LineSolid, CapRound, JoinRound);
+  XSetLineAttributes(MI_DISPLAY(mi), MI_GC(mi), ARMWIDTH, LineSolid, CapRound, JoinRound);
   XSetForeground(MI_DISPLAY(mi), MI_GC(mi), color);
 
-  i = 0; /* Body */
-  p[i++] = a[0]; p[i++] = a[1]; p[i++] = a[2];
-  p[i++] = a[3]; p[i++] = a[1]; p[i++] = a[4];
-  XDrawLines(MI_DISPLAY(mi), MI_WINDOW(mi), MI_GC(mi),
-			 p, i, CoordModeOrigin);
+  i= 0; /* Body */
+  p [ i++ ]= a [ 0 ];
+  p [ i++ ]= a [ 1 ];
+  p [ i++ ]= a [ 2 ];
+  p [ i++ ]= a [ 3 ];
+  p [ i++ ]= a [ 1 ];
+  p [ i++ ]= a [ 4 ];
+  XDrawLines(MI_DISPLAY(mi), MI_WINDOW(mi), MI_GC(mi), p, i, CoordModeOrigin);
 
-  i = 0;  /* Legs */
-  p[i++] = a[7]; p[i++] = a[0]; p[i++] = a[4]; p[i++] = a[8];
-  XDrawLines(MI_DISPLAY(mi), MI_WINDOW(mi), MI_GC(mi),
-			 p, i, CoordModeOrigin);
+  i= 0; /* Legs */
+  p [ i++ ]= a [ 7 ];
+  p [ i++ ]= a [ 0 ];
+  p [ i++ ]= a [ 4 ];
+  p [ i++ ]= a [ 8 ];
+  XDrawLines(MI_DISPLAY(mi), MI_WINDOW(mi), MI_GC(mi), p, i, CoordModeOrigin);
 
-  i = 0;  /* Neck */
-  p[i++] = a[5]; p[i++] = a[6];
-  XDrawLines(MI_DISPLAY(mi), MI_WINDOW(mi), MI_GC(mi),
-			 p, i, CoordModeOrigin);
+  i= 0; /* Neck */
+  p [ i++ ]= a [ 5 ];
+  p [ i++ ]= a [ 6 ];
+  XDrawLines(MI_DISPLAY(mi), MI_WINDOW(mi), MI_GC(mi), p, i, CoordModeOrigin);
 
   /* Head */
-  XDrawArc(MI_DISPLAY(mi), MI_WINDOW(mi), MI_GC(mi),
-		   a[9].x, a[9].y,
-		   a[10].x - a[9].x, a[10].y - a[9].y, 0, 64*360);
-  sp->arm[1][LEFT][SHOULDER].x = sp->cx + figure[2].x;
-  sp->arm[1][RIGHT][SHOULDER].x = sp->cx + figure[3].x;
-  if(init) {
-	/* Initialise arms */
-	unsigned int i;
-	for(i = 0; i < 2; i++){
-	  sp->arm[i][LEFT][SHOULDER].y = figure[2].y;
-	  sp->arm[i][LEFT][ELBOW].x = figure[2].x;
-	  sp->arm[i][LEFT][ELBOW].y = figure[1].y;
-	  sp->arm[i][LEFT][HAND].x = figure[0].x;
-	  sp->arm[i][LEFT][HAND].y = figure[1].y;
-	  sp->arm[i][RIGHT][SHOULDER].y = figure[3].y;
-	  sp->arm[i][RIGHT][ELBOW].x = figure[3].x;
-	  sp->arm[i][RIGHT][ELBOW].y = figure[1].y;
-	  sp->arm[i][RIGHT][HAND].x = figure[4].x;
-	  sp->arm[i][RIGHT][HAND].y = figure[1].y;
-	}
-  }
+  XDrawArc(MI_DISPLAY(mi), MI_WINDOW(mi), MI_GC(mi), a [ 9 ].x, a [ 9 ].y, a [ 10 ].x - a [ 9 ].x, a [ 10 ].y - a [ 9 ].y, 0, 64 * 360);
+  sp->arm [ 1 ][ LEFT ][ SHOULDER ].x= sp->cx + figure [ 2 ].x;
+  sp->arm [ 1 ][ RIGHT ][ SHOULDER ].x= sp->cx + figure [ 3 ].x;
+  if (init)
+    {
+      /* Initialise arms */
+      unsigned int i;
+      for (i= 0; i < 2; i++)
+        {
+          sp->arm [ i ][ LEFT ][ SHOULDER ].y= figure [ 2 ].y;
+          sp->arm [ i ][ LEFT ][ ELBOW ].x= figure [ 2 ].x;
+          sp->arm [ i ][ LEFT ][ ELBOW ].y= figure [ 1 ].y;
+          sp->arm [ i ][ LEFT ][ HAND ].x= figure [ 0 ].x;
+          sp->arm [ i ][ LEFT ][ HAND ].y= figure [ 1 ].y;
+          sp->arm [ i ][ RIGHT ][ SHOULDER ].y= figure [ 3 ].y;
+          sp->arm [ i ][ RIGHT ][ ELBOW ].x= figure [ 3 ].x;
+          sp->arm [ i ][ RIGHT ][ ELBOW ].y= figure [ 1 ].y;
+          sp->arm [ i ][ RIGHT ][ HAND ].x= figure [ 4 ].x;
+          sp->arm [ i ][ RIGHT ][ HAND ].y= figure [ 1 ].y;
+        }
+    }
 }
 
 static void
-show_ball(ModeInfo *mi, unsigned long color, Trace *s)
+  show_ball(
+    ModeInfo *mi,
+    unsigned long color,
+    Trace *s)
 {
-  jugglestruct *sp = &juggles[MI_SCREEN(mi)];
-  int offset = (int)(s->angle*64*180/M_PI);
-  short x = (short)(MI_WIDTH(mi)/2 + s->x * sp->scale);
-  short y = (short)(MI_HEIGHT(mi) - s->y * sp->scale);
+  jugglestruct *sp= &juggles [ MI_SCREEN(mi) ];
+  int offset= (int) (s->angle * 64 * 180 / M_PI);
+  short x= (short) (MI_WIDTH(mi) / 2 + s->x * sp->scale);
+  short y= (short) (MI_HEIGHT(mi) - s->y * sp->scale);
 
   /* Avoid wrapping */
-  if(s->y*sp->scale >  MI_HEIGHT(mi) * 2) return;
+  if (s->y * sp->scale > MI_HEIGHT(mi) * 2) return;
 
   XSetForeground(MI_DISPLAY(mi), MI_GC(mi), color);
-  if (s->divisions == 0 || color == MI_BLACK_PIXEL(mi))  {
-	XFillArc(MI_DISPLAY(mi), MI_WINDOW(mi), MI_GC(mi),
-			 x - BALLRADIUS, y - BALLRADIUS,
-			 2*BALLRADIUS, 2*BALLRADIUS,
-			 0, 23040);
-  } else if (s->divisions == 4) { /* 90 degree divisions */
-	XFillArc(MI_DISPLAY(mi), MI_WINDOW(mi), MI_GC(mi),
-			 x - BALLRADIUS, y - BALLRADIUS,
-			 2*BALLRADIUS, 2*BALLRADIUS,
-			 offset % 23040, 5760);
-	XFillArc(MI_DISPLAY(mi), MI_WINDOW(mi), MI_GC(mi),
-			 x - BALLRADIUS, y - BALLRADIUS,
-			 2*BALLRADIUS, 2*BALLRADIUS,
-			 (offset + 11520) % 23040, 5760);
+  if (s->divisions == 0 || color == MI_BLACK_PIXEL(mi))
+    {
+      XFillArc(MI_DISPLAY(mi), MI_WINDOW(mi), MI_GC(mi), x - BALLRADIUS, y - BALLRADIUS, 2 * BALLRADIUS, 2 * BALLRADIUS, 0, 23040);
+    }
+  else if (s->divisions == 4)
+    { /* 90 degree divisions */
+      XFillArc(MI_DISPLAY(mi), MI_WINDOW(mi), MI_GC(mi), x - BALLRADIUS, y - BALLRADIUS, 2 * BALLRADIUS, 2 * BALLRADIUS, offset % 23040, 5760);
+      XFillArc(MI_DISPLAY(mi), MI_WINDOW(mi), MI_GC(mi), x - BALLRADIUS, y - BALLRADIUS, 2 * BALLRADIUS, 2 * BALLRADIUS, (offset + 11520) % 23040, 5760);
 
-	XSetForeground(MI_DISPLAY(mi), MI_GC(mi), MI_WHITE_PIXEL(mi));
-	XFillArc(MI_DISPLAY(mi), MI_WINDOW(mi), MI_GC(mi),
-			 x - BALLRADIUS, y - BALLRADIUS,
-			 2*BALLRADIUS, 2*BALLRADIUS,
-			 (offset + 5760) % 23040, 5760);
-	XFillArc(MI_DISPLAY(mi), MI_WINDOW(mi), MI_GC(mi),
-			 x - BALLRADIUS, y - BALLRADIUS,
-			 2*BALLRADIUS, 2*BALLRADIUS,
-			 (offset + 17280) % 23040, 5760);
-  } else if (s->divisions == 2)  { /* 180 degree divisions */
-	XFillArc(MI_DISPLAY(mi), MI_WINDOW(mi), MI_GC(mi),
-			 x - BALLRADIUS, y - BALLRADIUS,
-			 2*BALLRADIUS, 2*BALLRADIUS,
-			 offset % 23040, 11520);
+      XSetForeground(MI_DISPLAY(mi), MI_GC(mi), MI_WHITE_PIXEL(mi));
+      XFillArc(MI_DISPLAY(mi), MI_WINDOW(mi), MI_GC(mi), x - BALLRADIUS, y - BALLRADIUS, 2 * BALLRADIUS, 2 * BALLRADIUS, (offset + 5760) % 23040, 5760);
+      XFillArc(MI_DISPLAY(mi), MI_WINDOW(mi), MI_GC(mi), x - BALLRADIUS, y - BALLRADIUS, 2 * BALLRADIUS, 2 * BALLRADIUS, (offset + 17280) % 23040, 5760);
+    }
+  else if (s->divisions == 2)
+    { /* 180 degree divisions */
+      XFillArc(MI_DISPLAY(mi), MI_WINDOW(mi), MI_GC(mi), x - BALLRADIUS, y - BALLRADIUS, 2 * BALLRADIUS, 2 * BALLRADIUS, offset % 23040, 11520);
 
-	XSetForeground(MI_DISPLAY(mi), MI_GC(mi), MI_WHITE_PIXEL(mi));
-	XFillArc(MI_DISPLAY(mi), MI_WINDOW(mi), MI_GC(mi),
-			 x - BALLRADIUS, y - BALLRADIUS,
-			 2*BALLRADIUS, 2*BALLRADIUS,
-			 (offset + 11520) % 23040, 11520);
-  } else {
-	(void) fprintf(stderr, "juggle[%d]: unexpected divisions: %d\n",
-			MI_SCREEN(mi), s->divisions);
-  }
+      XSetForeground(MI_DISPLAY(mi), MI_GC(mi), MI_WHITE_PIXEL(mi));
+      XFillArc(MI_DISPLAY(mi), MI_WINDOW(mi), MI_GC(mi), x - BALLRADIUS, y - BALLRADIUS, 2 * BALLRADIUS, 2 * BALLRADIUS, (offset + 11520) % 23040, 11520);
+    }
+  else
+    {
+      (void) fprintf(stderr, "juggle[%d]: unexpected divisions: %d\n", MI_SCREEN(mi), s->divisions);
+    }
 }
 
 static void
-show_europeanclub(ModeInfo *mi, unsigned long color, Trace *s)
+  show_europeanclub(
+    ModeInfo *mi,
+    unsigned long color,
+    Trace *s)
 {
-	jugglestruct *sp = &juggles[MI_SCREEN(mi)];
-	XPoint p[4];
-	const double sa = sin(s->angle);
-	const double ca = cos(s->angle);
-	unsigned int i;
+  jugglestruct *sp= &juggles [ MI_SCREEN(mi) ];
+  XPoint p [ 4 ];
+  const double sa= sin(s->angle);
+  const double ca= cos(s->angle);
+  unsigned int i;
 
-	/*  6   6
-         +-+
-        /   \
-     4 +-----+ 7
-      ////////\
-   3 +---------+ 8
-   2 +---------+ 9
-      |///////|
-    1 +-------+ 10
-       |     |
-       |     |
-        |   |
-        |   |
-         | |
-         | |
-         +-+
-        0  11 	*/
+  /*  6   6
+       +-+
+      /   \
+   4 +-----+ 7
+    ////////\
+ 3 +---------+ 8
+ 2 +---------+ 9
+    |///////|
+  1 +-------+ 10
+     |     |
+     |     |
+      |   |
+      |   |
+       | |
+       | |
+       +-+
+      0  11 	*/
 
-	static const XPoint club[] = {
-	  {-24, 2}, /* 0 */
-	  {-10, 3}, /* 1 */
-	  {  1, 6}, /* 2 */
-	  {  8, 6}, /* 3 */
-	  { 14, 4}, /* 4 */
-	  { 16, 3}, /* 5 */
-	  { 16,-3}, /* 6 */
-	  { 14,-4}, /* 7 */
-	  {  8,-6}, /* 8 */
-	  {  1,-6}, /* 9 */
-	  {-10,-3}, /* 10 */
-	  {-24,-2}, /* 11 */
-	  {-24, 2}, /* 0 close boundary */
-	};
-	XPoint a[XtNumber(club)];
+  static const XPoint club []= {
+    {-24, 2},  /* 0 */
+    {-10, 3},  /* 1 */
+    {1, 6},    /* 2 */
+    {8, 6},    /* 3 */
+    {14, 4},   /* 4 */
+    {16, 3},   /* 5 */
+    {16, -3},  /* 6 */
+    {14, -4},  /* 7 */
+    {8, -6},   /* 8 */
+    {1, -6},   /* 9 */
+    {-10, -3}, /* 10 */
+    {-24, -2}, /* 11 */
+    {-24, 2},  /* 0 close boundary */
+  };
+  XPoint a [ XtNumber(club) ];
 
-	/* Avoid wrapping */
-	if(s->y*sp->scale >  MI_HEIGHT(mi) * 2) return;
+  /* Avoid wrapping */
+  if (s->y * sp->scale > MI_HEIGHT(mi) * 2) return;
 
-	/* Translate and fake perspective */
-	for(i = 0; i < XtNumber(club); i++) {
-	  a[i].x = (short)(MI_WIDTH(mi)/2 +
-					   (s->x + club[i].x*PERSPEC*sa)*sp->scale -
-					   club[i].y*sqrt(sp->scale)*ca);
-	  a[i].y = (short)(MI_HEIGHT(mi) - (s->y - club[i].x*ca)*sp->scale +
-					   club[i].y*sa*sqrt(sp->scale));
-	}
+  /* Translate and fake perspective */
+  for (i= 0; i < XtNumber(club); i++)
+    {
+      a [ i ].x= (short) (MI_WIDTH(mi) / 2 +
+        (s->x + club [ i ].x * PERSPEC * sa) * sp->scale -
+        club [ i ].y * sqrt(sp->scale) * ca);
+      a [ i ].y= (short) (MI_HEIGHT(mi) - (s->y - club [ i ].x * ca) * sp->scale +
+        club [ i ].y * sa * sqrt(sp->scale));
+    }
 
-	if(color != MI_BLACK_PIXEL(mi)) {
-	  /* Outline in black */
-	  XSetForeground(MI_DISPLAY(mi), MI_GC(mi), MI_BLACK_PIXEL(mi));
-	  XSetLineAttributes(MI_DISPLAY(mi), MI_GC(mi), 2,
-						 LineSolid, CapRound, JoinRound);
-	  XDrawLines(MI_DISPLAY(mi), MI_WINDOW(mi), MI_GC(mi),
-				 a, XtNumber(a), CoordModeOrigin);
-	}
+  if (color != MI_BLACK_PIXEL(mi))
+    {
+      /* Outline in black */
+      XSetForeground(MI_DISPLAY(mi), MI_GC(mi), MI_BLACK_PIXEL(mi));
+      XSetLineAttributes(MI_DISPLAY(mi), MI_GC(mi), 2, LineSolid, CapRound, JoinRound);
+      XDrawLines(MI_DISPLAY(mi), MI_WINDOW(mi), MI_GC(mi), a, XtNumber(a), CoordModeOrigin);
+    }
 
-	XSetForeground(MI_DISPLAY(mi), MI_GC(mi), color);
+  XSetForeground(MI_DISPLAY(mi), MI_GC(mi), color);
 
-	/* Don't be tempted to optimize erase by drawing all the black in
-	   one X operation.  It must use the same ops as the colours to
-	   guarantee a clean erase. */
+  /* Don't be tempted to optimize erase by drawing all the black in
+     one X operation.  It must use the same ops as the colours to
+     guarantee a clean erase. */
 
-	i = 0; /* Colored stripes */
-	p[i++] = a[1]; p[i++] = a[2];
-	p[i++] = a[9]; p[i++] = a[10];
-	XFillPolygon(MI_DISPLAY(mi), MI_WINDOW(mi), MI_GC(mi),
-				 p, i, Convex, CoordModeOrigin);
-	i = 0;
-	p[i++] = a[3]; p[i++] = a[4];
-	p[i++] = a[7]; p[i++] = a[8];
-	XFillPolygon(MI_DISPLAY(mi), MI_WINDOW(mi), MI_GC(mi),
-				 p, i, Convex, CoordModeOrigin);
+  i= 0; /* Colored stripes */
+  p [ i++ ]= a [ 1 ];
+  p [ i++ ]= a [ 2 ];
+  p [ i++ ]= a [ 9 ];
+  p [ i++ ]= a [ 10 ];
+  XFillPolygon(MI_DISPLAY(mi), MI_WINDOW(mi), MI_GC(mi), p, i, Convex, CoordModeOrigin);
+  i= 0;
+  p [ i++ ]= a [ 3 ];
+  p [ i++ ]= a [ 4 ];
+  p [ i++ ]= a [ 7 ];
+  p [ i++ ]= a [ 8 ];
+  XFillPolygon(MI_DISPLAY(mi), MI_WINDOW(mi), MI_GC(mi), p, i, Convex, CoordModeOrigin);
 
-	if(color != MI_BLACK_PIXEL(mi)) {
-	  XSetForeground(MI_DISPLAY(mi), MI_GC(mi), MI_WHITE_PIXEL(mi));
-	}
+  if (color != MI_BLACK_PIXEL(mi))
+    XSetForeground(MI_DISPLAY(mi), MI_GC(mi), MI_WHITE_PIXEL(mi));
 
-	i = 0; /* White center band */
-	p[i++] = a[2]; p[i++] = a[3]; p[i++] = a[8]; p[i++] = a[9];
-	XFillPolygon(MI_DISPLAY(mi), MI_WINDOW(mi), MI_GC(mi),
-				 p, i, Convex, CoordModeOrigin);
+  i= 0; /* White center band */
+  p [ i++ ]= a [ 2 ];
+  p [ i++ ]= a [ 3 ];
+  p [ i++ ]= a [ 8 ];
+  p [ i++ ]= a [ 9 ];
+  XFillPolygon(MI_DISPLAY(mi), MI_WINDOW(mi), MI_GC(mi), p, i, Convex, CoordModeOrigin);
 
-	i = 0; /* White handle */
-	p[i++] = a[0]; p[i++] = a[1]; p[i++] = a[10]; p[i++] = a[11];
-	XFillPolygon(MI_DISPLAY(mi), MI_WINDOW(mi), MI_GC(mi),
-				 p, i, Convex, CoordModeOrigin);
+  i= 0; /* White handle */
+  p [ i++ ]= a [ 0 ];
+  p [ i++ ]= a [ 1 ];
+  p [ i++ ]= a [ 10 ];
+  p [ i++ ]= a [ 11 ];
+  XFillPolygon(MI_DISPLAY(mi), MI_WINDOW(mi), MI_GC(mi), p, i, Convex, CoordModeOrigin);
 
-	i = 0; /* White tip */
-	p[i++] = a[4]; p[i++] = a[5]; p[i++] = a[6]; p[i++] = a[7];
-	XFillPolygon(MI_DISPLAY(mi), MI_WINDOW(mi), MI_GC(mi),
-				 p, i, Convex, CoordModeOrigin);
+  i= 0; /* White tip */
+  p [ i++ ]= a [ 4 ];
+  p [ i++ ]= a [ 5 ];
+  p [ i++ ]= a [ 6 ];
+  p [ i++ ]= a [ 7 ];
+  XFillPolygon(MI_DISPLAY(mi), MI_WINDOW(mi), MI_GC(mi), p, i, Convex, CoordModeOrigin);
 }
 
 #if 0
@@ -2103,194 +2350,187 @@ show_jugglebugclub(ModeInfo *mi, unsigned long color, Trace *s)
 #endif
 
 static void
-show_torch(ModeInfo *mi, unsigned long color, Trace *s)
+  show_torch(
+    ModeInfo *mi,
+    unsigned long color,
+    Trace *s)
 {
-	jugglestruct *sp = &juggles[MI_SCREEN(mi)];
-	XPoint head, tail, last;
-	DXPoint dhead, dlast;
-	const double sa = sin(s->angle);
-	const double ca = cos(s->angle);
+  jugglestruct *sp= &juggles [ MI_SCREEN(mi) ];
+  XPoint head, tail, last;
+  DXPoint dhead, dlast;
+  const double sa= sin(s->angle);
+  const double ca= cos(s->angle);
 
-	const double TailLen = -24;
-	const double HeadLen = 16;
-	const short Width   = (short)(5 * sqrt(sp->scale));
+  const double TailLen= -24;
+  const double HeadLen= 16;
+  const short Width= (short) (5 * sqrt(sp->scale));
 
-	/*
-      +///+ head
-    last  |
-          |
-          |
-          |
-          |
-          + tail
-	*/
+  /*
+    +///+ head
+  last  |
+        |
+        |
+        |
+        |
+        + tail
+  */
 
-	dhead.x = s->x + HeadLen * PERSPEC * sa;
-	dhead.y = s->y - HeadLen * ca;
+  dhead.x= s->x + HeadLen * PERSPEC * sa;
+  dhead.y= s->y - HeadLen * ca;
 
-	if(color == MI_BLACK_PIXEL(mi)) { /* Use 'last' when erasing */
-	  dlast = s->dlast;
-	} else { /* Store 'last' so we can use it later when s->prev has
-				gone */
-	  if(s->prev != s->next) {
-		dlast.x = s->prev->x + HeadLen * PERSPEC * sin(s->prev->angle);
-		dlast.y = s->prev->y - HeadLen * cos(s->prev->angle);
-	  } else {
-		dlast = dhead;
-	  }
-	  s->dlast = dlast;
-	}
+  if (color == MI_BLACK_PIXEL(mi))
+    { /* Use 'last' when erasing */
+      dlast= s->dlast;
+    }
+  else
+    { /* Store 'last' so we can use it later when s->prev has
+         gone */
+      if (s->prev != s->next)
+        {
+          dlast.x= s->prev->x + HeadLen * PERSPEC * sin(s->prev->angle);
+          dlast.y= s->prev->y - HeadLen * cos(s->prev->angle);
+        }
+      else
+        {
+          dlast= dhead;
+        }
+      s->dlast= dlast;
+    }
 
-	/* Avoid wrapping (after last is stored) */
-	if(s->y*sp->scale >  MI_HEIGHT(mi) * 2) return;
+  /* Avoid wrapping (after last is stored) */
+  if (s->y * sp->scale > MI_HEIGHT(mi) * 2) return;
 
-	head.x = (short)(MI_WIDTH(mi)/2 + dhead.x*sp->scale);
-	head.y = (short)(MI_HEIGHT(mi) - dhead.y*sp->scale);
+  head.x= (short) (MI_WIDTH(mi) / 2 + dhead.x * sp->scale);
+  head.y= (short) (MI_HEIGHT(mi) - dhead.y * sp->scale);
 
-	last.x = (short)(MI_WIDTH(mi)/2 + dlast.x*sp->scale);
-	last.y = (short)(MI_HEIGHT(mi) - dlast.y*sp->scale);
+  last.x= (short) (MI_WIDTH(mi) / 2 + dlast.x * sp->scale);
+  last.y= (short) (MI_HEIGHT(mi) - dlast.y * sp->scale);
 
-	tail.x = (short)(MI_WIDTH(mi)/2 +
-					 (s->x + TailLen * PERSPEC * sa)*sp->scale );
-	tail.y = (short)(MI_HEIGHT(mi) - (s->y - TailLen * ca)*sp->scale );
+  tail.x= (short) (MI_WIDTH(mi) / 2 +
+    (s->x + TailLen * PERSPEC * sa) * sp->scale);
+  tail.y= (short) (MI_HEIGHT(mi) - (s->y - TailLen * ca) * sp->scale);
 
-	if(color != MI_BLACK_PIXEL(mi)) {
-	  XSetForeground(MI_DISPLAY(mi), MI_GC(mi), MI_BLACK_PIXEL(mi));
-	  XSetLineAttributes(MI_DISPLAY(mi), MI_GC(mi),
-						 Width, LineSolid, CapRound, JoinRound);
-	  XDrawLine(MI_DISPLAY(mi), MI_WINDOW(mi), MI_GC(mi),
-				head.x, head.y, tail.x, tail.y);
-	}
-	XSetForeground(MI_DISPLAY(mi), MI_GC(mi), color);
-	XSetLineAttributes(MI_DISPLAY(mi), MI_GC(mi),
-					   Width * 2, LineSolid, CapRound, JoinRound);
+  if (color != MI_BLACK_PIXEL(mi))
+    {
+      XSetForeground(MI_DISPLAY(mi), MI_GC(mi), MI_BLACK_PIXEL(mi));
+      XSetLineAttributes(MI_DISPLAY(mi), MI_GC(mi), Width, LineSolid, CapRound, JoinRound);
+      XDrawLine(MI_DISPLAY(mi), MI_WINDOW(mi), MI_GC(mi), head.x, head.y, tail.x, tail.y);
+    }
+  XSetForeground(MI_DISPLAY(mi), MI_GC(mi), color);
+  XSetLineAttributes(MI_DISPLAY(mi), MI_GC(mi), Width * 2, LineSolid, CapRound, JoinRound);
 
-	XDrawLine(MI_DISPLAY(mi), MI_WINDOW(mi), MI_GC(mi),
-			  head.x, head.y, last.x, last.y);
-
+  XDrawLine(MI_DISPLAY(mi), MI_WINDOW(mi), MI_GC(mi), head.x, head.y, last.x, last.y);
 }
 
 static void
-show_knife(ModeInfo *mi, unsigned long color, Trace *s)
+  show_knife(
+    ModeInfo *mi,
+    unsigned long color,
+    Trace *s)
 {
-	jugglestruct *sp = &juggles[MI_SCREEN(mi)];
-	unsigned int i;
-	const double sa = sin(s->angle);
-	const double ca = cos(s->angle);
+  jugglestruct *sp= &juggles [ MI_SCREEN(mi) ];
+  unsigned int i;
+  const double sa= sin(s->angle);
+  const double ca= cos(s->angle);
 
-	/*
-        2 +
-          |+ 3
-          ||
-        1 +++ 5
-          |4|
-          | |
-           + 0
-	*/
-  	static const XPoint knife[] = {
-	  {-24, 0}, /* 0 */
-	  { -5,-3}, /* 1 */
-	  { 16,-3}, /* 2 */
-	  { 12, 0}, /* 3 */
-	  { -5, 0}, /* 4 */
-	  { -5, 3}, /* 5 */
-	};
-	XPoint a[XtNumber(knife)], p[5];
+  /*
+      2 +
+        |+ 3
+        ||
+      1 +++ 5
+        |4|
+        | |
+         + 0
+  */
+  static const XPoint knife []= {
+    {-24, 0}, /* 0 */
+    {-5, -3}, /* 1 */
+    {16, -3}, /* 2 */
+    {12, 0},  /* 3 */
+    {-5, 0},  /* 4 */
+    {-5, 3},  /* 5 */
+  };
+  XPoint a [ XtNumber(knife) ], p [ 5 ];
 
-	/* Avoid wrapping */
-	if(s->y*sp->scale >  MI_HEIGHT(mi) * 2) return;
+  /* Avoid wrapping */
+  if (s->y * sp->scale > MI_HEIGHT(mi) * 2) return;
 
-	/* Translate and fake perspective */
-	for(i = 0; i < XtNumber(knife); i++) {
-	  a[i].x = (short)(MI_WIDTH(mi)/2 +
-					   (s->x + knife[i].x*PERSPEC*sa)*sp->scale -
-					   knife[i].y*sqrt(sp->scale)*ca*PERSPEC);
-	  a[i].y = (short)(MI_HEIGHT(mi) - (s->y - knife[i].x*ca)*sp->scale +
-					   knife[i].y*sa*sqrt(sp->scale));
-	}
+  /* Translate and fake perspective */
+  for (i= 0; i < XtNumber(knife); i++)
+    {
+      a [ i ].x= (short) (MI_WIDTH(mi) / 2 +
+        (s->x + knife [ i ].x * PERSPEC * sa) * sp->scale -
+        knife [ i ].y * sqrt(sp->scale) * ca * PERSPEC);
+      a [ i ].y= (short) (MI_HEIGHT(mi) - (s->y - knife [ i ].x * ca) * sp->scale +
+        knife [ i ].y * sa * sqrt(sp->scale));
+    }
 
-	/* Handle */
-	XSetForeground(MI_DISPLAY(mi), MI_GC(mi), color);
-	XSetLineAttributes(MI_DISPLAY(mi), MI_GC(mi), (short)(4*sqrt(sp->scale)),
-					   LineSolid, CapRound, JoinRound);
-	XDrawLine(MI_DISPLAY(mi), MI_WINDOW(mi), MI_GC(mi),
-			  a[0].x, a[0].y, a[4].x, a[4].y);
+  /* Handle */
+  XSetForeground(MI_DISPLAY(mi), MI_GC(mi), color);
+  XSetLineAttributes(MI_DISPLAY(mi), MI_GC(mi), (short) (4 * sqrt(sp->scale)), LineSolid, CapRound, JoinRound);
+  XDrawLine(MI_DISPLAY(mi), MI_WINDOW(mi), MI_GC(mi), a [ 0 ].x, a [ 0 ].y, a [ 4 ].x, a [ 4 ].y);
 
-	/* Blade */
-	if(color != MI_BLACK_PIXEL(mi)) {
-	  XSetForeground(MI_DISPLAY(mi), MI_GC(mi), MI_WHITE_PIXEL(mi));
-	}
-	i = 0;
-	p[i++] = a[1]; p[i++] = a[2]; p[i++] = a[3]; p[i++] = a[5];
-	XFillPolygon(MI_DISPLAY(mi), MI_WINDOW(mi), MI_GC(mi),
-				 p, i, Convex, CoordModeOrigin);
+  /* Blade */
+  if (color != MI_BLACK_PIXEL(mi))
+    XSetForeground(MI_DISPLAY(mi), MI_GC(mi), MI_WHITE_PIXEL(mi));
+  i= 0;
+  p [ i++ ]= a [ 1 ];
+  p [ i++ ]= a [ 2 ];
+  p [ i++ ]= a [ 3 ];
+  p [ i++ ]= a [ 5 ];
+  XFillPolygon(MI_DISPLAY(mi), MI_WINDOW(mi), MI_GC(mi), p, i, Convex, CoordModeOrigin);
 }
 
 static void
-show_ring(ModeInfo *mi, unsigned long color, Trace *s)
+  show_ring(
+    ModeInfo *mi,
+    unsigned long color,
+    Trace *s)
 {
-	jugglestruct *sp = &juggles[MI_SCREEN(mi)];
-	short x = (short)(MI_WIDTH(mi)/2 + s->x * sp->scale);
-	short y = (short)(MI_HEIGHT(mi) - s->y * sp->scale);
-	double radius = 15 * sp->scale;
-	short thickness = (short)(8 * sqrt(sp->scale));
+  jugglestruct *sp= &juggles [ MI_SCREEN(mi) ];
+  short x= (short) (MI_WIDTH(mi) / 2 + s->x * sp->scale);
+  short y= (short) (MI_HEIGHT(mi) - s->y * sp->scale);
+  double radius= 15 * sp->scale;
+  short thickness= (short) (8 * sqrt(sp->scale));
 
-	/* Avoid wrapping */
-	if(s->y*sp->scale >  MI_HEIGHT(mi) * 2) return;
+  /* Avoid wrapping */
+  if (s->y * sp->scale > MI_HEIGHT(mi) * 2) return;
 
-	XSetForeground(MI_DISPLAY(mi), MI_GC(mi), color);
-	XSetLineAttributes(MI_DISPLAY(mi), MI_GC(mi),
-					   thickness, LineSolid, CapRound, JoinRound);
+  XSetForeground(MI_DISPLAY(mi), MI_GC(mi), color);
+  XSetLineAttributes(MI_DISPLAY(mi), MI_GC(mi), thickness, LineSolid, CapRound, JoinRound);
 
-	XDrawArc(MI_DISPLAY(mi), MI_WINDOW(mi), MI_GC(mi),
-			 (short)(x - radius*PERSPEC), (short)(y - radius),
-			 (short)(2*radius*PERSPEC), (short)(2*radius),
-			 0, 23040);
+  XDrawArc(MI_DISPLAY(mi), MI_WINDOW(mi), MI_GC(mi), (short) (x - radius * PERSPEC), (short) (y - radius), (short) (2 * radius * PERSPEC), (short) (2 * radius), 0, 23040);
 }
 
 
 static void
-show_bball(ModeInfo *mi, unsigned long color, Trace *s)
+  show_bball(
+    ModeInfo *mi,
+    unsigned long color,
+    Trace *s)
 {
-	jugglestruct *sp = &juggles[MI_SCREEN(mi)];
-	short x = (short)(MI_WIDTH(mi)/2 + s->x * sp->scale);
-	short y = (short)(MI_HEIGHT(mi) - s->y * sp->scale);
-	double radius = 12 * sp->scale;
-	int offset = (int)(s->angle*64*180/M_PI);
-	int holesize = (int)(3.0*sqrt(sp->scale));
+  jugglestruct *sp= &juggles [ MI_SCREEN(mi) ];
+  short x= (short) (MI_WIDTH(mi) / 2 + s->x * sp->scale);
+  short y= (short) (MI_HEIGHT(mi) - s->y * sp->scale);
+  double radius= 12 * sp->scale;
+  int offset= (int) (s->angle * 64 * 180 / M_PI);
+  int holesize= (int) (3.0 * sqrt(sp->scale));
 
-	/* Avoid wrapping */
-	if(s->y*sp->scale >  MI_HEIGHT(mi) * 2) return;
+  /* Avoid wrapping */
+  if (s->y * sp->scale > MI_HEIGHT(mi) * 2) return;
 
-	XSetForeground(MI_DISPLAY(mi), MI_GC(mi), MI_BLACK_PIXEL(mi));
-	XFillArc(MI_DISPLAY(mi), MI_WINDOW(mi), MI_GC(mi),
-			 (short)(x - radius), (short)(y - radius),
-			 (short)(2*radius), (short)(2*radius),
-			 0, 23040);
-	XSetForeground(MI_DISPLAY(mi), MI_GC(mi), color);
-	XSetLineAttributes(MI_DISPLAY(mi), MI_GC(mi), 2,
-					   LineSolid, CapRound, JoinRound);
-	XDrawArc(MI_DISPLAY(mi), MI_WINDOW(mi), MI_GC(mi),
-			 (short)(x - radius), (short)(y - radius),
-			 (short)(2*radius), (short)(2*radius),
-			 0, 23040);
+  XSetForeground(MI_DISPLAY(mi), MI_GC(mi), MI_BLACK_PIXEL(mi));
+  XFillArc(MI_DISPLAY(mi), MI_WINDOW(mi), MI_GC(mi), (short) (x - radius), (short) (y - radius), (short) (2 * radius), (short) (2 * radius), 0, 23040);
+  XSetForeground(MI_DISPLAY(mi), MI_GC(mi), color);
+  XSetLineAttributes(MI_DISPLAY(mi), MI_GC(mi), 2, LineSolid, CapRound, JoinRound);
+  XDrawArc(MI_DISPLAY(mi), MI_WINDOW(mi), MI_GC(mi), (short) (x - radius), (short) (y - radius), (short) (2 * radius), (short) (2 * radius), 0, 23040);
 
-	/* Draw finger holes */
-	XSetLineAttributes(MI_DISPLAY(mi), MI_GC(mi), holesize,
-					   LineSolid, CapRound, JoinRound);
+  /* Draw finger holes */
+  XSetLineAttributes(MI_DISPLAY(mi), MI_GC(mi), holesize, LineSolid, CapRound, JoinRound);
 
-	XDrawArc(MI_DISPLAY(mi), MI_WINDOW(mi), MI_GC(mi),
-			 (short)(x - radius*0.5), (short)(y - radius*0.5),
-			 (short)(2*radius*0.5), (short)(2*radius*0.5),
-			 (offset + 960) % 23040, 0);
-	XDrawArc(MI_DISPLAY(mi), MI_WINDOW(mi), MI_GC(mi),
-			 (short)(x - radius*0.7), (short)(y - radius*0.7),
-			 (short)(2*radius*0.7), (short)(2*radius*0.7),
-			 (offset + 1920) % 23040, 0);
-	XDrawArc(MI_DISPLAY(mi), MI_WINDOW(mi), MI_GC(mi),
-			 (short)(x - radius*0.7), (short)(y - radius*0.7),
-			 (short)(2*radius*0.7), (short)(2*radius*0.7),
-			 offset % 23040, 0);
+  XDrawArc(MI_DISPLAY(mi), MI_WINDOW(mi), MI_GC(mi), (short) (x - radius * 0.5), (short) (y - radius * 0.5), (short) (2 * radius * 0.5), (short) (2 * radius * 0.5), (offset + 960) % 23040, 0);
+  XDrawArc(MI_DISPLAY(mi), MI_WINDOW(mi), MI_GC(mi), (short) (x - radius * 0.7), (short) (y - radius * 0.7), (short) (2 * radius * 0.7), (short) (2 * radius * 0.7), (offset + 1920) % 23040, 0);
+  XDrawArc(MI_DISPLAY(mi), MI_WINDOW(mi), MI_GC(mi), (short) (x - radius * 0.7), (short) (y - radius * 0.7), (short) (2 * radius * 0.7), (short) (2 * radius * 0.7), offset % 23040, 0);
 }
 
 /**************************************************************************
@@ -2305,117 +2545,133 @@ show_bball(ModeInfo *mi, unsigned long color, Trace *s)
  * into account */
 
 static void
-refill_juggle(ModeInfo * mi)
+  refill_juggle(
+    ModeInfo *mi)
 {
-  jugglestruct *sp = NULL;
+  jugglestruct *sp= NULL;
   int i;
 
   if (juggles == NULL)
-	return;
-  sp = &juggles[MI_SCREEN(mi)];
+    return;
+  sp= &juggles [ MI_SCREEN(mi) ];
 
   /* generate pattern */
-  if (pattern == NULL) {
+  if (pattern == NULL)
+    {
 
 #define MAXPAT 10
 #define MAXREPEAT 300
 #define CHANGE_BIAS 8 /* larger makes num_ball changes less likely */
 #define POSITION_BIAS 20 /* larger makes hand movements less likely */
 
-	int count = 0;
-	while (count < MI_CYCLES(mi)) {
-	  char buf[MAXPAT * 3 + 3], *b = buf;
-	  int maxseen = 0;
-	  int l = NRAND(MAXPAT) + 1;
-	  int t = NRAND(MIN(MAXREPEAT, (MI_CYCLES(mi) - count))) + 1;
+      int count= 0;
+      while (count < MI_CYCLES(mi))
+        {
+          char buf [ MAXPAT * 3 + 3 ], *b= buf;
+          int maxseen= 0;
+          int l= NRAND(MAXPAT) + 1;
+          int t= NRAND(MIN(MAXREPEAT, (MI_CYCLES(mi) - count))) + 1;
 
-	  { /* vary number of balls */
-		int new_balls = sp->num_balls;
-		int change;
+          { /* vary number of balls */
+            int new_balls= sp->num_balls;
+            int change;
 
-		if (new_balls == 2) /* Do not juggle 2 that often */
-		  change = NRAND(2 + CHANGE_BIAS / 4);
-		else
-		  change = NRAND(2 + CHANGE_BIAS);
-		switch (change) {
-		case 0:
-		  new_balls++;
-		  break;
-		case 1:
-		  new_balls--;
-		  break;
-		default:
-		  break; /* NO-OP */
-		}
-		if (new_balls < sp->patternindex.minballs) {
-		  new_balls += 2;
-		}
-		if (new_balls > sp->patternindex.maxballs) {
-		  new_balls -= 2;
-		}
-		if (new_balls < sp->num_balls) {
-		  if (!program(mi, "[*]", NULL, 1)) /* lose ball */
-			return;
-		}
-		sp->num_balls = new_balls;
-	  }
+            if (new_balls == 2) /* Do not juggle 2 that often */
+              change= NRAND(2 + CHANGE_BIAS / 4);
+            else
+              change= NRAND(2 + CHANGE_BIAS);
+            switch (change)
+              {
+                case 0 :
+                  new_balls++;
+                  break;
+                case 1 :
+                  new_balls--;
+                  break;
+                default :
+                  break; /* NO-OP */
+              }
+            if (new_balls < sp->patternindex.minballs)
+              new_balls+= 2;
+            if (new_balls > sp->patternindex.maxballs)
+              new_balls-= 2;
+            if (new_balls < sp->num_balls)
+              {
+                if (! program(mi, "[*]", NULL, 1)) /* lose ball */
+                  return;
+              }
+            sp->num_balls= new_balls;
+          }
 
-	  count += t;
-	  if (NRAND(2) && sp->patternindex.index[sp->num_balls].number) {
-		/* Pick from PortFolio */
-		int p = sp->patternindex.index[sp->num_balls].start +
-		  NRAND(sp->patternindex.index[sp->num_balls].number);
-		if (!program(mi, portfolio[p].pattern, portfolio[p].name, t))
-		  return;
-	  } else {
-		/* Invent a new pattern */
-		*b++='[';
-		for(i = 0; i < l; i++){
-		  int n, m;
-		  do { /* Triangular Distribution => high values more likely */
-			m = NRAND(sp->num_balls + 1);
-			n = NRAND(sp->num_balls + 1);
-		  } while(m >= n);
-		  if (n == sp->num_balls) {
-			maxseen = 1;
-		  }
-		  switch(NRAND(5 + POSITION_BIAS)){
-		  case 0:            /* Outside throw */
-			*b++ = '+'; break;
-		  case 1:            /* Cross throw */
-			*b++ = '='; break;
-		  case 2:            /* Cross catch */
-			*b++ = '&'; break;
-		  case 3:            /* Cross throw and catch */
-			*b++ = 'x'; break;
-		  case 4:            /* Bounce */
-			*b++ = '_'; break;
-		  default:
-			break;             /* Inside throw (default) */
-		  }
+          count+= t;
+          if (NRAND(2) && sp->patternindex.index [ sp->num_balls ].number)
+            {
+              /* Pick from PortFolio */
+              int p= sp->patternindex.index [ sp->num_balls ].start +
+                NRAND(sp->patternindex.index [ sp->num_balls ].number);
+              if (! program(mi, portfolio [ p ].pattern, portfolio [ p ].name, t))
+                return;
+            }
+          else
+            {
+              /* Invent a new pattern */
+              *b++= '[';
+              for (i= 0; i < l; i++)
+                {
+                  int n, m;
+                  do { /* Triangular Distribution => high values more likely */
+                      m= NRAND(sp->num_balls + 1);
+                      n= NRAND(sp->num_balls + 1);
+                    }
+                  while (m >= n);
+                  if (n == sp->num_balls)
+                    maxseen= 1;
+                  switch (NRAND(5 + POSITION_BIAS))
+                    {
+                      case 0 : /* Outside throw */
+                        *b++= '+';
+                        break;
+                      case 1 : /* Cross throw */
+                        *b++= '=';
+                        break;
+                      case 2 : /* Cross catch */
+                        *b++= '&';
+                        break;
+                      case 3 : /* Cross throw and catch */
+                        *b++= 'x';
+                        break;
+                      case 4 : /* Bounce */
+                        *b++= '_';
+                        break;
+                      default :
+                        break; /* Inside throw (default) */
+                    }
 
-		  *b++ = n + '0';
-		  *b++ = ' ';
-		}
-		*b++ = ']';
-		*b = '\0';
-		if (maxseen) {
-		  if (!program(mi, buf, NULL, t))
-			return;
-		}
-	  }
-	}
-  } else { /* pattern supplied in height or 'a' notation */
-	if (!program(mi, pattern, NULL, MI_CYCLES(mi)))
-	  return;
-  }
+                  *b++= n + '0';
+                  *b++= ' ';
+                }
+              *b++= ']';
+              *b= '\0';
+              if (maxseen)
+                {
+                  if (! program(mi, buf, NULL, t))
+                    return;
+                }
+            }
+        }
+    }
+  else
+    { /* pattern supplied in height or 'a' notation */
+      if (! program(mi, pattern, NULL, MI_CYCLES(mi)))
+        return;
+    }
 
   adam(sp);
 
   name(sp);
 
-  if (!part(mi))
-	return;
+  if (! part(mi))
+    return;
 
   lob(mi);
 
@@ -2423,200 +2679,233 @@ refill_juggle(ModeInfo * mi)
 
   positions(sp);
 
-  if (!projectile(sp)) {
-	free_juggle(mi);
-	return;
-  }
+  if (! projectile(sp))
+    {
+      free_juggle(mi);
+      return;
+    }
 
   hands(sp);
 #ifdef DEBUG
-  if(MI_IS_DEBUG(mi)) dump(sp);
+  if (MI_IS_DEBUG(mi)) dump(sp);
 #endif
 }
 
 static void
-change_juggle(ModeInfo * mi)
+  change_juggle(
+    ModeInfo *mi)
 {
-  jugglestruct *sp = NULL;
+  jugglestruct *sp= NULL;
   Trajectory *t;
 
   if (juggles == NULL)
-	return;
-  sp = &juggles[MI_SCREEN(mi)];
+    return;
+  sp= &juggles [ MI_SCREEN(mi) ];
 
   /* Strip pending trajectories */
-  for (t = sp->head->next; t != sp->head; t = t->next) {
-	if(t->start > sp->time || t->finish < sp->time) {
-	  Trajectory *n = t;
-	  t=t->prev;
-	  trajectory_destroy(n);
-	}
-  }
+  for (t= sp->head->next; t != sp->head; t= t->next)
+    {
+      if (t->start > sp->time || t->finish < sp->time)
+        {
+          Trajectory *n= t;
+          t= t->prev;
+          trajectory_destroy(n);
+        }
+    }
 
   /* Pick the current object theme */
-  sp->objtypes = choose_object();
+  sp->objtypes= choose_object();
 
   refill_juggle(mi);
 
   /* Clean up the Screen.  Don't use MI_CLEARWINDOW(mi), since we
-	 don't all those special effects. */
+     don't all those special effects. */
   XClearWindow(MI_DISPLAY(mi), MI_WINDOW(mi));
 
   show_figure(mi, MI_WHITE_PIXEL(mi), True);
-
 }
 
 ENTRYPOINT void
-init_juggle (ModeInfo * mi)
+  init_juggle(
+    ModeInfo *mi)
 {
-  jugglestruct *sp = 0;
+  jugglestruct *sp= 0;
   int i;
 
-  MI_INIT (mi, juggles);
-  sp = &juggles[MI_SCREEN(mi)];
+  MI_INIT(mi, juggles);
+  sp= &juggles [ MI_SCREEN(mi) ];
 
-  if (only && *only && strcmp(only, " ")) {
-    balls = clubs = torches = knives = rings = bballs = False;
-    if (!strcasecmp (only, "balls"))   balls   = True;
-    else if (!strcasecmp (only, "clubs"))   clubs   = True;
-    else if (!strcasecmp (only, "torches")) torches = True;
-    else if (!strcasecmp (only, "knives"))  knives  = True;
-    else if (!strcasecmp (only, "rings"))   rings   = True;
-    else if (!strcasecmp (only, "bballs"))  bballs  = True;
-    else {
-      (void) fprintf (stderr,
-               "Juggle: -only must be one of: balls, clubs, torches, knives,\n"
-               "\t rings, or bballs (not \"%s\")\n", only);
+  if (only && *only && strcmp(only, " "))
+    {
+      balls= clubs= torches= knives= rings= bballs= False;
+      if (! strcasecmp(only, "balls"))
+        {
+          balls= True;
+        }
+      else if (! strcasecmp(only, "clubs"))
+        {
+          clubs= True;
+        }
+      else if (! strcasecmp(only, "torches"))
+        {
+          torches= True;
+        }
+      else if (! strcasecmp(only, "knives"))
+        {
+          knives= True;
+        }
+      else if (! strcasecmp(only, "rings"))
+        {
+          rings= True;
+        }
+      else if (! strcasecmp(only, "bballs"))
+        {
+          bballs= True;
+        }
+      else
+        {
+          (void) fprintf(stderr,
+            "Juggle: -only must be one of: balls, clubs, torches, knives,\n" "\t rings, or bballs (not \"%s\")\n",
+            only);
 #ifdef STANDALONE /* xlock mustn't exit merely because of a bad argument */
-      exit (1);
+          exit(1);
 #endif
+        }
     }
-  }
 
-  if (sp->head == 0) {  /* first time initializing this juggler */
+  if (sp->head == 0)
+    { /* first time initializing this juggler */
 
-	sp->count = ABS(MI_COUNT(mi));
-	if (sp->count == 0)
-	  sp->count = 200;
+      sp->count= ABS(MI_COUNT(mi));
+      if (sp->count == 0)
+        sp->count= 200;
 
-	/* record start time */
-	sp->begintime = time(NULL);
-	if(sp->patternindex.maxballs > 0) {
-	  sp->num_balls = sp->patternindex.minballs +
-		NRAND(sp->patternindex.maxballs - sp->patternindex.minballs);
-	}
+      /* record start time */
+      sp->begintime= time(NULL);
+      if (sp->patternindex.maxballs > 0)
+        sp->num_balls= sp->patternindex.minballs +
+          NRAND(sp->patternindex.maxballs - sp->patternindex.minballs);
 
-	show_figure(mi, MI_WHITE_PIXEL(mi), True); /* Draw figure.  Also discovers
-							  information about the juggler's
-							  proportions */
+      show_figure(mi, MI_WHITE_PIXEL(mi), True); /* Draw figure.  Also discovers
+                                information about the juggler's
+                                proportions */
 
-	/* "7" should be about three times the height of the juggler's
-	   shoulders */
-	sp->Gr = -GRAVITY(3 * sp->arm[0][RIGHT][SHOULDER].y,
-					  7 * THROW_CATCH_INTERVAL);
+      /* "7" should be about three times the height of the juggler's
+         shoulders */
+      sp->Gr= -GRAVITY(3 * sp->arm [ 0 ][ RIGHT ][ SHOULDER ].y,
+        7 * THROW_CATCH_INTERVAL);
 
-	if(!balls && !clubs && !torches && !knives && !rings && !bballs)
-	  balls = True; /* Have to juggle something! */
+      if (! balls && ! clubs && ! torches && ! knives && ! rings && ! bballs)
+        balls= True; /* Have to juggle something! */
 
-	/* create circular trajectory list */
-	ADD_ELEMENT(Trajectory, sp->head, sp->head);
-	if(sp->head == NULL){
-	  free_juggle(mi);
-	  return;
-	}
+      /* create circular trajectory list */
+      ADD_ELEMENT(Trajectory, sp->head, sp->head);
+      if (sp->head == NULL)
+        {
+          free_juggle(mi);
+          return;
+        }
 
-	/* create circular object list */
-	ADD_ELEMENT(Object, sp->objects, sp->objects);
-	if(sp->objects == NULL){
-	  free_juggle(mi);
-	  return;
-	}
+      /* create circular object list */
+      ADD_ELEMENT(Object, sp->objects, sp->objects);
+      if (sp->objects == NULL)
+        {
+          free_juggle(mi);
+          return;
+        }
 
-	/* create circular wander list */
-	ADD_ELEMENT(Wander, sp->wander, sp->wander);
-	if(sp->wander == NULL){
-	  free_juggle(mi);
-	  return;
-	}
-	(void)wander(sp, 0); /* Initialize wander */
+      /* create circular wander list */
+      ADD_ELEMENT(Wander, sp->wander, sp->wander);
+      if (sp->wander == NULL)
+        {
+          free_juggle(mi);
+          return;
+        }
+      (void) wander(sp, 0); /* Initialize wander */
 
-	sp->pattern =  strdup(""); /* Initialise saved pattern with
-								  free-able memory */
-  }
+      sp->pattern= strdup(""); /* Initialise saved pattern with
+                                  free-able memory */
+    }
 
-  sp = &juggles[MI_SCREEN(mi)];
+  sp= &juggles [ MI_SCREEN(mi) ];
 
   if (pattern &&
-      (!*pattern ||
-       !strcasecmp (pattern, ".") ||
-       !strcasecmp (pattern, "random")))
-	pattern = NULL;
+    (! *pattern ||
+      ! strcasecmp(pattern, ".") ||
+      ! strcasecmp(pattern, "random")))
+    pattern= NULL;
 
-  if (pattern == NULL && sp->patternindex.maxballs == 0) {
-	/* pattern list needs indexing */
-	int nelements = XtNumber(portfolio);
-	int numpat = 0;
+  if (pattern == NULL && sp->patternindex.maxballs == 0)
+    {
+      /* pattern list needs indexing */
+      int nelements= XtNumber(portfolio);
+      int numpat= 0;
 
-	/* sort according to number of balls */
-	qsort((void*)portfolio, nelements,
-		  sizeof(portfolio[1]), compare_num_balls);
+      /* sort according to number of balls */
+      qsort((void *) portfolio, nelements, sizeof(portfolio [ 1 ]), compare_num_balls);
 
-	/* last pattern has most balls */
-	sp->patternindex.maxballs = get_num_balls(portfolio[nelements - 1].pattern);
-	/* run through sorted list, indexing start of each group
-	   and number in group */
-	sp->patternindex.maxballs = 1;
-	for (i = 0; i < nelements; i++) {
-	  int b = get_num_balls(portfolio[i].pattern);
-	  if (b > sp->patternindex.maxballs) {
-		sp->patternindex.index[sp->patternindex.maxballs].number = numpat;
-		if(numpat == 0) sp->patternindex.minballs = b;
-		sp->patternindex.maxballs = b;
-		numpat = 1;
-		sp->patternindex.index[sp->patternindex.maxballs].start = i;
-	  } else {
-		numpat++;
-	  }
-	}
-	sp->patternindex.index[sp->patternindex.maxballs].number = numpat;
-  }
+      /* last pattern has most balls */
+      sp->patternindex.maxballs= get_num_balls(portfolio [ nelements - 1 ].pattern);
+      /* run through sorted list, indexing start of each group
+         and number in group */
+      sp->patternindex.maxballs= 1;
+      for (i= 0; i < nelements; i++)
+        {
+          int b= get_num_balls(portfolio [ i ].pattern);
+          if (b > sp->patternindex.maxballs)
+            {
+              sp->patternindex.index [ sp->patternindex.maxballs ].number= numpat;
+              if (numpat == 0) sp->patternindex.minballs= b;
+              sp->patternindex.maxballs= b;
+              numpat= 1;
+              sp->patternindex.index [ sp->patternindex.maxballs ].start= i;
+            }
+          else
+            {
+              numpat++;
+            }
+        }
+      sp->patternindex.index [ sp->patternindex.maxballs ].number= numpat;
+    }
 
   /* Set up programme */
   change_juggle(mi);
 
   /* Clean up the Screen.  Don't use MI_CLEARWINDOW(mi), since we may
-	 only be resizing and then we won't all those special effects. */
+     only be resizing and then we won't all those special effects. */
   XClearWindow(MI_DISPLAY(mi), MI_WINDOW(mi));
 
   /* Only put things here that won't interrupt the programme during
-	 a window resize */
+     a window resize */
 
   /* Use MIN so that users can resize in interesting ways, eg
-	 narrow windows for tall patterns, etc */
-  sp->scale = MIN(MI_HEIGHT(mi)/480.0, MI_WIDTH(mi)/160.0);
+     narrow windows for tall patterns, etc */
+  sp->scale= MIN(MI_HEIGHT(mi) / 480.0, MI_WIDTH(mi) / 160.0);
 
-  if(describe && !sp->mode_font) { /* Check to see if there's room to describe patterns. */
-    char *font = get_string_resource (MI_DISPLAY(mi), "font", "Font");
-	sp->mode_font = load_font_retry(MI_DISPLAY(mi), font);
-    if (font) free (font);
-  }
+  if (describe && ! sp->mode_font)
+    { /* Check to see if there's room to describe patterns. */
+      char *font= get_string_resource(MI_DISPLAY(mi), "font", "Font");
+      sp->mode_font= load_font_retry(MI_DISPLAY(mi), font);
+      if (font) free(font);
+    }
 }
 
 ENTRYPOINT void
-draw_juggle (ModeInfo * mi)
+  draw_juggle(
+    ModeInfo *mi)
 {
-  Trajectory *traj = NULL;
-  Object *o = NULL;
-  unsigned long future = 0;
-  jugglestruct *sp = NULL;
-  char *pattern = NULL;
+  Trajectory *traj= NULL;
+  Object *o= NULL;
+  unsigned long future= 0;
+  jugglestruct *sp= NULL;
+  char *pattern= NULL;
   double cx;
 
   if (juggles == NULL)
-	return;
-  sp = &juggles[MI_SCREEN(mi)];
+    return;
+  sp= &juggles [ MI_SCREEN(mi) ];
 
-  MI_IS_DRAWN(mi) = True;
+  MI_IS_DRAWN(mi)= True;
 
 #ifdef HAVE_JWXYZ
   /* Don't worry about flicker, trust Quartz's double-buffering.
@@ -2626,172 +2915,200 @@ draw_juggle (ModeInfo * mi)
 #endif
 
   /* Update timer */
-  if (real) {
-	struct timeval tv;
-	(void)gettimeofday(&tv, NULL);
-	sp->time = (int) ((tv.tv_sec - sp->begintime)*1000 + tv.tv_usec/1000);
-  } else {
-	sp->time += MI_DELAY(mi) / 1000;
-  }
+  if (real)
+    {
+      struct timeval tv;
+      (void) gettimeofday(&tv, NULL);
+      sp->time= (int) ((tv.tv_sec - sp->begintime) * 1000 + tv.tv_usec / 1000);
+    }
+  else
+    {
+      sp->time+= MI_DELAY(mi) / 1000;
+    }
 
   /* First pass: Move arms and strip out expired elements */
-  for (traj = sp->head->next; traj != sp->head; traj = traj->next) {
-	if (traj->status != PREDICTOR) {
-	  /* Skip any elements that need further processing */
-	  /* We could remove them, but there shoudn't be many and they
-		 would be needed if we ever got the pattern refiller
-		 working */
-	  continue;
-	}
-	if (traj->start > future) { /* Lookahead to the end of the show */
-	  future = traj->start;
-	}
-	if (sp->time < traj->start) { /* early */
-	  continue;
-	} else if (sp->time < traj->finish) { /* working */
+  for (traj= sp->head->next; traj != sp->head; traj= traj->next)
+    {
+      if (traj->status != PREDICTOR)
+        {
+          /* Skip any elements that need further processing */
+          /* We could remove them, but there shoudn't be many and they
+             would be needed if we ever got the pattern refiller
+             working */
+          continue;
+        }
+      if (traj->start > future)
+        { /* Lookahead to the end of the show */
+          future= traj->start;
+        }
+      if (sp->time < traj->start)
+        { /* early */
+          continue;
+        }
+      else if (sp->time < traj->finish)
+        { /* working */
 
-	  /* Look for pattern name */
-	  if(traj->pattern != NULL) {
-		pattern=traj->pattern;
-	  }
+          /* Look for pattern name */
+          if (traj->pattern != NULL)
+            pattern= traj->pattern;
 
-	  if (traj->type == Empty || traj->type == Full) {
-		/* Only interested in hands on this pass */
-		double angle = traj->angle + traj->spin * (sp->time - traj->start);
-		double xd = 0, yd = 0;
-		DXPoint p;
+          if (traj->type == Empty || traj->type == Full)
+            {
+              /* Only interested in hands on this pass */
+              double angle= traj->angle + traj->spin * (sp->time - traj->start);
+              double xd= 0, yd= 0;
+              DXPoint p;
 
-		/* Find the catching offset */
-		if(traj->object != NULL) {
-		  if(ObjectDefs[traj->object->type].handle > 0) {
-			/* Handles Need to be oriented */
-			xd = ObjectDefs[traj->object->type].handle *
-			  PERSPEC * sin(angle);
-			yd = ObjectDefs[traj->object->type].handle *
-			  cos(angle);
-		  } else {
-			/* Balls are always caught at the bottom */
-			xd = 0;
-			yd = -4;
-		  }
-		}
-		p.x = (CUBIC(traj->xp, sp->time) - xd);
-		p.y = (CUBIC(traj->yp, sp->time) + yd);
-		reach_arm(mi, traj->hand, &p);
+              /* Find the catching offset */
+              if (traj->object != NULL)
+                {
+                  if (ObjectDefs [ traj->object->type ].handle > 0)
+                    {
+                      /* Handles Need to be oriented */
+                      xd= ObjectDefs [ traj->object->type ].handle *
+                        PERSPEC * sin(angle);
+                      yd= ObjectDefs [ traj->object->type ].handle *
+                        cos(angle);
+                    }
+                  else
+                    {
+                      /* Balls are always caught at the bottom */
+                      xd= 0;
+                      yd= -4;
+                    }
+                }
+              p.x= (CUBIC(traj->xp, sp->time) - xd);
+              p.y= (CUBIC(traj->yp, sp->time) + yd);
+              reach_arm(mi, traj->hand, &p);
 
-		/* Store updated hand position */
-		traj->x = p.x + xd;
-		traj->y = p.y - yd;
-	  }
-	  if (traj->type == Ball || traj->type == Full) {
-		/* Only interested in objects on this pass */
-		double x, y;
-		Trace *s;
+              /* Store updated hand position */
+              traj->x= p.x + xd;
+              traj->y= p.y - yd;
+            }
+          if (traj->type == Ball || traj->type == Full)
+            {
+              /* Only interested in objects on this pass */
+              double x, y;
+              Trace *s;
 
-		if(traj->type == Full) {
-		  /* Adjusted these in the first pass */
-		  x = traj->x;
-		  y = traj->y;
-		} else {
-		  x = CUBIC(traj->xp, sp->time);
-		  y = CUBIC(traj->yp, sp->time);
-		}
+              if (traj->type == Full)
+                {
+                  /* Adjusted these in the first pass */
+                  x= traj->x;
+                  y= traj->y;
+                }
+              else
+                {
+                  x= CUBIC(traj->xp, sp->time);
+                  y= CUBIC(traj->yp, sp->time);
+                }
 
-		ADD_ELEMENT(Trace, s, traj->object->trace->prev);
-		s->x = x;
-		s->y = y;
-		s->angle = traj->angle + traj->spin * (sp->time - traj->start);
-		s->divisions = traj->divisions;
-		traj->object->tracelen++;
-		traj->object->active = True;
-	  }
-	} else { /* expired */
-	  Trajectory *n = traj;
-	  traj=traj->prev;
-	  trajectory_destroy(n);
-	}
-  }
+              ADD_ELEMENT(Trace, s, traj->object->trace->prev);
+              s->x= x;
+              s->y= y;
+              s->angle= traj->angle + traj->spin * (sp->time - traj->start);
+              s->divisions= traj->divisions;
+              traj->object->tracelen++;
+              traj->object->active= True;
+            }
+        }
+      else
+        { /* expired */
+          Trajectory *n= traj;
+          traj= traj->prev;
+          trajectory_destroy(n);
+        }
+    }
 
   /* Erase end of trails */
-  for (o = sp->objects->next; o != sp->objects; o = o->next) {
-	Trace *s;
-	for (s = o->trace->next;
-		 o->trace->next != o->trace &&
-		   (o->count == 0 || o->tracelen > o->tail);
-		 s = o->trace->next) {
-	  ObjectDefs[o->type].draw(mi, MI_BLACK_PIXEL(mi), s);
-	  REMOVE(s);
-	  o->tracelen--;
-	  if(o->count <= 0 && o->tracelen <= 0) {
-		/* Object no longer in use and trail gone */
-		Object *n = o;
-		o = o->prev;
-		object_destroy(n);
-	  }
-	  if(o->count <= 0) break; /* Allow loop for catch-up, but not clean-up */
-	}
-  }
+  for (o= sp->objects->next; o != sp->objects; o= o->next)
+    {
+      Trace *s;
+      for (s= o->trace->next;
+        o->trace->next != o->trace &&
+        (o->count == 0 || o->tracelen > o->tail);
+        s= o->trace->next)
+        {
+          ObjectDefs [ o->type ].draw(mi, MI_BLACK_PIXEL(mi), s);
+          REMOVE(s);
+          o->tracelen--;
+          if (o->count <= 0 && o->tracelen <= 0)
+            {
+              /* Object no longer in use and trail gone */
+              Object *n= o;
+              o= o->prev;
+              object_destroy(n);
+            }
+          if (o->count <= 0) break; /* Allow loop for catch-up, but not clean-up */
+        }
+    }
 
   show_arms(mi, MI_BLACK_PIXEL(mi));
-  cx = wander(sp, sp->time);
+  cx= wander(sp, sp->time);
   /* Reduce flicker by only permitting movements of more than a pixel */
-  if(fabs((sp->cx - cx))*sp->scale >= 2.0 ) {
-	show_figure(mi, MI_BLACK_PIXEL(mi), False);
-	sp->cx = cx;
-  }
+  if (fabs((sp->cx - cx)) * sp->scale >= 2.0)
+    {
+      show_figure(mi, MI_BLACK_PIXEL(mi), False);
+      sp->cx= cx;
+    }
 
   show_figure(mi, MI_WHITE_PIXEL(mi), False);
 
   show_arms(mi, MI_WHITE_PIXEL(mi));
 
   /* Draw Objects */
-  for (o = sp->objects->next; o != sp->objects; o = o->next) {
-	if(o->active) {
-	  ObjectDefs[o->type].draw(mi,MI_PIXEL(mi, o->color), o->trace->prev);
-	  o->active = False;
-	}
-  }
+  for (o= sp->objects->next; o != sp->objects; o= o->next)
+    {
+      if (o->active)
+        {
+          ObjectDefs [ o->type ].draw(mi, MI_PIXEL(mi, o->color), o->trace->prev);
+          o->active= False;
+        }
+    }
 
 
   /* Save pattern name so we can erase it when it changes */
-  if(pattern != NULL && strcmp(sp->pattern, pattern) != 0 ) {
-	/* Erase old name */
-	XSetForeground(MI_DISPLAY(mi), MI_GC(mi), MI_BLACK_PIXEL(mi));
-# if 0
+  if (pattern != NULL && strcmp(sp->pattern, pattern) != 0)
+    {
+      /* Erase old name */
+      XSetForeground(MI_DISPLAY(mi), MI_GC(mi), MI_BLACK_PIXEL(mi));
+#if 0
 	XDrawString(MI_DISPLAY(mi), MI_WINDOW(mi), MI_GC(mi),
 				0, 20, sp->pattern, strlen(sp->pattern));
-# else
-    XFillRectangle(MI_DISPLAY(mi), MI_WINDOW(mi), MI_GC(mi),
-                   0, 0, MI_WIDTH(mi), 25);
-# endif
-	free(sp->pattern);
-	sp->pattern = strdup(pattern);
+#else
+      XFillRectangle(MI_DISPLAY(mi), MI_WINDOW(mi), MI_GC(mi), 0, 0, MI_WIDTH(mi), 25);
+#endif
+      free(sp->pattern);
+      sp->pattern= strdup(pattern);
 
-	if (MI_IS_VERBOSE(mi)) {
-	  (void) fprintf(stderr, "Juggle[%d]: Running: %s\n",
-					 MI_SCREEN(mi), sp->pattern);
-	}
-  }
-  if(sp->mode_font != None &&
-	 XTextWidth(sp->mode_font, sp->pattern, strlen(sp->pattern)) < MI_WIDTH(mi)) {
-	/* Redraw once a cycle, in case it's obscured or it changed */
-	XSetForeground(MI_DISPLAY(mi), MI_GC(mi), MI_WHITE_PIXEL(mi));
-	XDrawImageString(MI_DISPLAY(mi), MI_WINDOW(mi), MI_GC(mi),
-                     0, 20, sp->pattern, strlen(sp->pattern));
-  }
+      if (MI_IS_VERBOSE(mi))
+        (void) fprintf(stderr, "Juggle[%d]: Running: %s\n", MI_SCREEN(mi), sp->pattern);
+    }
+  if (sp->mode_font != None &&
+    XTextWidth(sp->mode_font, sp->pattern, strlen(sp->pattern)) < MI_WIDTH(mi))
+    {
+      /* Redraw once a cycle, in case it's obscured or it changed */
+      XSetForeground(MI_DISPLAY(mi), MI_GC(mi), MI_WHITE_PIXEL(mi));
+      XDrawImageString(MI_DISPLAY(mi), MI_WINDOW(mi), MI_GC(mi), 0, 20, sp->pattern, strlen(sp->pattern));
+    }
 
 #ifdef MEMTEST
-  if((int)(sp->time/10) % 1000 == 0)
-	(void) fprintf(stderr, "sbrk: %d\n", (int)sbrk(0));
+  if ((int) (sp->time / 10) % 1000 == 0)
+    (void) fprintf(stderr, "sbrk: %d\n", (int) sbrk(0));
 #endif
 
-  if (future < sp->time + 100 * THROW_CATCH_INTERVAL) {
-	refill_juggle(mi);
-  } else if (sp->time > 1<<30) { /* Hard Reset before the clock wraps */
-	init_juggle(mi);
-  }
+  if (future < sp->time + 100 * THROW_CATCH_INTERVAL)
+    {
+      refill_juggle(mi);
+    }
+  else if (sp->time > 1 << 30)
+    { /* Hard Reset before the clock wraps */
+      init_juggle(mi);
+    }
 }
 
-XSCREENSAVER_MODULE ("Juggle", juggle)
+XSCREENSAVER_MODULE(
+  "Juggle",
+  juggle)
 
 #endif /* MODE_juggle */

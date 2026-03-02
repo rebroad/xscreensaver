@@ -5,7 +5,7 @@
  * the above copyright notice appear in all copies and that both that
  * copyright notice and this permission notice appear in supporting
  * documentation.  No representations are made about the suitability of this
- * software for any purpose.  It is provided "as is" without express or 
+ * software for any purpose.  It is provided "as is" without express or
  * implied warranty.
  *
  * This implements the top-level screen-saver selection list in the iOS app.
@@ -15,7 +15,8 @@
 
 #import <UIKit/UIKit.h>
 
-@interface SaverListController : UITableViewController <UISearchBarDelegate> {
+@interface SaverListController : UITableViewController<UISearchBarDelegate>
+{
 
   UIView *v;
   UILabel *label1;
@@ -23,7 +24,7 @@
   UISearchBar *search;
 
   int active_section_count;
-  NSMutableArray *list_by_letter[26];  // 27 to get "#" after "Z".
+  NSMutableArray *list_by_letter [ 26 ]; // 27 to get "#" after "Z".
   NSMutableArray *letter_sections;
   NSMutableArray *section_titles;
   NSArray *names;
@@ -35,7 +36,7 @@
 }
 
 - (id)initWithNames:(NSArray *)names descriptions:(NSDictionary *)descs;
-- (void) scrollTo:(NSString *)name;
+- (void)scrollTo:(NSString *)name;
 @end
 
 #endif // HAVE_IPHONE

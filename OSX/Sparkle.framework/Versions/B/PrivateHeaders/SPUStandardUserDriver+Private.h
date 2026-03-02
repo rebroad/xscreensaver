@@ -24,7 +24,8 @@
 
 NS_ASSUME_NONNULL_BEGIN
 
-SU_EXPORT @interface SPUStandardUserDriver (Private)
+SU_EXPORT @interface SPUStandardUserDriver(
+  Private)
 
 /**
  Private API for accessing the active update alert's window controller.

@@ -29,16 +29,15 @@
 #define NONE      0
 #define KING      1
 #define QUEEN     2
-#define BISHOP    3 
-#define KNIGHT    4 
+#define BISHOP    3
+#define KNIGHT    4
 #define ROOK      5
-#define PAWN      6 
+#define PAWN      6
 #define BKING     8
 #define BQUEEN    9
-#define BBISHOP  10 
+#define BBISHOP  10
 #define BKNIGHT  11
 #define BROOK    12
-#define BPAWN    13 
+#define BPAWN    13
 
-extern void chessmodels_gen_lists( int classic, int poly_count[PIECES]);
-
+extern void chessmodels_gen_lists(int classic, int poly_count [ PIECES ]);

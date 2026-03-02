@@ -5,7 +5,7 @@
  * the above copyright notice appear in all copies and that both that
  * copyright notice and this permission notice appear in supporting
  * documentation.  No representations are made about the suitability of this
- * software for any purpose.  It is provided "as is" without express or 
+ * software for any purpose.  It is provided "as is" without express or
  * implied warranty.
  */
 
@@ -58,7 +58,7 @@
    the Xft API is still available through emulation provided by "xft.h".
  */
 
-#define _GNU_SOURCE  /* Why is this here? */
+#define _GNU_SOURCE /* Why is this here? */
 
 #include "utils.h"
 #include "visual.h"
@@ -74,64 +74,63 @@ extern const char *progname;
 #undef SELFTEST
 
 #ifdef HAVE_JWXYZ
-# define USE_XFT 1
+#define USE_XFT 1
 #endif
 
 #ifdef SELFTEST
-static void xft_selftest (Display *dpy, int screen);
+static void xft_selftest(Display *dpy, int screen);
 #endif
 
 
 /* Parse font names of the form "Helvetica Neue Bold Italic 12".
  */
 static char *
-font_name_to_xlfd (const char *font_name)
+  font_name_to_xlfd(
+    const char *font_name)
 {
-  char *name = strdup (font_name);
-  char *xlfd = 0;
+  char *name= strdup(font_name);
+  char *xlfd= 0;
   char *s, *s2, *b, *i, *o, c;
   float size;
 
-  if (name[0] == '-' || name[0] == '*')
-    return name;  /* Already an XLFD */
+  if (name [ 0 ] == '-' || name [ 0 ] == '*')
+    return name; /* Already an XLFD */
 
   /* Downcase ASCII; dash to space */
-  for (s = name; *s; s++)
+  for (s= name; *s; s++)
     if (*s >= 'A' && *s <= 'Z')
-      *s += 'a'-'A';
+      *s+= 'a' - 'A';
     else if (*s == '-')
-      *s = ' ';
+      *s= ' ';
 
   /* "Family NN" or "Family-NN" */
-  s  = strrchr (name, ' ');
-  s2 = strrchr (name, '-');
-  if (s && s2 && s2 > s) s = s2;
-  if (!s) goto FAIL;
-  if (1 != sscanf (s+1, " %f %c", &size, &c)) goto FAIL;
+  s= strrchr(name, ' ');
+  s2= strrchr(name, '-');
+  if (s && s2 && s2 > s) s= s2;
+  if (! s) goto FAIL;
+  if (1 != sscanf(s + 1, " %f %c", &size, &c)) goto FAIL;
   if (size <= 0) goto FAIL;
-  *s = 0;
+  *s= 0;
 
   /* "Family Bold", etc. */
-  b = strstr (name, " bold");
-  i = strstr (name, " italic");
-  o = strstr (name, " oblique");
-  if (b) *b = 0;
-  if (i) *i = 0;
-  if (o) *o = 0;
+  b= strstr(name, " bold");
+  i= strstr(name, " italic");
+  o= strstr(name, " oblique");
+  if (b) *b= 0;
+  if (i) *i= 0;
+  if (o) *o= 0;
 
-  xlfd = (char *) malloc (strlen(name) + 80);
-  sprintf (xlfd, "-*-%s-%s-%s-*-*-*-%d-*-*-*-*-*-*",
-           name,
-           (b ? "bold" : "medium"),
-           (i ? "i" : o ? "o" : "r"),
-           (int) (size * 10));
-  free (name);
+  xlfd= (char *) malloc(strlen(name) + 80);
+  sprintf(xlfd, "-*-%s-%s-%s-*-*-*-%d-*-*-*-*-*-*", name, (b ? "bold" : "medium"), (i ? "i" : o ? "o" :
+                                                                                                  "r"),
+    (int) (size * 10));
+  free(name);
   return xlfd;
 
- FAIL:
-  fprintf (stderr, "%s: XFT: unparsable: \"%s\"\n", progname, font_name);
-  if (name) free (name);
-  if (xlfd) free (xlfd);
+FAIL:
+  fprintf(stderr, "%s: XFT: unparsable: \"%s\"\n", progname, font_name);
+  if (name) free(name);
+  if (xlfd) free(xlfd);
   return 0;
 }
 
@@ -193,95 +192,103 @@ font_name_to_xlfd (const char *font_name)
    In summary, everything is terrible, and it's a wonder anything works at all.
  */
 static Bool
-xlfd_substituted_p (XftFont *f, const char *xlfd)
+  xlfd_substituted_p(
+    XftFont *f,
+    const char *xlfd)
 {
-# ifndef HAVE_XFT
-  return False;		/* No substitutions in the Xft emulator. */
-# else /* HAVE_XFT */
+#ifndef HAVE_XFT
+  return False; /* No substitutions in the Xft emulator. */
+#else           /* HAVE_XFT */
 
-  Bool ret = True;
-  const char *oxlfd = xlfd;
-  char *s = 0;
-  char *xname = 0;
-  char fname[1024];
+  Bool ret= True;
+  const char *oxlfd= xlfd;
+  char *s= 0;
+  char *xname= 0;
+  char fname [ 1024 ];
 
-  if (*xlfd == '-' || strchr (xlfd, '*'))	/* it's an xlfd */
+  if (*xlfd == '-' || strchr(xlfd, '*')) /* it's an xlfd */
     {
       if (*xlfd != '-') goto FAIL;
       xlfd++;
-      s = strchr (xlfd, '-'); if (!s) goto FAIL;	/* skip foundry */
-      xlfd = s+1;
-      s = strchr (xlfd, '-'); if (!s) goto FAIL;	/* skip family */
+      s= strchr(xlfd, '-');
+      if (! s) goto FAIL; /* skip foundry */
+      xlfd= s + 1;
+      s= strchr(xlfd, '-');
+      if (! s) goto FAIL; /* skip family */
 
       {
-        char buf[1024];
-        XftPattern *pat = XftXlfdParse (oxlfd, True, True);
-        XftNameUnparse (pat, buf, sizeof(buf)-1);
+        char buf [ 1024 ];
+        XftPattern *pat= XftXlfdParse(oxlfd, True, True);
+        XftNameUnparse(pat, buf, sizeof(buf) - 1);
       }
     }
-  else						/* It's an Xft name */
+  else /* It's an Xft name */
     {
-      s = strchr (xlfd, '-'); if (!s) goto FAIL;	/* skip family */
+      s= strchr(xlfd, '-');
+      if (! s) goto FAIL; /* skip family */
     }
 
-  xname = strdup (xlfd);
-  xname[s - xlfd] = 0;
+  xname= strdup(xlfd);
+  xname [ s - xlfd ]= 0;
 
-  *fname = 0;
-  XftNameUnparse (f->pattern, fname, sizeof(fname)-1);
-  s = strchr (fname, ':');   /* Strip to "Family-NN" */
-  if (s) *s = 0;
-  s = strrchr (fname, '-');  /* Strip to family */
-  if (s) *s = 0;
+  *fname= 0;
+  XftNameUnparse(f->pattern, fname, sizeof(fname) - 1);
+  s= strchr(fname, ':'); /* Strip to "Family-NN" */
+  if (s) *s= 0;
+  s= strrchr(fname, '-'); /* Strip to family */
+  if (s) *s= 0;
 
-  ret = !strcasestr (fname, xname);
+  ret= ! strcasestr(fname, xname);
 
-#  ifdef DEBUG
+#ifdef DEBUG
   if (ret)
-    fprintf (stderr, "%s: XFT: requested \"%s\" but got \"%s\"\n",
-             progname, xname, fname);
-#  endif
+    fprintf(stderr, "%s: XFT: requested \"%s\" but got \"%s\"\n", progname, xname, fname);
+#endif
 
- FAIL:
+FAIL:
 
-  if (!s)
-    fprintf (stderr, "%s: unparsable XLFD: %s\n", progname, oxlfd);
-  if (xname) free (xname);
+  if (! s)
+    fprintf(stderr, "%s: unparsable XLFD: %s\n", progname, oxlfd);
+  if (xname) free(xname);
   return ret;
-# endif /* HAVE_XFT */
+#endif /* HAVE_XFT */
 }
 #endif /* USE_XFT */
 
 
 static void *
-load_font_retry_1 (Display *dpy, int screen, const char *font_list, Bool xft_p)
+  load_font_retry_1(
+    Display *dpy,
+    int screen,
+    const char *font_list,
+    Bool xft_p)
 {
 
-# ifdef USE_XFT
-#  define LOADFONT(F) (xft_p \
+#ifdef USE_XFT
+#define LOADFONT(F) (xft_p \
                       ? (void *) XftFontOpenXlfd (dpy, screen, (F))  \
                       : (void *) XLoadQueryFont (dpy, (F)))
-#  define UNLOADFONT(F) (xft_p \
+#define UNLOADFONT(F) (xft_p \
                          ? (void) XftFontClose (dpy, (F)) \
                          : (void) XFreeFont (dpy, (F)))
-# else
-#  define LOADFONT(F) ((void *) XLoadQueryFont (dpy, (F)))
-#  define UNLOADFONT(F) XFreeFont (dpy, (F))
-# endif
+#else
+#define LOADFONT(F) ((void *) XLoadQueryFont (dpy, (F)))
+#define UNLOADFONT(F) XFreeFont (dpy, (F))
+#endif
 
-  char *font_name = 0;
-  void *f = 0;
-  void *fallback = 0;
+  char *font_name= 0;
+  void *f= 0;
+  void *fallback= 0;
 
-# ifndef USE_XFT
+#ifndef USE_XFT
   if (xft_p) abort();
-# endif
+#endif
 
-# ifdef SELFTEST
-  xft_selftest (dpy, screen);
-# endif
+#ifdef SELFTEST
+  xft_selftest(dpy, screen);
+#endif
 
-  if (! font_list) font_list = "<null>";
+  if (! font_list) font_list= "<null>";
 
   /* Treat the string as a comma-separated list of font names.
      Names are XLFDs or the XScreenSaver syntax described above.
@@ -290,128 +297,133 @@ load_font_retry_1 (Display *dpy, int screen, const char *font_list, Bool xft_p)
    */
   if (font_list)
     {
-      char *token = strdup (font_list);
-      char *otoken = token;
+      char *token= strdup(font_list);
+      char *otoken= token;
       char *name2, *lasts;
-      if (!token) abort();
-      while ((name2 = strtok_r (token, ",", &lasts)))
-         {
+      if (! token) abort();
+      while ((name2= strtok_r(token, ",", &lasts)))
+        {
           int L;
-          token = 0;
+          token= 0;
 
           /* Strip leading and trailing whitespace */
           while (*name2 == ' ' || *name2 == '\t' || *name2 == '\n')
             name2++;
-          L = strlen(name2);
-          while (L && (name2[L-1] == ' ' || name2[L-1] == '\t' ||
-                       name2[L-1] == '\n'))
-            name2[--L] = 0;
+          L= strlen(name2);
+          while (L && (name2 [ L - 1 ] == ' ' || name2 [ L - 1 ] == '\t' || name2 [ L - 1 ] == '\n'))
+            name2 [ --L ]= 0;
 
-          if (font_name) free (font_name);
-          font_name = font_name_to_xlfd (name2);
+          if (font_name) free(font_name);
+          font_name= font_name_to_xlfd(name2);
 
-# ifdef DEBUG
-          fprintf (stderr, "%s: trying \"%s\" as \"%s\"\n", progname,
-                   name2, font_name);
-# endif
+#ifdef DEBUG
+          fprintf(stderr, "%s: trying \"%s\" as \"%s\"\n", progname, name2, font_name);
+#endif
 
-          f = LOADFONT (font_name);
+          f= LOADFONT(font_name);
 
-# ifdef USE_XFT
+#ifdef USE_XFT
           /* If we did not get an exact match for the font family we requested,
              reject this font and try the next one in the list. */
-          if (f && xft_p && xlfd_substituted_p (f, font_name))
+          if (f && xft_p && xlfd_substituted_p(f, font_name))
             {
               if (fallback)
-                UNLOADFONT (fallback);
-              fallback = f;
-              f = 0;
+                UNLOADFONT(fallback);
+              fallback= f;
+              f= 0;
             }
-#  ifdef DEBUG
-          else if (!f)
-            fprintf (stderr, "%s: no match for \"%s\"\n", progname, font_name);
-#  endif
-# endif /* USE_XFT */
+#ifdef DEBUG
+          else if (! f)
+            {
+              fprintf(stderr, "%s: no match for \"%s\"\n", progname, font_name);
+            }
+#endif
+#endif /* USE_XFT */
 
           if (f) break;
         }
-      free (otoken);
-      if (!font_name) abort();
+      free(otoken);
+      if (! font_name) abort();
 
       /* If the last font in the list was an Xft pattern that matched but
          was inexact, use it. */
-      if (!f)
+      if (! f)
         {
-          f = fallback;
-          fallback = 0;
+          f= fallback;
+          fallback= 0;
         }
     }
 
-  if (!font_name) abort();
+  if (! font_name) abort();
 
-# if !defined(HAVE_XFT) && !defined(HAVE_JWXYZ)
+#if ! defined(HAVE_XFT) && ! defined(HAVE_JWXYZ)
   /* Xft is now REQUIRED. All of XScreenSaver's resource settings use
      font names that assume that it is available. However, this lets you
      limp along without it. But, really, don't do that to yourself. */
-#   define FALLBACK2(F) do {    \
+#define FALLBACK2(F) do {    \
       free (font_name);         \
       font_name = (strdup(F));  \
       f = LOADFONT (font_name); \
       if (f) fprintf (stderr, "%s: non-XFT fallback \"%s\"\n", \
                       progname, font_name);                    \
     } while (0)
-    if (!f && !strcasestr (font_name, "mono")) {
-      if (!f) FALLBACK2 ("-*-sans serif-medium-r-*-*-*-180-*-*-*-*-*-*");
-      if (!f) FALLBACK2 ("-*-helvetica-medium-r-*-*-*-180-*-*-*-*-*-*");
-      if (!f) FALLBACK2 ("-*-nimbus sans l-medium-r-*-*-*-180-*-*-*-*-*-*");
+  if (! f && ! strcasestr(font_name, "mono"))
+    {
+      if (! f) FALLBACK2("-*-sans serif-medium-r-*-*-*-180-*-*-*-*-*-*");
+      if (! f) FALLBACK2("-*-helvetica-medium-r-*-*-*-180-*-*-*-*-*-*");
+      if (! f) FALLBACK2("-*-nimbus sans l-medium-r-*-*-*-180-*-*-*-*-*-*");
     }
-    if (!f) FALLBACK2 ("-*-courier-medium-r-*-*-*-180-*-*-*-*-*-*");
-    if (!f) FALLBACK2 ("fixed");
-# endif
+  if (! f) FALLBACK2("-*-courier-medium-r-*-*-*-180-*-*-*-*-*-*");
+  if (! f) FALLBACK2("fixed");
+#endif
 
-  if (!f) abort();
+  if (! f) abort();
 
-# ifdef DEBUG
+#ifdef DEBUG
   if (f && font_name)
-    fprintf (stderr, "%s:%s loaded %s\n", progname,
-             (xft_p ? " XFT:" : ""), font_name);
-#  if defined(USE_XFT) && defined(HAVE_XFT)
-   if (xft_p && f)
-     {
-       XftPattern *p = ((XftFont *) f)->pattern;
-       char name[1024];
-       char *s, *s1, *s2, *s3;
-       XftNameUnparse (p, name, sizeof(name)-1);
-       s = strstr (name, ":style=");
-       s1 = (s ? strstr (s+1, ",") : 0);
-       s2 = (s ? strstr (s+1, ":") : 0);
-       s3 = (s1 && s1 < s2 ? s1 : s2);
-       if (s3) strcpy (s3+1, " [...]");
-       fprintf (stderr, "%s: XFT name: %s\n", progname, name);
-     }
-#  endif /* USE_XFT && HAVE_XFT */
-# endif /* DEBUG */
+    fprintf(stderr, "%s:%s loaded %s\n", progname, (xft_p ? " XFT:" : ""), font_name);
+#if defined(USE_XFT) && defined(HAVE_XFT)
+  if (xft_p && f)
+    {
+      XftPattern *p= ((XftFont *) f)->pattern;
+      char name [ 1024 ];
+      char *s, *s1, *s2, *s3;
+      XftNameUnparse(p, name, sizeof(name) - 1);
+      s= strstr(name, ":style=");
+      s1= (s ? strstr(s + 1, ",") : 0);
+      s2= (s ? strstr(s + 1, ":") : 0);
+      s3= (s1 && s1 < s2 ? s1 : s2);
+      if (s3) strcpy(s3 + 1, " [...]");
+      fprintf(stderr, "%s: XFT name: %s\n", progname, name);
+    }
+#endif /* USE_XFT && HAVE_XFT */
+#endif /* DEBUG */
 
-   if (fallback) UNLOADFONT (fallback);
-   if (font_name) free (font_name);
+  if (fallback) UNLOADFONT(fallback);
+  if (font_name) free(font_name);
   return f;
 }
 
 
-#if 1  /* No longer used in XScreenSaver 6.
-          (Used by retired flag, juggle, xsublim) */
+#if 1 /* No longer used in XScreenSaver 6. \
+         (Used by retired flag, juggle, xsublim) */
 XFontStruct *
-load_font_retry (Display *dpy, const char *font_list)
+  load_font_retry(
+    Display *dpy,
+    const char *font_list)
 {
-  return (XFontStruct *) load_font_retry_1 (dpy, 0, font_list, 0);
+  return (XFontStruct *) load_font_retry_1(dpy, 0, font_list, 0);
 }
 #endif
 
 #if defined(USE_XFT) || defined(HAVE_JWXYZ)
 XftFont *
-load_xft_font_retry (Display *dpy, int screen, const char *font_list)
+  load_xft_font_retry(
+    Display *dpy,
+    int screen,
+    const char *font_list)
 {
-  return (XftFont *) load_font_retry_1 (dpy, screen, font_list, 1);
+  return (XftFont *) load_font_retry_1(dpy, screen, font_list, 1);
 }
 #endif
 
@@ -419,10 +431,12 @@ load_xft_font_retry (Display *dpy, int screen, const char *font_list)
 
 #ifdef SELFTEST
 static void
-xft_selftest (Display *dpy, int screen)
+  xft_selftest(
+    Display *dpy,
+    int screen)
 {
   int i;
-  const char *tests[] = {
+  const char *tests []= {
     "-*-ocr a std-medium-r-*-*-*-480-*-*-m-*-*-*",
     "OCR A Std-48",
     "OCR A Std-48:style=Bold Italic",
@@ -435,7 +449,7 @@ xft_selftest (Display *dpy, int screen)
     "-*-courier-medium-r-*-*-*-480-*-*-m-*-*-*",
     "-*-courier-bold-o-*-*-*-480-*-*-m-*-*-*",
     "Courier-48:style=Bold Italic",
-    "Courier-48:style=Italic Bold",  /* seems to be illegal */
+    "Courier-48:style=Italic Bold", /* seems to be illegal */
     "Courier-48:spacing=100",
     "Courier-48:spacing=110",
     "-*-helvetica-bold-o-*-*-*-480-*-*-m-*-*-*",
@@ -447,35 +461,37 @@ xft_selftest (Display *dpy, int screen)
     "-*-sans\\-serif-bold-o-*-*-*-480-*-*-m-*-*-*",
   };
 
-  const char *tests2[] = { "Helvetica 10",
-                           "Helvetica Bold 10",
-                           "Helvetica Bold Italic 10",
-                           "Helvetica Oblique Bold-10.5",
-                           "Times New Roman-10",
-                           "Times New Roman Bold-10",
-                           "Times New Roman-Bold Oblique Italic 10",
-                           "Times New Roman-Oblique Italic Bold 10",
-                           "Times-20:style=Bold",
-                           "Times-Oblique-20:style=Bold",
-                           "sans serif-20:style=Bold",
-                           "sans-serif-20:style=Bold",
-                           "sans\\-serif-20:style=Bold",
+  const char *tests2 []= {
+    "Helvetica 10",
+    "Helvetica Bold 10",
+    "Helvetica Bold Italic 10",
+    "Helvetica Oblique Bold-10.5",
+    "Times New Roman-10",
+    "Times New Roman Bold-10",
+    "Times New Roman-Bold Oblique Italic 10",
+    "Times New Roman-Oblique Italic Bold 10",
+    "Times-20:style=Bold",
+    "Times-Oblique-20:style=Bold",
+    "sans serif-20:style=Bold",
+    "sans-serif-20:style=Bold",
+    "sans\\-serif-20:style=Bold",
   };
 
-  fprintf (stderr, "\n");
-  for (i = 0; i < countof(tests2); i++)
-    fprintf (stderr, "%s\n%s\n\n", tests2[i], font_name_to_xlfd (tests2[i]));
+  fprintf(stderr, "\n");
+  for (i= 0; i < countof(tests2); i++)
+    fprintf(stderr, "%s\n%s\n\n", tests2 [ i ], font_name_to_xlfd(tests2 [ i ]));
 
-  fprintf (stderr, "\n");
-  for (i = 0; i < countof(tests); i++) {
-    const char *name1 = tests[i];
-    XftResult ret;
-    XftPattern *pat1 = 0, *pat2 = 0, *pat3 = 0;
-    char name2[1024], name3[1024];
-    XftFont *ff;
-    Bool xlfd_p = (*name1 == '-');
+  fprintf(stderr, "\n");
+  for (i= 0; i < countof(tests); i++)
+    {
+      const char *name1= tests [ i ];
+      XftResult ret;
+      XftPattern *pat1= 0, *pat2= 0, *pat3= 0;
+      char name2 [ 1024 ], name3 [ 1024 ];
+      XftFont *ff;
+      Bool xlfd_p= (*name1 == '-');
 
-# define TRUNC(V) do {                          \
+#define TRUNC(V) do {                          \
       char *s = strstr (V, ":style=");          \
       char *s1 = (s ? strstr (s+1, ",") : 0);   \
       char *s2 = (s ? strstr (s+1, ":") : 0);   \
@@ -483,84 +499,83 @@ xft_selftest (Display *dpy, int screen)
       if (s3) strcpy (s3+1, " [...]");          \
     } while(0)
 
-    *name2 = 0;
+      *name2= 0;
 
-    /* Name to Parse */
+      /* Name to Parse */
 
-    if (xlfd_p)
-      pat1 = XftXlfdParse (name1, True, True);
-    else
-      pat1 = XftNameParse (name1);
-    XftNameUnparse (pat1, name2, sizeof(name2)-1);
-    TRUNC(name2);
-    fprintf (stderr, "%s (\"%s\")\n\t-> \"%s\"\n",
-             (xlfd_p ? "XftXlfdParse" : "XftNameParse"),
-             name1, name2);
+      if (xlfd_p)
+        pat1= XftXlfdParse(name1, True, True);
+      else
+        pat1= XftNameParse(name1);
+      XftNameUnparse(pat1, name2, sizeof(name2) - 1);
+      TRUNC(name2);
+      fprintf(stderr, "%s (\"%s\")\n\t-> \"%s\"\n", (xlfd_p ? "XftXlfdParse" : "XftNameParse"), name1, name2);
 
 
-    /* Name to pattern to Open */
+      /* Name to pattern to Open */
 
-    ff = XftFontOpenPattern (dpy, pat1);
-    if (ff) {
-      pat2 = ff->pattern;
-      XftNameUnparse (pat2, name3, sizeof(name3)-1);
-    } else {
-      pat2 = 0;
-      strcpy (name3, "NULL");
+      ff= XftFontOpenPattern(dpy, pat1);
+      if (ff)
+        {
+          pat2= ff->pattern;
+          XftNameUnparse(pat2, name3, sizeof(name3) - 1);
+        }
+      else
+        {
+          pat2= 0;
+          strcpy(name3, "NULL");
+        }
+      TRUNC(name3);
+      fprintf(stderr, "XftFontOpenPattern (\"%s\")\n\t-> \"%s\"\n", name2, name3);
+
+
+      /* Name to pattern to Match */
+
+      pat2= XftFontMatch(dpy, screen, pat1, &ret);
+      XftNameUnparse(pat2, name3, sizeof(name3) - 1);
+      TRUNC(name3);
+      fprintf(stderr, "XftFontMatch (\"%s\")\n\t-> \"%s\", %s\n", name2, name3, (ret == XftResultMatch ? "Match" : ret == XftResultNoMatch ? "NoMatch" :
+                                                                                    ret == XftResultTypeMismatch                           ? "TypeMismatch" :
+                                                                                    ret == XftResultNoId                                   ? "NoId" :
+                                                                                                                                             "???"));
+
+
+      /* Name to pattern to Match to Open */
+
+      strcpy(name2, name3);
+      ff= XftFontOpenPattern(dpy, pat2);
+      if (ff)
+        {
+          pat3= ff->pattern;
+          XftNameUnparse(pat3, name3, sizeof(name3) - 1);
+        }
+      else
+        {
+          pat3= 0;
+          strcpy(name3, "NULL");
+        }
+      TRUNC(name3);
+      fprintf(stderr, "XftFontOpenPattern (\"%s\")\n\t-> \"%s\"\n", name2, name3);
+
+
+      /* Name to Open */
+
+      ff= (xlfd_p ? XftFontOpenXlfd(dpy, screen, name1) : XftFontOpenName(dpy, screen, name1));
+      *name2= 0;
+      if (ff)
+        {
+          pat1= ff->pattern;
+          XftNameUnparse(pat1, name2, sizeof(name2) - 1);
+        }
+      else
+        {
+          strcpy(name2, "NULL");
+        }
+      TRUNC(name2);
+      fprintf(stderr, "%s (\"%s\")\n\t-> \"%s\"\n", (xlfd_p ? "XftFontOpenXlfd" : "XftFontOpenName"), name1, name2);
+      fprintf(stderr, "\n");
     }
-    TRUNC(name3);
-    fprintf (stderr, "XftFontOpenPattern (\"%s\")\n\t-> \"%s\"\n",
-             name2, name3);
 
-
-    /* Name to pattern to Match */
-
-    pat2 = XftFontMatch (dpy, screen, pat1, &ret);
-    XftNameUnparse (pat2, name3, sizeof(name3)-1);
-    TRUNC(name3);
-    fprintf (stderr, "XftFontMatch (\"%s\")\n\t-> \"%s\", %s\n",
-             name2, name3,
-             (ret == XftResultMatch ? "Match" :
-              ret == XftResultNoMatch ? "NoMatch" :
-              ret == XftResultTypeMismatch ? "TypeMismatch" :
-              ret == XftResultNoId ? "NoId" : "???"));
-
-
-    /* Name to pattern to Match to Open */
-
-    strcpy (name2, name3);
-    ff = XftFontOpenPattern (dpy, pat2);
-    if (ff) {
-      pat3 = ff->pattern;
-      XftNameUnparse (pat3, name3, sizeof(name3)-1);
-    } else {
-      pat3 = 0;
-      strcpy (name3, "NULL");
-    }
-    TRUNC(name3);
-    fprintf (stderr, "XftFontOpenPattern (\"%s\")\n\t-> \"%s\"\n",
-             name2, name3);
-
-
-    /* Name to Open */
-
-    ff = (xlfd_p
-          ? XftFontOpenXlfd (dpy, screen, name1)
-          : XftFontOpenName (dpy, screen, name1));
-    *name2 = 0;
-    if (ff) {
-      pat1 = ff->pattern;
-      XftNameUnparse (pat1, name2, sizeof(name2)-1);
-    } else {
-      strcpy (name2, "NULL");
-    }
-    TRUNC(name2);
-    fprintf (stderr, "%s (\"%s\")\n\t-> \"%s\"\n",
-             (xlfd_p ? "XftFontOpenXlfd" : "XftFontOpenName"),
-             name1, name2);
-    fprintf (stderr, "\n");
-  }
-
-  exit (0);
+  exit(0);
 }
 #endif /* SELFTEST */

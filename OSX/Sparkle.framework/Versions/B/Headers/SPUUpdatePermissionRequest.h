@@ -27,7 +27,7 @@ SU_EXPORT @interface SPUUpdatePermissionRequest : NSObject<NSSecureCoding>
 
 /**
  Initializes a new update permission request instance.
- 
+
  @param systemProfile The system profile information.
  */
 - (instancetype)initWithSystemProfile:(NSArray<NSDictionary<NSString *, NSString *> *> *)systemProfile;

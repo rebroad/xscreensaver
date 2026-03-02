@@ -5,15 +5,16 @@
  * the above copyright notice appear in all copies and that both that
  * copyright notice and this permission notice appear in supporting
  * documentation.  No representations are made about the suitability of this
- * software for any purpose.  It is provided "as is" without express or 
+ * software for any purpose.  It is provided "as is" without express or
  * implied warranty.
  */
 #ifndef __GLSCHOOL_ALG_H__
 #define __GLSCHOOL_ALG_H__
 
-typedef struct {
-	double	mins[3];
-	double	maxs[3];
+typedef struct
+{
+    double mins [ 3 ];
+    double maxs [ 3 ];
 } BBox;
 
 #define BBOX_XMIN(b)		((b)->mins[0])
@@ -31,13 +32,14 @@ typedef struct {
 #define BBOX_IMID(b, i)		(((b)->maxs[(i)] + (b)->mins[(i)])/2.0)
 #define BBOX_IRANGE(b, i)	((b)->maxs[(i)] - (b)->mins[(i)])
 
-typedef struct {
-	double			pos[3];
-	double			vel[3];
-	double			accel[3];
-	double			oldVel[3];
-	double			magic[3];
-	double			avgVel[3];
+typedef struct
+{
+    double pos [ 3 ];
+    double vel [ 3 ];
+    double accel [ 3 ];
+    double oldVel [ 3 ];
+    double magic [ 3 ];
+    double avgVel [ 3 ];
 } Fish;
 
 #define FISH_POS(f)			((f)->pos)
@@ -61,25 +63,26 @@ typedef struct {
 #define FISH_IOLDVEL(f, i)	((f)->oldVel[(i)])
 #define FISH_IAVGVEL(f, i)	((f)->avgVel[(i)])
 
-typedef struct {
-	int			nFish;
-	double		maxVel;
-	double		minVel;
-	double		distExp;
-	double		momentum;
-	double		accLimit;
-	double		minRadius;
-	double		minRadiusExp;
-	double		avoidFact;
-	double		matchFact;
-	double		centerFact;
-	double		targetFact;
-	double		distComp;
-	double		goal[3];
-	double		boxMids[3];
-	double		boxRanges[3];
-	BBox		theBox;
-	Fish		*theFish;
+typedef struct
+{
+    int nFish;
+    double maxVel;
+    double minVel;
+    double distExp;
+    double momentum;
+    double accLimit;
+    double minRadius;
+    double minRadiusExp;
+    double avoidFact;
+    double matchFact;
+    double centerFact;
+    double targetFact;
+    double distComp;
+    double goal [ 3 ];
+    double boxMids [ 3 ];
+    double boxRanges [ 3 ];
+    BBox theBox;
+    Fish *theFish;
 } School;
 
 #define SCHOOL_NFISH(s)			((s)->nFish)
@@ -96,31 +99,31 @@ typedef struct {
 #define SCHOOL_TARGETFACT(s)	((s)->targetFact)
 #define SCHOOL_DISTCOMP(s)		((s)->distComp)
 #define SCHOOL_GOAL(s)			((s)->goal)
-#define SCHOOL_IGOAL(s,i)		((s)->goal[(i)])
+#define SCHOOL_IGOAL(s, i)		((s)->goal[(i)])
 #define SCHOOL_BBMINS(s)		((s)->bbox.mins)
 #define SCHOOL_BBMAXS(s)		((s)->bbox.maxs)
 #define SCHOOL_BBMIDS(s)		((s)->boxMids)
-#define SCHOOL_IMID(s,i)		((s)->boxMids[(i)])
+#define SCHOOL_IMID(s, i)		((s)->boxMids[(i)])
 #define SCHOOL_BBRANGES(s)		((s)->boxRanges)
-#define SCHOOL_IRANGE(s,i)		((s)->boxRanges[(i)])
+#define SCHOOL_IRANGE(s, i)		((s)->boxRanges[(i)])
 #define SCHOOL_BBOX(s)			((s)->theBox)
 #define SCHOOL_FISHES(s)		((s)->theFish)
-#define SCHOOL_IFISH(s,i)		((s)->theFish[i])
+#define SCHOOL_IFISH(s, i)		((s)->theFish[i])
 
-extern void		glschool_initFishes(School *);
-extern void		glschool_initFish(Fish *, double *, double *);
+extern void glschool_initFishes(School *);
+extern void glschool_initFish(Fish *, double *, double *);
 
-extern void		glschool_applyMovements(School *);
+extern void glschool_applyMovements(School *);
 /* extern void		applyFishMovements(Fish *, BBox *, double, double, double); */
 
-extern void		glschool_freeSchool(School *);
-extern School		*glschool_initSchool(int, double, double, double, double, double, double, double, double, double, double, double);
+extern void glschool_freeSchool(School *);
+extern School *glschool_initSchool(int, double, double, double, double, double, double, double, double, double, double, double);
 
-extern void		glschool_newGoal(School *);
-extern void		glschool_setBBox(School *, double, double, double, double, double, double);
+extern void glschool_newGoal(School *);
+extern void glschool_setBBox(School *, double, double, double, double, double, double);
 
-extern void		glschool_computeAccelerations(School *);
-extern double		glschool_computeNormalAndThetaToPlusZ(double *, double *);
-int			glschool_computeGroupVectors(School *, Fish *, double *, double *, double *);
+extern void glschool_computeAccelerations(School *);
+extern double glschool_computeNormalAndThetaToPlusZ(double *, double *);
+int glschool_computeGroupVectors(School *, Fish *, double *, double *, double *);
 
 #endif /* __GLSCHOOL_ALG_H__ */

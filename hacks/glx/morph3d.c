@@ -52,37 +52,34 @@ static const char sccsid[] = "@(#)morph3d.c	5.01 2001/03/01 xlockmore";
  */
 
 #ifdef STANDALONE
-# define MODE_moebius
-# define DEFAULTS		"*delay:		40000	\n"		\
+#define MODE_moebius
+#define DEFAULTS		"*delay:		40000	\n"		\
 						"*showFPS:      False   \n"		\
 						"*count: 		0		\n"		\
-						"*suppressRotationAnimation: True\n" \
+						"*suppressRotationAnimation: True\n"
 
-# define release_morph3d 0
-# define morph3d_handle_event xlockmore_no_events
-# include "xlockmore.h"		/* from the xscreensaver distribution */
-#else /* !STANDALONE */
-# include "xlock.h"		/* from the xlockmore distribution */
-#endif /* !STANDALONE */
+#define release_morph3d 0
+#define morph3d_handle_event xlockmore_no_events
+#include "xlockmore.h" /* from the xscreensaver distribution */
+#else                  /* !STANDALONE */
+#include "xlock.h"     /* from the xlockmore distribution */
+#endif                 /* !STANDALONE */
 
 #ifdef MODE_moebius
 
-ENTRYPOINT ModeSpecOpt morph3d_opts =
-{0, (XrmOptionDescRec *) NULL, 0, (argtype *) NULL, (OptionStruct *) NULL};
+ENTRYPOINT ModeSpecOpt morph3d_opts=
+  {0, (XrmOptionDescRec *) NULL, 0, (argtype *) NULL, (OptionStruct *) NULL};
 
 #ifdef USE_MODULES
-ModStruct   morph3d_description =
-{"morph3d", "init_morph3d", "draw_morph3d", (char *) NULL,
- "draw_morph3d", "change_morph3d", (char *) NULL, &morph3d_opts,
- 1000, 0, 1, 1, 4, 1.0, "",
- "Shows GL morphing polyhedra", 0, NULL};
+ModStruct morph3d_description=
+  {"morph3d", "init_morph3d", "draw_morph3d", (char *) NULL, "draw_morph3d", "change_morph3d", (char *) NULL, &morph3d_opts, 1000, 0, 1, 1, 4, 1.0, "", "Shows GL morphing polyhedra", 0, NULL};
 
 #endif
 
 #define Scale4Window               0.3
 #define Scale4Iconic               1.0
 
-#define VectMul(X1,Y1,Z1,X2,Y2,Z2) (Y1)*(Z2)-(Z1)*(Y2),(Z1)*(X2)-(X1)*(Z2),(X1)*(Y2)-(Y1)*(X2)
+#define VectMul(X1, Y1, Z1, X2, Y2, Z2) (Y1)*(Z2)-(Z1)*(Y2),(Z1)*(X2)-(X1)*(Z2),(X1)*(Y2)-(Y1)*(X2)
 #define sqr(A)                     ((A)*(A))
 
 /* Increasing this values produces better image quality, the price is speed. */
@@ -114,40 +111,41 @@ ModStruct   morph3d_description =
 
 /*************************************************************************/
 
-typedef struct {
-	GLint       WindH, WindW;
-	GLfloat     step;
-	GLfloat     seno;
-	int         object;
-	int         edgedivisions;
-	int         VisibleSpikes;
-	void        (*draw_object) (ModeInfo * mi);
-	float       Magnitude;
-	const float *MaterialColor[20];
-	GLXContext *glx_context;
-    int         arrayninit;
+typedef struct
+{
+    GLint WindH, WindW;
+    GLfloat step;
+    GLfloat seno;
+    int object;
+    int edgedivisions;
+    int VisibleSpikes;
+    void (*draw_object)(ModeInfo *mi);
+    float Magnitude;
+    const float *MaterialColor [ 20 ];
+    GLXContext *glx_context;
+    int arrayninit;
 
 } morph3dstruct;
 
-static const GLfloat front_shininess[] = {60.0};
-static const GLfloat front_specular[]  = {0.7, 0.7, 0.7, 1.0};
-static const GLfloat ambient[]         = {0.0, 0.0, 0.0, 1.0};
-static const GLfloat diffuse[]         = {1.0, 1.0, 1.0, 1.0};
-static const GLfloat position0[]       = {1.0, 1.0, 1.0, 0.0};
-static const GLfloat position1[]       = {-1.0, -1.0, 1.0, 0.0};
-static const GLfloat lmodel_ambient[]  = {0.5, 0.5, 0.5, 1.0};
-static const GLfloat lmodel_twoside[]  = {GL_TRUE};
+static const GLfloat front_shininess []= {60.0};
+static const GLfloat front_specular []= {0.7, 0.7, 0.7, 1.0};
+static const GLfloat ambient []= {0.0, 0.0, 0.0, 1.0};
+static const GLfloat diffuse []= {1.0, 1.0, 1.0, 1.0};
+static const GLfloat position0 []= {1.0, 1.0, 1.0, 0.0};
+static const GLfloat position1 []= {-1.0, -1.0, 1.0, 0.0};
+static const GLfloat lmodel_ambient []= {0.5, 0.5, 0.5, 1.0};
+static const GLfloat lmodel_twoside []= {GL_TRUE};
 
-static const GLfloat MaterialRed[]     = {0.7, 0.0, 0.0, 1.0};
-static const GLfloat MaterialGreen[]   = {0.1, 0.5, 0.2, 1.0};
-static const GLfloat MaterialBlue[]    = {0.0, 0.0, 0.7, 1.0};
-static const GLfloat MaterialCyan[]    = {0.2, 0.5, 0.7, 1.0};
-static const GLfloat MaterialYellow[]  = {0.7, 0.7, 0.0, 1.0};
-static const GLfloat MaterialMagenta[] = {0.6, 0.2, 0.5, 1.0};
-static const GLfloat MaterialWhite[]   = {0.7, 0.7, 0.7, 1.0};
-static const GLfloat MaterialGray[]    = {0.5, 0.5, 0.5, 1.0};
+static const GLfloat MaterialRed []= {0.7, 0.0, 0.0, 1.0};
+static const GLfloat MaterialGreen []= {0.1, 0.5, 0.2, 1.0};
+static const GLfloat MaterialBlue []= {0.0, 0.0, 0.7, 1.0};
+static const GLfloat MaterialCyan []= {0.2, 0.5, 0.7, 1.0};
+static const GLfloat MaterialYellow []= {0.7, 0.7, 0.0, 1.0};
+static const GLfloat MaterialMagenta []= {0.6, 0.2, 0.5, 1.0};
+static const GLfloat MaterialWhite []= {0.7, 0.7, 0.7, 1.0};
+static const GLfloat MaterialGray []= {0.5, 0.5, 0.5, 1.0};
 
-static morph3dstruct *morph3d = (morph3dstruct *) NULL;
+static morph3dstruct *morph3d= (morph3dstruct *) NULL;
 
 #define TRIANGLE(Edge, Amp, Divisions, Z, VS)                                                                    \
 {                                                                                                                \
@@ -316,525 +314,550 @@ static morph3dstruct *morph3d = (morph3dstruct *) NULL;
 }
 
 static void
-draw_tetra(ModeInfo * mi)
+  draw_tetra(
+    ModeInfo *mi)
 {
-	morph3dstruct *mp = &morph3d[MI_SCREEN(mi)];
+  morph3dstruct *mp= &morph3d [ MI_SCREEN(mi) ];
 
-	glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mp->MaterialColor[0]);
+  glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mp->MaterialColor [ 0 ]);
 
-	TRIANGLE(2, mp->seno, mp->edgedivisions, 0.5 / SQRT6, mp->VisibleSpikes);
+  TRIANGLE(2, mp->seno, mp->edgedivisions, 0.5 / SQRT6, mp->VisibleSpikes);
 
-	glPushMatrix();
-	glRotatef(180, 0, 0, 1);
-	glRotatef(-tetraangle, 1, 0, 0);
-	glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mp->MaterialColor[1]);
-	TRIANGLE(2, mp->seno, mp->edgedivisions, 0.5 / SQRT6, mp->VisibleSpikes);
-	glPopMatrix();
-	glPushMatrix();
-	glRotatef(180, 0, 1, 0);
-	glRotatef(-180 + tetraangle, 0.5, SQRT3 / 2, 0);
-	glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mp->MaterialColor[2]);
-	TRIANGLE(2, mp->seno, mp->edgedivisions, 0.5 / SQRT6, mp->VisibleSpikes);
-	glPopMatrix();
-	glRotatef(180, 0, 1, 0);
-	glRotatef(-180 + tetraangle, 0.5, -SQRT3 / 2, 0);
-	glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mp->MaterialColor[3]);
-	TRIANGLE(2, mp->seno, mp->edgedivisions, 0.5 / SQRT6, mp->VisibleSpikes);
+  glPushMatrix();
+  glRotatef(180, 0, 0, 1);
+  glRotatef(-tetraangle, 1, 0, 0);
+  glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mp->MaterialColor [ 1 ]);
+  TRIANGLE(2, mp->seno, mp->edgedivisions, 0.5 / SQRT6, mp->VisibleSpikes);
+  glPopMatrix();
+  glPushMatrix();
+  glRotatef(180, 0, 1, 0);
+  glRotatef(-180 + tetraangle, 0.5, SQRT3 / 2, 0);
+  glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mp->MaterialColor [ 2 ]);
+  TRIANGLE(2, mp->seno, mp->edgedivisions, 0.5 / SQRT6, mp->VisibleSpikes);
+  glPopMatrix();
+  glRotatef(180, 0, 1, 0);
+  glRotatef(-180 + tetraangle, 0.5, -SQRT3 / 2, 0);
+  glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mp->MaterialColor [ 3 ]);
+  TRIANGLE(2, mp->seno, mp->edgedivisions, 0.5 / SQRT6, mp->VisibleSpikes);
 }
 
 static void
-draw_cube(ModeInfo * mi)
+  draw_cube(
+    ModeInfo *mi)
 {
-	morph3dstruct *mp = &morph3d[MI_SCREEN(mi)];
+  morph3dstruct *mp= &morph3d [ MI_SCREEN(mi) ];
 
-	glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mp->MaterialColor[0]);
+  glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mp->MaterialColor [ 0 ]);
 
-	SQUARE(2, mp->seno, mp->edgedivisions, 0.5, mp->VisibleSpikes)
+  SQUARE(2, mp->seno, mp->edgedivisions, 0.5, mp->VisibleSpikes)
 
-	glRotatef(cubeangle, 1, 0, 0);
-	glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mp->MaterialColor[1]);
-	SQUARE(2, mp->seno, mp->edgedivisions, 0.5, mp->VisibleSpikes)
-	glRotatef(cubeangle, 1, 0, 0);
-	glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mp->MaterialColor[2]);
-	SQUARE(2, mp->seno, mp->edgedivisions, 0.5, mp->VisibleSpikes)
-	glRotatef(cubeangle, 1, 0, 0);
-	glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mp->MaterialColor[3]);
-	SQUARE(2, mp->seno, mp->edgedivisions, 0.5, mp->VisibleSpikes)
-	glRotatef(cubeangle, 0, 1, 0);
-	glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mp->MaterialColor[4]);
-	SQUARE(2, mp->seno, mp->edgedivisions, 0.5, mp->VisibleSpikes)
-	glRotatef(2 * cubeangle, 0, 1, 0);
-	glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mp->MaterialColor[5]);
-	SQUARE(2, mp->seno, mp->edgedivisions, 0.5, mp->VisibleSpikes)
+  glRotatef(cubeangle, 1, 0, 0);
+  glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mp->MaterialColor [ 1 ]);
+  SQUARE(2, mp->seno, mp->edgedivisions, 0.5, mp->VisibleSpikes)
+  glRotatef(cubeangle, 1, 0, 0);
+  glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mp->MaterialColor [ 2 ]);
+  SQUARE(2, mp->seno, mp->edgedivisions, 0.5, mp->VisibleSpikes)
+  glRotatef(cubeangle, 1, 0, 0);
+  glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mp->MaterialColor [ 3 ]);
+  SQUARE(2, mp->seno, mp->edgedivisions, 0.5, mp->VisibleSpikes)
+  glRotatef(cubeangle, 0, 1, 0);
+  glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mp->MaterialColor [ 4 ]);
+  SQUARE(2, mp->seno, mp->edgedivisions, 0.5, mp->VisibleSpikes)
+  glRotatef(2 * cubeangle, 0, 1, 0);
+  glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mp->MaterialColor [ 5 ]);
+  SQUARE(2, mp->seno, mp->edgedivisions, 0.5, mp->VisibleSpikes)
 }
 
 static void
-draw_octa(ModeInfo * mi)
+  draw_octa(
+    ModeInfo *mi)
 {
-	morph3dstruct *mp = &morph3d[MI_SCREEN(mi)];
+  morph3dstruct *mp= &morph3d [ MI_SCREEN(mi) ];
 
-	glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mp->MaterialColor[0]);
-	TRIANGLE(2, mp->seno, mp->edgedivisions, 1 / SQRT6, mp->VisibleSpikes);
+  glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mp->MaterialColor [ 0 ]);
+  TRIANGLE(2, mp->seno, mp->edgedivisions, 1 / SQRT6, mp->VisibleSpikes);
 
-	glPushMatrix();
-	glRotatef(180, 0, 0, 1);
-	glRotatef(-180 + octaangle, 1, 0, 0);
-	glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mp->MaterialColor[1]);
-	TRIANGLE(2, mp->seno, mp->edgedivisions, 1 / SQRT6, mp->VisibleSpikes);
-	glPopMatrix();
-	glPushMatrix();
-	glRotatef(180, 0, 1, 0);
-	glRotatef(-octaangle, 0.5, SQRT3 / 2, 0);
-	glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mp->MaterialColor[2]);
-	TRIANGLE(2, mp->seno, mp->edgedivisions, 1 / SQRT6, mp->VisibleSpikes);
-	glPopMatrix();
-	glPushMatrix();
-	glRotatef(180, 0, 1, 0);
-	glRotatef(-octaangle, 0.5, -SQRT3 / 2, 0);
-	glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mp->MaterialColor[3]);
-	TRIANGLE(2, mp->seno, mp->edgedivisions, 1 / SQRT6, mp->VisibleSpikes);
-	glPopMatrix();
-	glRotatef(180, 1, 0, 0);
-	glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mp->MaterialColor[4]);
-	TRIANGLE(2, mp->seno, mp->edgedivisions, 1 / SQRT6, mp->VisibleSpikes);
-	glPushMatrix();
-	glRotatef(180, 0, 0, 1);
-	glRotatef(-180 + octaangle, 1, 0, 0);
-	glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mp->MaterialColor[5]);
-	TRIANGLE(2, mp->seno, mp->edgedivisions, 1 / SQRT6, mp->VisibleSpikes);
-	glPopMatrix();
-	glPushMatrix();
-	glRotatef(180, 0, 1, 0);
-	glRotatef(-octaangle, 0.5, SQRT3 / 2, 0);
-	glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mp->MaterialColor[6]);
-	TRIANGLE(2, mp->seno, mp->edgedivisions, 1 / SQRT6, mp->VisibleSpikes);
-	glPopMatrix();
-	glRotatef(180, 0, 1, 0);
-	glRotatef(-octaangle, 0.5, -SQRT3 / 2, 0);
-	glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mp->MaterialColor[7]);
-	TRIANGLE(2, mp->seno, mp->edgedivisions, 1 / SQRT6, mp->VisibleSpikes);
+  glPushMatrix();
+  glRotatef(180, 0, 0, 1);
+  glRotatef(-180 + octaangle, 1, 0, 0);
+  glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mp->MaterialColor [ 1 ]);
+  TRIANGLE(2, mp->seno, mp->edgedivisions, 1 / SQRT6, mp->VisibleSpikes);
+  glPopMatrix();
+  glPushMatrix();
+  glRotatef(180, 0, 1, 0);
+  glRotatef(-octaangle, 0.5, SQRT3 / 2, 0);
+  glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mp->MaterialColor [ 2 ]);
+  TRIANGLE(2, mp->seno, mp->edgedivisions, 1 / SQRT6, mp->VisibleSpikes);
+  glPopMatrix();
+  glPushMatrix();
+  glRotatef(180, 0, 1, 0);
+  glRotatef(-octaangle, 0.5, -SQRT3 / 2, 0);
+  glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mp->MaterialColor [ 3 ]);
+  TRIANGLE(2, mp->seno, mp->edgedivisions, 1 / SQRT6, mp->VisibleSpikes);
+  glPopMatrix();
+  glRotatef(180, 1, 0, 0);
+  glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mp->MaterialColor [ 4 ]);
+  TRIANGLE(2, mp->seno, mp->edgedivisions, 1 / SQRT6, mp->VisibleSpikes);
+  glPushMatrix();
+  glRotatef(180, 0, 0, 1);
+  glRotatef(-180 + octaangle, 1, 0, 0);
+  glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mp->MaterialColor [ 5 ]);
+  TRIANGLE(2, mp->seno, mp->edgedivisions, 1 / SQRT6, mp->VisibleSpikes);
+  glPopMatrix();
+  glPushMatrix();
+  glRotatef(180, 0, 1, 0);
+  glRotatef(-octaangle, 0.5, SQRT3 / 2, 0);
+  glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mp->MaterialColor [ 6 ]);
+  TRIANGLE(2, mp->seno, mp->edgedivisions, 1 / SQRT6, mp->VisibleSpikes);
+  glPopMatrix();
+  glRotatef(180, 0, 1, 0);
+  glRotatef(-octaangle, 0.5, -SQRT3 / 2, 0);
+  glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mp->MaterialColor [ 7 ]);
+  TRIANGLE(2, mp->seno, mp->edgedivisions, 1 / SQRT6, mp->VisibleSpikes);
 }
 
 static void
-draw_dodeca(ModeInfo * mi)
+  draw_dodeca(
+    ModeInfo *mi)
 {
-	morph3dstruct *mp = &morph3d[MI_SCREEN(mi)];
+  morph3dstruct *mp= &morph3d [ MI_SCREEN(mi) ];
 
 #define TAU ((SQRT5+1)/2)
 
-	glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mp->MaterialColor[0]);
+  glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mp->MaterialColor [ 0 ]);
 
-	PENTAGON(1, mp->seno, mp->edgedivisions, sqr(TAU) * sqrt((TAU + 2) / 5) / 2, mp->VisibleSpikes);
+  PENTAGON(1, mp->seno, mp->edgedivisions, sqr(TAU) * sqrt((TAU + 2) / 5) / 2, mp->VisibleSpikes);
 
-	glPushMatrix();
-	glRotatef(180, 0, 0, 1);
-	glPushMatrix();
-	glRotatef(-dodecaangle, 1, 0, 0);
-	glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mp->MaterialColor[1]);
-	PENTAGON(1, mp->seno, mp->edgedivisions, sqr(TAU) * sqrt((TAU + 2) / 5) / 2, mp->VisibleSpikes);
-	glPopMatrix();
-	glPushMatrix();
-	glRotatef(-dodecaangle, cos72, sin72, 0);
-	glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mp->MaterialColor[2]);
-	PENTAGON(1, mp->seno, mp->edgedivisions, sqr(TAU) * sqrt((TAU + 2) / 5) / 2, mp->VisibleSpikes);
-	glPopMatrix();
-	glPushMatrix();
-	glRotatef(-dodecaangle, cos72, -sin72, 0);
-	glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mp->MaterialColor[3]);
-	PENTAGON(1, mp->seno, mp->edgedivisions, sqr(TAU) * sqrt((TAU + 2) / 5) / 2, mp->VisibleSpikes);
-	glPopMatrix();
-	glPushMatrix();
-	glRotatef(dodecaangle, cos36, -sin36, 0);
-	glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mp->MaterialColor[4]);
-	PENTAGON(1, mp->seno, mp->edgedivisions, sqr(TAU) * sqrt((TAU + 2) / 5) / 2, mp->VisibleSpikes);
-	glPopMatrix();
-	glRotatef(dodecaangle, cos36, sin36, 0);
-	glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mp->MaterialColor[5]);
-	PENTAGON(1, mp->seno, mp->edgedivisions, sqr(TAU) * sqrt((TAU + 2) / 5) / 2, mp->VisibleSpikes);
-	glPopMatrix();
-	glRotatef(180, 1, 0, 0);
-	glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mp->MaterialColor[6]);
-	PENTAGON(1, mp->seno, mp->edgedivisions, sqr(TAU) * sqrt((TAU + 2) / 5) / 2, mp->VisibleSpikes);
-	glRotatef(180, 0, 0, 1);
-	glPushMatrix();
-	glRotatef(-dodecaangle, 1, 0, 0);
-	glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mp->MaterialColor[7]);
-	PENTAGON(1, mp->seno, mp->edgedivisions, sqr(TAU) * sqrt((TAU + 2) / 5) / 2, mp->VisibleSpikes);
-	glPopMatrix();
-	glPushMatrix();
-	glRotatef(-dodecaangle, cos72, sin72, 0);
-	glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mp->MaterialColor[8]);
-	PENTAGON(1, mp->seno, mp->edgedivisions, sqr(TAU) * sqrt((TAU + 2) / 5) / 2, mp->VisibleSpikes);
-	glPopMatrix();
-	glPushMatrix();
-	glRotatef(-dodecaangle, cos72, -sin72, 0);
-	glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mp->MaterialColor[9]);
-	PENTAGON(1, mp->seno, mp->edgedivisions, sqr(TAU) * sqrt((TAU + 2) / 5) / 2, mp->VisibleSpikes);
-	glPopMatrix();
-	glPushMatrix();
-	glRotatef(dodecaangle, cos36, -sin36, 0);
-	glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mp->MaterialColor[10]);
-	PENTAGON(1, mp->seno, mp->edgedivisions, sqr(TAU) * sqrt((TAU + 2) / 5) / 2, mp->VisibleSpikes);
-	glPopMatrix();
-	glRotatef(dodecaangle, cos36, sin36, 0);
-	glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mp->MaterialColor[11]);
-	PENTAGON(1, mp->seno, mp->edgedivisions, sqr(TAU) * sqrt((TAU + 2) / 5) / 2, mp->VisibleSpikes);
+  glPushMatrix();
+  glRotatef(180, 0, 0, 1);
+  glPushMatrix();
+  glRotatef(-dodecaangle, 1, 0, 0);
+  glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mp->MaterialColor [ 1 ]);
+  PENTAGON(1, mp->seno, mp->edgedivisions, sqr(TAU) * sqrt((TAU + 2) / 5) / 2, mp->VisibleSpikes);
+  glPopMatrix();
+  glPushMatrix();
+  glRotatef(-dodecaangle, cos72, sin72, 0);
+  glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mp->MaterialColor [ 2 ]);
+  PENTAGON(1, mp->seno, mp->edgedivisions, sqr(TAU) * sqrt((TAU + 2) / 5) / 2, mp->VisibleSpikes);
+  glPopMatrix();
+  glPushMatrix();
+  glRotatef(-dodecaangle, cos72, -sin72, 0);
+  glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mp->MaterialColor [ 3 ]);
+  PENTAGON(1, mp->seno, mp->edgedivisions, sqr(TAU) * sqrt((TAU + 2) / 5) / 2, mp->VisibleSpikes);
+  glPopMatrix();
+  glPushMatrix();
+  glRotatef(dodecaangle, cos36, -sin36, 0);
+  glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mp->MaterialColor [ 4 ]);
+  PENTAGON(1, mp->seno, mp->edgedivisions, sqr(TAU) * sqrt((TAU + 2) / 5) / 2, mp->VisibleSpikes);
+  glPopMatrix();
+  glRotatef(dodecaangle, cos36, sin36, 0);
+  glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mp->MaterialColor [ 5 ]);
+  PENTAGON(1, mp->seno, mp->edgedivisions, sqr(TAU) * sqrt((TAU + 2) / 5) / 2, mp->VisibleSpikes);
+  glPopMatrix();
+  glRotatef(180, 1, 0, 0);
+  glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mp->MaterialColor [ 6 ]);
+  PENTAGON(1, mp->seno, mp->edgedivisions, sqr(TAU) * sqrt((TAU + 2) / 5) / 2, mp->VisibleSpikes);
+  glRotatef(180, 0, 0, 1);
+  glPushMatrix();
+  glRotatef(-dodecaangle, 1, 0, 0);
+  glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mp->MaterialColor [ 7 ]);
+  PENTAGON(1, mp->seno, mp->edgedivisions, sqr(TAU) * sqrt((TAU + 2) / 5) / 2, mp->VisibleSpikes);
+  glPopMatrix();
+  glPushMatrix();
+  glRotatef(-dodecaangle, cos72, sin72, 0);
+  glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mp->MaterialColor [ 8 ]);
+  PENTAGON(1, mp->seno, mp->edgedivisions, sqr(TAU) * sqrt((TAU + 2) / 5) / 2, mp->VisibleSpikes);
+  glPopMatrix();
+  glPushMatrix();
+  glRotatef(-dodecaangle, cos72, -sin72, 0);
+  glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mp->MaterialColor [ 9 ]);
+  PENTAGON(1, mp->seno, mp->edgedivisions, sqr(TAU) * sqrt((TAU + 2) / 5) / 2, mp->VisibleSpikes);
+  glPopMatrix();
+  glPushMatrix();
+  glRotatef(dodecaangle, cos36, -sin36, 0);
+  glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mp->MaterialColor [ 10 ]);
+  PENTAGON(1, mp->seno, mp->edgedivisions, sqr(TAU) * sqrt((TAU + 2) / 5) / 2, mp->VisibleSpikes);
+  glPopMatrix();
+  glRotatef(dodecaangle, cos36, sin36, 0);
+  glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mp->MaterialColor [ 11 ]);
+  PENTAGON(1, mp->seno, mp->edgedivisions, sqr(TAU) * sqrt((TAU + 2) / 5) / 2, mp->VisibleSpikes);
 }
 
 static void
-draw_icosa(ModeInfo * mi)
+  draw_icosa(
+    ModeInfo *mi)
 {
-	morph3dstruct *mp = &morph3d[MI_SCREEN(mi)];
+  morph3dstruct *mp= &morph3d [ MI_SCREEN(mi) ];
 
-	glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mp->MaterialColor[0]);
+  glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mp->MaterialColor [ 0 ]);
 
-	TRIANGLE(1.5, mp->seno, mp->edgedivisions, (3 * SQRT3 + SQRT15) / 12, mp->VisibleSpikes);
+  TRIANGLE(1.5, mp->seno, mp->edgedivisions, (3 * SQRT3 + SQRT15) / 12, mp->VisibleSpikes);
 
-	glPushMatrix();
+  glPushMatrix();
 
-	glPushMatrix();
-	glRotatef(180, 0, 0, 1);
-	glRotatef(-icoangle, 1, 0, 0);
-	glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mp->MaterialColor[1]);
-	TRIANGLE(1.5, mp->seno, mp->edgedivisions, (3 * SQRT3 + SQRT15) / 12, mp->VisibleSpikes);
-	glPushMatrix();
-	glRotatef(180, 0, 1, 0);
-	glRotatef(-180 + icoangle, 0.5, SQRT3 / 2, 0);
-	glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mp->MaterialColor[2]);
-	TRIANGLE(1.5, mp->seno, mp->edgedivisions, (3 * SQRT3 + SQRT15) / 12, mp->VisibleSpikes);
-	glPopMatrix();
-	glRotatef(180, 0, 1, 0);
-	glRotatef(-180 + icoangle, 0.5, -SQRT3 / 2, 0);
-	glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mp->MaterialColor[3]);
-	TRIANGLE(1.5, mp->seno, mp->edgedivisions, (3 * SQRT3 + SQRT15) / 12, mp->VisibleSpikes);
-	glPopMatrix();
-	glPushMatrix();
-	glRotatef(180, 0, 1, 0);
-	glRotatef(-180 + icoangle, 0.5, SQRT3 / 2, 0);
-	glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mp->MaterialColor[4]);
-	TRIANGLE(1.5, mp->seno, mp->edgedivisions, (3 * SQRT3 + SQRT15) / 12, mp->VisibleSpikes);
-	glPushMatrix();
-	glRotatef(180, 0, 1, 0);
-	glRotatef(-180 + icoangle, 0.5, SQRT3 / 2, 0);
-	glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mp->MaterialColor[5]);
-	TRIANGLE(1.5, mp->seno, mp->edgedivisions, (3 * SQRT3 + SQRT15) / 12, mp->VisibleSpikes);
-	glPopMatrix();
-	glRotatef(180, 0, 0, 1);
-	glRotatef(-icoangle, 1, 0, 0);
-	glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mp->MaterialColor[6]);
-	TRIANGLE(1.5, mp->seno, mp->edgedivisions, (3 * SQRT3 + SQRT15) / 12, mp->VisibleSpikes);
-	glPopMatrix();
-	glRotatef(180, 0, 1, 0);
-	glRotatef(-180 + icoangle, 0.5, -SQRT3 / 2, 0);
-	glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mp->MaterialColor[7]);
-	TRIANGLE(1.5, mp->seno, mp->edgedivisions, (3 * SQRT3 + SQRT15) / 12, mp->VisibleSpikes);
-	glPushMatrix();
-	glRotatef(180, 0, 1, 0);
-	glRotatef(-180 + icoangle, 0.5, -SQRT3 / 2, 0);
-	glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mp->MaterialColor[8]);
-	TRIANGLE(1.5, mp->seno, mp->edgedivisions, (3 * SQRT3 + SQRT15) / 12, mp->VisibleSpikes);
-	glPopMatrix();
-	glRotatef(180, 0, 0, 1);
-	glRotatef(-icoangle, 1, 0, 0);
-	glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mp->MaterialColor[9]);
-	TRIANGLE(1.5, mp->seno, mp->edgedivisions, (3 * SQRT3 + SQRT15) / 12, mp->VisibleSpikes);
-	glPopMatrix();
-	glRotatef(180, 1, 0, 0);
-	glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mp->MaterialColor[10]);
-	TRIANGLE(1.5, mp->seno, mp->edgedivisions, (3 * SQRT3 + SQRT15) / 12, mp->VisibleSpikes);
-	glPushMatrix();
-	glRotatef(180, 0, 0, 1);
-	glRotatef(-icoangle, 1, 0, 0);
-	glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mp->MaterialColor[11]);
-	TRIANGLE(1.5, mp->seno, mp->edgedivisions, (3 * SQRT3 + SQRT15) / 12, mp->VisibleSpikes);
-	glPushMatrix();
-	glRotatef(180, 0, 1, 0);
-	glRotatef(-180 + icoangle, 0.5, SQRT3 / 2, 0);
-	glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mp->MaterialColor[12]);
-	TRIANGLE(1.5, mp->seno, mp->edgedivisions, (3 * SQRT3 + SQRT15) / 12, mp->VisibleSpikes);
-	glPopMatrix();
-	glRotatef(180, 0, 1, 0);
-	glRotatef(-180 + icoangle, 0.5, -SQRT3 / 2, 0);
-	glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mp->MaterialColor[13]);
-	TRIANGLE(1.5, mp->seno, mp->edgedivisions, (3 * SQRT3 + SQRT15) / 12, mp->VisibleSpikes);
-	glPopMatrix();
-	glPushMatrix();
-	glRotatef(180, 0, 1, 0);
-	glRotatef(-180 + icoangle, 0.5, SQRT3 / 2, 0);
-	glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mp->MaterialColor[14]);
-	TRIANGLE(1.5, mp->seno, mp->edgedivisions, (3 * SQRT3 + SQRT15) / 12, mp->VisibleSpikes);
-	glPushMatrix();
-	glRotatef(180, 0, 1, 0);
-	glRotatef(-180 + icoangle, 0.5, SQRT3 / 2, 0);
-	glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mp->MaterialColor[15]);
-	TRIANGLE(1.5, mp->seno, mp->edgedivisions, (3 * SQRT3 + SQRT15) / 12, mp->VisibleSpikes);
-	glPopMatrix();
-	glRotatef(180, 0, 0, 1);
-	glRotatef(-icoangle, 1, 0, 0);
-	glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mp->MaterialColor[16]);
-	TRIANGLE(1.5, mp->seno, mp->edgedivisions, (3 * SQRT3 + SQRT15) / 12, mp->VisibleSpikes);
-	glPopMatrix();
-	glRotatef(180, 0, 1, 0);
-	glRotatef(-180 + icoangle, 0.5, -SQRT3 / 2, 0);
-	glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mp->MaterialColor[17]);
-	TRIANGLE(1.5, mp->seno, mp->edgedivisions, (3 * SQRT3 + SQRT15) / 12, mp->VisibleSpikes);
-	glPushMatrix();
-	glRotatef(180, 0, 1, 0);
-	glRotatef(-180 + icoangle, 0.5, -SQRT3 / 2, 0);
-	glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mp->MaterialColor[18]);
-	TRIANGLE(1.5, mp->seno, mp->edgedivisions, (3 * SQRT3 + SQRT15) / 12, mp->VisibleSpikes);
-	glPopMatrix();
-	glRotatef(180, 0, 0, 1);
-	glRotatef(-icoangle, 1, 0, 0);
-	glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mp->MaterialColor[19]);
-	TRIANGLE(1.5, mp->seno, mp->edgedivisions, (3 * SQRT3 + SQRT15) / 12, mp->VisibleSpikes);
+  glPushMatrix();
+  glRotatef(180, 0, 0, 1);
+  glRotatef(-icoangle, 1, 0, 0);
+  glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mp->MaterialColor [ 1 ]);
+  TRIANGLE(1.5, mp->seno, mp->edgedivisions, (3 * SQRT3 + SQRT15) / 12, mp->VisibleSpikes);
+  glPushMatrix();
+  glRotatef(180, 0, 1, 0);
+  glRotatef(-180 + icoangle, 0.5, SQRT3 / 2, 0);
+  glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mp->MaterialColor [ 2 ]);
+  TRIANGLE(1.5, mp->seno, mp->edgedivisions, (3 * SQRT3 + SQRT15) / 12, mp->VisibleSpikes);
+  glPopMatrix();
+  glRotatef(180, 0, 1, 0);
+  glRotatef(-180 + icoangle, 0.5, -SQRT3 / 2, 0);
+  glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mp->MaterialColor [ 3 ]);
+  TRIANGLE(1.5, mp->seno, mp->edgedivisions, (3 * SQRT3 + SQRT15) / 12, mp->VisibleSpikes);
+  glPopMatrix();
+  glPushMatrix();
+  glRotatef(180, 0, 1, 0);
+  glRotatef(-180 + icoangle, 0.5, SQRT3 / 2, 0);
+  glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mp->MaterialColor [ 4 ]);
+  TRIANGLE(1.5, mp->seno, mp->edgedivisions, (3 * SQRT3 + SQRT15) / 12, mp->VisibleSpikes);
+  glPushMatrix();
+  glRotatef(180, 0, 1, 0);
+  glRotatef(-180 + icoangle, 0.5, SQRT3 / 2, 0);
+  glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mp->MaterialColor [ 5 ]);
+  TRIANGLE(1.5, mp->seno, mp->edgedivisions, (3 * SQRT3 + SQRT15) / 12, mp->VisibleSpikes);
+  glPopMatrix();
+  glRotatef(180, 0, 0, 1);
+  glRotatef(-icoangle, 1, 0, 0);
+  glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mp->MaterialColor [ 6 ]);
+  TRIANGLE(1.5, mp->seno, mp->edgedivisions, (3 * SQRT3 + SQRT15) / 12, mp->VisibleSpikes);
+  glPopMatrix();
+  glRotatef(180, 0, 1, 0);
+  glRotatef(-180 + icoangle, 0.5, -SQRT3 / 2, 0);
+  glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mp->MaterialColor [ 7 ]);
+  TRIANGLE(1.5, mp->seno, mp->edgedivisions, (3 * SQRT3 + SQRT15) / 12, mp->VisibleSpikes);
+  glPushMatrix();
+  glRotatef(180, 0, 1, 0);
+  glRotatef(-180 + icoangle, 0.5, -SQRT3 / 2, 0);
+  glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mp->MaterialColor [ 8 ]);
+  TRIANGLE(1.5, mp->seno, mp->edgedivisions, (3 * SQRT3 + SQRT15) / 12, mp->VisibleSpikes);
+  glPopMatrix();
+  glRotatef(180, 0, 0, 1);
+  glRotatef(-icoangle, 1, 0, 0);
+  glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mp->MaterialColor [ 9 ]);
+  TRIANGLE(1.5, mp->seno, mp->edgedivisions, (3 * SQRT3 + SQRT15) / 12, mp->VisibleSpikes);
+  glPopMatrix();
+  glRotatef(180, 1, 0, 0);
+  glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mp->MaterialColor [ 10 ]);
+  TRIANGLE(1.5, mp->seno, mp->edgedivisions, (3 * SQRT3 + SQRT15) / 12, mp->VisibleSpikes);
+  glPushMatrix();
+  glRotatef(180, 0, 0, 1);
+  glRotatef(-icoangle, 1, 0, 0);
+  glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mp->MaterialColor [ 11 ]);
+  TRIANGLE(1.5, mp->seno, mp->edgedivisions, (3 * SQRT3 + SQRT15) / 12, mp->VisibleSpikes);
+  glPushMatrix();
+  glRotatef(180, 0, 1, 0);
+  glRotatef(-180 + icoangle, 0.5, SQRT3 / 2, 0);
+  glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mp->MaterialColor [ 12 ]);
+  TRIANGLE(1.5, mp->seno, mp->edgedivisions, (3 * SQRT3 + SQRT15) / 12, mp->VisibleSpikes);
+  glPopMatrix();
+  glRotatef(180, 0, 1, 0);
+  glRotatef(-180 + icoangle, 0.5, -SQRT3 / 2, 0);
+  glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mp->MaterialColor [ 13 ]);
+  TRIANGLE(1.5, mp->seno, mp->edgedivisions, (3 * SQRT3 + SQRT15) / 12, mp->VisibleSpikes);
+  glPopMatrix();
+  glPushMatrix();
+  glRotatef(180, 0, 1, 0);
+  glRotatef(-180 + icoangle, 0.5, SQRT3 / 2, 0);
+  glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mp->MaterialColor [ 14 ]);
+  TRIANGLE(1.5, mp->seno, mp->edgedivisions, (3 * SQRT3 + SQRT15) / 12, mp->VisibleSpikes);
+  glPushMatrix();
+  glRotatef(180, 0, 1, 0);
+  glRotatef(-180 + icoangle, 0.5, SQRT3 / 2, 0);
+  glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mp->MaterialColor [ 15 ]);
+  TRIANGLE(1.5, mp->seno, mp->edgedivisions, (3 * SQRT3 + SQRT15) / 12, mp->VisibleSpikes);
+  glPopMatrix();
+  glRotatef(180, 0, 0, 1);
+  glRotatef(-icoangle, 1, 0, 0);
+  glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mp->MaterialColor [ 16 ]);
+  TRIANGLE(1.5, mp->seno, mp->edgedivisions, (3 * SQRT3 + SQRT15) / 12, mp->VisibleSpikes);
+  glPopMatrix();
+  glRotatef(180, 0, 1, 0);
+  glRotatef(-180 + icoangle, 0.5, -SQRT3 / 2, 0);
+  glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mp->MaterialColor [ 17 ]);
+  TRIANGLE(1.5, mp->seno, mp->edgedivisions, (3 * SQRT3 + SQRT15) / 12, mp->VisibleSpikes);
+  glPushMatrix();
+  glRotatef(180, 0, 1, 0);
+  glRotatef(-180 + icoangle, 0.5, -SQRT3 / 2, 0);
+  glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mp->MaterialColor [ 18 ]);
+  TRIANGLE(1.5, mp->seno, mp->edgedivisions, (3 * SQRT3 + SQRT15) / 12, mp->VisibleSpikes);
+  glPopMatrix();
+  glRotatef(180, 0, 0, 1);
+  glRotatef(-icoangle, 1, 0, 0);
+  glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mp->MaterialColor [ 19 ]);
+  TRIANGLE(1.5, mp->seno, mp->edgedivisions, (3 * SQRT3 + SQRT15) / 12, mp->VisibleSpikes);
 }
 
 ENTRYPOINT void
-reshape_morph3d(ModeInfo * mi, int width, int height)
+  reshape_morph3d(
+    ModeInfo *mi,
+    int width,
+    int height)
 {
-	morph3dstruct *mp = &morph3d[MI_SCREEN(mi)];
-    int y = 0;
+  morph3dstruct *mp= &morph3d [ MI_SCREEN(mi) ];
+  int y= 0;
 
-    if (width > height * 5) {   /* tiny window: show middle */
-      height = width;
-      y = -height/2;
+  if (width > height * 5)
+    { /* tiny window: show middle */
+      height= width;
+      y= -height / 2;
     }
 
-	glViewport(0, y, mp->WindW = (GLint) width, mp->WindH = (GLint) height);
-	glMatrixMode(GL_PROJECTION);
-	glLoadIdentity();
-	glFrustum(-1.0, 1.0, -1.0, 1.0, 5.0, 15.0);
-	glMatrixMode(GL_MODELVIEW);
+  glViewport(0, y, mp->WindW= (GLint) width, mp->WindH= (GLint) height);
+  glMatrixMode(GL_PROJECTION);
+  glLoadIdentity();
+  glFrustum(-1.0, 1.0, -1.0, 1.0, 5.0, 15.0);
+  glMatrixMode(GL_MODELVIEW);
 }
 
 static void
-pinit(ModeInfo * mi)
+  pinit(
+    ModeInfo *mi)
 {
-	morph3dstruct *mp = &morph3d[MI_SCREEN(mi)];
+  morph3dstruct *mp= &morph3d [ MI_SCREEN(mi) ];
 
-	glClearDepth(1.0);
-	glColor3f(1.0, 1.0, 1.0);
+  glClearDepth(1.0);
+  glColor3f(1.0, 1.0, 1.0);
 
-	glLightfv(GL_LIGHT0, GL_AMBIENT, ambient);
-	glLightfv(GL_LIGHT0, GL_DIFFUSE, diffuse);
-	glLightfv(GL_LIGHT0, GL_POSITION, position0);
-	glLightfv(GL_LIGHT1, GL_AMBIENT, ambient);
-	glLightfv(GL_LIGHT1, GL_DIFFUSE, diffuse);
-	glLightfv(GL_LIGHT1, GL_POSITION, position1);
-	glLightModelfv(GL_LIGHT_MODEL_AMBIENT, lmodel_ambient);
-	glLightModelfv(GL_LIGHT_MODEL_TWO_SIDE, lmodel_twoside);
-	glEnable(GL_LIGHTING);
-	glEnable(GL_LIGHT0);
-	glEnable(GL_LIGHT1);
-	glEnable(GL_DEPTH_TEST);
-	glEnable(GL_NORMALIZE);
+  glLightfv(GL_LIGHT0, GL_AMBIENT, ambient);
+  glLightfv(GL_LIGHT0, GL_DIFFUSE, diffuse);
+  glLightfv(GL_LIGHT0, GL_POSITION, position0);
+  glLightfv(GL_LIGHT1, GL_AMBIENT, ambient);
+  glLightfv(GL_LIGHT1, GL_DIFFUSE, diffuse);
+  glLightfv(GL_LIGHT1, GL_POSITION, position1);
+  glLightModelfv(GL_LIGHT_MODEL_AMBIENT, lmodel_ambient);
+  glLightModelfv(GL_LIGHT_MODEL_TWO_SIDE, lmodel_twoside);
+  glEnable(GL_LIGHTING);
+  glEnable(GL_LIGHT0);
+  glEnable(GL_LIGHT1);
+  glEnable(GL_DEPTH_TEST);
+  glEnable(GL_NORMALIZE);
 
-	glShadeModel(GL_SMOOTH);
-	glMaterialfv(GL_FRONT_AND_BACK, GL_SHININESS, front_shininess);
-	glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, front_specular);
+  glShadeModel(GL_SMOOTH);
+  glMaterialfv(GL_FRONT_AND_BACK, GL_SHININESS, front_shininess);
+  glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, front_specular);
 
-	switch (mp->object) {
-		case 2:
-			mp->draw_object = draw_cube;
-			mp->MaterialColor[0] = MaterialRed;
-			mp->MaterialColor[1] = MaterialGreen;
-			mp->MaterialColor[2] = MaterialCyan;
-			mp->MaterialColor[3] = MaterialMagenta;
-			mp->MaterialColor[4] = MaterialYellow;
-			mp->MaterialColor[5] = MaterialBlue;
-			mp->edgedivisions = cubedivisions;
-			mp->Magnitude = 2.0;
-			break;
-		case 3:
-			mp->draw_object = draw_octa;
-			mp->MaterialColor[0] = MaterialRed;
-			mp->MaterialColor[1] = MaterialGreen;
-			mp->MaterialColor[2] = MaterialBlue;
-			mp->MaterialColor[3] = MaterialWhite;
-			mp->MaterialColor[4] = MaterialCyan;
-			mp->MaterialColor[5] = MaterialMagenta;
-			mp->MaterialColor[6] = MaterialGray;
-			mp->MaterialColor[7] = MaterialYellow;
-			mp->edgedivisions = octadivisions;
-			mp->Magnitude = 2.5;
-			break;
-		case 4:
-			mp->draw_object = draw_dodeca;
-			mp->MaterialColor[0] = MaterialRed;
-			mp->MaterialColor[1] = MaterialGreen;
-			mp->MaterialColor[2] = MaterialCyan;
-			mp->MaterialColor[3] = MaterialBlue;
-			mp->MaterialColor[4] = MaterialMagenta;
-			mp->MaterialColor[5] = MaterialYellow;
-			mp->MaterialColor[6] = MaterialGreen;
-			mp->MaterialColor[7] = MaterialCyan;
-			mp->MaterialColor[8] = MaterialRed;
-			mp->MaterialColor[9] = MaterialMagenta;
-			mp->MaterialColor[10] = MaterialBlue;
-			mp->MaterialColor[11] = MaterialYellow;
-			mp->edgedivisions = dodecadivisions;
-			mp->Magnitude = 2.0;
-			break;
-		case 5:
-			mp->draw_object = draw_icosa;
-			mp->MaterialColor[0] = MaterialRed;
-			mp->MaterialColor[1] = MaterialGreen;
-			mp->MaterialColor[2] = MaterialBlue;
-			mp->MaterialColor[3] = MaterialCyan;
-			mp->MaterialColor[4] = MaterialYellow;
-			mp->MaterialColor[5] = MaterialMagenta;
-			mp->MaterialColor[6] = MaterialRed;
-			mp->MaterialColor[7] = MaterialGreen;
-			mp->MaterialColor[8] = MaterialBlue;
-			mp->MaterialColor[9] = MaterialWhite;
-			mp->MaterialColor[10] = MaterialCyan;
-			mp->MaterialColor[11] = MaterialYellow;
-			mp->MaterialColor[12] = MaterialMagenta;
-			mp->MaterialColor[13] = MaterialRed;
-			mp->MaterialColor[14] = MaterialGreen;
-			mp->MaterialColor[15] = MaterialBlue;
-			mp->MaterialColor[16] = MaterialCyan;
-			mp->MaterialColor[17] = MaterialYellow;
-			mp->MaterialColor[18] = MaterialMagenta;
-			mp->MaterialColor[19] = MaterialGray;
-			mp->edgedivisions = icodivisions;
-			mp->Magnitude = 2.5;
-			break;
-		default:
-			mp->draw_object = draw_tetra;
-			mp->MaterialColor[0] = MaterialRed;
-			mp->MaterialColor[1] = MaterialGreen;
-			mp->MaterialColor[2] = MaterialBlue;
-			mp->MaterialColor[3] = MaterialWhite;
-			mp->edgedivisions = tetradivisions;
-			mp->Magnitude = 2.5;
-			break;
-	}
-	if (MI_IS_MONO(mi)) {
-		int         loop;
-
-		for (loop = 0; loop < 20; loop++)
-			mp->MaterialColor[loop] = MaterialGray;
-	}
-}
-
-ENTRYPOINT void
-init_morph3d(ModeInfo * mi)
-{
-	morph3dstruct *mp;
-
-	MI_INIT (mi, morph3d);
-	mp = &morph3d[MI_SCREEN(mi)];
-	mp->step = NRAND(90);
-	mp->VisibleSpikes = 1;
-
-	if ((mp->glx_context = init_GL(mi)) != NULL) {
-
-		reshape_morph3d(mi, MI_WIDTH(mi), MI_HEIGHT(mi));
-		glDrawBuffer(GL_BACK);
-		mp->object = MI_COUNT(mi);
-		if (mp->object <= 0 || mp->object > 5)
-			mp->object = NRAND(5) + 1;
-		pinit(mi);
-	} else {
-		MI_CLEARWINDOW(mi);
-	}
-}
-
-ENTRYPOINT void
-draw_morph3d(ModeInfo * mi)
-{
-	Display    *display = MI_DISPLAY(mi);
-	Window      window = MI_WINDOW(mi);
-	morph3dstruct *mp;
-
-	if (morph3d == NULL)
-		return;
-	mp = &morph3d[MI_SCREEN(mi)];
-
-	MI_IS_DRAWN(mi) = True;
-
-	if (!mp->glx_context)
-		return;
-
-    mi->polygon_count = 0;
-	glXMakeCurrent(display, window, *mp->glx_context);
-
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-	glPushMatrix();
-
-	glTranslatef(0.0, 0.0, -10.0);
-
-	if (!MI_IS_ICONIC(mi)) {
-		glScalef(Scale4Window * mp->WindH / mp->WindW, Scale4Window, Scale4Window);
-		glTranslatef(2.5 * mp->WindW / mp->WindH * sin(mp->step * 1.11), 2.5 * cos(mp->step * 1.25 * 1.11), 0);
-	} else {
-		glScalef(Scale4Iconic * mp->WindH / mp->WindW, Scale4Iconic, Scale4Iconic);
-	}
-
+  switch (mp->object)
     {
-      GLfloat s = (MI_WIDTH(mi) < MI_HEIGHT(mi)
-                   ? (MI_WIDTH(mi) / (GLfloat) MI_HEIGHT(mi))
-                   : 1);
-      glScalef (s, s, s);
+      case 2 :
+        mp->draw_object= draw_cube;
+        mp->MaterialColor [ 0 ]= MaterialRed;
+        mp->MaterialColor [ 1 ]= MaterialGreen;
+        mp->MaterialColor [ 2 ]= MaterialCyan;
+        mp->MaterialColor [ 3 ]= MaterialMagenta;
+        mp->MaterialColor [ 4 ]= MaterialYellow;
+        mp->MaterialColor [ 5 ]= MaterialBlue;
+        mp->edgedivisions= cubedivisions;
+        mp->Magnitude= 2.0;
+        break;
+      case 3 :
+        mp->draw_object= draw_octa;
+        mp->MaterialColor [ 0 ]= MaterialRed;
+        mp->MaterialColor [ 1 ]= MaterialGreen;
+        mp->MaterialColor [ 2 ]= MaterialBlue;
+        mp->MaterialColor [ 3 ]= MaterialWhite;
+        mp->MaterialColor [ 4 ]= MaterialCyan;
+        mp->MaterialColor [ 5 ]= MaterialMagenta;
+        mp->MaterialColor [ 6 ]= MaterialGray;
+        mp->MaterialColor [ 7 ]= MaterialYellow;
+        mp->edgedivisions= octadivisions;
+        mp->Magnitude= 2.5;
+        break;
+      case 4 :
+        mp->draw_object= draw_dodeca;
+        mp->MaterialColor [ 0 ]= MaterialRed;
+        mp->MaterialColor [ 1 ]= MaterialGreen;
+        mp->MaterialColor [ 2 ]= MaterialCyan;
+        mp->MaterialColor [ 3 ]= MaterialBlue;
+        mp->MaterialColor [ 4 ]= MaterialMagenta;
+        mp->MaterialColor [ 5 ]= MaterialYellow;
+        mp->MaterialColor [ 6 ]= MaterialGreen;
+        mp->MaterialColor [ 7 ]= MaterialCyan;
+        mp->MaterialColor [ 8 ]= MaterialRed;
+        mp->MaterialColor [ 9 ]= MaterialMagenta;
+        mp->MaterialColor [ 10 ]= MaterialBlue;
+        mp->MaterialColor [ 11 ]= MaterialYellow;
+        mp->edgedivisions= dodecadivisions;
+        mp->Magnitude= 2.0;
+        break;
+      case 5 :
+        mp->draw_object= draw_icosa;
+        mp->MaterialColor [ 0 ]= MaterialRed;
+        mp->MaterialColor [ 1 ]= MaterialGreen;
+        mp->MaterialColor [ 2 ]= MaterialBlue;
+        mp->MaterialColor [ 3 ]= MaterialCyan;
+        mp->MaterialColor [ 4 ]= MaterialYellow;
+        mp->MaterialColor [ 5 ]= MaterialMagenta;
+        mp->MaterialColor [ 6 ]= MaterialRed;
+        mp->MaterialColor [ 7 ]= MaterialGreen;
+        mp->MaterialColor [ 8 ]= MaterialBlue;
+        mp->MaterialColor [ 9 ]= MaterialWhite;
+        mp->MaterialColor [ 10 ]= MaterialCyan;
+        mp->MaterialColor [ 11 ]= MaterialYellow;
+        mp->MaterialColor [ 12 ]= MaterialMagenta;
+        mp->MaterialColor [ 13 ]= MaterialRed;
+        mp->MaterialColor [ 14 ]= MaterialGreen;
+        mp->MaterialColor [ 15 ]= MaterialBlue;
+        mp->MaterialColor [ 16 ]= MaterialCyan;
+        mp->MaterialColor [ 17 ]= MaterialYellow;
+        mp->MaterialColor [ 18 ]= MaterialMagenta;
+        mp->MaterialColor [ 19 ]= MaterialGray;
+        mp->edgedivisions= icodivisions;
+        mp->Magnitude= 2.5;
+        break;
+      default :
+        mp->draw_object= draw_tetra;
+        mp->MaterialColor [ 0 ]= MaterialRed;
+        mp->MaterialColor [ 1 ]= MaterialGreen;
+        mp->MaterialColor [ 2 ]= MaterialBlue;
+        mp->MaterialColor [ 3 ]= MaterialWhite;
+        mp->edgedivisions= tetradivisions;
+        mp->Magnitude= 2.5;
+        break;
+    }
+  if (MI_IS_MONO(mi))
+    {
+      int loop;
+
+      for (loop= 0; loop < 20; loop++)
+        mp->MaterialColor [ loop ]= MaterialGray;
+    }
+}
+
+ENTRYPOINT void
+  init_morph3d(
+    ModeInfo *mi)
+{
+  morph3dstruct *mp;
+
+  MI_INIT(mi, morph3d);
+  mp= &morph3d [ MI_SCREEN(mi) ];
+  mp->step= NRAND(90);
+  mp->VisibleSpikes= 1;
+
+  if ((mp->glx_context= init_GL(mi)) != NULL)
+    {
+
+      reshape_morph3d(mi, MI_WIDTH(mi), MI_HEIGHT(mi));
+      glDrawBuffer(GL_BACK);
+      mp->object= MI_COUNT(mi);
+      if (mp->object <= 0 || mp->object > 5)
+        mp->object= NRAND(5) + 1;
+      pinit(mi);
+    }
+  else
+    {
+      MI_CLEARWINDOW(mi);
+    }
+}
+
+ENTRYPOINT void
+  draw_morph3d(
+    ModeInfo *mi)
+{
+  Display *display= MI_DISPLAY(mi);
+  Window window= MI_WINDOW(mi);
+  morph3dstruct *mp;
+
+  if (morph3d == NULL)
+    return;
+  mp= &morph3d [ MI_SCREEN(mi) ];
+
+  MI_IS_DRAWN(mi)= True;
+
+  if (! mp->glx_context)
+    return;
+
+  mi->polygon_count= 0;
+  glXMakeCurrent(display, window, *mp->glx_context);
+
+  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+  glPushMatrix();
+
+  glTranslatef(0.0, 0.0, -10.0);
+
+  if (! MI_IS_ICONIC(mi))
+    {
+      glScalef(Scale4Window * mp->WindH / mp->WindW, Scale4Window, Scale4Window);
+      glTranslatef(2.5 * mp->WindW / mp->WindH * sin(mp->step * 1.11), 2.5 * cos(mp->step * 1.25 * 1.11), 0);
+    }
+  else
+    {
+      glScalef(Scale4Iconic * mp->WindH / mp->WindW, Scale4Iconic, Scale4Iconic);
     }
 
-	glRotatef(mp->step * 100, 1, 0, 0);
-	glRotatef(mp->step * 95, 0, 1, 0);
-	glRotatef(mp->step * 90, 0, 0, 1);
+  {
+    GLfloat s= (MI_WIDTH(mi) < MI_HEIGHT(mi) ? (MI_WIDTH(mi) / (GLfloat) MI_HEIGHT(mi)) : 1);
+    glScalef(s, s, s);
+  }
 
-	mp->seno = (sin(mp->step) + 1.0 / 3.0) * (4.0 / 5.0) * mp->Magnitude;
+  glRotatef(mp->step * 100, 1, 0, 0);
+  glRotatef(mp->step * 95, 0, 1, 0);
+  glRotatef(mp->step * 90, 0, 0, 1);
 
-	if (mp->VisibleSpikes) {
+  mp->seno= (sin(mp->step) + 1.0 / 3.0) * (4.0 / 5.0) * mp->Magnitude;
+
+  if (mp->VisibleSpikes)
+    {
 #ifdef DEBUG_CULL_FACE
-		int         loop;
+      int loop;
 
-		for (loop = 0; loop < 20; loop++)
-			mp->MaterialColor[loop] = MaterialGray;
+      for (loop= 0; loop < 20; loop++)
+        mp->MaterialColor [ loop ]= MaterialGray;
 #endif
-		glDisable(GL_CULL_FACE);
-	} else {
+      glDisable(GL_CULL_FACE);
+    }
+  else
+    {
 #ifdef DEBUG_CULL_FACE
-		int         loop;
+      int loop;
 
-		for (loop = 0; loop < 20; loop++)
-			mp->MaterialColor[loop] = MaterialWhite;
+      for (loop= 0; loop < 20; loop++)
+        mp->MaterialColor [ loop ]= MaterialWhite;
 #endif
-		glEnable(GL_CULL_FACE);
-	}
+      glEnable(GL_CULL_FACE);
+    }
 
-	mp->draw_object(mi);
+  mp->draw_object(mi);
 
-	glPopMatrix();
+  glPopMatrix();
 
-	if (MI_IS_FPS(mi)) do_fps (mi);
-	glXSwapBuffers(display, window);
+  if (MI_IS_FPS(mi)) do_fps(mi);
+  glXSwapBuffers(display, window);
 
-	mp->step += 0.05;
+  mp->step+= 0.05;
 }
 
 #ifndef STANDALONE
 ENTRYPOINT void
-change_morph3d(ModeInfo * mi)
+  change_morph3d(
+    ModeInfo *mi)
 {
-	morph3dstruct *mp = &morph3d[MI_SCREEN(mi)];
+  morph3dstruct *mp= &morph3d [ MI_SCREEN(mi) ];
 
-	if (!mp->glx_context)
-		return;
+  if (! mp->glx_context)
+    return;
 
-	mp->object = (mp->object) % 5 + 1;
-	pinit(mi);
+  mp->object= (mp->object) % 5 + 1;
+  pinit(mi);
 }
 #endif /* !STANDALONE */
 
 ENTRYPOINT void
-free_morph3d(ModeInfo * mi)
+  free_morph3d(
+    ModeInfo *mi)
 {
   /* nothing to do */
 }
 
 #endif
 
-XSCREENSAVER_MODULE ("Morph3D", morph3d)
+XSCREENSAVER_MODULE(
+  "Morph3D",
+  morph3d)

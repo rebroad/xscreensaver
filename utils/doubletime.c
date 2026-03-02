@@ -14,15 +14,16 @@
 #include <sys/time.h>
 
 double
-double_time (void)
+  double_time(
+    void)
 {
   struct timeval now;
-# ifdef GETTIMEOFDAY_TWO_ARGS
+#ifdef GETTIMEOFDAY_TWO_ARGS
   struct timezone tzp;
   gettimeofday(&now, &tzp);
-# else
+#else
   gettimeofday(&now);
-# endif
+#endif
 
   return (now.tv_sec + ((double) now.tv_usec * 0.000001));
 }

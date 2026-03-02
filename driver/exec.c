@@ -6,7 +6,7 @@
  * the above copyright notice appear in all copies and that both that
  * copyright notice and this permission notice appear in supporting
  * documentation.  No representations are made about the suitability of this
- * software for any purpose.  It is provided "as is" without express or 
+ * software for any purpose.  It is provided "as is" without express or
  * implied warranty.
  */
 
@@ -47,12 +47,12 @@
  */
 
 #ifdef HAVE_CONFIG_H
-# include "config.h"
+#include "config.h"
 #endif
 
 #include <stdlib.h>
 #ifdef HAVE_UNISTD_H
-# include <unistd.h>
+#include <unistd.h>
 #endif
 
 #include <string.h>
@@ -61,46 +61,49 @@
 #include <sys/stat.h>
 
 #ifndef ESRCH
-# include <errno.h>
+#include <errno.h>
 #endif
 
 #if defined(HAVE_SETPRIORITY) && defined(PRIO_PROCESS)
-# include <sys/resource.h>	/* for setpriority() and PRIO_PROCESS */
-				/* and also setrlimit() and RLIMIT_AS */
+#include <sys/resource.h> /* for setpriority() and PRIO_PROCESS */
+                          /* and also setrlimit() and RLIMIT_AS */
 #endif
 
 #include "exec.h"
 
-extern const char *blurb (void);
+extern const char *blurb(void);
 
-static void nice_process (int nice_level);
+static void nice_process(int nice_level);
 
 
 static void
-exec_simple_command (const char *command)
+  exec_simple_command(
+    const char *command)
 {
-  char *av[1024];
-  int ac = 0;
-  char *token = strtok (strdup(command), " \t");
+  char *av [ 1024 ];
+  int ac= 0;
+  char *token= strtok(strdup(command), " \t");
   while (token)
     {
-      av[ac++] = token;
-      token = strtok(0, " \t");
+      av [ ac++ ]= token;
+      token= strtok(0, " \t");
     }
-  av[ac] = 0;
+  av [ ac ]= 0;
 
-  execvp (av[0], av);	/* shouldn't return. */
+  execvp(av [ 0 ], av); /* shouldn't return. */
 }
 
 
 static void
-exec_complex_command (const char *shell, const char *command)
+  exec_complex_command(
+    const char *shell,
+    const char *command)
 {
-  char *av[5];
-  int ac = 0;
-  char *command2 = (char *) malloc (strlen (command) + 10);
+  char *av [ 5 ];
+  int ac= 0;
+  char *command2= (char *) malloc(strlen(command) + 10);
   const char *s;
-  int got_eq = 0;
+  int got_eq= 0;
   const char *after_vars;
 
   /* Skip leading whitespace.
@@ -112,28 +115,33 @@ exec_complex_command (const char *shell, const char *command)
      `after_vars' to point into the string after those tokens and any
      trailing whitespace.  Otherwise, after_vars == command.
    */
-  after_vars = command;
-  for (s = command; *s; s++)
+  after_vars= command;
+  for (s= command; *s; s++)
     {
-      if (*s == '=') got_eq = 1;
+      if (*s == '=')
+        {
+          got_eq= 1;
+        }
       else if (*s == ' ')
         {
           if (got_eq)
             {
               while (*s == ' ' || *s == '\t')
                 s++;
-              after_vars = s;
-              got_eq = 0;
+              after_vars= s;
+              got_eq= 0;
             }
           else
-            break;
+            {
+              break;
+            }
         }
     }
 
-  *command2 = 0;
-  strncat (command2, command, after_vars - command);
-  strcat (command2, "exec ");
-  strcat (command2, after_vars);
+  *command2= 0;
+  strncat(command2, command, after_vars - command);
+  strcat(command2, "exec ");
+  strcat(command2, after_vars);
 
   /* We have now done these transformations:
      "foo -x -y"               ==>  "exec foo -x -y"
@@ -143,23 +151,25 @@ exec_complex_command (const char *shell, const char *command)
 
 
   /* Invoke the shell as "/bin/sh -c 'exec prog -arg -arg ...'" */
-  av [ac++] = (char *) shell;
-  av [ac++] = "-c";
-  av [ac++] = command2;
-  av [ac]   = 0;
+  av [ ac++ ]= (char *) shell;
+  av [ ac++ ]= "-c";
+  av [ ac++ ]= command2;
+  av [ ac ]= 0;
 
-  execvp (av[0], av);	/* shouldn't return. */
+  execvp(av [ 0 ], av); /* shouldn't return. */
 }
 
 
-void
-exec_command (const char *shell, const char *command, int nice_level)
+void exec_command(
+  const char *shell,
+  const char *command,
+  int nice_level)
 {
   int hairy_p;
 
-  nice_process (nice_level);
+  nice_process(nice_level);
 
-  hairy_p = !!strpbrk (command, "*?$&!<>[];`'\\\"=");
+  hairy_p= ! ! strpbrk(command, "*?$&!<>[];`'\\\"=");
   /* note: = is in the above because of the sh syntax "FOO=bar cmd". */
 
   if (getuid() == (uid_t) 0 || geteuid() == (uid_t) 0)
@@ -168,54 +178,57 @@ exec_command (const char *shell, const char *command, int nice_level)
          If you do so, you will open a security hole.  Mail jwz
          so that he may enlighten you as to the error of your ways.
        */
-      fprintf (stderr, "%s: we're still running as root!  Disaster!\n",
-               blurb());
-      exit (-1);
+      fprintf(stderr, "%s: we're still running as root!  Disaster!\n", blurb());
+      exit(-1);
     }
 
   if (hairy_p)
-    /* If it contains any shell metacharacters, do it the hard way,
-       and fork a shell to parse the arguments for us. */
-    exec_complex_command (shell, command);
+    {
+      /* If it contains any shell metacharacters, do it the hard way,
+         and fork a shell to parse the arguments for us. */
+      exec_complex_command(shell, command);
+    }
   else
-    /* Otherwise, we can just exec the program directly. */
-    exec_simple_command (command);
+    {
+      /* Otherwise, we can just exec the program directly. */
+      exec_simple_command(command);
+    }
 }
 
-
+
 /* Setting process priority
  */
 
 static void
-nice_process (int nice_level)
+  nice_process(
+    int nice_level)
 {
   if (nice_level == 0)
     return;
 
 #if defined(HAVE_NICE)
   {
-    int old_nice = nice (0);
-    int n = nice_level - old_nice;
-    errno = 0;
-    if (nice (n) == -1 && errno != 0)
+    int old_nice= nice(0);
+    int n= nice_level - old_nice;
+    errno= 0;
+    if (nice(n) == -1 && errno != 0)
       {
-	char buf [512];
-	sprintf (buf, "%s: nice(%d) failed", blurb(), n);
-	perror (buf);
-    }
+        char buf [ 512 ];
+        sprintf(buf, "%s: nice(%d) failed", blurb(), n);
+        perror(buf);
+      }
   }
 #elif defined(HAVE_SETPRIORITY) && defined(PRIO_PROCESS)
-  if (setpriority (PRIO_PROCESS, getpid(), nice_level) != 0)
+  if (setpriority(PRIO_PROCESS, getpid(), nice_level) != 0)
     {
-      char buf [512];
-      sprintf (buf, "%s: setpriority(PRIO_PROCESS, %lu, %d) failed",
-	       blurb(), (unsigned long) getpid(), nice_level);
-      perror (buf);
+      char buf [ 512 ];
+      sprintf(buf, "%s: setpriority(PRIO_PROCESS, %lu, %d) failed", blurb(), (unsigned long) getpid(), nice_level);
+      perror(buf);
     }
 #else
-  fprintf (stderr,
-	   "%s: don't know how to change process priority on this system\n",
-	   blurb());
+  fprintf(stderr,
+    "%s: don't know how to change process priority on this system\n",
+    blurb());
 
 #endif
 }
@@ -224,49 +237,48 @@ nice_process (int nice_level)
 /* Whether the given command exists on $PATH.
    (Anything before the first space is considered to be the program name.)
  */
-int
-on_path_p (const char *program)
+int on_path_p(
+  const char *program)
 {
-  int result = 0;
+  int result= 0;
   struct stat st;
-  char *cmd = strdup (program);
-  char *token = strchr (cmd, ' ');
-  char *path = 0;
+  char *cmd= strdup(program);
+  char *token= strchr(cmd, ' ');
+  char *path= 0;
   int L;
 
-  if (token) *token = 0;
-  token = 0;
+  if (token) *token= 0;
+  token= 0;
 
-  if (strchr (cmd, '/'))
+  if (strchr(cmd, '/'))
     {
-      result = (0 == stat (cmd, &st));
+      result= (0 == stat(cmd, &st));
       goto DONE;
     }
 
-  path = getenv("PATH");
-  if (!path || !*path)
+  path= getenv("PATH");
+  if (! path || ! *path)
     goto DONE;
 
-  L = strlen (cmd);
-  path = strdup (path);
-  token = strtok (path, ":");
+  L= strlen(cmd);
+  path= strdup(path);
+  token= strtok(path, ":");
 
   while (token)
     {
-      char *p2 = (char *) malloc (strlen (token) + L + 3);
-      strcpy (p2, token);
-      strcat (p2, "/");
-      strcat (p2, cmd);
-      result = (0 == stat (p2, &st));
-      free (p2);
+      char *p2= (char *) malloc(strlen(token) + L + 3);
+      strcpy(p2, token);
+      strcat(p2, "/");
+      strcat(p2, cmd);
+      result= (0 == stat(p2, &st));
+      free(p2);
       if (result)
         goto DONE;
-      token = strtok (0, ":");
+      token= strtok(0, ":");
     }
 
- DONE:
-  free (cmd);
-  if (path) free (path);
+DONE:
+  free(cmd);
+  if (path) free(path);
   return result;
 }
-

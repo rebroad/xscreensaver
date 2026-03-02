@@ -8,7 +8,7 @@
  * the above copyright notice appear in all copies and that both that
  * copyright notice and this permission notice appear in supporting
  * documentation.  No representations are made about the suitability of this
- * software for any purpose.  It is provided "as is" without express or 
+ * software for any purpose.  It is provided "as is" without express or
  * implied warranty.
  */
 
@@ -62,18 +62,7 @@
 
    If an error occurred, width/height will be 0.
  */
-void load_texture_async (Screen *, Window, GLXContext,
-                         int desired_width, int desired_height,
-                         Bool mipmap_p,
-                         GLuint texid,
-                         void (*callback) (const char *filename,
-                                           XRectangle *geometry,
-                                           int image_width,
-                                           int image_height,
-                                           int texture_width,
-                                           int texture_height,
-                                           void *closure),
-                         void *closure);
+void load_texture_async(Screen *, Window, GLXContext, int desired_width, int desired_height, Bool mipmap_p, GLuint texid, void (*callback)(const char *filename, XRectangle *geometry, int image_width, int image_height, int texture_width, int texture_height, void *closure), void *closure);
 
 struct texture_loader_t;
 typedef struct texture_loader_t texture_loader_t;
@@ -95,10 +84,7 @@ typedef struct texture_loader_t texture_loader_t;
    With the exception of the pointer to the loader and the time limit, all
    arguments are the same types as used by load_texture_async.
  */
-texture_loader_t *alloc_texture_loader (Screen *, Window, GLXContext,
-                                        int desired_width, int desired_height,
-                                        Bool mipmap_p,
-                                        GLuint texid);
+texture_loader_t *alloc_texture_loader(Screen *, Window, GLXContext, int desired_width, int desired_height, Bool mipmap_p, GLuint texid);
 
 /* Give an incremental texture loader time to work
 
@@ -109,19 +95,19 @@ texture_loader_t *alloc_texture_loader (Screen *, Window, GLXContext,
    This function will return either when all work is complete or when a
    processed "stripe" takes the elapsed time beyond allowed_seconds.
  */
-void step_texture_loader (texture_loader_t *loader,
-                          double allowed_seconds,
-                          void (*callback) (const char *filename,
-                                            XRectangle *geometry,
-                                            int image_width,
-                                            int image_height,
-                                            int texture_width,
-                                            int texture_height,
-                                            void *closure),
-                          void *closure);
+void step_texture_loader(texture_loader_t *loader,
+  double allowed_seconds,
+  void (*callback)(const char *filename,
+    XRectangle *geometry,
+    int image_width,
+    int image_height,
+    int texture_width,
+    int texture_height,
+    void *closure),
+  void *closure);
 
-Bool texture_loader_failed (texture_loader_t *loader);
+Bool texture_loader_failed(texture_loader_t *loader);
 
-void free_texture_loader (texture_loader_t *loader);
+void free_texture_loader(texture_loader_t *loader);
 
 #endif /* __GRAB_XIMAGE_H__ */

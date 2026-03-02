@@ -6,26 +6,26 @@
  * the above copyright notice appear in all copies and that both that
  * copyright notice and this permission notice appear in supporting
  * documentation.  No representations are made about the suitability of this
- * software for any purpose.  It is provided "as is" without express or 
+ * software for any purpose.  It is provided "as is" without express or
  * implied warranty.
  */
 
 #ifndef __XSCREENSAVER_RECORD_ANIM_H__
-# define __XSCREENSAVER_RECORD_ANIM_H__
+#define __XSCREENSAVER_RECORD_ANIM_H__
 
 typedef struct record_anim_state record_anim_state;
 
-extern record_anim_state *screenhack_record_anim_init (Screen *, Window,
-                                                       int frames);
-extern void screenhack_record_anim (record_anim_state *);
-extern void screenhack_record_anim_free (record_anim_state *);
+extern record_anim_state *screenhack_record_anim_init(Screen *, Window, int frames);
+extern void screenhack_record_anim(record_anim_state *);
+extern void screenhack_record_anim_free(record_anim_state *);
 
-extern time_t screenhack_record_anim_time (time_t *);
-extern void screenhack_record_anim_gettimeofday (struct timeval *
-# ifdef GETTIMEOFDAY_TWO_ARGS
-                                                 , struct timezone *
-# endif
-                                                 );
+extern time_t screenhack_record_anim_time(time_t *);
+extern void screenhack_record_anim_gettimeofday(struct timeval *
+#ifdef GETTIMEOFDAY_TWO_ARGS
+  ,
+  struct timezone *
+#endif
+);
 #define time screenhack_record_anim_time
 #define gettimeofday screenhack_record_anim_gettimeofday
 #define double_time screenhack_record_anim_double_time

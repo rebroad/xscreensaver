@@ -5,7 +5,7 @@
  * the above copyright notice appear in all copies and that both that
  * copyright notice and this permission notice appear in supporting
  * documentation.  No representations are made about the suitability of this
- * software for any purpose.  It is provided "as is" without express or 
+ * software for any purpose.  It is provided "as is" without express or
  * implied warranty.
  */
 
@@ -18,15 +18,17 @@
    But both sprintf and stringWithFormat work correctly!
  */
 static void
-xscreensaver_nslog (NSString *format, ...)
+  xscreensaver_nslog(
+    NSString *format,
+    ...)
 {
   va_list args;
-  va_start (args, format);
-  NSString *s = [[NSString alloc] initWithFormat:format arguments:args];
-  va_end (args);
-  NSLog (@"%@", s);
+  va_start(args, format);
+  NSString *s= [[NSString alloc] initWithFormat:format arguments:args];
+  va_end(args);
+  NSLog(@"%@", s);
 
-# if 0
+#if 0
   // Debugging legacyScreenSaver without the /usr/bin/log quagmire.
   NSDateFormatter *f = [[NSDateFormatter alloc] init];
   [f setDateFormat:@"yyyy-MM-dd HH:mm:ss"];
@@ -43,7 +45,7 @@ xscreensaver_nslog (NSString *format, ...)
   [out seekToEndOfFile];
   [out writeData: [s dataUsingEncoding:NSUTF8StringEncoding]];
   [out closeFile];
-# endif // 0
+#endif // 0
 }
 
 #define NSLog xscreensaver_nslog

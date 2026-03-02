@@ -7,7 +7,7 @@
  * the above copyright notice appear in all copies and that both that
  * copyright notice and this permission notice appear in supporting
  * documentation.  No representations are made about the suitability of this
- * software for any purpose.  It is provided "as is" without express or 
+ * software for any purpose.  It is provided "as is" without express or
  * implied warranty.
  *
  *  8-Oct-98: dek          Released initial version of "glplanet"
@@ -23,119 +23,135 @@
 #include <math.h>
 #include <stdlib.h>
 
-typedef struct { GLfloat x, y, z; } XYZ;
+typedef struct
+{
+    GLfloat x, y, z;
+} XYZ;
 
 static int
-unit_sphere_1 (int stacks, int slices, int wire_p, int half_p)
+  unit_sphere_1(
+    int stacks,
+    int slices,
+    int wire_p,
+    int half_p)
 {
-  int polys = 0;
-  int i,j;
+  int polys= 0;
+  int i, j;
   double theta1, theta2, theta3;
   XYZ p, n;
-  XYZ la = { 0, -1, 0 }, lb = { 0, -1, 0 };
-  XYZ c = {0, 0, 0};  /* center */
-  double r = 1.0;     /* radius */
-  int stacks2 = stacks * 2;
-  int end = (half_p ? stacks/2 : stacks);
+  XYZ la= {0, -1, 0}, lb= {0, -1, 0};
+  XYZ c= {0, 0, 0}; /* center */
+  double r= 1.0;    /* radius */
+  int stacks2= stacks * 2;
+  int end= (half_p ? stacks / 2 : stacks);
 
-  int mode = (wire_p ? GL_LINE_STRIP : GL_TRIANGLE_STRIP);
+  int mode= (wire_p ? GL_LINE_STRIP : GL_TRIANGLE_STRIP);
 
   int arraysize, out;
-  struct { XYZ p; XYZ n; GLfloat s, t; } *array;
+  struct
+  {
+      XYZ p;
+      XYZ n;
+      GLfloat s, t;
+  } *array;
 
   if (r < 0)
-    r = -r;
+    r= -r;
   if (slices < 0)
-    slices = -slices;
+    slices= -slices;
 
-  arraysize = (stacks+1) * (slices+1) * (wire_p ? 4 : 2);
-  array = (void *) calloc (arraysize, sizeof(*array));
+  arraysize= (stacks + 1) * (slices + 1) * (wire_p ? 4 : 2);
+  array= (void *) calloc(arraysize, sizeof(*array));
   if (! array) abort();
-  out = 0;
+  out= 0;
 
   if (slices < 4 || stacks < 2 || r <= 0)
     {
-      mode = GL_POINTS;
-      array[out++].p = c;
+      mode= GL_POINTS;
+      array [ out++ ].p= c;
       goto END;
     }
 
-  for (j = 0; j < end; j++)
+  for (j= 0; j < end; j++)
     {
-      theta1 = j       * (M_PI+M_PI) / stacks2 - M_PI_2;
-      theta2 = (j + 1) * (M_PI+M_PI) / stacks2 - M_PI_2;
+      theta1= j * (M_PI + M_PI) / stacks2 - M_PI_2;
+      theta2= (j + 1) * (M_PI + M_PI) / stacks2 - M_PI_2;
 
-      for (i = slices; i >= 0; i--)
+      for (i= slices; i >= 0; i--)
         {
-          theta3 = i * (M_PI+M_PI) / slices;
+          theta3= i * (M_PI + M_PI) / slices;
 
           if (wire_p)
             {
-              array[out++].p = lb;				/* vertex */
-              array[out++].p = la;				/* vertex */
+              array [ out++ ].p= lb; /* vertex */
+              array [ out++ ].p= la; /* vertex */
             }
 
-          n.x = cos (theta2) * cos(theta3);
-          n.y = sin (theta2);
-          n.z = cos (theta2) * sin(theta3);
-          p.x = c.x + r * n.x;
-          p.y = c.y + r * n.y;
-          p.z = c.z + r * n.z;
+          n.x= cos(theta2) * cos(theta3);
+          n.y= sin(theta2);
+          n.z= cos(theta2) * sin(theta3);
+          p.x= c.x + r * n.x;
+          p.y= c.y + r * n.y;
+          p.z= c.z + r * n.z;
 
-          array[out].p = p;					/* vertex */
-          array[out].n = n;					/* normal */
-          array[out].s = i       / (GLfloat) slices;		/* texture */
-          array[out].t = 2*(j+1) / (GLfloat) stacks2;
+          array [ out ].p= p;                    /* vertex */
+          array [ out ].n= n;                    /* normal */
+          array [ out ].s= i / (GLfloat) slices; /* texture */
+          array [ out ].t= 2 * (j + 1) / (GLfloat) stacks2;
           out++;
 
-          if (wire_p) la = p;
+          if (wire_p) la= p;
 
-          n.x = cos(theta1) * cos(theta3);
-          n.y = sin(theta1);
-          n.z = cos(theta1) * sin(theta3);
-          p.x = c.x + r * n.x;
-          p.y = c.y + r * n.y;
-          p.z = c.z + r * n.z;
+          n.x= cos(theta1) * cos(theta3);
+          n.y= sin(theta1);
+          n.z= cos(theta1) * sin(theta3);
+          p.x= c.x + r * n.x;
+          p.y= c.y + r * n.y;
+          p.z= c.z + r * n.z;
 
-          array[out].p = p;					/* vertex */
-          array[out].n = n;					/* normal */
-          array[out].s = i   / (GLfloat) slices;		/* texture */
-          array[out].t = 2*j / (GLfloat) stacks2;
+          array [ out ].p= p;                    /* vertex */
+          array [ out ].n= n;                    /* normal */
+          array [ out ].s= i / (GLfloat) slices; /* texture */
+          array [ out ].t= 2 * j / (GLfloat) stacks2;
           out++;
 
           if (out >= arraysize) abort();
 
-          if (wire_p) lb = p;
+          if (wire_p) lb= p;
           polys++;
         }
     }
 
- END:
+END:
 
-  glEnableClientState (GL_VERTEX_ARRAY);
-  glEnableClientState (GL_NORMAL_ARRAY);
-  glEnableClientState (GL_TEXTURE_COORD_ARRAY);
+  glEnableClientState(GL_VERTEX_ARRAY);
+  glEnableClientState(GL_NORMAL_ARRAY);
+  glEnableClientState(GL_TEXTURE_COORD_ARRAY);
 
-  glVertexPointer   (3, GL_FLOAT, sizeof(*array), &array[0].p);
-  glNormalPointer   (   GL_FLOAT, sizeof(*array), &array[0].n);
-  glTexCoordPointer (2, GL_FLOAT, sizeof(*array), &array[0].s);
+  glVertexPointer(3, GL_FLOAT, sizeof(*array), &array [ 0 ].p);
+  glNormalPointer(GL_FLOAT, sizeof(*array), &array [ 0 ].n);
+  glTexCoordPointer(2, GL_FLOAT, sizeof(*array), &array [ 0 ].s);
 
-  glDrawArrays (mode, 0, out);
+  glDrawArrays(mode, 0, out);
 
-  free (array);
+  free(array);
 
   return polys;
 }
 
 
-int
-unit_sphere (int stacks, int slices, int wire_p)
+int unit_sphere(
+  int stacks,
+  int slices,
+  int wire_p)
 {
-  return unit_sphere_1 (stacks, slices, wire_p, 0);
+  return unit_sphere_1(stacks, slices, wire_p, 0);
 }
 
-int
-unit_dome (int stacks, int slices, int wire_p)
+int unit_dome(
+  int stacks,
+  int slices,
+  int wire_p)
 {
-  return unit_sphere_1 (stacks, slices, wire_p, 1);
+  return unit_sphere_1(stacks, slices, wire_p, 1);
 }

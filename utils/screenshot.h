@@ -5,7 +5,7 @@
  * the above copyright notice appear in all copies and that both that
  * copyright notice and this permission notice appear in supporting
  * documentation.  No representations are made about the suitability of this
- * software for any purpose.  It is provided "as is" without express or 
+ * software for any purpose.  It is provided "as is" without express or
  * implied warranty.
  */
 
@@ -17,19 +17,18 @@
    or the full screen, as requested.
    Might be None if we failed.
  */
-extern Pixmap screenshot_grab (Display *, Window, Bool full_screen_p,
-                               Bool verbose_p);
+extern Pixmap screenshot_grab(Display *, Window, Bool full_screen_p, Bool verbose_p);
 
 /* Store the screenshot pixmap on a property on the window. */
-extern void screenshot_save (Display *, Window, Pixmap);
+extern void screenshot_save(Display *, Window, Pixmap);
 
 /* Loads the screenshot from screenshot_save() and returns a new pixmap that
    covers and is the same size as the window.  The saved screenshot is assumed
    to be the size of the screen.
  */
-extern Pixmap screenshot_load (Display *, Window, Bool verbose_p);
+extern Pixmap screenshot_load(Display *, Window, Bool verbose_p);
 
 /* Returns the absolute position of the window on its root window. */
-void window_root_offset (Display *, Window, int *x, int *y);
+void window_root_offset(Display *, Window, int *x, int *y);
 
 #endif /* _XSCREENSAVER_SCREENSHOT_H_ */

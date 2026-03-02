@@ -47,7 +47,7 @@ static const char sccsid[] = "@(#)apollonian.c	5.02 2001/07/01 xlockmore";
  *
  *
  * Revision History:
- * 25-Jun-2001: Converted from C and Postscript code by David Bagley 
+ * 25-Jun-2001: Converted from C and Postscript code by David Bagley
  *              Original code by Allan R. Wilks <allan@research.att.com>.
  *
  * From Circle Math Science News April 21, 2001 VOL. 254-255
@@ -62,23 +62,23 @@ static const char sccsid[] = "@(#)apollonian.c	5.02 2001/07/01 xlockmore";
  */
 
 #ifdef STANDALONE
-# define MODE_apollonian
-# define DEFAULTS	"*delay:   1000000 \n" \
+#define MODE_apollonian
+#define DEFAULTS	"*delay:   1000000 \n" \
 					"*count:   64      \n" \
 					"*cycles:  20      \n" \
 					"*ncolors: 64      \n" \
 					"*font:    sans-serif bold 16\n" \
 					"*fpsTop: true     \n" \
 					"*fpsSolid: true   \n" \
-					"*ignoreRotation: True" \
+					"*ignoreRotation: True"
 
-# define release_apollonian 0
-# define reshape_apollonian 0
-# define apollonian_handle_event 0
-# include "xlockmore.h"		/* in xscreensaver distribution */
-#else /* STANDALONE */
-# include "xlock.h"		/* in xlockmore distribution */
-#endif /* STANDALONE */
+#define release_apollonian 0
+#define reshape_apollonian 0
+#define apollonian_handle_event 0
+#include "xlockmore.h" /* in xscreensaver distribution */
+#else                  /* STANDALONE */
+#include "xlock.h"     /* in xlockmore distribution */
+#endif                 /* STANDALONE */
 
 #ifdef MODE_apollonian
 
@@ -88,55 +88,56 @@ static const char sccsid[] = "@(#)apollonian.c	5.02 2001/07/01 xlockmore";
 static Bool altgeom;
 static Bool label;
 
-static XrmOptionDescRec opts[] =
-{
-	{"-altgeom", ".apollonian.altgeom", XrmoptionNoArg, "on"},
-	{"+altgeom", ".apollonian.altgeom", XrmoptionNoArg, "off"},
-	{"-label", ".apollonian.label", XrmoptionNoArg, "on"},
-	{"+label", ".apollonian.label", XrmoptionNoArg, "off"},
+static XrmOptionDescRec opts []=
+  {
+    {"-altgeom", ".apollonian.altgeom", XrmoptionNoArg, "on"},
+    {"+altgeom", ".apollonian.altgeom", XrmoptionNoArg, "off"},
+    {"-label", ".apollonian.label", XrmoptionNoArg, "on"},
+    {"+label", ".apollonian.label", XrmoptionNoArg, "off"},
 };
-static argtype vars[] =
-{
-	{&altgeom, "altgeom", "AltGeom", DEF_ALTGEOM, t_Bool},
-	{&label,   "label",   "Label",   DEF_LABEL,   t_Bool},
+static argtype vars []=
+  {
+    {&altgeom, "altgeom", "AltGeom", DEF_ALTGEOM, t_Bool},
+    {&label, "label", "Label", DEF_LABEL, t_Bool},
 };
-static OptionStruct desc[] =
-{
-        {"-/+altgeom", "turn on/off alternate geometries (off euclidean space, on includes spherical and hyperbolic)"},
-        {"-/+label", "turn on/off alternate space and number labeling"},
+static OptionStruct desc []=
+  {
+    {"-/+altgeom", "turn on/off alternate geometries (off euclidean space, on includes spherical and hyperbolic)"},
+    {"-/+label", "turn on/off alternate space and number labeling"},
 };
 
-ENTRYPOINT ModeSpecOpt apollonian_opts =
-{sizeof opts / sizeof opts[0], opts, sizeof vars / sizeof vars[0], vars, desc};
+ENTRYPOINT ModeSpecOpt apollonian_opts=
+  {sizeof opts / sizeof opts [ 0 ], opts, sizeof vars / sizeof vars [ 0 ], vars, desc};
 
 #ifdef USE_MODULES
-ModStruct   apollonian_description =
-{"apollonian", "init_apollonian", "draw_apollonian", (char *) NULL,
- "init_apollonian", "init_apollonian", "free_apollonian", &apollonian_opts,
- 1000000, 64, 20, 1, 64, 1.0, "",
- "Shows Apollonian Circles", 0, NULL};
+ModStruct apollonian_description=
+  {"apollonian", "init_apollonian", "draw_apollonian", (char *) NULL, "init_apollonian", "init_apollonian", "free_apollonian", &apollonian_opts, 1000000, 64, 20, 1, 64, 1.0, "", "Shows Apollonian Circles", 0, NULL};
 
 #endif
 
-typedef struct {
-	int a, b, c, d;
+typedef struct
+{
+    int a, b, c, d;
 } apollonian_quadruple;
 
-typedef struct {
-        double e;       /* euclidean bend */
-        double s;       /* spherical bend */
-        double h;       /* hyperbolic bend */
-        double x, y;    /* euclidean bend times euclidean position */
+typedef struct
+{
+    double e;    /* euclidean bend */
+    double s;    /* spherical bend */
+    double h;    /* hyperbolic bend */
+    double x, y; /* euclidean bend times euclidean position */
 } circle;
-enum space {
-  euclidean = 0, spherical, hyperbolic
+enum space
+{
+  euclidean= 0,
+  spherical,
+  hyperbolic
 };
 
-static const char * space_string[] = {
+static const char *space_string []= {
   "euclidean",
   "spherical",
-  "hyperbolic"
-};
+  "hyperbolic"};
 
 /*
 Generate Apollonian packing starting with a quadruple of circles.
@@ -152,16 +153,15 @@ c * z3 = (q123 + a * i)^2/(a*(a+b)) where q123 = sqrt(a*b+a*c+b*c)
 d * z4 = (q124 + a * i)^2/(a*(a+b)) where q124 = q123 - a - b
 If (e,x,y) represents the Euclidean circle (1/e,x/e,y/e) (so that e is
 the label in the standard picture) then the "spherical label" is
-(e^2+x^2+y^2-1)/(2*e) (an integer!)  and the "hyperbolic label", is 
+(e^2+x^2+y^2-1)/(2*e) (an integer!)  and the "hyperbolic label", is
 calulated by h + s = e.
 */
-static circle examples[][4] = {
-{ /* double semi-bounded */
-	{ 0, 0, 0,   0,  1},
-	{ 0, 0, 0,   0, -1},
-	{ 1, 1, 1,  -1,  0},
-	{ 1, 1, 1,   1,  0}
-},
+static circle examples [][ 4 ]= {
+  {/* double semi-bounded */
+    {0, 0, 0, 0, 1},
+    {0, 0, 0, 0, -1},
+    {1, 1, 1, -1, 0},
+    {1, 1, 1, 1, 0}},
 #if 0
 { /* standard */
 	{-1, 0, -1,   0,  0},
@@ -226,28 +226,24 @@ static circle examples[][4] = {
 #endif
 /* Non integer stuff */
 #define DELTA 2.154700538 /* ((3+2*sqrt(3))/3) */
-{ /* 3 fold symmetric bounded (x, y calculated later) */
-	{   -1,    -1,    -1,   0.0,  0.0},
-	{DELTA, DELTA, DELTA,   1.0,  0.0},
-	{DELTA, DELTA, DELTA,   1.0, -1.0},
-	{DELTA, DELTA, DELTA,  -1.0,  1.0} 
-},
-{ /* semi-bounded (x, y calculated later) */
+  {/* 3 fold symmetric bounded (x, y calculated later) */
+    {-1, -1, -1, 0.0, 0.0},
+    {DELTA, DELTA, DELTA, 1.0, 0.0},
+    {DELTA, DELTA, DELTA, 1.0, -1.0},
+    {DELTA, DELTA, DELTA, -1.0, 1.0}},
+  {/* semi-bounded (x, y calculated later) */
 #define ALPHA 2.618033989 /* ((3+sqrt(5))/2) */
-	{              1.0,               1.0,               1.0,   0,  0},
-	{              0.0,               0.0,               0.0,   0, -1},
-	{1.0/(ALPHA*ALPHA), 1.0/(ALPHA*ALPHA), 1.0/(ALPHA*ALPHA),  -1,  0},
-	{        1.0/ALPHA,         1.0/ALPHA,         1.0/ALPHA,  -1,  0}
-},
-{ /* unbounded (x, y calculated later) */
-/* #define PHI 1.618033989 *//* ((1+sqrt(5))/2) */
+    {1.0, 1.0, 1.0, 0, 0},
+    {0.0, 0.0, 0.0, 0, -1},
+    {1.0 / (ALPHA * ALPHA), 1.0 / (ALPHA * ALPHA), 1.0 / (ALPHA * ALPHA), -1, 0},
+    {1.0 / ALPHA, 1.0 / ALPHA, 1.0 / ALPHA, -1, 0}},
+  {                           /* unbounded (x, y calculated later) */
+/* #define PHI 1.618033989 */ /* ((1+sqrt(5))/2) */
 #define BETA 2.890053638 /* (PHI+sqrt(PHI)) */
-	{                 1.0,                  1.0,                  1.0,  0,  0},
-	{1.0/(BETA*BETA*BETA), 1.0/(BETA*BETA*BETA), 1.0/(BETA*BETA*BETA),  1,  0},
-	{     1.0/(BETA*BETA),      1.0/(BETA*BETA),      1.0/(BETA*BETA),  1,  0},
-	{            1.0/BETA,             1.0/BETA,             1.0/BETA,  1,  0}
-}
-};
+    {1.0, 1.0, 1.0, 0, 0},
+    {1.0 / (BETA * BETA * BETA), 1.0 / (BETA * BETA * BETA), 1.0 / (BETA * BETA * BETA), 1, 0},
+    {1.0 / (BETA * BETA), 1.0 / (BETA * BETA), 1.0 / (BETA * BETA), 1, 0},
+    {1.0 / BETA, 1.0 / BETA, 1.0 / BETA, 1, 0}}};
 
 #define PREDEF_CIRCLE_GAMES  (sizeof (examples) / (4 * sizeof (circle)))
 
@@ -278,85 +274,97 @@ Hyperbolic
  -3, 6, 6, 7
 #endif
 
-typedef struct {
-	int         size;
-	XPoint      offset;
-	int         geometry;
-	circle      c1, c2, c3, c4;
-	int         color_offset;
-	int         count;
-	Bool        label, altgeom;
-	apollonian_quadruple  *quad;
-    XftFont     *font;
-    XftColor    xft_fg;
-    XftDraw     *xftdraw;
-	int         time;
-	int         game;
+typedef struct
+{
+    int size;
+    XPoint offset;
+    int geometry;
+    circle c1, c2, c3, c4;
+    int color_offset;
+    int count;
+    Bool label, altgeom;
+    apollonian_quadruple *quad;
+    XftFont *font;
+    XftColor xft_fg;
+    XftDraw *xftdraw;
+    int time;
+    int game;
 } apollonianstruct;
 
-static apollonianstruct *apollonians = (apollonianstruct *) NULL;
+static apollonianstruct *apollonians= (apollonianstruct *) NULL;
 
 #define K       2.15470053837925152902  /* 1+2/sqrt(3) */
 #define MAXBEND 100 /* Do not want configurable by user since it will take too
 	much time if increased. */
 
 static int
-gcd(int a, int b)
+  gcd(
+    int a,
+    int b)
 {
-	int r;
+  int r;
 
-	while (b) {
-		r = a % b;
-		a = b;
-		b = r;
-       	}
-	return a;
+  while (b)
+    {
+      r= a % b;
+      a= b;
+      b= r;
+    }
+  return a;
 }
 
 static int
-isqrt(int n)
+  isqrt(
+    int n)
 {
-	int y;
+  int y;
 
-	if (n < 0)
-		return -1;
-	y = (int) (sqrt((double) n) + 0.5);
-	return ((n == y*y) ? y : -1);
+  if (n < 0)
+    return -1;
+  y= (int) (sqrt((double) n) + 0.5);
+  return ((n == y * y) ? y : -1);
 }
 
 static void
-dquad(int n, apollonian_quadruple *quad)
+  dquad(
+    int n,
+    apollonian_quadruple *quad)
 {
-	int a, b, c, d;
-	int counter = 0, B, C;
-	
-	for (a = 0; a < MAXBEND; a++) {
-		B = (int) (K * a);
-		for (b = a + 1; b <= B; b++) {
-			C = (int) (((a + b) * (a + b)) / (4.0 * (b - a)));
-			for (c = b; c <= C; c++) {
-				d = isqrt(b*c-a*(b+c));
-				if (d >= 0 && (gcd(a,gcd(b,c)) <= 1)) {
- 					quad[counter].a = -a;
- 					quad[counter].b = b;
- 					quad[counter].c = c;
-					quad[counter].d = -a+b+c-2*d;
-					if (++counter >= n) {
-						return;
-					}
-				}
-			}
-		}
-	}
-	(void) printf("found only %d below maximum bend of %d\n",
-		counter, MAXBEND);
-	for (; counter < n; counter++) {
- 		quad[counter].a = -1; 
- 		quad[counter].b = 2;
- 		quad[counter].c = 2;
-		quad[counter].d = 3;
-	}
-	return;
+  int a, b, c, d;
+  int counter= 0, B, C;
+
+  for (a= 0; a < MAXBEND; a++)
+    {
+      B= (int) (K * a);
+      for (b= a + 1; b <= B; b++)
+        {
+          C= (int) (((a + b) * (a + b)) / (4.0 * (b - a)));
+          for (c= b; c <= C; c++)
+            {
+              d= isqrt(b * c - a * (b + c));
+              if (d >= 0 && (gcd(a, gcd(b, c)) <= 1))
+                {
+                  quad [ counter ].a= -a;
+                  quad [ counter ].b= b;
+                  quad [ counter ].c= c;
+                  quad [ counter ].d= -a + b + c - 2 * d;
+                  if (++counter >= n)
+                    return;
+                }
+            }
+        }
+    }
+  (void) printf("found only %d below maximum bend of %d\n",
+    counter,
+    MAXBEND);
+  for (; counter < n; counter++)
+    {
+      quad [ counter ].a= -1;
+      quad [ counter ].b= 2;
+      quad [ counter ].c= 2;
+      quad [ counter ].d= 3;
+    }
+  return;
 }
 
 /*
@@ -376,444 +384,479 @@ dquad(int n, apollonian_quadruple *quad)
  *      for (pa = ea/2; pa <= 0; pa++) for (qa = pa; qa <= 0; qa++)
  */
 
-#define For(v,l,h)	for (v = l; v <= h; v++)
+#define For(v, l, h)	for (v = l; v <= h; v++)
 #define FOR(z)		For(p##z,lop##z,hip##z) For(q##z,loq##z,hiq##z)
 #define H(z)		((e##z*e##z+p##z*p##z+q##z*q##z)%2)
 #define UNIT(z)		((abs(e##z)-1)*(abs(e##z)-1) >= p##z*p##z+q##z*q##z)
-#define T(z,w)		is_tangent(e##z,p##z,q##z,e##w,p##w,q##w)
-#define LO(r,z)		lo##r##z = iceil(e##z*(r##a+1),ea)-1
-#define HI(r,z)		hi##r##z = iflor(e##z*(r##a-1),ea)-1
+#define T(z, w)		is_tangent(e##z,p##z,q##z,e##w,p##w,q##w)
+#define LO(r, z)		lo##r##z = iceil(e##z*(r##a+1),ea)-1
+#define HI(r, z)		hi##r##z = iflor(e##z*(r##a-1),ea)-1
 #define B(z)		LO(p,z); HI(p,z); LO(q,z); HI(q,z)
 
 static int
-is_quad(int a, int b, int c, int d)
+  is_quad(
+    int a,
+    int b,
+    int c,
+    int d)
 {
-	int s;
+  int s;
 
-	s = a+b+c+d;
-	return 2*(a*a+b*b+c*c+d*d) == s*s;
+  s= a + b + c + d;
+  return 2 * (a * a + b * b + c * c + d * d) == s * s;
 }
 
 static Bool
-is_tangent(int e1, int p1, int q1, int e2, int p2, int q2)
+  is_tangent(
+    int e1,
+    int p1,
+    int q1,
+    int e2,
+    int p2,
+    int q2)
 {
-	int dx, dy, s;
+  int dx, dy, s;
 
-	dx = p1*e2 - p2*e1;
-	dy = q1*e2 - q2*e1;
-	s = e1 + e2;
-	return dx*dx + dy*dy == s*s;
+  dx= p1 * e2 - p2 * e1;
+  dy= q1 * e2 - q2 * e1;
+  s= e1 + e2;
+  return dx * dx + dy * dy == s * s;
 }
 
 static int
-iflor(int a, int b)
+  iflor(
+    int a,
+    int b)
 {
-	int q;
+  int q;
 
-	if (b == 0) {
-		(void) printf("iflor: b = 0\n");
-		return 0;
-	}
-	if (a%b == 0)
-		return a/b;
-	q = abs(a)/abs(b);
-	return ((a<0)^(b<0)) ? -q-1 : q;
+  if (b == 0)
+    {
+      (void) printf("iflor: b = 0\n");
+      return 0;
+    }
+  if (a % b == 0)
+    return a / b;
+  q= abs(a) / abs(b);
+  return ((a < 0) ^ (b < 0)) ? -q - 1 : q;
 }
 
 static int
-iceil(int a, int b)
+  iceil(
+    int a,
+    int b)
 {
-	int q;
+  int q;
 
-	if (b == 0) {
-		(void) printf("iceil: b = 0\n");
-		return 0;
-	}
-	if (a%b == 0)
-		return a/b;
-	q = abs(a)/abs(b);
-	return ((a<0)^(b<0)) ? -q : 1+q;
+  if (b == 0)
+    {
+      (void) printf("iceil: b = 0\n");
+      return 0;
+    }
+  if (a % b == 0)
+    return a / b;
+  q= abs(a) / abs(b);
+  return ((a < 0) ^ (b < 0)) ? -q : 1 + q;
 }
 
 static double
-geom(int geometry, int e, int p, int q)
+  geom(
+    int geometry,
+    int e,
+    int p,
+    int q)
 {
-	int g = (geometry == spherical) ? -1 :
-		(geometry == hyperbolic) ? 1 : 0;
+  int g= (geometry == spherical) ? -1 :
+    (geometry == hyperbolic)     ? 1 :
+                                   0;
 
-	if (g)
-		return (e*e + (1.0 - p*p - q*q) * g) / (2.0*e);
-	(void) printf("geom: g = 0\n");
-	return e;
+  if (g)
+    return (e * e + (1.0 - p * p - q * q) * g) / (2.0 * e);
+  (void) printf("geom: g = 0\n");
+  return e;
 }
 
 static void
-cquad(circle *c1, circle *c2, circle *c3, circle *c4)
+  cquad(
+    circle *c1,
+    circle *c2,
+    circle *c3,
+    circle *c4)
 {
-	int ea, eb, ec, ed;
-	int pa, pb, pc, pd;
-	int qa, qb, qc, qd;
-	int lopa, lopb, lopc, lopd;
-	int hipa, hipb, hipc, hipd;
-	int loqa, loqb, loqc, loqd;
-	int hiqa, hiqb, hiqc, hiqd;
+  int ea, eb, ec, ed;
+  int pa, pb, pc, pd;
+  int qa, qb, qc, qd;
+  int lopa, lopb, lopc, lopd;
+  int hipa, hipb, hipc, hipd;
+  int loqa, loqb, loqc, loqd;
+  int hiqa, hiqb, hiqc, hiqd;
 
-	ea = (int) c1->e;
-	eb = (int) c2->e;
-	ec = (int) c3->e;
-	ed = (int) c4->e;
-	if (ea >= 0)
-		(void) printf("ea = %d\n", ea);
-	if (!is_quad(ea,eb,ec,ed))
-		(void) printf("Error not quad %d %d %d %d\n", ea, eb, ec, ed);
-	lopa = loqa = ea;
-	hipa = hiqa = 0;
-	FOR(a) {
-		B(b); B(c); B(d);
-		if (H(a) && UNIT(a)) FOR(b) {
-			if (H(b) && T(a,b)) FOR(c) {
-				if (H(c) && T(a,c) && T(b,c)) FOR(d) {
-				  if (H(d) && T(a,d) && T(b,d) && T(c,d)) {
-				    c1->s = geom(spherical, ea, pa, qa);
-				    c1->h = geom(hyperbolic, ea, pa, qa);
-				    c2->s = geom(spherical, eb, pb, qb);
-				    c2->h = geom(hyperbolic, eb, pb, qb);
-				    c3->s = geom(spherical, ec, pc, qc);
-				    c3->h = geom(hyperbolic, ec, pc, qc);
-				    c4->s = geom(spherical, ed, pd, qd);
-				    c4->h = geom(hyperbolic, ed, pd, qd);
-				  }
-				}
-			}
-		}
-	}
+  ea= (int) c1->e;
+  eb= (int) c2->e;
+  ec= (int) c3->e;
+  ed= (int) c4->e;
+  if (ea >= 0)
+    (void) printf("ea = %d\n", ea);
+  if (! is_quad(ea, eb, ec, ed))
+    (void) printf("Error not quad %d %d %d %d\n", ea, eb, ec, ed);
+  lopa= loqa= ea;
+  hipa= hiqa= 0;
+  FOR(a)
+  {
+    B(b);
+    B(c);
+    B(d);
+    if (H(a) && UNIT(a))
+      {
+        FOR(b)
+        {
+          if (H(b) && T(a, b))
+            {
+              FOR(c)
+              {
+                if (H(c) && T(a, c) && T(b, c))
+                  {
+                    FOR(d)
+                    {
+                      if (H(d) && T(a, d) && T(b, d) && T(c, d))
+                        {
+                          c1->s= geom(spherical, ea, pa, qa);
+                          c1->h= geom(hyperbolic, ea, pa, qa);
+                          c2->s= geom(spherical, eb, pb, qb);
+                          c2->h= geom(hyperbolic, eb, pb, qb);
+                          c3->s= geom(spherical, ec, pc, qc);
+                          c3->h= geom(hyperbolic, ec, pc, qc);
+                          c4->s= geom(spherical, ed, pd, qd);
+                          c4->h= geom(hyperbolic, ed, pd, qd);
+                        }
+                    }
+                  }
+              }
+            }
+        }
+      }
+  }
 }
 
 static void
-set_xft_color (ModeInfo *mi, XftColor *c, unsigned long pixel)
+  set_xft_color(
+    ModeInfo *mi,
+    XftColor *c,
+    unsigned long pixel)
 {
   XColor xc;
-  xc.pixel = pixel;
-  XQueryColor (MI_DISPLAY(mi), MI_COLORMAP(mi), &xc);
-  c->pixel = pixel;
-  c->color.red   = xc.red;
-  c->color.green = xc.green;
-  c->color.blue  = xc.blue;
-  c->color.alpha = 0xFFFF;
+  xc.pixel= pixel;
+  XQueryColor(MI_DISPLAY(mi), MI_COLORMAP(mi), &xc);
+  c->pixel= pixel;
+  c->color.red= xc.red;
+  c->color.green= xc.green;
+  c->color.blue= xc.blue;
+  c->color.alpha= 0xFFFF;
 }
 
 
 static void
-p(ModeInfo *mi, circle c)
+  p(
+    ModeInfo *mi,
+    circle c)
 {
-	apollonianstruct *cp = &apollonians[MI_SCREEN(mi)];
-	char string[15];
-	double g, e;
-	int g_width;
-    unsigned long pix;
+  apollonianstruct *cp= &apollonians [ MI_SCREEN(mi) ];
+  char string [ 15 ];
+  double g, e;
+  int g_width;
+  unsigned long pix;
 
 #ifdef DEBUG
-	(void) printf("c.e=%g c.s=%g c.h=%g  c.x=%g c.y=%g\n",
-		c.e, c.s, c.h, c.x, c.y);
+  (void) printf("c.e=%g c.s=%g c.h=%g  c.x=%g c.y=%g\n",
+    c.e,
+    c.s,
+    c.h,
+    c.x,
+    c.y);
 #endif
-	g = (cp->geometry == spherical) ? c.s : (cp->geometry == hyperbolic) ?
-		c.h : c.e;
-	if (c.e < 0.0) {
-		if (g < 0.0)
-			g = -g;
-		if (MI_NPIXELS(mi) <= 2)
-          pix = MI_WHITE_PIXEL(mi);
-		else
-          pix = MI_PIXEL(mi, ((int) ((g + cp->color_offset) * g))
-                         % MI_NPIXELS(mi));
-        XSetForeground(MI_DISPLAY(mi), MI_GC(mi), pix);
-        set_xft_color (mi, &cp->xft_fg, pix);
-		XDrawArc(MI_DISPLAY(mi), MI_WINDOW(mi), MI_GC(mi),
-			((int) (cp->size * (-cp->c1.e) * (c.x - 1.0) /
-				(-2.0 * c.e) + cp->size / 2.0 + cp->offset.x)),
-			((int) (cp->size * (-cp->c1.e) * (c.y - 1.0) /
-				(-2.0 * c.e) + cp->size / 2.0 + cp->offset.y)),
-			(int) (cp->c1.e * cp->size / c.e),
-			(int) (cp->c1.e * cp->size / c.e), 0, 23040);
-		if (!cp->label) {
+  g= (cp->geometry == spherical) ? c.s : (cp->geometry == hyperbolic) ? c.h :
+                                                                        c.e;
+  if (c.e < 0.0)
+    {
+      if (g < 0.0)
+        g= -g;
+      if (MI_NPIXELS(mi) <= 2)
+        pix= MI_WHITE_PIXEL(mi);
+      else
+        pix= MI_PIXEL(mi, ((int) ((g + cp->color_offset) * g)) % MI_NPIXELS(mi));
+      XSetForeground(MI_DISPLAY(mi), MI_GC(mi), pix);
+      set_xft_color(mi, &cp->xft_fg, pix);
+      XDrawArc(MI_DISPLAY(mi), MI_WINDOW(mi), MI_GC(mi), ((int) (cp->size * (-cp->c1.e) * (c.x - 1.0) / (-2.0 * c.e) + cp->size / 2.0 + cp->offset.x)), ((int) (cp->size * (-cp->c1.e) * (c.y - 1.0) / (-2.0 * c.e) + cp->size / 2.0 + cp->offset.y)), (int) (cp->c1.e * cp->size / c.e), (int) (cp->c1.e * cp->size / c.e), 0, 23040);
+      if (! cp->label)
+        {
 #ifdef DEBUG
-			(void) printf("%g\n", -g);
+          (void) printf("%g\n", -g);
 #endif
-			return;
-		}
-
-		sprintf(string, "%g", (g == 0.0) ? 0 : -g);
-        XftDrawStringUtf8 (cp->xftdraw, &cp->xft_fg, cp->font,
-                           ((int) (cp->size * c.x / (2.0 * c.e))) +
-                           cp->offset.x + cp->font->ascent * 2,
-                           ((int) (cp->size * c.y / (2.0 * c.e))) +
-                           cp->font->ascent * 4,
-                           (FcChar8 *) string,
-                           (g == 0 ? 1 :
-                            g < 10 ? 2 :
-                            g < 100 ? 3 : 4));
-        XftDrawStringUtf8 (cp->xftdraw, &cp->xft_fg, cp->font,
-                           ((int) (cp->size * c.x / (2.0 * c.e) +
-                                   cp->offset.x)) + cp->font->ascent * 2,
-                           ((int) (cp->size * c.y / (2.0 * c.e) +
-                                   MI_HEIGHT(mi) - cp->font->ascent * 4)),
-                           (FcChar8 *) space_string[cp->geometry],
-                           strlen(space_string[cp->geometry]));
-		return;
-	}
-	if (MI_NPIXELS(mi) <= 2)
-		XSetForeground(MI_DISPLAY(mi), MI_GC(mi), MI_WHITE_PIXEL(mi));
-	else
-		XSetForeground(MI_DISPLAY(mi), MI_GC(mi),
-			MI_PIXEL(mi, ((int) ((g + cp->color_offset) * g)) %
-				MI_NPIXELS(mi)));
-	if (c.e == 0.0) {
-		if (c.x == 0.0 && c.y != 0.0) {
-			XDrawLine(MI_DISPLAY(mi), MI_WINDOW(mi), MI_GC(mi),
-				0, (int) ((c.y + 1.0) * cp->size / 2.0 + cp->offset.y),
-				MI_WIDTH(mi),
-				(int) ((c.y + 1.0) * cp->size / 2.0 + cp->offset.y));
-		} else if (c.y == 0.0 && c.x != 0.0) {
-			XDrawLine(MI_DISPLAY(mi), MI_WINDOW(mi), MI_GC(mi),
-				(int) ((c.x + 1.0) * cp->size / 2.0 + cp->offset.x), 0,
-				(int) ((c.x + 1.0) * cp->size / 2.0 + cp->offset.x),
-				MI_HEIGHT(mi));
-		}
-		return;
-	}
-	e = (cp->c1.e >= 0.0) ? 1.0 : -cp->c1.e;
-	XFillArc(MI_DISPLAY(mi), MI_WINDOW(mi), MI_GC(mi),
-		((int) (cp->size * e * (c.x - 1.0) / (2.0 * c.e) +
-			cp->size / 2.0 + cp->offset.x)),
-		((int) (cp->size * e * (c.y - 1.0) / (2.0 * c.e) +
-			cp->size / 2.0 + cp->offset.y)),
-		(int) (e * cp->size / c.e), (int) (e * cp->size / c.e),
-		0, 23040);
-	if (!cp->label) {
-#ifdef DEBUG
-		(void) printf("%g\n", g);
-#endif
-		return;
-	}
-	if (MI_NPIXELS(mi) <= 2)
-      pix = MI_BLACK_PIXEL(mi);
-	else
-      pix = MI_PIXEL(mi, ((int) ((g + cp->color_offset) * g) +
-                          MI_NPIXELS(mi) / 2) % MI_NPIXELS(mi));
-	g_width = (g < 10.0) ? 1: ((g < 100.0) ? 2 : 3);
-	if (c.e < e * cp->size / ((cp->font->ascent + cp->font->descent) * 2) &&
-        g < 1000.0) {
-        XGlyphInfo overall;
-        XSetForeground(MI_DISPLAY(mi), MI_GC(mi), pix);
-        set_xft_color (mi, &cp->xft_fg, pix);
-		sprintf(string, "%g", g);
-        XftTextExtentsUtf8 (MI_DISPLAY(mi), cp->font,
-                            (FcChar8 *) string, g_width, &overall);
-        XftDrawStringUtf8 (cp->xftdraw, &cp->xft_fg, cp->font,
-                           ((int) (cp->size * e * c.x / (2.0 * c.e) +
-                                   cp->size / 2.0 + cp->offset.x)) -
-                           overall.width / 2,
-                           ((int) (cp->size * e * c.y / (2.0 * c.e) +
-                                   cp->size / 2.0 + cp->offset.y)) +
-                           cp->font->ascent / 2,
-                           (FcChar8 *) string, g_width);
+          return;
         }
+
+      sprintf(string, "%g", (g == 0.0) ? 0 : -g);
+      XftDrawStringUtf8(cp->xftdraw, &cp->xft_fg, cp->font, ((int) (cp->size * c.x / (2.0 * c.e))) + cp->offset.x + cp->font->ascent * 2, ((int) (cp->size * c.y / (2.0 * c.e))) + cp->font->ascent * 4, (FcChar8 *) string, (g == 0 ? 1 : g < 10 ? 2 :
+                                                                                                                                                                                                                                 g < 100          ? 3 :
+                                                                                                                                                                                                                                                    4));
+      XftDrawStringUtf8(cp->xftdraw, &cp->xft_fg, cp->font, ((int) (cp->size * c.x / (2.0 * c.e) + cp->offset.x)) + cp->font->ascent * 2, ((int) (cp->size * c.y / (2.0 * c.e) + MI_HEIGHT(mi) - cp->font->ascent * 4)), (FcChar8 *) space_string [ cp->geometry ], strlen(space_string [ cp->geometry ]));
+      return;
+    }
+  if (MI_NPIXELS(mi) <= 2)
+    XSetForeground(MI_DISPLAY(mi), MI_GC(mi), MI_WHITE_PIXEL(mi));
+  else
+    XSetForeground(MI_DISPLAY(mi), MI_GC(mi), MI_PIXEL(mi, ((int) ((g + cp->color_offset) * g)) % MI_NPIXELS(mi)));
+  if (c.e == 0.0)
+    {
+      if (c.x == 0.0 && c.y != 0.0)
+        XDrawLine(MI_DISPLAY(mi), MI_WINDOW(mi), MI_GC(mi), 0, (int) ((c.y + 1.0) * cp->size / 2.0 + cp->offset.y), MI_WIDTH(mi), (int) ((c.y + 1.0) * cp->size / 2.0 + cp->offset.y));
+      else if (c.y == 0.0 && c.x != 0.0)
+        XDrawLine(MI_DISPLAY(mi), MI_WINDOW(mi), MI_GC(mi), (int) ((c.x + 1.0) * cp->size / 2.0 + cp->offset.x), 0, (int) ((c.x + 1.0) * cp->size / 2.0 + cp->offset.x), MI_HEIGHT(mi));
+      return;
+    }
+  e= (cp->c1.e >= 0.0) ? 1.0 : -cp->c1.e;
+  XFillArc(MI_DISPLAY(mi), MI_WINDOW(mi), MI_GC(mi), ((int) (cp->size * e * (c.x - 1.0) / (2.0 * c.e) + cp->size / 2.0 + cp->offset.x)), ((int) (cp->size * e * (c.y - 1.0) / (2.0 * c.e) + cp->size / 2.0 + cp->offset.y)), (int) (e * cp->size / c.e), (int) (e * cp->size / c.e), 0, 23040);
+  if (! cp->label)
+    {
+#ifdef DEBUG
+      (void) printf("%g\n", g);
+#endif
+      return;
+    }
+  if (MI_NPIXELS(mi) <= 2)
+    pix= MI_BLACK_PIXEL(mi);
+  else
+    pix= MI_PIXEL(mi, ((int) ((g + cp->color_offset) * g) + MI_NPIXELS(mi) / 2) % MI_NPIXELS(mi));
+  g_width= (g < 10.0) ? 1 : ((g < 100.0) ? 2 : 3);
+  if (c.e < e * cp->size / ((cp->font->ascent + cp->font->descent) * 2) &&
+    g < 1000.0)
+    {
+      XGlyphInfo overall;
+      XSetForeground(MI_DISPLAY(mi), MI_GC(mi), pix);
+      set_xft_color(mi, &cp->xft_fg, pix);
+      sprintf(string, "%g", g);
+      XftTextExtentsUtf8(MI_DISPLAY(mi), cp->font, (FcChar8 *) string, g_width, &overall);
+      XftDrawStringUtf8(cp->xftdraw, &cp->xft_fg, cp->font, ((int) (cp->size * e * c.x / (2.0 * c.e) + cp->size / 2.0 + cp->offset.x)) - overall.width / 2, ((int) (cp->size * e * c.y / (2.0 * c.e) + cp->size / 2.0 + cp->offset.y)) + cp->font->ascent / 2, (FcChar8 *) string, g_width);
+    }
 }
 
 #define BIG 7
 static void
-f(ModeInfo *mi, circle c1, circle c2, circle c3, circle c4, int depth)
+  f(
+    ModeInfo *mi,
+    circle c1,
+    circle c2,
+    circle c3,
+    circle c4,
+    int depth)
 {
-	apollonianstruct *cp = &apollonians[MI_SCREEN(mi)];
-	int e = (int) ((cp->c1.e >= 0.0) ? 1.0 : -cp->c1.e);
-        circle c;
+  apollonianstruct *cp= &apollonians [ MI_SCREEN(mi) ];
+  int e= (int) ((cp->c1.e >= 0.0) ? 1.0 : -cp->c1.e);
+  circle c;
 
-	if (depth > mi->recursion_depth) mi->recursion_depth = depth;
+  if (depth > mi->recursion_depth) mi->recursion_depth= depth;
 
-        c.e = 2*(c1.e+c2.e+c3.e) - c4.e;
-        c.s = 2*(c1.s+c2.s+c3.s) - c4.s;
-        c.h = 2*(c1.h+c2.h+c3.h) - c4.h;
-        c.x = 2*(c1.x+c2.x+c3.x) - c4.x;
-        c.y = 2*(c1.y+c2.y+c3.y) - c4.y;
-        if (c.e == 0 ||
-            c.e > cp->size * e || c.x / c.e > BIG || c.y / c.e > BIG ||
-            c.x / c.e < -BIG || c.y / c.e < -BIG)
-                return;
-        p(mi, c);
-        f(mi, c2, c3, c, c1, depth+1);
-        f(mi, c1, c3, c, c2, depth+1);
-        f(mi, c1, c2, c, c3, depth+1);
+  c.e= 2 * (c1.e + c2.e + c3.e) - c4.e;
+  c.s= 2 * (c1.s + c2.s + c3.s) - c4.s;
+  c.h= 2 * (c1.h + c2.h + c3.h) - c4.h;
+  c.x= 2 * (c1.x + c2.x + c3.x) - c4.x;
+  c.y= 2 * (c1.y + c2.y + c3.y) - c4.y;
+  if (c.e == 0 ||
+    c.e > cp->size * e || c.x / c.e > BIG || c.y / c.e > BIG ||
+    c.x / c.e < -BIG || c.y / c.e < -BIG)
+    return;
+  p(mi, c);
+  f(mi, c2, c3, c, c1, depth + 1);
+  f(mi, c1, c3, c, c2, depth + 1);
+  f(mi, c1, c2, c, c3, depth + 1);
 }
 
 ENTRYPOINT void
-free_apollonian (ModeInfo * mi)
+  free_apollonian(
+    ModeInfo *mi)
 {
-	apollonianstruct *cp = &apollonians[MI_SCREEN(mi)];
+  apollonianstruct *cp= &apollonians [ MI_SCREEN(mi) ];
 
-	if (cp->quad != NULL) {
-		(void) free((void *) cp->quad);
-		cp->quad = (apollonian_quadruple *) NULL;
-	}
+  if (cp->quad != NULL)
+    {
+      (void) free((void *) cp->quad);
+      cp->quad= (apollonian_quadruple *) NULL;
+    }
 
-  XftFontClose (MI_DISPLAY(mi), cp->font);
-  XftDrawDestroy (cp->xftdraw);
+  XftFontClose(MI_DISPLAY(mi), cp->font);
+  XftDrawDestroy(cp->xftdraw);
 }
 
 #ifndef DEBUG
 static void
-randomize_c(int randomize, circle * c)
+  randomize_c(
+    int randomize,
+    circle *c)
 {
-  if (randomize / 2) {
-    double temp;
+  if (randomize / 2)
+    {
+      double temp;
 
-    temp = c->x;
-    c->x = c->y;
-    c->y = temp;
-  }
-  if (randomize % 2) {
-    c->x = -c->x;
-    c->y = -c->y;
-  }
+      temp= c->x;
+      c->x= c->y;
+      c->y= temp;
+    }
+  if (randomize % 2)
+    {
+      c->x= -c->x;
+      c->y= -c->y;
+    }
 }
 #endif
 
 ENTRYPOINT void
-init_apollonian (ModeInfo * mi)
+  init_apollonian(
+    ModeInfo *mi)
 {
-	apollonianstruct *cp;
-	int i;
-    char *s;
+  apollonianstruct *cp;
+  int i;
+  char *s;
 
-	MI_INIT (mi, apollonians);
-	cp = &apollonians[MI_SCREEN(mi)];
+  MI_INIT(mi, apollonians);
+  cp= &apollonians [ MI_SCREEN(mi) ];
 
-	cp->size = MAX(MIN(MI_WIDTH(mi), MI_HEIGHT(mi)) - 1, 1);
-	cp->offset.x = (MI_WIDTH(mi) - cp->size) / 2;
-	cp->offset.y = (MI_HEIGHT(mi) - cp->size) / 2;
-	cp->color_offset = NRAND(MI_NPIXELS(mi));
+  cp->size= MAX(MIN(MI_WIDTH(mi), MI_HEIGHT(mi)) - 1, 1);
+  cp->offset.x= (MI_WIDTH(mi) - cp->size) / 2;
+  cp->offset.y= (MI_HEIGHT(mi) - cp->size) / 2;
+  cp->color_offset= NRAND(MI_NPIXELS(mi));
 
-    cp->font = load_xft_font_retry (MI_DISPLAY(mi), MI_SCREEN(mi),
-                                    get_string_resource (MI_DISPLAY(mi),
-                                                         "font", "Font"));
-    cp->xftdraw = XftDrawCreate (MI_DISPLAY(mi), MI_WINDOW(mi),
-                                 MI_VISUAL(mi), MI_COLORMAP(mi));
-    s = get_string_resource (MI_DISPLAY(mi), "foreground", "Foreground");
-    XftColorAllocName (MI_DISPLAY(mi), MI_VISUAL(mi), MI_COLORMAP(mi), s,
-                       &cp->xft_fg);
-    free(s);
-    
-	cp->label = label;
-	cp->altgeom = cp->label && altgeom;
+  cp->font= load_xft_font_retry(MI_DISPLAY(mi), MI_SCREEN(mi), get_string_resource(MI_DISPLAY(mi), "font", "Font"));
+  cp->xftdraw= XftDrawCreate(MI_DISPLAY(mi), MI_WINDOW(mi), MI_VISUAL(mi), MI_COLORMAP(mi));
+  s= get_string_resource(MI_DISPLAY(mi), "foreground", "Foreground");
+  XftColorAllocName(MI_DISPLAY(mi), MI_VISUAL(mi), MI_COLORMAP(mi), s, &cp->xft_fg);
+  free(s);
 
-	if (cp->quad == NULL) {
-		cp->count = ABS(MI_COUNT(mi));
-		if ((cp->quad = (apollonian_quadruple *) malloc(cp->count *
-			sizeof (apollonian_quadruple))) == NULL) {
-			return;
-		}
-		dquad(cp->count, cp->quad);
-	}
-	cp->game = NRAND(PREDEF_CIRCLE_GAMES + cp->count);
-	cp->geometry = (cp->game && cp->altgeom) ? NRAND(3) : 0;
+  cp->label= label;
+  cp->altgeom= cp->label && altgeom;
 
-	if (cp->game < PREDEF_CIRCLE_GAMES) {	
-		cp->c1 = examples[cp->game][0];
-		cp->c2 = examples[cp->game][1];
-		cp->c3 = examples[cp->game][2];
-		cp->c4 = examples[cp->game][3];
-		/* do not label non int */
-		cp->label = cp->label && (cp->c4.e == (int) cp->c4.e);
-	} else { /* uses results of dquad, all int */
-		i = cp->game - PREDEF_CIRCLE_GAMES;
-		cp->c1.e = cp->quad[i].a;
-		cp->c2.e = cp->quad[i].b;
-		cp->c3.e = cp->quad[i].c;
-		cp->c4.e = cp->quad[i].d;
-		if (cp->geometry)
-			cquad(&(cp->c1), &(cp->c2), &(cp->c3), &(cp->c4));
-	}
-	cp->time = 0;
-	MI_CLEARWINDOW(mi);
-	if (cp->game != 0) {
-		double q123;
+  if (cp->quad == NULL)
+    {
+      cp->count= ABS(MI_COUNT(mi));
+      if ((cp->quad= (apollonian_quadruple *) malloc(cp->count *
+             sizeof(apollonian_quadruple))) == NULL)
+        return;
+      dquad(cp->count, cp->quad);
+    }
+  cp->game= NRAND(PREDEF_CIRCLE_GAMES + cp->count);
+  cp->geometry= (cp->game && cp->altgeom) ? NRAND(3) : 0;
 
-		if (cp->c1.e == 0.0 || cp->c1.e == -cp->c2.e)
-			return;
-		cp->c1.x = 0.0;
-		cp->c1.y = 0.0;
-		cp->c2.x = -(cp->c1.e + cp->c2.e) / cp->c1.e;
-		cp->c2.y = 0;
-		q123 = sqrt(cp->c1.e * cp->c2.e + cp->c1.e * cp->c3.e +
-			cp->c2.e * cp->c3.e);
+  if (cp->game < PREDEF_CIRCLE_GAMES)
+    {
+      cp->c1= examples [ cp->game ][ 0 ];
+      cp->c2= examples [ cp->game ][ 1 ];
+      cp->c3= examples [ cp->game ][ 2 ];
+      cp->c4= examples [ cp->game ][ 3 ];
+      /* do not label non int */
+      cp->label= cp->label && (cp->c4.e == (int) cp->c4.e);
+    }
+  else
+    { /* uses results of dquad, all int */
+      i= cp->game - PREDEF_CIRCLE_GAMES;
+      cp->c1.e= cp->quad [ i ].a;
+      cp->c2.e= cp->quad [ i ].b;
+      cp->c3.e= cp->quad [ i ].c;
+      cp->c4.e= cp->quad [ i ].d;
+      if (cp->geometry)
+        cquad(&(cp->c1), &(cp->c2), &(cp->c3), &(cp->c4));
+    }
+  cp->time= 0;
+  MI_CLEARWINDOW(mi);
+  if (cp->game != 0)
+    {
+      double q123;
+
+      if (cp->c1.e == 0.0 || cp->c1.e == -cp->c2.e)
+        return;
+      cp->c1.x= 0.0;
+      cp->c1.y= 0.0;
+      cp->c2.x= -(cp->c1.e + cp->c2.e) / cp->c1.e;
+      cp->c2.y= 0;
+      q123= sqrt(cp->c1.e * cp->c2.e + cp->c1.e * cp->c3.e +
+        cp->c2.e * cp->c3.e);
 #ifdef DEBUG
-		(void) printf("q123 = %g, ", q123);
+      (void) printf("q123 = %g, ", q123);
 #endif
-		cp->c3.x = (cp->c1.e * cp->c1.e - q123 * q123) / (cp->c1.e *
-			(cp->c1.e + cp->c2.e));
-		cp->c3.y = -2.0 * q123 / (cp->c1.e + cp->c2.e);
-		q123 = -cp->c1.e - cp->c2.e + q123;
-		cp->c4.x = (cp->c1.e * cp->c1.e - q123 * q123) / (cp->c1.e *
-			(cp->c1.e + cp->c2.e));
-		cp->c4.y = -2.0 * q123 / (cp->c1.e + cp->c2.e);
+      cp->c3.x= (cp->c1.e * cp->c1.e - q123 * q123) / (cp->c1.e * (cp->c1.e + cp->c2.e));
+      cp->c3.y= -2.0 * q123 / (cp->c1.e + cp->c2.e);
+      q123= -cp->c1.e - cp->c2.e + q123;
+      cp->c4.x= (cp->c1.e * cp->c1.e - q123 * q123) / (cp->c1.e * (cp->c1.e + cp->c2.e));
+      cp->c4.y= -2.0 * q123 / (cp->c1.e + cp->c2.e);
 #ifdef DEBUG
-		(void) printf("q124 = %g\n", q123);
-		(void) printf("%g %g %g %g %g %g %g %g\n",
-			cp->c1.x, cp->c1.y, cp->c2.x, cp->c2.y,
-			cp->c3.x, cp->c3.y, cp->c4.x, cp->c4.y);
+      (void) printf("q124 = %g\n", q123);
+      (void) printf("%g %g %g %g %g %g %g %g\n",
+        cp->c1.x,
+        cp->c1.y,
+        cp->c2.x,
+        cp->c2.y,
+        cp->c3.x,
+        cp->c3.y,
+        cp->c4.x,
+        cp->c4.y);
 #endif
-	}
+    }
 #ifndef DEBUG
-	if (LRAND() & 1) {
-		cp->c3.y = -cp->c3.y;
-		cp->c4.y = -cp->c4.y;
-	}
-	i = NRAND(4);
-	randomize_c(i, &(cp->c1));
-	randomize_c(i, &(cp->c2));
-	randomize_c(i, &(cp->c3));
-	randomize_c(i, &(cp->c4));
-#endif 
+  if (LRAND() & 1)
+    {
+      cp->c3.y= -cp->c3.y;
+      cp->c4.y= -cp->c4.y;
+    }
+  i= NRAND(4);
+  randomize_c(i, &(cp->c1));
+  randomize_c(i, &(cp->c2));
+  randomize_c(i, &(cp->c3));
+  randomize_c(i, &(cp->c4));
+#endif
 
-    mi->recursion_depth = -1;
+  mi->recursion_depth= -1;
 }
 
 ENTRYPOINT void
-draw_apollonian (ModeInfo * mi)
+  draw_apollonian(
+    ModeInfo *mi)
 {
-	apollonianstruct *cp;
+  apollonianstruct *cp;
 
-	if (apollonians == NULL)
-		return;
-	cp = &apollonians[MI_SCREEN(mi)];
+  if (apollonians == NULL)
+    return;
+  cp= &apollonians [ MI_SCREEN(mi) ];
 
 
-	MI_IS_DRAWN(mi) = True;
+  MI_IS_DRAWN(mi)= True;
 
-	if (cp->time < 5) {
-		switch (cp->time) {
-		case 0:
-			p(mi, cp->c1);
-			p(mi, cp->c2);
-			p(mi, cp->c3);
-			p(mi, cp->c4);
-			break;
-		case 1:
-			f(mi, cp->c1, cp->c2, cp->c3, cp->c4, 0);
-			break;
-		case 2:
-			f(mi, cp->c1, cp->c2, cp->c4, cp->c3, 0);
-			break;
-		case 3:
-			f(mi, cp->c1, cp->c3, cp->c4, cp->c2, 0);
-			break;
-		case 4:
-			f(mi, cp->c2, cp->c3, cp->c4, cp->c1, 0);
-		}
-	}
-	if (++cp->time > MI_CYCLES(mi))
-		init_apollonian(mi);
+  if (cp->time < 5)
+    {
+      switch (cp->time)
+        {
+          case 0 :
+            p(mi, cp->c1);
+            p(mi, cp->c2);
+            p(mi, cp->c3);
+            p(mi, cp->c4);
+            break;
+          case 1 :
+            f(mi, cp->c1, cp->c2, cp->c3, cp->c4, 0);
+            break;
+          case 2 :
+            f(mi, cp->c1, cp->c2, cp->c4, cp->c3, 0);
+            break;
+          case 3 :
+            f(mi, cp->c1, cp->c3, cp->c4, cp->c2, 0);
+            break;
+          case 4 :
+            f(mi, cp->c2, cp->c3, cp->c4, cp->c1, 0);
+        }
+    }
+  if (++cp->time > MI_CYCLES(mi))
+    init_apollonian(mi);
 }
 
-XSCREENSAVER_MODULE ("Apollonian", apollonian)
+XSCREENSAVER_MODULE(
+  "Apollonian",
+  apollonian)
 
 #endif /* MODE_apollonian */

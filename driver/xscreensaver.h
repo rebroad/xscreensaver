@@ -5,7 +5,7 @@
  * the above copyright notice appear in all copies and that both that
  * copyright notice and this permission notice appear in supporting
  * documentation.  No representations are made about the suitability of this
- * software for any purpose.  It is provided "as is" without express or 
+ * software for any purpose.  It is provided "as is" without express or
  * implied warranty.
  */
 
@@ -14,14 +14,14 @@
 
 #include <stdlib.h>
 #ifdef HAVE_UNISTD_H
-# include <unistd.h>
+#include <unistd.h>
 #endif
 
 #include <string.h>
 #include <stdio.h>
 
 #ifdef HAVE_SIGACTION
-# include <signal.h>    /* for sigset_t */
+#include <signal.h> /* for sigset_t */
 #endif
 
 #include "blurb.h"
@@ -36,37 +36,40 @@ extern char *progclass;
    server extensions and virtual roots
    ======================================================================= */
 
-extern Bool ensure_no_screensaver_running (Display *, Screen *);
+extern Bool ensure_no_screensaver_running(Display *, Screen *);
 
 /* Display Power Management System (DPMS) interface. */
-extern Bool monitor_powered_on_p (saver_info *);
-extern void monitor_power_on (saver_info *, Bool on_p);
+extern Bool monitor_powered_on_p(saver_info *);
+extern void monitor_power_on(saver_info *, Bool on_p);
 
 /* =======================================================================
    blanking
    ======================================================================= */
 
-extern Bool update_screen_layout (saver_info *si);
-extern void initialize_screensaver_window (saver_info *si);
+extern Bool update_screen_layout(saver_info *si);
+extern void initialize_screensaver_window(saver_info *si);
 
-extern void blank_screen (saver_info *si);
-extern void unblank_screen (saver_info *si);
-extern void resize_screensaver_window (saver_info *si);
-extern void reset_watchdog_timer (saver_info *);
+extern void blank_screen(saver_info *si);
+extern void unblank_screen(saver_info *si);
+extern void resize_screensaver_window(saver_info *si);
+extern void reset_watchdog_timer(saver_info *);
 
-extern void get_screen_viewport (saver_screen_info *ssi,
-                                 int *x_ret, int *y_ret,
-                                 int *w_ret, int *h_ret,
-                                 int target_x, int target_y,
-                                 Bool verbose_p);
+extern void get_screen_viewport(saver_screen_info *ssi,
+  int *x_ret,
+  int *y_ret,
+  int *w_ret,
+  int *h_ret,
+  int target_x,
+  int target_y,
+  Bool verbose_p);
 
 
 /* =======================================================================
    timers
    ======================================================================= */
 
-extern void cycle_timer (XtPointer si, XtIntervalId *id);
-extern void sleep_until_idle (saver_info *si, Bool until_idle_p);
+extern void cycle_timer(XtPointer si, XtIntervalId *id);
+extern void sleep_until_idle(saver_info *si, Bool until_idle_p);
 
 
 /* =======================================================================
@@ -74,28 +77,29 @@ extern void sleep_until_idle (saver_info *si, Bool until_idle_p);
    ======================================================================= */
 
 #ifdef HAVE_SIGACTION
- extern sigset_t block_sigchld (void);
+extern sigset_t block_sigchld(void);
 #else  /* !HAVE_SIGACTION */
- extern int block_sigchld (void);
+extern int block_sigchld(void);
 #endif /* !HAVE_SIGACTION */
-extern void unblock_sigchld (void);
-extern void hack_environment (saver_info *si);
-extern void init_sigchld (saver_info *si);
-extern void spawn_screenhack (saver_screen_info *ssi);
-extern void kill_screenhack (saver_screen_info *ssi);
-extern Bool any_screenhacks_running_p (saver_info *si);
-extern Bool select_visual (saver_screen_info *ssi, const char *visual_name);
-extern void store_saver_status (saver_info *si);
-extern const char *signal_name (int signal);
-extern void screenhack_obituary (saver_screen_info *,
-                                 const char *name, const char *error);
+extern void unblock_sigchld(void);
+extern void hack_environment(saver_info *si);
+extern void init_sigchld(saver_info *si);
+extern void spawn_screenhack(saver_screen_info *ssi);
+extern void kill_screenhack(saver_screen_info *ssi);
+extern Bool any_screenhacks_running_p(saver_info *si);
+extern Bool select_visual(saver_screen_info *ssi, const char *visual_name);
+extern void store_saver_status(saver_info *si);
+extern const char *signal_name(int signal);
+extern void screenhack_obituary(saver_screen_info *,
+  const char *name,
+  const char *error);
 
 /* =======================================================================
    misc
    ======================================================================= */
 
-extern Visual *get_best_gl_visual (saver_info *si, Screen *screen);
-extern void maybe_reload_init_file (saver_info *);
-extern void print_available_extensions (saver_info *);
+extern Visual *get_best_gl_visual(saver_info *si, Screen *screen);
+extern void maybe_reload_init_file(saver_info *);
+extern void print_available_extensions(saver_info *);
 
 #endif /* __XSCREENSAVER_H__ */

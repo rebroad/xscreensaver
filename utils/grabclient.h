@@ -5,7 +5,7 @@
  * the above copyright notice appear in all copies and that both that
  * copyright notice and this permission notice appear in supporting
  * documentation.  No representations are made about the suitability of this
- * software for any purpose.  It is provided "as is" without express or 
+ * software for any purpose.  It is provided "as is" without express or
  * implied warranty.
  */
 
@@ -40,13 +40,7 @@
 
    Many colors may be allocated from the window's colormap.
  */
-extern void load_image_async (Screen *, Window, Drawable,
-                              void (*callback) (Screen *, Window,
-                                                Drawable,
-                                                const char *name,
-                                                XRectangle *geometry,
-                                                void *closure),
-                              void *closure);
+extern void load_image_async(Screen *, Window, Drawable, void (*callback)(Screen *, Window, Drawable, const char *name, XRectangle *geometry, void *closure), void *closure);
 
 /* A utility wrapper around load_image_async() that is simpler if you
    are only loading a single image at a time: just keep calling it
@@ -54,12 +48,12 @@ extern void load_image_async (Screen *, Window, Drawable,
    been loaded.
  */
 typedef struct async_load_state async_load_state;
-extern async_load_state *load_image_async_simple (async_load_state *,
-                                                  Screen *,
-                                                  Window top_level,
-                                                  Drawable target, 
-                                                  char **filename_ret,
-                                                  XRectangle *geometry_ret);
+extern async_load_state *load_image_async_simple(async_load_state *,
+  Screen *,
+  Window top_level,
+  Drawable target,
+  char **filename_ret,
+  XRectangle *geometry_ret);
 
 
 /* Don't use these: this is how "xscreensaver-getimage" and "grabclient.c"
@@ -70,23 +64,23 @@ extern async_load_state *load_image_async_simple (async_load_state *,
 
 #ifdef HAVE_JWXYZ
 /* Don't use these: internal interface of grabclient.c. */
-extern Bool osx_grab_desktop_image (Screen *, Window, Drawable,
-                                    XRectangle *geom_ret);
-extern Bool osx_load_image_file (Screen *, Window, Drawable,
-                                 const char *filename, XRectangle *geom_ret);
+extern Bool osx_grab_desktop_image(Screen *, Window, Drawable, XRectangle *geom_ret);
+extern Bool osx_load_image_file(Screen *, Window, Drawable, const char *filename, XRectangle *geom_ret);
 #endif /* HAVE_JWXYZ */
 
 #ifdef HAVE_IPHONE
-extern void ios_load_random_image (void (*callback) (void *uiimage,
-                                                     const char *filename,
-                                                     int w, int h,
-                                                     void *closure),
-                                   void *closure,
-                                   int width, int height);
+extern void ios_load_random_image(void (*callback)(void *uiimage,
+                                    const char *filename,
+                                    int w,
+                                    int h,
+                                    void *closure),
+  void *closure,
+  int width,
+  int height);
 #endif /* HAVE_IPHONE */
 
 #ifdef HAVE_ANDROID
-char *jwxyz_draw_random_image (Display *dpy, Drawable drawable, GC gc);
+char *jwxyz_draw_random_image(Display *dpy, Drawable drawable, GC gc);
 #endif
 
 #endif /* __GRABCLIENT_H__ */

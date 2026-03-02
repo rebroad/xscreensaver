@@ -5,7 +5,7 @@
  * the above copyright notice appear in all copies and that both that
  * copyright notice and this permission notice appear in supporting
  * documentation.  No representations are made about the suitability of this
- * software for any purpose.  It is provided "as is" without express or 
+ * software for any purpose.  It is provided "as is" without express or
  * implied warranty.
  *
  * Compute normal vectors for arbitrary triangles.
@@ -14,19 +14,18 @@
 #ifndef __NORMALS_H__
 #define __NORMALS_H__
 
-typedef struct {
-  double x,y,z;
+typedef struct
+{
+    double x, y, z;
 } XYZ;
 
 /* Calculate the unit normal at p given two other points p1,p2 on the
    surface. The normal points in the direction of p1 crossproduct p2
  */
-extern XYZ calc_normal (XYZ p, XYZ p1, XYZ p2);
+extern XYZ calc_normal(XYZ p, XYZ p1, XYZ p2);
 
 /* Call glNormal3f() with a normal of the indicated triangle.
  */
-extern void do_normal (GLfloat x1, GLfloat y1, GLfloat z1,
-                       GLfloat x2, GLfloat y2, GLfloat z2,
-                       GLfloat x3, GLfloat y3, GLfloat z3);
+extern void do_normal(GLfloat x1, GLfloat y1, GLfloat z1, GLfloat x2, GLfloat y2, GLfloat z2, GLfloat x3, GLfloat y3, GLfloat z3);
 
 #endif /* __NORMALS_H__ */

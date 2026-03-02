@@ -5,7 +5,7 @@
  * the above copyright notice appear in all copies and that both that
  * copyright notice and this permission notice appear in supporting
  * documentation.  No representations are made about the suitability of this
- * software for any purpose.  It is provided "as is" without express or 
+ * software for any purpose.  It is provided "as is" without express or
  * implied warranty.
  */
 
@@ -15,7 +15,7 @@
 /* Binds to Wayland locking protocols and returns an opaque state object
    on success.
  */
-extern wayland_lock *wayland_lock_init (wayland_dpy *);
+extern wayland_lock *wayland_lock_init(wayland_dpy *);
 
 /* Locks the screen.  Returns true on success.
 
@@ -25,17 +25,18 @@ extern wayland_lock *wayland_lock_init (wayland_dpy *);
    The 'unlocked' callback is run if the server forcibly unlocks us.
  */
 extern Bool
-wayland_lock_screen (wayland_lock *,
-                     Window (*get_window_cb) (const char *name, void *closure),
-                     void (*reshape_cb) (const char *name,
-                                         unsigned int w, unsigned int h,
-                                         void *closure),
-                     void (*unlocked_cb) (void *closure),
-                     void *closure);
+  wayland_lock_screen(wayland_lock *,
+    Window (*get_window_cb)(const char *name, void *closure),
+    void (*reshape_cb)(const char *name,
+      unsigned int w,
+      unsigned int h,
+      void *closure),
+    void (*unlocked_cb)(void *closure),
+    void *closure);
 
-extern void wayland_unlock_screen (wayland_lock *);
+extern void wayland_unlock_screen(wayland_lock *);
 
 /* Shut it all down. If the screen is locked it may remain locked. */
-extern void wayland_lock_free (wayland_lock *);
+extern void wayland_lock_free(wayland_lock *);
 
 #endif /* __XSCREENSAVER_WAYLAND_LOCK_H__ */

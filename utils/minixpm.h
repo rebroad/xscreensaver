@@ -5,7 +5,7 @@
  * the above copyright notice appear in all copies and that both that
  * copyright notice and this permission notice appear in supporting
  * documentation.  No representations are made about the suitability of this
- * software for any purpose.  It is provided "as is" without express or 
+ * software for any purpose.  It is provided "as is" without express or
  * implied warranty.
  */
 
@@ -17,13 +17,6 @@
    Only handles single-byte color XPMs.
  */
 
-extern XImage * minixpm_to_ximage (Display *, Visual *, Colormap, int depth,
-                                   unsigned long transparent_color,
-                                   const char * const * data,
-                                   unsigned int *width_ret,
-                                   unsigned int *height_ret,
-                                   unsigned long **pixels_ret, 
-                                   int *npixels_ret,
-                                   unsigned char **mask_ret);
+extern XImage *minixpm_to_ximage(Display *, Visual *, Colormap, int depth, unsigned long transparent_color, const char *const *data, unsigned int *width_ret, unsigned int *height_ret, unsigned long **pixels_ret, int *npixels_ret, unsigned char **mask_ret);
 
 #endif /* __MINIXPM_H__ */

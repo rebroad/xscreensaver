@@ -5,7 +5,7 @@
  * the above copyright notice appear in all copies and that both that
  * copyright notice and this permission notice appear in supporting
  * documentation.  No representations are made about the suitability of this
- * software for any purpose.  It is provided "as is" without express or 
+ * software for any purpose.  It is provided "as is" without express or
  * implied warranty.
  *
  * xlockmore.c has references to erase_window, but it never calls these when
@@ -25,14 +25,17 @@
 #include "utils.h"
 #include "erase.h"
 
-void
-eraser_free (eraser_state *st)
+void eraser_free(
+  eraser_state *st)
 {
 }
 
 
 eraser_state *
-erase_window (Display *dpy, Window window, eraser_state *st)
+  erase_window(
+    Display *dpy,
+    Window window,
+    eraser_state *st)
 {
   return st;
 }

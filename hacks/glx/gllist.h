@@ -5,7 +5,7 @@
  * the above copyright notice appear in all copies and that both that
  * copyright notice and this permission notice appear in supporting
  * documentation.  No representations are made about the suitability of this
- * software for any purpose.  It is provided "as is" without express or 
+ * software for any purpose.  It is provided "as is" without express or
  * implied warranty.
  */
 
@@ -14,16 +14,16 @@
 
 #include "xlockmoreI.h"
 
-struct gllist 
+struct gllist
 {
-  GLenum format;
-  GLenum primitive;
-  int points;
-  const void *data;
-  struct gllist *next;
+    GLenum format;
+    GLenum primitive;
+    int points;
+    const void *data;
+    struct gllist *next;
 };
 
-void renderList (const struct gllist *, int wire_p);
-void renderListNormals (const struct gllist *, GLfloat length, int facesp);
+void renderList(const struct gllist *, int wire_p);
+void renderListNormals(const struct gllist *, GLfloat length, int facesp);
 
 #endif /* __GLLIST_H__ */

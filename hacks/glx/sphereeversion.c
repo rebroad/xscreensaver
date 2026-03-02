@@ -65,15 +65,15 @@ static const char sccsid[] = "@(#)sphereeversion.c  1.1 20/03/22 xlockmore";
 
 
 #ifdef STANDALONE
-# define DEFAULTS           "*delay:      10000 \n" \
+#define DEFAULTS           "*delay:      10000 \n" \
                             "*showFPS:    False \n" \
-                            "*prefersGLSL: True \n" \
+                            "*prefersGLSL: True \n"
 
-# define release_sphereeversion 0
-# include "xlockmore.h"         /* from the xscreensaver distribution */
-#else  /* !STANDALONE */
-# include "xlock.h"             /* from the xlockmore distribution */
-#endif /* !STANDALONE */
+#define release_sphereeversion 0
+#include "xlockmore.h" /* from the xscreensaver distribution */
+#else                  /* !STANDALONE */
+#include "xlock.h"     /* from the xlockmore distribution */
+#endif                 /* !STANDALONE */
 
 #ifdef USE_GL
 
@@ -95,11 +95,8 @@ static const char sccsid[] = "@(#)sphereeversion.c  1.1 20/03/22 xlockmore";
 
 
 #ifdef USE_MODULES
-ModStruct sphereeversion_description =
-{"sphereeversion", "init_sphereeversion", "draw_sphereeversion",
- NULL, "draw_sphereeversion", "change_sphereeversion",
- "free_sphereeversion", &sphereeversion_opts, 25000, 1, 1, 1, 1.0, 4, "",
- "Show a sphere eversion", 0, NULL};
+ModStruct sphereeversion_description=
+  {"sphereeversion", "init_sphereeversion", "draw_sphereeversion", NULL, "draw_sphereeversion", "change_sphereeversion", "free_sphereeversion", &sphereeversion_opts, 25000, 1, 1, 1, 1.0, 4, "", "Show a sphere eversion", 0, NULL};
 
 #endif
 
@@ -119,62 +116,62 @@ char *lunes;
 char *hemispheres;
 
 
-static XrmOptionDescRec opts[] =
-{
-  {"-eversion-method",     ".eversionMethod", XrmoptionSepArg, 0 },
-  {"-analytic",            ".eversionMethod", XrmoptionNoArg,  "analytic" },
-  {"-corrugations",        ".eversionMethod", XrmoptionNoArg,  "corrugations" },
-  {"-mode",                ".displayMode",    XrmoptionSepArg, 0 },
-  {"-surface",             ".displayMode",    XrmoptionNoArg,  "surface" },
-  {"-transparent",         ".displayMode",    XrmoptionNoArg,  "transparent" },
-  {"-appearance",          ".appearance",     XrmoptionSepArg, 0 },
-  {"-solid",               ".appearance",     XrmoptionNoArg,  "solid" },
-  {"-parallel-bands",      ".appearance",     XrmoptionNoArg,  "parallel-bands" },
-  {"-meridian-bands",      ".appearance",     XrmoptionNoArg,  "meridian-bands" },
-  {"-colors",              ".colors",         XrmoptionSepArg, 0 },
-  {"-twosided-colors",     ".colors",         XrmoptionNoArg,  "two-sided" },
-  {"-parallel-colors",     ".colors",         XrmoptionNoArg,  "parallel" },
-  {"-meridian-colors",     ".colors",         XrmoptionNoArg,  "meridian" },
-  {"-earth-colors"   ,     ".colors",         XrmoptionNoArg,  "earth" },
-  {"-projection",          ".projection",     XrmoptionSepArg, 0 },
-  {"-perspective",         ".projection",     XrmoptionNoArg,  "perspective" },
-  {"-orthographic",        ".projection",     XrmoptionNoArg,  "orthographic" },
-  {"-graticule",           ".graticule",      XrmoptionSepArg, 0 },
-  {"-speed-x",             ".speedx",         XrmoptionSepArg, 0 },
-  {"-speed-y",             ".speedy",         XrmoptionSepArg, 0 },
-  {"-speed-z",             ".speedz",         XrmoptionSepArg, 0 },
-  {"-deformation-speed",   ".deformSpeed",    XrmoptionSepArg, 0 },
-  {"-surface-order",       ".surfaceOrder",   XrmoptionSepArg, 0 },
-  {"-lunes-1",             ".lunes",          XrmoptionNoArg,  "lunes-1" },
-  {"-lunes-2",             ".lunes",          XrmoptionNoArg,  "lunes-2" },
-  {"-lunes-4",             ".lunes",          XrmoptionNoArg,  "lunes-4" },
-  {"-lunes-8",             ".lunes",          XrmoptionNoArg,  "lunes-8" },
-  {"-hemispheres-1",       ".hemispheres",    XrmoptionNoArg,  "hemispheres-1" },
-  {"-hemispheres-2",       ".hemispheres",    XrmoptionNoArg,  "hemispheres-2" },
+static XrmOptionDescRec opts []=
+  {
+    {"-eversion-method", ".eversionMethod", XrmoptionSepArg, 0},
+    {"-analytic", ".eversionMethod", XrmoptionNoArg, "analytic"},
+    {"-corrugations", ".eversionMethod", XrmoptionNoArg, "corrugations"},
+    {"-mode", ".displayMode", XrmoptionSepArg, 0},
+    {"-surface", ".displayMode", XrmoptionNoArg, "surface"},
+    {"-transparent", ".displayMode", XrmoptionNoArg, "transparent"},
+    {"-appearance", ".appearance", XrmoptionSepArg, 0},
+    {"-solid", ".appearance", XrmoptionNoArg, "solid"},
+    {"-parallel-bands", ".appearance", XrmoptionNoArg, "parallel-bands"},
+    {"-meridian-bands", ".appearance", XrmoptionNoArg, "meridian-bands"},
+    {"-colors", ".colors", XrmoptionSepArg, 0},
+    {"-twosided-colors", ".colors", XrmoptionNoArg, "two-sided"},
+    {"-parallel-colors", ".colors", XrmoptionNoArg, "parallel"},
+    {"-meridian-colors", ".colors", XrmoptionNoArg, "meridian"},
+    {"-earth-colors", ".colors", XrmoptionNoArg, "earth"},
+    {"-projection", ".projection", XrmoptionSepArg, 0},
+    {"-perspective", ".projection", XrmoptionNoArg, "perspective"},
+    {"-orthographic", ".projection", XrmoptionNoArg, "orthographic"},
+    {"-graticule", ".graticule", XrmoptionSepArg, 0},
+    {"-speed-x", ".speedx", XrmoptionSepArg, 0},
+    {"-speed-y", ".speedy", XrmoptionSepArg, 0},
+    {"-speed-z", ".speedz", XrmoptionSepArg, 0},
+    {"-deformation-speed", ".deformSpeed", XrmoptionSepArg, 0},
+    {"-surface-order", ".surfaceOrder", XrmoptionSepArg, 0},
+    {"-lunes-1", ".lunes", XrmoptionNoArg, "lunes-1"},
+    {"-lunes-2", ".lunes", XrmoptionNoArg, "lunes-2"},
+    {"-lunes-4", ".lunes", XrmoptionNoArg, "lunes-4"},
+    {"-lunes-8", ".lunes", XrmoptionNoArg, "lunes-8"},
+    {"-hemispheres-1", ".hemispheres", XrmoptionNoArg, "hemispheres-1"},
+    {"-hemispheres-2", ".hemispheres", XrmoptionNoArg, "hemispheres-2"},
 };
 
-static argtype vars[] =
-{
-  { &eversion_method, "eversionMethod", "EversionMethod", DEF_EVERSION_METHOD, t_String },
-  { &mode,            "displayMode",    "DisplayMode",    DEF_DISPLAY_MODE,    t_String },
-  { &appear,          "appearance",     "Appearance",     DEF_APPEARANCE,      t_String },
-  { &color_mode,      "colors",         "Colors",         DEF_COLORS,          t_String },
-  { &proj,            "projection",     "Projection",     DEF_PROJECTION,      t_String },
-  { &graticule,       "graticule",      "Graticule",      DEF_GRATICULE,       t_String },
-  { &speed_x,         "speedx",         "Speedx",         DEF_SPEEDX,          t_Float},
-  { &speed_y,         "speedy",         "Speedy",         DEF_SPEEDY,          t_Float},
-  { &speed_z,         "speedz",         "Speedz",         DEF_SPEEDZ,          t_Float},
-  { &deform_speed,    "deformSpeed",    "DeformSpeed",    DEF_DEFORM_SPEED,    t_Float},
-  { &surface_order,   "surfaceOrder",   "SurfaceOrder",   DEF_SURFACE_ORDER,   t_String },
-  { &lunes,           "lunes",          "Lunes",          DEF_LUNES,           t_String },
-  { &hemispheres,     "hemispheres",    "Hemispheres",    DEF_HEMISPHERES,     t_String },
+static argtype vars []=
+  {
+    {&eversion_method, "eversionMethod", "EversionMethod", DEF_EVERSION_METHOD, t_String},
+    {&mode, "displayMode", "DisplayMode", DEF_DISPLAY_MODE, t_String},
+    {&appear, "appearance", "Appearance", DEF_APPEARANCE, t_String},
+    {&color_mode, "colors", "Colors", DEF_COLORS, t_String},
+    {&proj, "projection", "Projection", DEF_PROJECTION, t_String},
+    {&graticule, "graticule", "Graticule", DEF_GRATICULE, t_String},
+    {&speed_x, "speedx", "Speedx", DEF_SPEEDX, t_Float},
+    {&speed_y, "speedy", "Speedy", DEF_SPEEDY, t_Float},
+    {&speed_z, "speedz", "Speedz", DEF_SPEEDZ, t_Float},
+    {&deform_speed, "deformSpeed", "DeformSpeed", DEF_DEFORM_SPEED, t_Float},
+    {&surface_order, "surfaceOrder", "SurfaceOrder", DEF_SURFACE_ORDER, t_String},
+    {&lunes, "lunes", "Lunes", DEF_LUNES, t_String},
+    {&hemispheres, "hemispheres", "Hemispheres", DEF_HEMISPHERES, t_String},
 };
 
-ENTRYPOINT ModeSpecOpt sphereeversion_opts =
-{sizeof opts / sizeof opts[0], opts, sizeof vars / sizeof vars[0], vars, NULL};
+ENTRYPOINT ModeSpecOpt sphereeversion_opts=
+  {sizeof opts / sizeof opts [ 0 ], opts, sizeof vars / sizeof vars [ 0 ], vars, NULL};
 
 
-sphereeversionstruct *sphereeversion = (sphereeversionstruct *) NULL;
+sphereeversionstruct *sphereeversion= (sphereeversionstruct *) NULL;
 
 
 /*
@@ -189,7 +186,8 @@ sphereeversionstruct *sphereeversion = (sphereeversionstruct *) NULL;
 #ifdef HAVE_GLSL
 
 /* The polygon vertex shader code. */
-static const GLchar *poly_vertex_shader = "\
+static const GLchar *poly_vertex_shader=
+  "\
 #ifdef GL_ES                                                             \n\
 precision highp float;                                                   \n\
 precision highp int;                                                     \n\
@@ -234,7 +232,8 @@ void main(void)                                                          \n\
 }                                                                        \n";
 
 /* The polygon fragment shader code. */
-static const GLchar *poly_fragment_shader = "\
+static const GLchar *poly_fragment_shader=
+  "\
 #ifdef GL_ES                                                             \n\
 precision highp float;                                                   \n\
 precision highp int;                                                     \n\
@@ -331,7 +330,8 @@ void main(void)                                                          \n\
 }                                                                        \n";
 
 /* The line vertex shader code. */
-static const GLchar *line_vertex_shader = "\
+static const GLchar *line_vertex_shader=
+  "\
 #ifdef GL_ES                                                             \n\
 precision highp float;                                                   \n\
 precision highp int;                                                     \n\
@@ -353,7 +353,8 @@ void main(void)                                                          \n\
 }                                                                        \n";
 
 /* The line fragment shader code. */
-static const GLchar *line_fragment_shader = "\
+static const GLchar *line_fragment_shader=
+  "\
 #ifdef GL_ES                                                             \n\
 precision highp float;                                                   \n\
 precision highp int;                                                     \n\
@@ -375,7 +376,8 @@ void main(void)                                                          \n\
 }                                                                        \n";
 
 /* The blend vertex shader code. */
-static const GLchar *blend_vertex_shader = "\
+static const GLchar *blend_vertex_shader=
+  "\
 #ifdef GL_ES                                                             \n\
 precision highp float;                                                   \n\
 precision highp int;                                                     \n\
@@ -399,7 +401,8 @@ void main(void)                                                          \n\
 }                                                                        \n";
 
 /* The blend fragment shader code. */
-static const GLchar *blend_fragment_shader = "\
+static const GLchar *blend_fragment_shader=
+  "\
 #ifdef GL_ES                                                             \n\
 precision highp float;                                                   \n\
 precision highp int;                                                     \n\
@@ -434,574 +437,595 @@ void main(void)                                                          \n\
 
 
 /* Add a rotation around the x-axis to the matrix m. */
-void rotatex(float m[3][3], float phi)
+void rotatex(
+  float m [ 3 ][ 3 ],
+  float phi)
 {
   float c, s, u, v;
   int i;
 
-  phi *= M_PI_F/180.0f;
-  c = cosf(phi);
-  s = sinf(phi);
-  for (i=0; i<3; i++)
-  {
-    u = m[i][1];
-    v = m[i][2];
-    m[i][1] = c*u+s*v;
-    m[i][2] = -s*u+c*v;
-  }
+  phi*= M_PI_F / 180.0f;
+  c= cosf(phi);
+  s= sinf(phi);
+  for (i= 0; i < 3; i++)
+    {
+      u= m [ i ][ 1 ];
+      v= m [ i ][ 2 ];
+      m [ i ][ 1 ]= c * u + s * v;
+      m [ i ][ 2 ]= -s * u + c * v;
+    }
 }
 
 
 /* Add a rotation around the y-axis to the matrix m. */
-void rotatey(float m[3][3], float phi)
+void rotatey(
+  float m [ 3 ][ 3 ],
+  float phi)
 {
   float c, s, u, v;
   int i;
 
-  phi *= M_PI_F/180.0f;
-  c = cosf(phi);
-  s = sinf(phi);
-  for (i=0; i<3; i++)
-  {
-    u = m[i][0];
-    v = m[i][2];
-    m[i][0] = c*u-s*v;
-    m[i][2] = s*u+c*v;
-  }
+  phi*= M_PI_F / 180.0f;
+  c= cosf(phi);
+  s= sinf(phi);
+  for (i= 0; i < 3; i++)
+    {
+      u= m [ i ][ 0 ];
+      v= m [ i ][ 2 ];
+      m [ i ][ 0 ]= c * u - s * v;
+      m [ i ][ 2 ]= s * u + c * v;
+    }
 }
 
 
 /* Add a rotation around the z-axis to the matrix m. */
-void rotatez(float m[3][3], float phi)
+void rotatez(
+  float m [ 3 ][ 3 ],
+  float phi)
 {
   float c, s, u, v;
   int i;
 
-  phi *= M_PI_F/180.0f;
-  c = cosf(phi);
-  s = sinf(phi);
-  for (i=0; i<3; i++)
-  {
-    u = m[i][0];
-    v = m[i][1];
-    m[i][0] = c*u+s*v;
-    m[i][1] = -s*u+c*v;
-  }
+  phi*= M_PI_F / 180.0f;
+  c= cosf(phi);
+  s= sinf(phi);
+  for (i= 0; i < 3; i++)
+    {
+      u= m [ i ][ 0 ];
+      v= m [ i ][ 1 ];
+      m [ i ][ 0 ]= c * u + s * v;
+      m [ i ][ 1 ]= -s * u + c * v;
+    }
 }
 
 
 /* Compute the rotation matrix m from the rotation angles. */
-void rotateall(float al, float be, float de, float m[3][3])
+void rotateall(
+  float al,
+  float be,
+  float de,
+  float m [ 3 ][ 3 ])
 {
   int i, j;
 
-  for (i=0; i<3; i++)
-    for (j=0; j<3; j++)
-      m[i][j] = (i==j);
-  rotatex(m,al);
-  rotatey(m,be);
-  rotatez(m,de);
+  for (i= 0; i < 3; i++)
+    for (j= 0; j < 3; j++)
+      m [ i ][ j ]= (i == j);
+  rotatex(m, al);
+  rotatey(m, be);
+  rotatez(m, de);
 }
 
 
 /* Multiply two rotation matrices: o=m*n. */
-void mult_rotmat(float m[3][3], float n[3][3], float o[3][3])
+void mult_rotmat(
+  float m [ 3 ][ 3 ],
+  float n [ 3 ][ 3 ],
+  float o [ 3 ][ 3 ])
 {
   int i, j, k;
 
-  for (i=0; i<3; i++)
-  {
-    for (j=0; j<3; j++)
+  for (i= 0; i < 3; i++)
     {
-      o[i][j] = 0.0;
-      for (k=0; k<3; k++)
-        o[i][j] += m[i][k]*n[k][j];
+      for (j= 0; j < 3; j++)
+        {
+          o [ i ][ j ]= 0.0;
+          for (k= 0; k < 3; k++)
+            o [ i ][ j ]+= m [ i ][ k ] * n [ k ][ j ];
+        }
     }
-  }
 }
 
 
 /* Compute 3D rotation angles from a unit quaternion. */
-void quat_to_angles(float q[4], float *alpha, float *beta, float *delta)
+void quat_to_angles(
+  float q [ 4 ],
+  float *alpha,
+  float *beta,
+  float *delta)
 {
   float r00, r01, r02, r12, r22;
 
-  r00 = q[0]*q[0]+q[1]*q[1]-q[2]*q[2]-q[3]*q[3];
-  r01 = 2.0f*(q[1]*q[2]-q[0]*q[3]);
-  r02 = 2.0f*(q[1]*q[3]+q[0]*q[2]);
-  r12 = 2.0f*(q[2]*q[3]-q[0]*q[1]);
-  r22 = q[0]*q[0]-q[1]*q[1]-q[2]*q[2]+q[3]*q[3];
+  r00= q [ 0 ] * q [ 0 ] + q [ 1 ] * q [ 1 ] - q [ 2 ] * q [ 2 ] - q [ 3 ] * q [ 3 ];
+  r01= 2.0f * (q [ 1 ] * q [ 2 ] - q [ 0 ] * q [ 3 ]);
+  r02= 2.0f * (q [ 1 ] * q [ 3 ] + q [ 0 ] * q [ 2 ]);
+  r12= 2.0f * (q [ 2 ] * q [ 3 ] - q [ 0 ] * q [ 1 ]);
+  r22= q [ 0 ] * q [ 0 ] - q [ 1 ] * q [ 1 ] - q [ 2 ] * q [ 2 ] + q [ 3 ] * q [ 3 ];
 
-  *alpha = atan2f(-r12,r22)*180.0f/M_PI_F;
-  *beta = atan2f(r02,sqrtf(r00*r00+r01*r01))*180.0f/M_PI_F;
-  *delta = atan2f(-r01,r00)*180.0f/M_PI_F;
+  *alpha= atan2f(-r12, r22) * 180.0f / M_PI_F;
+  *beta= atan2f(r02, sqrtf(r00 * r00 + r01 * r01)) * 180.0f / M_PI_F;
+  *delta= atan2f(-r01, r00) * 180.0f / M_PI_F;
 }
 
 
 /* Compute a quaternion from angles in degrees. */
-void angles_to_quat(float alpha, float beta, float delta, float p[4])
+void angles_to_quat(
+  float alpha,
+  float beta,
+  float delta,
+  float p [ 4 ])
 {
-  alpha *= M_PI_F/180.0f;
-  beta *= M_PI_F/180.0f;
-  delta *= M_PI_F/180.0f;
-  p[0] = (cosf(0.5f*alpha)*cosf(0.5f*beta)*cosf(0.5f*delta)-
-          sinf(0.5f*alpha)*sinf(0.5f*beta)*sinf(0.5f*delta));
-  p[1] = (sinf(0.5f*alpha)*cosf(0.5f*beta)*cosf(0.5f*delta)+
-          cosf(0.5f*alpha)*sinf(0.5f*beta)*sinf(0.5f*delta));
-  p[2] = (cosf(0.5f*alpha)*sinf(0.5f*beta)*cosf(0.5f*delta)-
-          sinf(0.5f*alpha)*cosf(0.5f*beta)*sinf(0.5f*delta));
-  p[3] = (cosf(0.5f*alpha)*cosf(0.5f*beta)*sinf(0.5f*delta)+
-          sinf(0.5f*alpha)*sinf(0.5f*beta)*cosf(0.5f*delta));
+  alpha*= M_PI_F / 180.0f;
+  beta*= M_PI_F / 180.0f;
+  delta*= M_PI_F / 180.0f;
+  p [ 0 ]= (cosf(0.5f * alpha) * cosf(0.5f * beta) * cosf(0.5f * delta) -
+    sinf(0.5f * alpha) * sinf(0.5f * beta) * sinf(0.5f * delta));
+  p [ 1 ]= (sinf(0.5f * alpha) * cosf(0.5f * beta) * cosf(0.5f * delta) +
+    cosf(0.5f * alpha) * sinf(0.5f * beta) * sinf(0.5f * delta));
+  p [ 2 ]= (cosf(0.5f * alpha) * sinf(0.5f * beta) * cosf(0.5f * delta) -
+    sinf(0.5f * alpha) * cosf(0.5f * beta) * sinf(0.5f * delta));
+  p [ 3 ]= (cosf(0.5f * alpha) * cosf(0.5f * beta) * sinf(0.5f * delta) +
+    sinf(0.5f * alpha) * sinf(0.5f * beta) * cosf(0.5f * delta));
 }
 
 
 /* Perform a spherical linear interpolation between two quaternions. */
-void quat_slerp(float t, float qs[4], float qe[4], float q[4])
+void quat_slerp(
+  float t,
+  float qs [ 4 ],
+  float qe [ 4 ],
+  float q [ 4 ])
 {
   double cos_t, sin_t, alpha, beta, theta, phi, l;
 
-  alpha = t;
-  cos_t = qs[0]*qe[0]+qs[1]*qe[1]+qs[2]*qe[2]+qs[3]*qe[3];
-  if (1.0-cos_t < FLT_EPSILON)
-  {
-    beta = 1.0-alpha;
-  }
+  alpha= t;
+  cos_t= qs [ 0 ] * qe [ 0 ] + qs [ 1 ] * qe [ 1 ] + qs [ 2 ] * qe [ 2 ] + qs [ 3 ] * qe [ 3 ];
+  if (1.0 - cos_t < FLT_EPSILON)
+    {
+      beta= 1.0 - alpha;
+    }
   else
-  {
-    theta = acos(cos_t);
-    phi = theta;
-    sin_t = sin(theta);
-    beta = sin(theta-alpha*phi)/sin_t;
-    alpha = sin(alpha*phi)/sin_t;
-  }
-  q[0] = beta*qs[0]+alpha*qe[0];
-  q[1] = beta*qs[1]+alpha*qe[1];
-  q[2] = beta*qs[2]+alpha*qe[2];
-  q[3] = beta*qs[3]+alpha*qe[3];
-  l = 1.0/sqrt(q[0]*q[0]+q[1]*q[1]+q[2]*q[2]+q[3]*q[3]);
-  q[0] *= l;
-  q[1] *= l;
-  q[2] *= l;
-  q[3] *= l;
+    {
+      theta= acos(cos_t);
+      phi= theta;
+      sin_t= sin(theta);
+      beta= sin(theta - alpha * phi) / sin_t;
+      alpha= sin(alpha * phi) / sin_t;
+    }
+  q [ 0 ]= beta * qs [ 0 ] + alpha * qe [ 0 ];
+  q [ 1 ]= beta * qs [ 1 ] + alpha * qe [ 1 ];
+  q [ 2 ]= beta * qs [ 2 ] + alpha * qe [ 2 ];
+  q [ 3 ]= beta * qs [ 3 ] + alpha * qe [ 3 ];
+  l= 1.0 / sqrt(q [ 0 ] * q [ 0 ] + q [ 1 ] * q [ 1 ] + q [ 2 ] * q [ 2 ] + q [ 3 ] * q [ 3 ]);
+  q [ 0 ]*= l;
+  q [ 1 ]*= l;
+  q [ 2 ]*= l;
+  q [ 3 ]*= l;
 }
 
 
 /* Compute a fully saturated and bright color based on an angle and a color
    rotation matrix. */
-void color(sphereeversionstruct *se, float angle, const float mat[3][3],
-           float colf[4], float colb[4])
+void color(
+  sphereeversionstruct *se,
+  float angle,
+  const float mat [ 3 ][ 3 ],
+  float colf [ 4 ],
+  float colb [ 4 ])
 {
   float ca, sa;
   float m;
 
-  ca = cosf(angle);
-  sa = sinf(angle);
+  ca= cosf(angle);
+  sa= sinf(angle);
 
-  colf[0] = ca*mat[0][0]+sa*mat[0][2];
-  colf[1] = ca*mat[1][0]+sa*mat[1][2];
-  colf[2] = ca*mat[2][0]+sa*mat[2][2];
-  m = 0.5f/fmaxf(fmaxf(fabsf(colf[0]),fabsf(colf[1])),fabsf(colf[2]));
-  colf[0] = m*colf[0]+0.5f;
-  colf[1] = m*colf[1]+0.5f;
-  colf[2] = m*colf[2]+0.5f;
-  if (se->display_mode[0] == DISP_TRANSPARENT)
-    colf[3] = 0.7f;
+  colf [ 0 ]= ca * mat [ 0 ][ 0 ] + sa * mat [ 0 ][ 2 ];
+  colf [ 1 ]= ca * mat [ 1 ][ 0 ] + sa * mat [ 1 ][ 2 ];
+  colf [ 2 ]= ca * mat [ 2 ][ 0 ] + sa * mat [ 2 ][ 2 ];
+  m= 0.5f / fmaxf(fmaxf(fabsf(colf [ 0 ]), fabsf(colf [ 1 ])), fabsf(colf [ 2 ]));
+  colf [ 0 ]= m * colf [ 0 ] + 0.5f;
+  colf [ 1 ]= m * colf [ 1 ] + 0.5f;
+  colf [ 2 ]= m * colf [ 2 ] + 0.5f;
+  if (se->display_mode [ 0 ] == DISP_TRANSPARENT)
+    colf [ 3 ]= 0.7f;
   else
-    colf[3] = 1.0f;
+    colf [ 3 ]= 1.0f;
 
-  colb[0] = -ca*mat[0][1]-sa*mat[0][2];
-  colb[1] = -ca*mat[1][1]-sa*mat[1][2];
-  colb[2] = -ca*mat[2][1]-sa*mat[2][2];
-  m = 0.5f/fmaxf(fmaxf(fabsf(colb[0]),fabsf(colb[1])),fabsf(colb[2]));
-  colb[0] = m*colb[0]+0.5f;
-  colb[1] = m*colb[1]+0.5f;
-  colb[2] = m*colb[2]+0.5f;
-  if (se->display_mode[0] == DISP_TRANSPARENT)
-    colb[3] = 0.7f;
+  colb [ 0 ]= -ca * mat [ 0 ][ 1 ] - sa * mat [ 0 ][ 2 ];
+  colb [ 1 ]= -ca * mat [ 1 ][ 1 ] - sa * mat [ 1 ][ 2 ];
+  colb [ 2 ]= -ca * mat [ 2 ][ 1 ] - sa * mat [ 2 ][ 2 ];
+  m= 0.5f / fmaxf(fmaxf(fabsf(colb [ 0 ]), fabsf(colb [ 1 ])), fabsf(colb [ 2 ]));
+  colb [ 0 ]= m * colb [ 0 ] + 0.5f;
+  colb [ 1 ]= m * colb [ 1 ] + 0.5f;
+  colb [ 2 ]= m * colb [ 2 ] + 0.5f;
+  if (se->display_mode [ 0 ] == DISP_TRANSPARENT)
+    colb [ 3 ]= 0.7f;
   else
-    colb[3] = 1.0f;
+    colb [ 3 ]= 1.0f;
 }
 
 
 #ifdef HAVE_GLSL
 
 /* Set up and enable texturing on our object */
-void setup_xpm_texture(ModeInfo *mi, const unsigned char *data,
-                       unsigned long size)
+void setup_xpm_texture(
+  ModeInfo *mi,
+  const unsigned char *data,
+  unsigned long size)
 {
-  sphereeversionstruct *se = &sphereeversion[MI_SCREEN(mi)];
+  sphereeversionstruct *se= &sphereeversion [ MI_SCREEN(mi) ];
   XImage *image;
   char *gl_ext;
   GLboolean have_aniso;
   GLint max_aniso, aniso;
 
-  image = image_data_to_ximage(MI_DISPLAY(mi),MI_VISUAL(mi),data,size);
+  image= image_data_to_ximage(MI_DISPLAY(mi), MI_VISUAL(mi), data, size);
   glEnable(GL_TEXTURE_2D);
-  glPixelStorei(GL_UNPACK_ALIGNMENT,1);
-  glTexImage2D(GL_TEXTURE_2D,0,GL_RGBA,image->width,image->height,0,GL_RGBA,
-               GL_UNSIGNED_BYTE,image->data);
+  glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, image->width, image->height, 0, GL_RGBA, GL_UNSIGNED_BYTE, image->data);
   if (se->use_mipmaps)
     glGenerateMipmap(GL_TEXTURE_2D);
   /* Limit the maximum mipmap level to 4 to avoid texture interpolation
      artifacts at the poles. */
-  glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAX_LEVEL,4);
-  glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_S,GL_REPEAT);
-  glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_T,GL_CLAMP_TO_EDGE);
-  glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 4);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
   if (se->use_mipmaps)
-    glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,
-                    GL_LINEAR_MIPMAP_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
   else
-    glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR);
-  gl_ext = (char *)glGetString(GL_EXTENSIONS);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+  gl_ext= (char *) glGetString(GL_EXTENSIONS);
   if (gl_ext == NULL)
-    have_aniso = GL_FALSE;
+    have_aniso= GL_FALSE;
   else
-    have_aniso = (strstr(gl_ext,"GL_EXT_texture_filter_anisotropic") != NULL ||
-                  strstr(gl_ext,"GL_ARB_texture_filter_anisotropic") != NULL);
+    have_aniso= (strstr(gl_ext, "GL_EXT_texture_filter_anisotropic") != NULL ||
+      strstr(gl_ext, "GL_ARB_texture_filter_anisotropic") != NULL);
   if (have_aniso)
-  {
-    glGetIntegerv(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT,&max_aniso);
-    aniso = MIN(max_aniso,10);
-    glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAX_ANISOTROPY_EXT,aniso);
-  }
+    {
+      glGetIntegerv(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, &max_aniso);
+      aniso= MIN(max_aniso, 10);
+      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, aniso);
+    }
   XDestroyImage(image);
 }
 
 
 /* Generate the textures that show the the earth by day and night. */
-void gen_textures(ModeInfo *mi)
+void gen_textures(
+  ModeInfo *mi)
 {
-  sphereeversionstruct *se = &sphereeversion[MI_SCREEN(mi)];
+  sphereeversionstruct *se= &sphereeversion [ MI_SCREEN(mi) ];
 
-  glGenTextures(3,se->tex_names);
+  glGenTextures(3, se->tex_names);
 
   /* Set up the earth by day texture. */
-  glBindTexture(GL_TEXTURE_2D,se->tex_names[0]);
-  setup_xpm_texture(mi,earth_png,sizeof(earth_png));
+  glBindTexture(GL_TEXTURE_2D, se->tex_names [ 0 ]);
+  setup_xpm_texture(mi, earth_png, sizeof(earth_png));
 
   /* Set up the earth by night texture. */
-  glBindTexture(GL_TEXTURE_2D,se->tex_names[1]);
-  setup_xpm_texture(mi,earth_night_png,sizeof(earth_night_png));
+  glBindTexture(GL_TEXTURE_2D, se->tex_names [ 1 ]);
+  setup_xpm_texture(mi, earth_night_png, sizeof(earth_night_png));
 
   /* Set up the earth water texture. */
-  glBindTexture(GL_TEXTURE_2D,se->tex_names[2]);
-  setup_xpm_texture(mi,earth_water_png,sizeof(earth_water_png));
+  glBindTexture(GL_TEXTURE_2D, se->tex_names [ 2 ]);
+  setup_xpm_texture(mi, earth_water_png, sizeof(earth_water_png));
 
-  glBindTexture(GL_TEXTURE_2D,0);
+  glBindTexture(GL_TEXTURE_2D, 0);
 }
 
 
 /* Delete the framebuffer objects that are used for blending. */
-static void delete_blend_framebuffer_objects(ModeInfo *mi)
+static void delete_blend_framebuffer_objects(
+  ModeInfo *mi)
 {
-  sphereeversionstruct *se = &sphereeversion[MI_SCREEN(mi)];
+  sphereeversionstruct *se= &sphereeversion [ MI_SCREEN(mi) ];
 
   if (se->use_fbo)
-  {
-    glDeleteFramebuffers(2,se->blend_fbo);
-    glDeleteTextures(2,se->blend_depth_tex);
-    glDeleteTextures(2,se->blend_color_tex);
-  }
+    {
+      glDeleteFramebuffers(2, se->blend_fbo);
+      glDeleteTextures(2, se->blend_depth_tex);
+      glDeleteTextures(2, se->blend_color_tex);
+    }
 }
 
 
 /* Initialize the framebuffer objects that are used for blending. */
-static void init_blend_framebuffer_objects(ModeInfo *mi)
+static void init_blend_framebuffer_objects(
+  ModeInfo *mi)
 {
-  sphereeversionstruct *se = &sphereeversion[MI_SCREEN(mi)];
+  sphereeversionstruct *se= &sphereeversion [ MI_SCREEN(mi) ];
   GLenum status;
-  Bool all_fbo_complete = True;
+  Bool all_fbo_complete= True;
   int i;
 
   if (se->use_fbo)
-  {
-    glGenFramebuffers(2,se->blend_fbo);
-    glGenTextures(2,se->blend_depth_tex);
-    glGenTextures(2,se->blend_color_tex);
-
-    for (i=0; i<2; i++)
     {
-      glBindTexture(GL_TEXTURE_2D,se->blend_depth_tex[i]);
-      glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_S,GL_CLAMP_TO_EDGE);
-      glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_T,GL_CLAMP_TO_EDGE);
-      glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_NEAREST);
-      glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_NEAREST);
-      glTexImage2D(GL_TEXTURE_2D,0,GL_DEPTH_COMPONENT24,se->WindW,se->WindH,
-                   0,GL_DEPTH_COMPONENT,GL_UNSIGNED_INT,0);
-      
-      glBindTexture(GL_TEXTURE_2D,se->blend_color_tex[i]);
-      glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_S,GL_CLAMP_TO_EDGE);
-      glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_T,GL_CLAMP_TO_EDGE);
-      glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_NEAREST);
-      glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_NEAREST);
-      glTexImage2D(GL_TEXTURE_2D,0,GL_RGBA8,se->WindW,se->WindH,0,GL_RGBA,
-                   GL_UNSIGNED_BYTE,0);
-      
-      glBindFramebuffer(GL_FRAMEBUFFER,se->blend_fbo[i]);
-      glFramebufferTexture2D(GL_FRAMEBUFFER,GL_DEPTH_ATTACHMENT,
-                             GL_TEXTURE_2D,se->blend_depth_tex[i],0);
-      glFramebufferTexture2D(GL_FRAMEBUFFER,GL_COLOR_ATTACHMENT0,
-                             GL_TEXTURE_2D,se->blend_color_tex[i],0);
-      status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
-      if (status != GL_FRAMEBUFFER_COMPLETE)
-        all_fbo_complete = False;
-    }
+      glGenFramebuffers(2, se->blend_fbo);
+      glGenTextures(2, se->blend_depth_tex);
+      glGenTextures(2, se->blend_color_tex);
 
-    glBindTexture(GL_TEXTURE_2D,0);
-    glBindFramebuffer(GL_DRAW_FRAMEBUFFER,se->default_draw_fbo);
-    glBindFramebuffer(GL_READ_FRAMEBUFFER,se->default_read_fbo);
+      for (i= 0; i < 2; i++)
+        {
+          glBindTexture(GL_TEXTURE_2D, se->blend_depth_tex [ i ]);
+          glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+          glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+          glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+          glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+          glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT24, se->WindW, se->WindH, 0, GL_DEPTH_COMPONENT, GL_UNSIGNED_INT, 0);
 
-    if (!all_fbo_complete)
-    {
-      delete_blend_framebuffer_objects(mi);
-      se->use_fbo = False;
+          glBindTexture(GL_TEXTURE_2D, se->blend_color_tex [ i ]);
+          glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+          glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+          glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+          glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+          glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, se->WindW, se->WindH, 0, GL_RGBA, GL_UNSIGNED_BYTE, 0);
+
+          glBindFramebuffer(GL_FRAMEBUFFER, se->blend_fbo [ i ]);
+          glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, se->blend_depth_tex [ i ], 0);
+          glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, se->blend_color_tex [ i ], 0);
+          status= glCheckFramebufferStatus(GL_FRAMEBUFFER);
+          if (status != GL_FRAMEBUFFER_COMPLETE)
+            all_fbo_complete= False;
+        }
+
+      glBindTexture(GL_TEXTURE_2D, 0);
+      glBindFramebuffer(GL_DRAW_FRAMEBUFFER, se->default_draw_fbo);
+      glBindFramebuffer(GL_READ_FRAMEBUFFER, se->default_read_fbo);
+
+      if (! all_fbo_complete)
+        {
+          delete_blend_framebuffer_objects(mi);
+          se->use_fbo= False;
+        }
     }
-  }
 }
 
 
-void init_glsl(ModeInfo *mi)
+void init_glsl(
+  ModeInfo *mi)
 {
-  sphereeversionstruct *se = &sphereeversion[MI_SCREEN(mi)];
+  sphereeversionstruct *se= &sphereeversion [ MI_SCREEN(mi) ];
   GLint gl_major, gl_minor, glsl_major, glsl_minor;
   GLboolean gl_gles3;
   const char *gl_ext;
   int i, wt, ht;
-  const GLchar *poly_vertex_shader_source[2];
-  const GLchar *poly_fragment_shader_source[2];
-  const GLchar *line_vertex_shader_source[2];
-  const GLchar *line_fragment_shader_source[2];
-  const GLchar *blend_vertex_shader_source[2];
-  const GLchar *blend_fragment_shader_source[2];
+  const GLchar *poly_vertex_shader_source [ 2 ];
+  const GLchar *poly_fragment_shader_source [ 2 ];
+  const GLchar *line_vertex_shader_source [ 2 ];
+  const GLchar *line_fragment_shader_source [ 2 ];
+  const GLchar *blend_vertex_shader_source [ 2 ];
+  const GLchar *blend_fragment_shader_source [ 2 ];
 
   /* Determine whether to use shaders to render the sphere eversion. */
-  se->use_shaders = False;
-  se->use_mipmaps = False;
-  se->buffers_initialized = False;
-  se->use_vao = False;
-  se->use_fbo = False;
-  se->poly_shader_program = 0;
-  se->line_shader_program = 0;
-  se->blend_shader_program = 0;
-  se->max_tex_size = -1;
+  se->use_shaders= False;
+  se->use_mipmaps= False;
+  se->buffers_initialized= False;
+  se->use_vao= False;
+  se->use_fbo= False;
+  se->poly_shader_program= 0;
+  se->line_shader_program= 0;
+  se->blend_shader_program= 0;
+  se->max_tex_size= -1;
 
-  if (!glsl_GetGlAndGlslVersions(&gl_major,&gl_minor,&glsl_major,&glsl_minor,
-                                 &gl_gles3))
+  if (! glsl_GetGlAndGlslVersions(&gl_major, &gl_minor, &glsl_major, &glsl_minor, &gl_gles3))
     return;
 
-  poly_vertex_shader_source[0] = glsl_GetGLSLVersionString();
-  poly_vertex_shader_source[1] = poly_vertex_shader;
-  poly_fragment_shader_source[0] = glsl_GetGLSLVersionString();
-  poly_fragment_shader_source[1] = poly_fragment_shader;
+  poly_vertex_shader_source [ 0 ]= glsl_GetGLSLVersionString();
+  poly_vertex_shader_source [ 1 ]= poly_vertex_shader;
+  poly_fragment_shader_source [ 0 ]= glsl_GetGLSLVersionString();
+  poly_fragment_shader_source [ 1 ]= poly_fragment_shader;
 
-  line_vertex_shader_source[0] = glsl_GetGLSLVersionString();
-  line_vertex_shader_source[1] = line_vertex_shader;
-  line_fragment_shader_source[0] = glsl_GetGLSLVersionString();
-  line_fragment_shader_source[1] = line_fragment_shader;
+  line_vertex_shader_source [ 0 ]= glsl_GetGLSLVersionString();
+  line_vertex_shader_source [ 1 ]= line_vertex_shader;
+  line_fragment_shader_source [ 0 ]= glsl_GetGLSLVersionString();
+  line_fragment_shader_source [ 1 ]= line_fragment_shader;
 
-  blend_vertex_shader_source[0] = glsl_GetGLSLVersionString();
-  blend_vertex_shader_source[1] = blend_vertex_shader;
-  blend_fragment_shader_source[0] = glsl_GetGLSLVersionString();
-  blend_fragment_shader_source[1] = blend_fragment_shader;
+  blend_vertex_shader_source [ 0 ]= glsl_GetGLSLVersionString();
+  blend_vertex_shader_source [ 1 ]= blend_vertex_shader;
+  blend_fragment_shader_source [ 0 ]= glsl_GetGLSLVersionString();
+  blend_fragment_shader_source [ 1 ]= blend_fragment_shader;
 
-  if (!glsl_CompileAndLinkShaders(2,poly_vertex_shader_source,
-                                  2,poly_fragment_shader_source,
-                                  &se->poly_shader_program))
+  if (! glsl_CompileAndLinkShaders(2, poly_vertex_shader_source, 2, poly_fragment_shader_source, &se->poly_shader_program))
     return;
-  se->poly_pos_index = glGetAttribLocation(se->poly_shader_program,
-                                           "VertexPosition");
-  se->poly_normal_index = glGetAttribLocation(se->poly_shader_program,
-                                              "VertexNormal");
-  se->poly_colorf_index = glGetAttribLocation(se->poly_shader_program,
-                                              "VertexColorF");
-  se->poly_colorb_index = glGetAttribLocation(se->poly_shader_program,
-                                              "VertexColorB");
-  se->poly_vertex_tex_index = glGetAttribLocation(se->poly_shader_program,
-                                                  "VertexTexCoord");
-  se->poly_mv_index = glGetUniformLocation(se->poly_shader_program,
-                                           "MatModelView");
-  se->poly_proj_index = glGetUniformLocation(se->poly_shader_program,
-                                             "MatProj");
-  se->poly_glbl_ambient_index = glGetUniformLocation(se->poly_shader_program,
-                                                     "LtGlblAmbient");
-  se->poly_lt_ambient_index = glGetUniformLocation(se->poly_shader_program,
-                                                   "LtAmbient");
-  se->poly_lt_diffuse_index = glGetUniformLocation(se->poly_shader_program,
-                                                   "LtDiffuse");
-  se->poly_lt_specular_index = glGetUniformLocation(se->poly_shader_program,
-                                                    "LtSpecular");
-  se->poly_lt_direction_index = glGetUniformLocation(se->poly_shader_program,
-                                                     "LtDirection");
-  se->poly_lt_halfvect_index = glGetUniformLocation(se->poly_shader_program,
-                                                    "LtHalfVector");
-  se->poly_front_ambient_index = glGetUniformLocation(se->poly_shader_program,
-                                                      "MatFrontAmbient");
-  se->poly_back_ambient_index = glGetUniformLocation(se->poly_shader_program,
-                                                     "MatBackAmbient");
-  se->poly_front_diffuse_index = glGetUniformLocation(se->poly_shader_program,
-                                                      "MatFrontDiffuse");
-  se->poly_back_diffuse_index = glGetUniformLocation(se->poly_shader_program,
-                                                     "MatBackDiffuse");
-  se->poly_specular_index = glGetUniformLocation(se->poly_shader_program,
-                                                 "MatSpecular");
-  se->poly_shininess_index = glGetUniformLocation(se->poly_shader_program,
-                                                  "MatShininess");
-  se->poly_bool_textures_index = glGetUniformLocation(se->poly_shader_program,
-                                                      "BoolTextures");
-  se->poly_tex_samp_f_index = glGetUniformLocation(se->poly_shader_program,
-                                                   "TextureSamplerFront");
-  se->poly_tex_samp_b_index = glGetUniformLocation(se->poly_shader_program,
-                                                   "TextureSamplerBack");
-  se->poly_tex_samp_w_index = glGetUniformLocation(se->poly_shader_program,
-                                                   "TextureSamplerWater");
+  se->poly_pos_index= glGetAttribLocation(se->poly_shader_program,
+    "VertexPosition");
+  se->poly_normal_index= glGetAttribLocation(se->poly_shader_program,
+    "VertexNormal");
+  se->poly_colorf_index= glGetAttribLocation(se->poly_shader_program,
+    "VertexColorF");
+  se->poly_colorb_index= glGetAttribLocation(se->poly_shader_program,
+    "VertexColorB");
+  se->poly_vertex_tex_index= glGetAttribLocation(se->poly_shader_program,
+    "VertexTexCoord");
+  se->poly_mv_index= glGetUniformLocation(se->poly_shader_program,
+    "MatModelView");
+  se->poly_proj_index= glGetUniformLocation(se->poly_shader_program,
+    "MatProj");
+  se->poly_glbl_ambient_index= glGetUniformLocation(se->poly_shader_program,
+    "LtGlblAmbient");
+  se->poly_lt_ambient_index= glGetUniformLocation(se->poly_shader_program,
+    "LtAmbient");
+  se->poly_lt_diffuse_index= glGetUniformLocation(se->poly_shader_program,
+    "LtDiffuse");
+  se->poly_lt_specular_index= glGetUniformLocation(se->poly_shader_program,
+    "LtSpecular");
+  se->poly_lt_direction_index= glGetUniformLocation(se->poly_shader_program,
+    "LtDirection");
+  se->poly_lt_halfvect_index= glGetUniformLocation(se->poly_shader_program,
+    "LtHalfVector");
+  se->poly_front_ambient_index= glGetUniformLocation(se->poly_shader_program,
+    "MatFrontAmbient");
+  se->poly_back_ambient_index= glGetUniformLocation(se->poly_shader_program,
+    "MatBackAmbient");
+  se->poly_front_diffuse_index= glGetUniformLocation(se->poly_shader_program,
+    "MatFrontDiffuse");
+  se->poly_back_diffuse_index= glGetUniformLocation(se->poly_shader_program,
+    "MatBackDiffuse");
+  se->poly_specular_index= glGetUniformLocation(se->poly_shader_program,
+    "MatSpecular");
+  se->poly_shininess_index= glGetUniformLocation(se->poly_shader_program,
+    "MatShininess");
+  se->poly_bool_textures_index= glGetUniformLocation(se->poly_shader_program,
+    "BoolTextures");
+  se->poly_tex_samp_f_index= glGetUniformLocation(se->poly_shader_program,
+    "TextureSamplerFront");
+  se->poly_tex_samp_b_index= glGetUniformLocation(se->poly_shader_program,
+    "TextureSamplerBack");
+  se->poly_tex_samp_w_index= glGetUniformLocation(se->poly_shader_program,
+    "TextureSamplerWater");
   if (se->poly_pos_index == -1 ||
-      se->poly_normal_index == -1 ||
-      se->poly_colorf_index == -1 ||
-      se->poly_colorb_index == -1 ||
-      se->poly_vertex_tex_index == -1 ||
-      se->poly_mv_index == -1 ||
-      se->poly_proj_index == -1 ||
-      se->poly_glbl_ambient_index == -1 ||
-      se->poly_lt_ambient_index == -1 ||
-      se->poly_lt_diffuse_index == -1 ||
-      se->poly_lt_specular_index == -1 ||
-      se->poly_lt_direction_index == -1 ||
-      se->poly_lt_halfvect_index == -1 ||
-      se->poly_front_ambient_index == -1 ||
-      se->poly_back_ambient_index == -1 ||
-      se->poly_front_diffuse_index == -1 ||
-      se->poly_back_diffuse_index == -1 ||
-      se->poly_specular_index == -1 ||
-      se->poly_shininess_index == -1 ||
-      se->poly_bool_textures_index == -1 ||
-      se->poly_tex_samp_f_index == -1 ||
-      se->poly_tex_samp_b_index == -1 ||
-      se->poly_tex_samp_w_index == -1)
-  {
-    glDeleteProgram(se->poly_shader_program);
-    return;
-  }
-
-  if (!glsl_CompileAndLinkShaders(2,line_vertex_shader_source,
-                                  2,line_fragment_shader_source,
-                                  &se->line_shader_program))
-  {
-    glDeleteProgram(se->poly_shader_program);
-    return;
-  }
-  se->line_pos_index = glGetAttribLocation(se->line_shader_program,
-                                           "VertexPosition");
-  se->line_color_index = glGetUniformLocation(se->line_shader_program,
-                                              "LineColor");
-  se->line_mv_index = glGetUniformLocation(se->line_shader_program,
-                                           "MatModelView");
-  se->line_proj_index = glGetUniformLocation(se->line_shader_program,
-                                             "MatProj");
-  if (se->line_pos_index == -1 ||
-      se->line_color_index == -1 ||
-      se->line_mv_index == -1 ||
-      se->line_proj_index == -1)
-  {
-    glDeleteProgram(se->poly_shader_program);
-    glDeleteProgram(se->line_shader_program);
-    return;
-  }
-
-  if (!glsl_CompileAndLinkShaders(2,blend_vertex_shader_source,
-                                  2,blend_fragment_shader_source,
-                                  &se->blend_shader_program))
-  {
-    glDeleteProgram(se->poly_shader_program);
-    glDeleteProgram(se->line_shader_program);
-    return;
-  }
-  se->blend_vertex_p_index = glGetAttribLocation(se->blend_shader_program,
-                                                 "VertexP");
-  se->blend_vertex_t_index = glGetAttribLocation(se->blend_shader_program,
-                                                 "VertexT");
-  se->blend_t_index = glGetUniformLocation(se->blend_shader_program,
-                                           "T");
-  se->blend_sampler0_index = glGetUniformLocation(se->blend_shader_program,
-                                                  "TextureSampler0");
-  se->blend_sampler1_index = glGetUniformLocation(se->blend_shader_program,
-                                                  "TextureSampler1");
-  if (se->blend_vertex_p_index == -1 ||
-      se->blend_vertex_t_index == -1 ||
-      se->blend_t_index == -1 ||
-      se->blend_sampler0_index == -1 ||
-      se->blend_sampler1_index == -1)
-  {
-    glDeleteProgram(se->poly_shader_program);
-    glDeleteProgram(se->line_shader_program);
-    glDeleteProgram(se->blend_shader_program);
-    return;
-  }
-
-  glGetIntegerv(GL_MAX_TEXTURE_SIZE,&se->max_tex_size);
-  if (se->WindW <= se->max_tex_size && se->WindH <= se->max_tex_size)
-  {
-    wt = se->WindW;
-    ht = se->WindH;
-  }
-  else
-  {
-    wt = MIN(se->max_tex_size,se->WindW);
-    ht = MIN(se->max_tex_size,se->WindH);
-  }
-
-  glGenTextures(2,se->color_textures);
-  for (i=0; i<2; i++)
-  {
-    glBindTexture(GL_TEXTURE_2D,se->color_textures[i]);
-    glTexImage2D(GL_TEXTURE_2D,0,GL_RGBA8,wt,ht,0,GL_RGBA,GL_UNSIGNED_BYTE,
-                 NULL);
-    glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_S,GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_T,GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR);
-  }
-
-  glGenBuffers(1,&se->vertex_pos_buffer);
-  glGenBuffers(1,&se->vertex_normal_buffer);
-  glGenBuffers(2,se->vertex_colorf_buffer);
-  glGenBuffers(2,se->vertex_colorb_buffer);
-  glGenBuffers(1,&se->vertex_tex_coord_buffer);
-  glGenBuffers(1,&se->solid_indices_buffer);
-  glGenBuffers(1,&se->parallel_indices_buffer);
-  glGenBuffers(1,&se->meridian_indices_buffer);
-  glGenBuffers(1,&se->line_indices_buffer);
-  glGenBuffers(1,&se->blend_pos_buffer);
-  glGenBuffers(1,&se->blend_tex_coord_buffer);
-  glGenBuffers(1,&se->blend_indices_buffer);
-
-  se->use_vao = glsl_IsCoreProfile();
-  if (se->use_vao)
-    glGenVertexArrays(1,&se->vertex_array_object);
-
-  glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING,(GLint *)&se->default_draw_fbo);
-  glGetIntegerv(GL_READ_FRAMEBUFFER_BINDING,(GLint *)&se->default_read_fbo);
-
-  if (!gl_gles3 && gl_major < 3)
-  {
-    /* On OpenGL 2.1 systems, we need the GL_ARB_framebuffer_object
-       extension for the more efficient blending mode. */
-    gl_ext = (const char *)glGetString(GL_EXTENSIONS);
-    if (gl_ext != NULL)
+    se->poly_normal_index == -1 ||
+    se->poly_colorf_index == -1 ||
+    se->poly_colorb_index == -1 ||
+    se->poly_vertex_tex_index == -1 ||
+    se->poly_mv_index == -1 ||
+    se->poly_proj_index == -1 ||
+    se->poly_glbl_ambient_index == -1 ||
+    se->poly_lt_ambient_index == -1 ||
+    se->poly_lt_diffuse_index == -1 ||
+    se->poly_lt_specular_index == -1 ||
+    se->poly_lt_direction_index == -1 ||
+    se->poly_lt_halfvect_index == -1 ||
+    se->poly_front_ambient_index == -1 ||
+    se->poly_back_ambient_index == -1 ||
+    se->poly_front_diffuse_index == -1 ||
+    se->poly_back_diffuse_index == -1 ||
+    se->poly_specular_index == -1 ||
+    se->poly_shininess_index == -1 ||
+    se->poly_bool_textures_index == -1 ||
+    se->poly_tex_samp_f_index == -1 ||
+    se->poly_tex_samp_b_index == -1 ||
+    se->poly_tex_samp_w_index == -1)
     {
-      if (strstr(gl_ext,"GL_ARB_framebuffer_object") != NULL)
-        se->use_fbo = True;
+      glDeleteProgram(se->poly_shader_program);
+      return;
     }
-  }
+
+  if (! glsl_CompileAndLinkShaders(2, line_vertex_shader_source, 2, line_fragment_shader_source, &se->line_shader_program))
+    {
+      glDeleteProgram(se->poly_shader_program);
+      return;
+    }
+  se->line_pos_index= glGetAttribLocation(se->line_shader_program,
+    "VertexPosition");
+  se->line_color_index= glGetUniformLocation(se->line_shader_program,
+    "LineColor");
+  se->line_mv_index= glGetUniformLocation(se->line_shader_program,
+    "MatModelView");
+  se->line_proj_index= glGetUniformLocation(se->line_shader_program,
+    "MatProj");
+  if (se->line_pos_index == -1 ||
+    se->line_color_index == -1 ||
+    se->line_mv_index == -1 ||
+    se->line_proj_index == -1)
+    {
+      glDeleteProgram(se->poly_shader_program);
+      glDeleteProgram(se->line_shader_program);
+      return;
+    }
+
+  if (! glsl_CompileAndLinkShaders(2, blend_vertex_shader_source, 2, blend_fragment_shader_source, &se->blend_shader_program))
+    {
+      glDeleteProgram(se->poly_shader_program);
+      glDeleteProgram(se->line_shader_program);
+      return;
+    }
+  se->blend_vertex_p_index= glGetAttribLocation(se->blend_shader_program,
+    "VertexP");
+  se->blend_vertex_t_index= glGetAttribLocation(se->blend_shader_program,
+    "VertexT");
+  se->blend_t_index= glGetUniformLocation(se->blend_shader_program,
+    "T");
+  se->blend_sampler0_index= glGetUniformLocation(se->blend_shader_program,
+    "TextureSampler0");
+  se->blend_sampler1_index= glGetUniformLocation(se->blend_shader_program,
+    "TextureSampler1");
+  if (se->blend_vertex_p_index == -1 ||
+    se->blend_vertex_t_index == -1 ||
+    se->blend_t_index == -1 ||
+    se->blend_sampler0_index == -1 ||
+    se->blend_sampler1_index == -1)
+    {
+      glDeleteProgram(se->poly_shader_program);
+      glDeleteProgram(se->line_shader_program);
+      glDeleteProgram(se->blend_shader_program);
+      return;
+    }
+
+  glGetIntegerv(GL_MAX_TEXTURE_SIZE, &se->max_tex_size);
+  if (se->WindW <= se->max_tex_size && se->WindH <= se->max_tex_size)
+    {
+      wt= se->WindW;
+      ht= se->WindH;
+    }
   else
-  {
-    se->use_fbo = True;
-  }
+    {
+      wt= MIN(se->max_tex_size, se->WindW);
+      ht= MIN(se->max_tex_size, se->WindH);
+    }
+
+  glGenTextures(2, se->color_textures);
+  for (i= 0; i < 2; i++)
+    {
+      glBindTexture(GL_TEXTURE_2D, se->color_textures [ i ]);
+      glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, wt, ht, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    }
+
+  glGenBuffers(1, &se->vertex_pos_buffer);
+  glGenBuffers(1, &se->vertex_normal_buffer);
+  glGenBuffers(2, se->vertex_colorf_buffer);
+  glGenBuffers(2, se->vertex_colorb_buffer);
+  glGenBuffers(1, &se->vertex_tex_coord_buffer);
+  glGenBuffers(1, &se->solid_indices_buffer);
+  glGenBuffers(1, &se->parallel_indices_buffer);
+  glGenBuffers(1, &se->meridian_indices_buffer);
+  glGenBuffers(1, &se->line_indices_buffer);
+  glGenBuffers(1, &se->blend_pos_buffer);
+  glGenBuffers(1, &se->blend_tex_coord_buffer);
+  glGenBuffers(1, &se->blend_indices_buffer);
+
+  se->use_vao= glsl_IsCoreProfile();
+  if (se->use_vao)
+    glGenVertexArrays(1, &se->vertex_array_object);
+
+  glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, (GLint *) &se->default_draw_fbo);
+  glGetIntegerv(GL_READ_FRAMEBUFFER_BINDING, (GLint *) &se->default_read_fbo);
+
+  if (! gl_gles3 && gl_major < 3)
+    {
+      /* On OpenGL 2.1 systems, we need the GL_ARB_framebuffer_object
+         extension for the more efficient blending mode. */
+      gl_ext= (const char *) glGetString(GL_EXTENSIONS);
+      if (gl_ext != NULL)
+        {
+          if (strstr(gl_ext, "GL_ARB_framebuffer_object") != NULL)
+            se->use_fbo= True;
+        }
+    }
+  else
+    {
+      se->use_fbo= True;
+    }
   init_blend_framebuffer_objects(mi);
 
-  se->use_shaders = True;
-  if ((!gl_gles3 && gl_major >= 3) || gl_gles3)
-    se->use_mipmaps = True;
+  se->use_shaders= True;
+  if ((! gl_gles3 && gl_major >= 3) || gl_gles3)
+    se->use_mipmaps= True;
 }
 
 #endif /* HAVE_GLSL */
@@ -1016,43 +1040,46 @@ void init_glsl(ModeInfo *mi)
  */
 
 
-ENTRYPOINT void reshape_sphereeversion(ModeInfo *mi, int width, int height)
+ENTRYPOINT void reshape_sphereeversion(
+  ModeInfo *mi,
+  int width,
+  int height)
 {
-  sphereeversionstruct *se = &sphereeversion[MI_SCREEN(mi)];
-  int y = 0;
+  sphereeversionstruct *se= &sphereeversion [ MI_SCREEN(mi) ];
+  int y= 0;
 #ifdef HAVE_GLSL
   int i, wt, ht;
 #endif /* HAVE_GLSL */
 
-  if (width > height * 5) {   /* tiny window: show middle */
-    height = width;
-    y = -height/2;
-  }
+  if (width > height * 5)
+    { /* tiny window: show middle */
+      height= width;
+      y= -height / 2;
+    }
 
-  se->WindW = (GLint)width;
-  se->WindH = (GLint)height;
-  glViewport(0,y,width,height);
-  se->aspect = (GLfloat)width/(GLfloat)height;
+  se->WindW= (GLint) width;
+  se->WindH= (GLint) height;
+  glViewport(0, y, width, height);
+  se->aspect= (GLfloat) width / (GLfloat) height;
 #ifdef HAVE_GLSL
   if (se->use_shaders)
-  {
-    if (se->WindW <= se->max_tex_size && se->WindH <= se->max_tex_size)
     {
-      wt = se->WindW;
-      ht = se->WindH;
+      if (se->WindW <= se->max_tex_size && se->WindH <= se->max_tex_size)
+        {
+          wt= se->WindW;
+          ht= se->WindH;
+        }
+      else
+        {
+          wt= MIN(se->max_tex_size, se->WindW);
+          ht= MIN(se->max_tex_size, se->WindH);
+        }
+      for (i= 0; i < 2; i++)
+        {
+          glBindTexture(GL_TEXTURE_2D, se->color_textures [ i ]);
+          glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, wt, ht, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+        }
     }
-    else
-    {
-      wt = MIN(se->max_tex_size,se->WindW);
-      ht = MIN(se->max_tex_size,se->WindH);
-    }
-    for (i=0; i<2; i++)
-    {
-      glBindTexture(GL_TEXTURE_2D,se->color_textures[i]);
-      glTexImage2D(GL_TEXTURE_2D,0,GL_RGBA8,wt,ht,0,GL_RGBA,GL_UNSIGNED_BYTE,
-                   NULL);
-    }
-  }
 
   delete_blend_framebuffer_objects(mi);
   init_blend_framebuffer_objects(mi);
@@ -1060,30 +1087,30 @@ ENTRYPOINT void reshape_sphereeversion(ModeInfo *mi, int width, int height)
 }
 
 
-ENTRYPOINT Bool sphereeversion_handle_event(ModeInfo *mi, XEvent *event)
+ENTRYPOINT Bool sphereeversion_handle_event(
+  ModeInfo *mi,
+  XEvent *event)
 {
-  sphereeversionstruct *se = &sphereeversion[MI_SCREEN(mi)];
+  sphereeversionstruct *se= &sphereeversion [ MI_SCREEN(mi) ];
 
   if (event->xany.type == ButtonPress && event->xbutton.button == Button1)
-  {
-    se->button_pressed = True;
-    gltrackball_start(se->trackball,event->xbutton.x,event->xbutton.y,
-                      MI_WIDTH(mi),MI_HEIGHT(mi));
-    return True;
-  }
+    {
+      se->button_pressed= True;
+      gltrackball_start(se->trackball, event->xbutton.x, event->xbutton.y, MI_WIDTH(mi), MI_HEIGHT(mi));
+      return True;
+    }
   else if (event->xany.type == ButtonRelease &&
-           event->xbutton.button == Button1)
-  {
-    se->button_pressed = False;
-    gltrackball_stop(se->trackball);
-    return True;
-  }
+    event->xbutton.button == Button1)
+    {
+      se->button_pressed= False;
+      gltrackball_stop(se->trackball);
+      return True;
+    }
   else if (event->xany.type == MotionNotify && se->button_pressed)
-  {
-    gltrackball_track(se->trackball,event->xmotion.x,event->xmotion.y,
-                      MI_WIDTH(mi),MI_HEIGHT(mi));
-    return True;
-  }
+    {
+      gltrackball_track(se->trackball, event->xmotion.x, event->xmotion.y, MI_WIDTH(mi), MI_HEIGHT(mi));
+      return True;
+    }
 
   return False;
 }
@@ -1095,209 +1122,180 @@ ENTRYPOINT Bool sphereeversion_handle_event(ModeInfo *mi, XEvent *event)
  *-----------------------------------------------------------------------------
  */
 
-ENTRYPOINT void init_sphereeversion(ModeInfo *mi)
+ENTRYPOINT void init_sphereeversion(
+  ModeInfo *mi)
 {
   sphereeversionstruct *se;
 
-  MI_INIT(mi,sphereeversion);
-  se = &sphereeversion[MI_SCREEN(mi)];
+  MI_INIT(mi, sphereeversion);
+  se= &sphereeversion [ MI_SCREEN(mi) ];
 
-  se->trackball = gltrackball_init(False);
-  se->button_pressed = False;
+  se->trackball= gltrackball_init(False);
+  se->button_pressed= False;
 
   /* Set the eversion method. */
-  if (!strcasecmp(eversion_method,"random"))
-  {
-    se->eversion_method = random() % NUM_EVERSIONS;
-  }
-  else if (!strcasecmp(eversion_method,"analytic"))
-  {
-    se->eversion_method = EVERSION_ANALYTIC;
-  }
-  else if (!strcasecmp(eversion_method,"corrugations"))
-  {
-    se->eversion_method = EVERSION_CORRUGATIONS;
-  }
+  if (! strcasecmp(eversion_method, "random"))
+    se->eversion_method= random() % NUM_EVERSIONS;
+  else if (! strcasecmp(eversion_method, "analytic"))
+    se->eversion_method= EVERSION_ANALYTIC;
+  else if (! strcasecmp(eversion_method, "corrugations"))
+    se->eversion_method= EVERSION_CORRUGATIONS;
   else
-  {
-    se->eversion_method = random() % NUM_EVERSIONS;
-  }
+    se->eversion_method= random() % NUM_EVERSIONS;
 
   /* Set the display mode. */
-  if (!strcasecmp(mode,"surface"))
-  {
-    se->display_mode[0] = DISP_SURFACE;
-    se->random_display_mode = False;
-  }
-  else if (!strcasecmp(mode,"transparent"))
-  {
-    se->display_mode[0] = DISP_TRANSPARENT;
-    se->random_display_mode = False;
-  }
+  if (! strcasecmp(mode, "surface"))
+    {
+      se->display_mode [ 0 ]= DISP_SURFACE;
+      se->random_display_mode= False;
+    }
+  else if (! strcasecmp(mode, "transparent"))
+    {
+      se->display_mode [ 0 ]= DISP_TRANSPARENT;
+      se->random_display_mode= False;
+    }
   else
-  {
-    se->display_mode[0] = random() % NUM_DISPLAY_MODES;
-    se->random_display_mode = True;
-  }
+    {
+      se->display_mode [ 0 ]= random() % NUM_DISPLAY_MODES;
+      se->random_display_mode= True;
+    }
 
   /* Set the appearance. */
-  if (!strcasecmp(appear,"solid"))
-  {
-    se->appearance[0] = APPEARANCE_SOLID;
-    se->random_appearance = False;
-  }
-  else if (!strcasecmp(appear,"parallel-bands"))
-  {
-    se->appearance[0] = APPEARANCE_PARALLEL_BANDS;
-    se->random_appearance = False;
-  }
-  else if (!strcasecmp(appear,"meridian-bands"))
-  {
-    se->appearance[0] = APPEARANCE_MERIDIAN_BANDS;
-    se->random_appearance = False;
-  }
+  if (! strcasecmp(appear, "solid"))
+    {
+      se->appearance [ 0 ]= APPEARANCE_SOLID;
+      se->random_appearance= False;
+    }
+  else if (! strcasecmp(appear, "parallel-bands"))
+    {
+      se->appearance [ 0 ]= APPEARANCE_PARALLEL_BANDS;
+      se->random_appearance= False;
+    }
+  else if (! strcasecmp(appear, "meridian-bands"))
+    {
+      se->appearance [ 0 ]= APPEARANCE_MERIDIAN_BANDS;
+      se->random_appearance= False;
+    }
   else
-  {
-    se->appearance[0] = random() % NUM_APPEARANCES;
-    se->random_appearance = True;
-  }
+    {
+      se->appearance [ 0 ]= random() % NUM_APPEARANCES;
+      se->random_appearance= True;
+    }
 
   /* Set the color mode. */
-  if (!strcasecmp(color_mode,"two-sided"))
-  {
-    se->colors[0] = COLORS_TWOSIDED;
-    se->random_colors = False;
-  }
-  else if (!strcasecmp(color_mode,"parallel"))
-  {
-    se->colors[0] = COLORS_PARALLEL;
-    se->random_colors = False;
-  }
-  else if (!strcasecmp(color_mode,"meridian"))
-  {
-    se->colors[0] = COLORS_MERIDIAN;
-    se->random_colors = False;
-  }
-  else if (!strcasecmp(color_mode,"earth"))
-  {
-    se->colors[0] = COLORS_EARTH;
-    se->random_colors = False;
-  }
+  if (! strcasecmp(color_mode, "two-sided"))
+    {
+      se->colors [ 0 ]= COLORS_TWOSIDED;
+      se->random_colors= False;
+    }
+  else if (! strcasecmp(color_mode, "parallel"))
+    {
+      se->colors [ 0 ]= COLORS_PARALLEL;
+      se->random_colors= False;
+    }
+  else if (! strcasecmp(color_mode, "meridian"))
+    {
+      se->colors [ 0 ]= COLORS_MERIDIAN;
+      se->random_colors= False;
+    }
+  else if (! strcasecmp(color_mode, "earth"))
+    {
+      se->colors [ 0 ]= COLORS_EARTH;
+      se->random_colors= False;
+    }
   else
-  {
-    se->colors[0] = random() % NUM_COLORS;
-    se->random_colors = True;
-  }
+    {
+      se->colors [ 0 ]= random() % NUM_COLORS;
+      se->random_colors= True;
+    }
 
   /* Set the 3d projection mode. */
-  if (!strcasecmp(proj,"perspective"))
-  {
-    se->projection = DISP_PERSPECTIVE;
-  }
-  else if (!strcasecmp(proj,"orthographic"))
-  {
-    se->projection = DISP_ORTHOGRAPHIC;
-  }
+  if (! strcasecmp(proj, "perspective"))
+    se->projection= DISP_PERSPECTIVE;
+  else if (! strcasecmp(proj, "orthographic"))
+    se->projection= DISP_ORTHOGRAPHIC;
   else
-  {
-    se->projection = random() % NUM_DISP_MODES;
-  }
+    se->projection= random() % NUM_DISP_MODES;
 
   /* Set the graticule mode. */
-  if (!strcasecmp(graticule,"on"))
-  {
-    se->graticule[0] = True;
-    se->random_graticule = False;
-  }
-  else if (!strcasecmp(graticule,"off"))
-  {
-    se->graticule[0] = False;
-    se->random_graticule = False;
-  }
+  if (! strcasecmp(graticule, "on"))
+    {
+      se->graticule [ 0 ]= True;
+      se->random_graticule= False;
+    }
+  else if (! strcasecmp(graticule, "off"))
+    {
+      se->graticule [ 0 ]= False;
+      se->random_graticule= False;
+    }
   else
-  {
-    se->graticule[0] = random() & 1;
-    se->random_graticule = True;
-  }
+    {
+      se->graticule [ 0 ]= random() & 1;
+      se->random_graticule= True;
+    }
 
   /* Set the surface order. */
-  if (!strcasecmp(surface_order,"2"))
-  {
-    se->g = 2;
-    se->random_g = False;
-  }
-  else if (!strcasecmp(surface_order,"3"))
-  {
-    se->g = 3;
-    se->random_g = False;
-  }
-  else if (!strcasecmp(surface_order,"4"))
-  {
-    se->g = 4;
-    se->random_g = False;
-  }
-  else if (!strcasecmp(surface_order,"5"))
-  {
-    se->g = 5;
-    se->random_g = False;
-  }
+  if (! strcasecmp(surface_order, "2"))
+    {
+      se->g= 2;
+      se->random_g= False;
+    }
+  else if (! strcasecmp(surface_order, "3"))
+    {
+      se->g= 3;
+      se->random_g= False;
+    }
+  else if (! strcasecmp(surface_order, "4"))
+    {
+      se->g= 4;
+      se->random_g= False;
+    }
+  else if (! strcasecmp(surface_order, "5"))
+    {
+      se->g= 5;
+      se->random_g= False;
+    }
   else
-  {
-    se->g = random() % 4 + 2;
-    se->random_g = True;
-  }
+    {
+      se->g= random() % 4 + 2;
+      se->random_g= True;
+    }
 
   /* Set the number of strips. */
-  if (!strcasecmp(lunes,"lunes-1"))
-  {
-    se->strip_step = 8;
-  }
-  else if (!strcasecmp(lunes,"lunes-2"))
-  {
-    se->strip_step = 4;
-  }
-  else if (!strcasecmp(lunes,"lunes-4"))
-  {
-    se->strip_step = 2;
-  }
-  else if (!strcasecmp(lunes,"lunes-8"))
-  {
-    se->strip_step = 1;
-  }
+  if (! strcasecmp(lunes, "lunes-1"))
+    se->strip_step= 8;
+  else if (! strcasecmp(lunes, "lunes-2"))
+    se->strip_step= 4;
+  else if (! strcasecmp(lunes, "lunes-4"))
+    se->strip_step= 2;
+  else if (! strcasecmp(lunes, "lunes-8"))
+    se->strip_step= 1;
   else
-  {
-    se->strip_step = 1;
-  }
+    se->strip_step= 1;
 
   /* Set the number of hemispheres. */
-  if (!strcasecmp(hemispheres,"hemispheres-1"))
-  {
-    se->num_hemispheres = 1;
-  }
-  else if (!strcasecmp(hemispheres,"hemispheres-2"))
-  {
-    se->num_hemispheres = 2;
-  }
+  if (! strcasecmp(hemispheres, "hemispheres-1"))
+    se->num_hemispheres= 1;
+  else if (! strcasecmp(hemispheres, "hemispheres-2"))
+    se->num_hemispheres= 2;
   else
-  {
-    se->num_hemispheres = 2;
-  }
+    se->num_hemispheres= 2;
 
   /* Make multiple screens rotate at slightly different rates. */
-  se->speed_scale = 0.9+frand(0.3);
+  se->speed_scale= 0.9 + frand(0.3);
 
-  if ((se->glx_context = init_GL(mi)) != NULL)
-  {
-    reshape_sphereeversion(mi,MI_WIDTH(mi),MI_HEIGHT(mi));
-    if (se->eversion_method == EVERSION_ANALYTIC)
-      init_sphereeversion_analytic(mi);
-    else /* se->eversion_method == EVERSION_CORRUGATIONS */
-      init_sphereeversion_corrugations(mi);
-  }
+  if ((se->glx_context= init_GL(mi)) != NULL)
+    {
+      reshape_sphereeversion(mi, MI_WIDTH(mi), MI_HEIGHT(mi));
+      if (se->eversion_method == EVERSION_ANALYTIC)
+        init_sphereeversion_analytic(mi);
+      else /* se->eversion_method == EVERSION_CORRUGATIONS */
+        init_sphereeversion_corrugations(mi);
+    }
   else
-  {
-    MI_CLEARWINDOW(mi);
-  }
+    {
+      MI_CLEARWINDOW(mi);
+    }
 }
 
 
@@ -1306,21 +1304,22 @@ ENTRYPOINT void init_sphereeversion(ModeInfo *mi)
  *    Called by the mainline code periodically to update the display.
  *-----------------------------------------------------------------------------
  */
-ENTRYPOINT void draw_sphereeversion(ModeInfo *mi)
+ENTRYPOINT void draw_sphereeversion(
+  ModeInfo *mi)
 {
-  Display *display = MI_DISPLAY(mi);
-  Window window = MI_WINDOW(mi);
+  Display *display= MI_DISPLAY(mi);
+  Window window= MI_WINDOW(mi);
   sphereeversionstruct *se;
 
   if (sphereeversion == NULL)
     return;
-  se = &sphereeversion[MI_SCREEN(mi)];
+  se= &sphereeversion [ MI_SCREEN(mi) ];
 
-  MI_IS_DRAWN(mi) = True;
-  if (!se->glx_context)
+  MI_IS_DRAWN(mi)= True;
+  if (! se->glx_context)
     return;
 
-  glXMakeCurrent(display,window,*se->glx_context);
+  glXMakeCurrent(display, window, *se->glx_context);
 
   if (se->eversion_method == EVERSION_ANALYTIC)
     display_sphereeversion_analytic(mi);
@@ -1332,19 +1331,20 @@ ENTRYPOINT void draw_sphereeversion(ModeInfo *mi)
 
   glFlush();
 
-  glXSwapBuffers(display,window);
+  glXSwapBuffers(display, window);
 }
 
 
 #ifndef STANDALONE
-ENTRYPOINT void change_sphereeversion(ModeInfo *mi)
+ENTRYPOINT void change_sphereeversion(
+  ModeInfo *mi)
 {
-  sphereeversionstruct *ev = &sphereeversion[MI_SCREEN(mi)];
+  sphereeversionstruct *ev= &sphereeversion [ MI_SCREEN(mi) ];
 
-  if (!ev->glx_context)
+  if (! ev->glx_context)
     return;
 
-  glXMakeCurrent(MI_DISPLAY(mi),MI_WINDOW(mi),*ev->glx_context);
+  glXMakeCurrent(MI_DISPLAY(mi), MI_WINDOW(mi), *ev->glx_context);
 
   if (se->eversion_method == EVERSION_ANALYTIC)
     init_sphereeversion_analytic(mi);
@@ -1356,66 +1356,69 @@ ENTRYPOINT void change_sphereeversion(ModeInfo *mi)
 
 /*
  *-----------------------------------------------------------------------------
- *    The display is being taken away from us.  Free up malloc'ed 
+ *    The display is being taken away from us.  Free up malloc'ed
  *      memory and X resources that we've alloc'ed.
  *-----------------------------------------------------------------------------
  */
 
-ENTRYPOINT void free_sphereeversion(ModeInfo *mi)
+ENTRYPOINT void free_sphereeversion(
+  ModeInfo *mi)
 {
-  sphereeversionstruct *se = &sphereeversion[MI_SCREEN(mi)];
+  sphereeversionstruct *se= &sphereeversion [ MI_SCREEN(mi) ];
 
-  if (!se->glx_context)
+  if (! se->glx_context)
     return;
 
-  glXMakeCurrent(MI_DISPLAY(mi),MI_WINDOW(mi),*se->glx_context);
+  glXMakeCurrent(MI_DISPLAY(mi), MI_WINDOW(mi), *se->glx_context);
 
   if (se->sp) free(se->sp);
   if (se->sn) free(se->sn);
-  if (se->colf[0]) free(se->colf[0]);
-  if (se->colf[1]) free(se->colf[1]);
-  if (se->colb[0]) free(se->colb[0]);
-  if (se->colb[1]) free(se->colb[1]);
+  if (se->colf [ 0 ]) free(se->colf [ 0 ]);
+  if (se->colf [ 1 ]) free(se->colf [ 1 ]);
+  if (se->colb [ 0 ]) free(se->colb [ 0 ]);
+  if (se->colb [ 1 ]) free(se->colb [ 1 ]);
   gltrackball_free(se->trackball);
 #ifdef HAVE_GLSL
   if (se->tex) free(se->tex);
-  if (se->tex_names[0]) glDeleteTextures(1,&se->tex_names[0]);
-  if (se->tex_names[1]) glDeleteTextures(1,&se->tex_names[1]);
-  if (se->tex_names[2]) glDeleteTextures(1,&se->tex_names[2]);
+  if (se->tex_names [ 0 ]) glDeleteTextures(1, &se->tex_names [ 0 ]);
+  if (se->tex_names [ 1 ]) glDeleteTextures(1, &se->tex_names [ 1 ]);
+  if (se->tex_names [ 2 ]) glDeleteTextures(1, &se->tex_names [ 2 ]);
   if (se->solid_indices) free(se->solid_indices);
   if (se->parallel_indices) free(se->parallel_indices);
   if (se->meridian_indices) free(se->meridian_indices);
   if (se->line_indices) free(se->line_indices);
   if (se->use_shaders)
-  {
-    glUseProgram(0);
-    if (se->poly_shader_program != 0)
-      glDeleteProgram(se->poly_shader_program);
-    if (se->line_shader_program != 0)
-      glDeleteProgram(se->line_shader_program);
-    if (se->blend_shader_program != 0)
-      glDeleteProgram(se->blend_shader_program);
-    glDeleteTextures(2,se->color_textures);
-    glDeleteBuffers(1,&se->vertex_pos_buffer);
-    glDeleteBuffers(1,&se->vertex_normal_buffer);
-    glDeleteBuffers(2,se->vertex_colorf_buffer);
-    glDeleteBuffers(2,se->vertex_colorb_buffer);
-    glDeleteBuffers(1,&se->vertex_tex_coord_buffer);
-    glDeleteBuffers(1,&se->solid_indices_buffer);
-    glDeleteBuffers(1,&se->parallel_indices_buffer);
-    glDeleteBuffers(1,&se->meridian_indices_buffer);
-    glDeleteBuffers(1,&se->line_indices_buffer);
-    glDeleteBuffers(1,&se->blend_pos_buffer);
-    glDeleteBuffers(1,&se->blend_tex_coord_buffer);
-    glDeleteBuffers(1,&se->blend_indices_buffer);
-    if (se->use_vao)
-      glDeleteVertexArrays(1,&se->vertex_array_object);
-    delete_blend_framebuffer_objects(mi);
-  }
+    {
+      glUseProgram(0);
+      if (se->poly_shader_program != 0)
+        glDeleteProgram(se->poly_shader_program);
+      if (se->line_shader_program != 0)
+        glDeleteProgram(se->line_shader_program);
+      if (se->blend_shader_program != 0)
+        glDeleteProgram(se->blend_shader_program);
+      glDeleteTextures(2, se->color_textures);
+      glDeleteBuffers(1, &se->vertex_pos_buffer);
+      glDeleteBuffers(1, &se->vertex_normal_buffer);
+      glDeleteBuffers(2, se->vertex_colorf_buffer);
+      glDeleteBuffers(2, se->vertex_colorb_buffer);
+      glDeleteBuffers(1, &se->vertex_tex_coord_buffer);
+      glDeleteBuffers(1, &se->solid_indices_buffer);
+      glDeleteBuffers(1, &se->parallel_indices_buffer);
+      glDeleteBuffers(1, &se->meridian_indices_buffer);
+      glDeleteBuffers(1, &se->line_indices_buffer);
+      glDeleteBuffers(1, &se->blend_pos_buffer);
+      glDeleteBuffers(1, &se->blend_tex_coord_buffer);
+      glDeleteBuffers(1, &se->blend_indices_buffer);
+      if (se->use_vao)
+        glDeleteVertexArrays(1, &se->vertex_array_object);
+      delete_blend_framebuffer_objects(mi);
+    }
 #endif /* HAVE_GLSL */
 }
 
 
-XSCREENSAVER_MODULE ("SphereEversion", sphereeversion)
+XSCREENSAVER_MODULE(
+  "SphereEversion",
+  sphereeversion)
 
 #endif /* USE_GL */

@@ -5,18 +5,16 @@
  * the above copyright notice appear in all copies and that both that
  * copyright notice and this permission notice appear in supporting
  * documentation.  No representations are made about the suitability of this
- * software for any purpose.  It is provided "as is" without express or 
+ * software for any purpose.  It is provided "as is" without express or
  * implied warranty.
  */
 
 #ifdef IN_UPDATER
-# import <Cocoa/Cocoa.h>
-# import <Sparkle/SPUUpdaterDelegate.h>
-# import <Sparkle/SPUStandardUserDriverDelegate.h>
+#import <Cocoa/Cocoa.h>
+#import <Sparkle/SPUUpdaterDelegate.h>
+#import <Sparkle/SPUStandardUserDriverDelegate.h>
 
-@interface XScreenSaverUpdater : NSObject <NSApplicationDelegate,
-                                           SPUUpdaterDelegate,
-                                           SPUStandardUserDriverDelegate>
+@interface XScreenSaverUpdater : NSObject<NSApplicationDelegate, SPUUpdaterDelegate, SPUStandardUserDriverDelegate>
 {
 }
 @end
@@ -36,9 +34,9 @@
 
 #define SUScheduledCheckIntervalKey	"SUScheduledCheckInterval"
 #ifdef IN_UPDATER
-# define SUScheduledCheckIntervalDef	86400	// Updater: 1 day
+#define SUScheduledCheckIntervalDef	86400	// Updater: 1 day
 #else
-# define SUScheduledCheckIntervalDef	604800	// Savers: 2 weeks
+#define SUScheduledCheckIntervalDef	604800	// Savers: 2 weeks
 #endif
 
 #define UPDATER_DEFAULTS @{					\

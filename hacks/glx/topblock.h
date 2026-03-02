@@ -1,22 +1,23 @@
 /* topblock - openGL based hack  */
 
 static void buildCarpet(ModeInfo *);
-static void polygonPlane(int, int, int, int, int ,int);
+static void polygonPlane(int, int, int, int, int, int);
 static void buildBlock(ModeInfo *);
 static void generateNewBlock(ModeInfo *);
 static void followBlock(ModeInfo *);
 static void buildBlobBlock(ModeInfo *);
-static double quadrantCorrection(double,int,int,int,int);
+static double quadrantCorrection(double, int, int, int, int);
 
 /* this structure holds all the attributes about a block */
-typedef struct blockNode {
-	int color;		/* indexed */
-	int rotation;		/* indexed: 0=S-N, 1=W-E, 2=N-S, 3=E-W */
-	GLfloat height;
-	GLfloat x;
-	GLfloat y;
-	int falling;		
-	struct blockNode *next;
+typedef struct blockNode
+{
+    int color;    /* indexed */
+    int rotation; /* indexed: 0=S-N, 1=W-E, 2=N-S, 3=E-W */
+    GLfloat height;
+    GLfloat x;
+    GLfloat y;
+    int falling;
+    struct blockNode *next;
 } NODE;
 
 
@@ -33,13 +34,4 @@ typedef struct blockNode {
 
 #define cylSize 0.333334f
 #define uddSize 0.4f
-#define	singleThick 0.29	/* defines the thickness of the carpet */
-
-
-
-
-
-
-
-
-
+#define singleThick 0.29	/* defines the thickness of the carpet */

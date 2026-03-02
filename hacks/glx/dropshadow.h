@@ -15,7 +15,7 @@
 /* Initialize drop shadow texture, return a texture ID.
  */
 GLuint
-init_drop_shadow(void);
+  init_drop_shadow(void);
 
 /* Draw a drop shadow around a rectangle.
 
@@ -26,9 +26,12 @@ init_drop_shadow(void);
    The shadow will be drawn using the current color.
  */
 
-void
-draw_drop_shadow (GLuint t,
-                  GLfloat x, GLfloat y, GLfloat z, GLfloat w, GLfloat h,
-                  GLfloat r);
+void draw_drop_shadow(GLuint t,
+  GLfloat x,
+  GLfloat y,
+  GLfloat z,
+  GLfloat w,
+  GLfloat h,
+  GLfloat r);
 
 #endif /* __DROPSHADOW_H__ */

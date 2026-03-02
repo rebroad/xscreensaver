@@ -6,7 +6,7 @@
  * the above copyright notice appear in all copies and that both that
  * copyright notice and this permission notice appear in supporting
  * documentation.  No representations are made about the suitability of this
- * software for any purpose.  It is provided "as is" without express or 
+ * software for any purpose.  It is provided "as is" without express or
  * implied warranty.
  */
 
@@ -16,17 +16,11 @@
 /* Renders a tube along the line described by the two points.
    Returns the number of polygons used.
  */
-extern int tube (GLfloat x1, GLfloat y1, GLfloat z1,
-                 GLfloat x2, GLfloat y2, GLfloat z2,
-                 GLfloat diameter, GLfloat cap_size,
-                 int faces, int smooth, int caps_p, int wire_p);
+extern int tube(GLfloat x1, GLfloat y1, GLfloat z1, GLfloat x2, GLfloat y2, GLfloat z2, GLfloat diameter, GLfloat cap_size, int faces, int smooth, int caps_p, int wire_p);
 
 /* Renders a cone along the line described by the two points.
    Returns the number of polygons used.
  */
-extern int cone (GLfloat x1, GLfloat y1, GLfloat z1,
-                 GLfloat x2, GLfloat y2, GLfloat z2,
-                 GLfloat diameter, GLfloat cap_size,
-                 int faces, int smooth, int cap_p,  int wire_p);
+extern int cone(GLfloat x1, GLfloat y1, GLfloat z1, GLfloat x2, GLfloat y2, GLfloat z2, GLfloat diameter, GLfloat cap_size, int faces, int smooth, int cap_p, int wire_p);
 
 #endif /* __TUBE_H__ */

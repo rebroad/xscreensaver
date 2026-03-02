@@ -9,7 +9,7 @@
    the above copyright notice appear in all copies and that both that
    copyright notice and this permission notice appear in supporting
    documentation.  No representations are made about the suitability of this
-   software for any purpose.  It is provided "as is" without express or 
+   software for any purpose.  It is provided "as is" without express or
    implied warranty.
 */
 
@@ -24,7 +24,7 @@
 			"*showFPS:      False       \n" \
 			"*wireframe:    False       \n"
 
-# define release_stonerview 0
+#define release_stonerview 0
 
 #include "xlockmore.h"
 
@@ -35,34 +35,38 @@
 
 #define DEF_TRANSPARENT "True"
 
-typedef struct {
-  GLXContext *glx_context;
-  stonerview_state *st;
-  trackball_state *trackball;
-  Bool button_down_p;
+typedef struct
+{
+    GLXContext *glx_context;
+    stonerview_state *st;
+    trackball_state *trackball;
+    Bool button_down_p;
 } stonerview_configuration;
 
-static stonerview_configuration *bps = NULL;
+static stonerview_configuration *bps= NULL;
 
 static Bool transparent_p;
 
 
-static XrmOptionDescRec opts[] = {
-  { "-transparent",   ".transparent",   XrmoptionNoArg, "True" },
-  { "+transparent",   ".transparent",   XrmoptionNoArg, "False" },
+static XrmOptionDescRec opts []= {
+  {"-transparent", ".transparent", XrmoptionNoArg, "True"},
+  {"+transparent", ".transparent", XrmoptionNoArg, "False"},
 };
 
-static argtype vars[] = {
+static argtype vars []= {
   {&transparent_p, "transparent", "Transparent", DEF_TRANSPARENT, t_Bool},
 };
 
-ENTRYPOINT ModeSpecOpt stonerview_opts = {countof(opts), opts, countof(vars), vars, NULL};
+ENTRYPOINT ModeSpecOpt stonerview_opts= {countof(opts), opts, countof(vars), vars, NULL};
 
 
 ENTRYPOINT void
-reshape_stonerview (ModeInfo *mi, int width, int height)
+  reshape_stonerview(
+    ModeInfo *mi,
+    int width,
+    int height)
 {
-  GLfloat h = (GLfloat) height / (GLfloat) width;
+  GLfloat h= (GLfloat) height / (GLfloat) width;
 
   glViewport(0, 0, (GLint) width, (GLint) height);
   glMatrixMode(GL_PROJECTION);
@@ -74,82 +78,87 @@ reshape_stonerview (ModeInfo *mi, int width, int height)
 }
 
 
-ENTRYPOINT void 
-init_stonerview (ModeInfo *mi)
+ENTRYPOINT void
+  init_stonerview(
+    ModeInfo *mi)
 {
   stonerview_configuration *bp;
 
-  MI_INIT (mi, bps);
+  MI_INIT(mi, bps);
 
-  bp = &bps[MI_SCREEN(mi)];
+  bp= &bps [ MI_SCREEN(mi) ];
 
-  bp->glx_context = init_GL(mi);
+  bp->glx_context= init_GL(mi);
 
-  bp->trackball = gltrackball_init (False);
-  bp->st = stonerview_init_view(MI_IS_WIREFRAME(mi), transparent_p);
+  bp->trackball= gltrackball_init(False);
+  bp->st= stonerview_init_view(MI_IS_WIREFRAME(mi), transparent_p);
   stonerview_init_move(bp->st);
 
-  reshape_stonerview (mi, MI_WIDTH(mi), MI_HEIGHT(mi));
+  reshape_stonerview(mi, MI_WIDTH(mi), MI_HEIGHT(mi));
   clear_gl_error(); /* WTF? sometimes "invalid op" from glViewport! */
 }
 
 
 ENTRYPOINT void
-draw_stonerview (ModeInfo *mi)
+  draw_stonerview(
+    ModeInfo *mi)
 {
-  stonerview_configuration *bp = &bps[MI_SCREEN(mi)];
+  stonerview_configuration *bp= &bps [ MI_SCREEN(mi) ];
 
   glXMakeCurrent(MI_DISPLAY(mi), MI_WINDOW(mi), *bp->glx_context);
 
-  glPushMatrix ();
-  glRotatef( current_device_rotation(), 0, 0, 1);
-  gltrackball_rotate (bp->trackball);
+  glPushMatrix();
+  glRotatef(current_device_rotation(), 0, 0, 1);
+  gltrackball_rotate(bp->trackball);
 
-# ifdef HAVE_MOBILE	/* Keep it the same relative size when rotated. */
+#ifdef HAVE_MOBILE /* Keep it the same relative size when rotated. */
   {
-    GLfloat h = MI_HEIGHT(mi) / (GLfloat) MI_WIDTH(mi);
-    int o = (int) current_device_rotation();
+    GLfloat h= MI_HEIGHT(mi) / (GLfloat) MI_WIDTH(mi);
+    int o= (int) current_device_rotation();
     if (o != 0 && o != 180 && o != -180)
-      glScalef (h, h, h);
+      glScalef(h, h, h);
   }
-# endif
+#endif
 
   stonerview_win_draw(bp->st);
   if (! bp->button_down_p)
     stonerview_move_increment(bp->st);
-  glPopMatrix ();
+  glPopMatrix();
 
-  mi->polygon_count = NUM_ELS;
-  if (mi->fps_p) do_fps (mi);
+  mi->polygon_count= NUM_ELS;
+  if (mi->fps_p) do_fps(mi);
   glFinish();
 
-  glXSwapBuffers(MI_DISPLAY (mi), MI_WINDOW(mi));
+  glXSwapBuffers(MI_DISPLAY(mi), MI_WINDOW(mi));
 }
 
 ENTRYPOINT void
-free_stonerview (ModeInfo *mi)
+  free_stonerview(
+    ModeInfo *mi)
 {
-  stonerview_configuration *bp = &bps[MI_SCREEN(mi)];
-  if (!bp->glx_context) return;
+  stonerview_configuration *bp= &bps [ MI_SCREEN(mi) ];
+  if (! bp->glx_context) return;
   glXMakeCurrent(MI_DISPLAY(mi), MI_WINDOW(mi), *bp->glx_context);
-  if (bp->trackball) gltrackball_free (bp->trackball);
+  if (bp->trackball) gltrackball_free(bp->trackball);
   if (bp->st)
-    stonerview_win_release (bp->st);
+    stonerview_win_release(bp->st);
 }
 
 ENTRYPOINT Bool
-stonerview_handle_event (ModeInfo *mi, XEvent *event)
+  stonerview_handle_event(
+    ModeInfo *mi,
+    XEvent *event)
 {
-  stonerview_configuration *bp = &bps[MI_SCREEN(mi)];
+  stonerview_configuration *bp= &bps [ MI_SCREEN(mi) ];
 
-  if (gltrackball_event_handler (event, bp->trackball,
-                                 MI_WIDTH (mi), MI_HEIGHT (mi),
-                                 &bp->button_down_p))
+  if (gltrackball_event_handler(event, bp->trackball, MI_WIDTH(mi), MI_HEIGHT(mi), &bp->button_down_p))
     return True;
 
   return False;
 }
 
-XSCREENSAVER_MODULE ("StonerView", stonerview)
+XSCREENSAVER_MODULE(
+  "StonerView",
+  stonerview)
 
 #endif /* USE_GL */

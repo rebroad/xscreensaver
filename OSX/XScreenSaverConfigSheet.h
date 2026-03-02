@@ -5,7 +5,7 @@
  * the above copyright notice appear in all copies and that both that
  * copyright notice and this permission notice appear in supporting
  * documentation.  No representations are made about the suitability of this
- * software for any purpose.  It is provided "as is" without express or 
+ * software for any purpose.  It is provided "as is" without express or
  * implied warranty.
  */
 
@@ -24,12 +24,12 @@
  */
 
 #ifdef HAVE_IPHONE
-# import <Foundation/Foundation.h>
-# import <UIKit/UIKit.h>
-# define NSView UIView
-# define NSUserDefaultsController NSUserDefaults
+#import <Foundation/Foundation.h>
+#import <UIKit/UIKit.h>
+#define NSView UIView
+#define NSUserDefaultsController NSUserDefaults
 #else
-# import <Cocoa/Cocoa.h>
+#import <Cocoa/Cocoa.h>
 #endif
 
 #import "jwxyz.h"
@@ -38,21 +38,21 @@
 
 #undef USE_PICKER_VIEW
 
-@interface XScreenSaverConfigSheet : 
-# ifdef HAVE_IPHONE
-	   UITableViewController <NSXMLParserDelegate,
-				  UITextFieldDelegate
-#  ifdef USE_PICKER_VIEW
-				  , UIPickerViewDelegate
-				  , UIPickerViewDataSource
-#  endif
-				  >
-# else
-	   NSPanel <NSXMLParserDelegate>
-# endif
+@interface XScreenSaverConfigSheet :
+#ifdef HAVE_IPHONE
+  UITableViewController<NSXMLParserDelegate, UITextFieldDelegate
+#ifdef USE_PICKER_VIEW
+    ,
+    UIPickerViewDelegate,
+    UIPickerViewDataSource
+#endif
+    >
+#else
+  NSPanel<NSXMLParserDelegate>
+#endif
 {
-  NSString *classname;    // "MoebiusGears"
-  NSString *saver_title;  // "Möbius Gears"
+  NSString *classname;   // "MoebiusGears"
+  NSString *saver_title; // "Möbius Gears"
   NSUserDefaultsController *userDefaultsController;
   NSUserDefaultsController *globalDefaultsController;
   NSDictionary *defaultOptions;
@@ -60,24 +60,23 @@
   id xml_root, xml_parsing;
   BOOL haveUpdater;
 
-# ifdef HAVE_IPHONE
+#ifdef HAVE_IPHONE
   UITextField *active_text_field;
   NSMutableArray *controls;
-  NSMutableArray *pref_ctls;	// UIControl objects, with index = c.tag
-  NSMutableArray *pref_keys;	// ...and their corresponding resources
-#  ifdef USE_PICKER_VIEW
+  NSMutableArray *pref_ctls; // UIControl objects, with index = c.tag
+  NSMutableArray *pref_keys; // ...and their corresponding resources
+#ifdef USE_PICKER_VIEW
   NSMutableArray *picker_values;
-#  endif
-# endif
-
+#endif
+#endif
 }
 
-- (id)initWithXML: (NSData *) xml_data
-        classname: (NSString *) _classname
-          options: (const XrmOptionDescRec *) opts
-       controller: (NSUserDefaultsController *) prefs
- globalController: (NSUserDefaultsController *) globalPrefs
-         defaults: (NSDictionary *) defs
-      haveUpdater: (BOOL) haveUpdater;
+- (id)initWithXML:(NSData *)xml_data
+         classname:(NSString *)_classname
+           options:(const XrmOptionDescRec *)opts
+        controller:(NSUserDefaultsController *)prefs
+  globalController:(NSUserDefaultsController *)globalPrefs
+          defaults:(NSDictionary *)defs
+       haveUpdater:(BOOL)haveUpdater;
 
 @end

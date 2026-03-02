@@ -5,7 +5,7 @@
  * the above copyright notice appear in all copies and that both that
  * copyright notice and this permission notice appear in supporting
  * documentation.  No representations are made about the suitability of this
- * software for any purpose.  It is provided "as is" without express or 
+ * software for any purpose.  It is provided "as is" without express or
  * implied warranty.
  */
 
@@ -14,12 +14,13 @@
 
 #include "wayland-dpy.h"
 
-struct wayland_dpy {
-  struct wl_display    *dpy;
-  struct wl_event_loop *event_loop;
+struct wayland_dpy
+{
+    struct wl_display *dpy;
+    struct wl_event_loop *event_loop;
 
-  void (*atexit_cb) (void *closure);
-  void *atexit_closure;
+    void (*atexit_cb)(void *closure);
+    void *atexit_closure;
 };
 
 #endif /* __XSCREENSAVER_WAYLAND_DPYI_H__ */

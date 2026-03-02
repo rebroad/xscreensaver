@@ -5,7 +5,7 @@
  * the above copyright notice appear in all copies and that both that
  * copyright notice and this permission notice appear in supporting
  * documentation.  No representations are made about the suitability of this
- * software for any purpose.  It is provided "as is" without express or 
+ * software for any purpose.  It is provided "as is" without express or
  * implied warranty.
  */
 
@@ -13,10 +13,10 @@
 #define __SCREENHACK_USLEEP_H__
 
 #ifdef HAVE_UNISTD_H
-# include <unistd.h>
+#include <unistd.h>
 #endif
 
-extern void screenhack_usleep (unsigned long usecs);
+extern void screenhack_usleep(unsigned long usecs);
 
 #undef usleep
 #define usleep(usecs) screenhack_usleep(usecs)

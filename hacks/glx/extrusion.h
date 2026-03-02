@@ -12,7 +12,7 @@
  * trade secrets or any patents by this file or any part thereof.  In no
  * event will the author be liable for any lost revenue or profits or
  * other special, indirect and consequential damages.
-  */
+ */
 
 #ifndef __XSCREENSAVER_EXTRUSION_H__
 #define __XSCREENSAVER_EXTRUSION_H__
@@ -20,13 +20,13 @@
 #include "xlockmoreI.h"
 
 #ifdef HAVE_COCOA
-# include <GLUT/tube.h>    /* gle is included with GLUT on OSX */
-#else  /* !HAVE_COCOA */
-# ifdef HAVE_GLE3
-#  include <GL/gle.h>
-# else
-#  include <GL/tube.h>
-# endif
+#include <GLUT/tube.h> /* gle is included with GLUT on OSX */
+#else                  /* !HAVE_COCOA */
+#ifdef HAVE_GLE3
+#include <GL/gle.h>
+#else
+#include <GL/tube.h>
+#endif
 #endif /* !HAVE_COCOA */
 
 extern void InitStuff_helix2(void);

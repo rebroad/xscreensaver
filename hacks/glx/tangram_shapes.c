@@ -19,207 +19,214 @@
 #define alpha (0.05)
 
 static void
-tri_45_90(int wire)
+  tri_45_90(
+    int wire)
 {
-    GLfloat vertices[][3] = {
-        {0, alpha, 0},
-        {0, alpha, 1},
-        {1, alpha, 0},
-        {0, -alpha, 0},
-        {0, -alpha, 1},
-        {1, -alpha, 0}
-    };
+  GLfloat vertices [][ 3 ]= {
+    {0, alpha, 0},
+    {0, alpha, 1},
+    {1, alpha, 0},
+    {0, -alpha, 0},
+    {0, -alpha, 1},
+    {1, -alpha, 0}};
 
-    glBegin((wire) ? GL_LINE_LOOP : GL_TRIANGLES);
+  glBegin((wire) ? GL_LINE_LOOP : GL_TRIANGLES);
 
-    glNormal3f(0, 1, 0);
-    glVertex3fv(vertices[0]);
-    glNormal3f(0, 1, 0);
-    glVertex3fv(vertices[2]);
-    glNormal3f(0, 1, 0);
-    glVertex3fv(vertices[1]);
+  glNormal3f(0, 1, 0);
+  glVertex3fv(vertices [ 0 ]);
+  glNormal3f(0, 1, 0);
+  glVertex3fv(vertices [ 2 ]);
+  glNormal3f(0, 1, 0);
+  glVertex3fv(vertices [ 1 ]);
 
-    glNormal3f(0, -1, 0);
-    glVertex3fv(vertices[3]);
-    glNormal3f(0, -1, 0);
-    glVertex3fv(vertices[4]);
-    glNormal3f(0, -1, 0);
-    glVertex3fv(vertices[5]);
-    glEnd();
+  glNormal3f(0, -1, 0);
+  glVertex3fv(vertices [ 3 ]);
+  glNormal3f(0, -1, 0);
+  glVertex3fv(vertices [ 4 ]);
+  glNormal3f(0, -1, 0);
+  glVertex3fv(vertices [ 5 ]);
+  glEnd();
 
-    glBegin((wire) ? GL_LINE_LOOP : GL_QUADS);
-    glNormal3f(1, 0, 1);
-    glVertex3fv(vertices[2]);
-    glNormal3f(1, 0, 1);
-    glVertex3fv(vertices[5]);
-    glNormal3f(1, 0, 1);
-    glVertex3fv(vertices[4]);
-    glNormal3f(1, 0, 1);
-    glVertex3fv(vertices[1]);
+  glBegin((wire) ? GL_LINE_LOOP : GL_QUADS);
+  glNormal3f(1, 0, 1);
+  glVertex3fv(vertices [ 2 ]);
+  glNormal3f(1, 0, 1);
+  glVertex3fv(vertices [ 5 ]);
+  glNormal3f(1, 0, 1);
+  glVertex3fv(vertices [ 4 ]);
+  glNormal3f(1, 0, 1);
+  glVertex3fv(vertices [ 1 ]);
 
-    glNormal3f(-1, 0, 0);
-    glVertex3fv(vertices[0]);
-    glNormal3f(-1, 0, 0);
-    glVertex3fv(vertices[1]);
-    glNormal3f(-1, 0, 0);
-    glVertex3fv(vertices[4]);
-    glNormal3f(-1, 0, 0);
-    glVertex3fv(vertices[3]);
+  glNormal3f(-1, 0, 0);
+  glVertex3fv(vertices [ 0 ]);
+  glNormal3f(-1, 0, 0);
+  glVertex3fv(vertices [ 1 ]);
+  glNormal3f(-1, 0, 0);
+  glVertex3fv(vertices [ 4 ]);
+  glNormal3f(-1, 0, 0);
+  glVertex3fv(vertices [ 3 ]);
 
-    glNormal3f(0, 0, -1);
-    glVertex3fv(vertices[0]);
-    glNormal3f(0, 0, -1);
-    glVertex3fv(vertices[3]);
-    glNormal3f(0, 0, -1);
-    glVertex3fv(vertices[5]);
-    glNormal3f(0, 0, -1);
-    glVertex3fv(vertices[2]);
-    glEnd();
+  glNormal3f(0, 0, -1);
+  glVertex3fv(vertices [ 0 ]);
+  glNormal3f(0, 0, -1);
+  glVertex3fv(vertices [ 3 ]);
+  glNormal3f(0, 0, -1);
+  glVertex3fv(vertices [ 5 ]);
+  glNormal3f(0, 0, -1);
+  glVertex3fv(vertices [ 2 ]);
+  glEnd();
 }
 
 static void
-unit_cube(int wire)
+  unit_cube(
+    int wire)
 {
-    glBegin((wire) ? GL_LINE_LOOP : GL_QUADS);
+  glBegin((wire) ? GL_LINE_LOOP : GL_QUADS);
 
 
-    glNormal3f(0.0f, 1.0f, 0.0f);
-    glVertex3f(0.0f, alpha, 0.0f);
-    glVertex3f(0.0f, alpha, 1.0f);
-    glVertex3f(1.0f, alpha, 1.0f);
-    glVertex3f(1.0f, alpha, 0.0f);
+  glNormal3f(0.0f, 1.0f, 0.0f);
+  glVertex3f(0.0f, alpha, 0.0f);
+  glVertex3f(0.0f, alpha, 1.0f);
+  glVertex3f(1.0f, alpha, 1.0f);
+  glVertex3f(1.0f, alpha, 0.0f);
 
-    glNormal3f(0.0f, 0.0f, 1.0f);
-    glVertex3f(0.0f, -alpha, 1.0f);
-    glVertex3f(1.0f, -alpha, 1.0f);
-    glVertex3f(1.0f, alpha, 1.0f);
-    glVertex3f(0.0f, alpha, 1.0f);
+  glNormal3f(0.0f, 0.0f, 1.0f);
+  glVertex3f(0.0f, -alpha, 1.0f);
+  glVertex3f(1.0f, -alpha, 1.0f);
+  glVertex3f(1.0f, alpha, 1.0f);
+  glVertex3f(0.0f, alpha, 1.0f);
 
-    glNormal3f(0.0f, 0.0f, -1.0f);
-    glVertex3f(0.0f, -alpha, 0.0f);
-    glVertex3f(0.0f, alpha, 0.0f);
-    glVertex3f(1.0f, alpha, 0.0f);
-    glVertex3f(1.0f, -alpha, 0.0f);
+  glNormal3f(0.0f, 0.0f, -1.0f);
+  glVertex3f(0.0f, -alpha, 0.0f);
+  glVertex3f(0.0f, alpha, 0.0f);
+  glVertex3f(1.0f, alpha, 0.0f);
+  glVertex3f(1.0f, -alpha, 0.0f);
 
-    glNormal3f(1.0f, 0.0f, 0.0f);
-    glVertex3f(1.0f, -alpha, 0.0f);
-    glVertex3f(1.0f, alpha, 0.0f);
-    glVertex3f(1.0f, alpha, 1.0f);
-    glVertex3f(1.0f, -alpha, 1.0f);
+  glNormal3f(1.0f, 0.0f, 0.0f);
+  glVertex3f(1.0f, -alpha, 0.0f);
+  glVertex3f(1.0f, alpha, 0.0f);
+  glVertex3f(1.0f, alpha, 1.0f);
+  glVertex3f(1.0f, -alpha, 1.0f);
 
-    glNormal3f(-1.0f, 0.0f, 0.0f);
-    glVertex3f(0.0f, -alpha, 0.0f);
-    glVertex3f(0.0f, -alpha, 1.0f);
-    glVertex3f(0.0f, alpha, 1.0f);
-    glVertex3f(0.0f, alpha, 0.0f);
+  glNormal3f(-1.0f, 0.0f, 0.0f);
+  glVertex3f(0.0f, -alpha, 0.0f);
+  glVertex3f(0.0f, -alpha, 1.0f);
+  glVertex3f(0.0f, alpha, 1.0f);
+  glVertex3f(0.0f, alpha, 0.0f);
 
-    glNormal3f(0.0f, -1.0f, 0.0f);
-    glVertex3f(0.0f, -alpha, 0.0f);
-    glVertex3f(1.0f, -alpha, 0.0f);
-    glVertex3f(1.0f, -alpha, 1.0f);
-    glVertex3f(0.0f, -alpha, 1.0f);
+  glNormal3f(0.0f, -1.0f, 0.0f);
+  glVertex3f(0.0f, -alpha, 0.0f);
+  glVertex3f(1.0f, -alpha, 0.0f);
+  glVertex3f(1.0f, -alpha, 1.0f);
+  glVertex3f(0.0f, -alpha, 1.0f);
 
-    glEnd();
+  glEnd();
 }
 
 static void
-unit_rhomboid(int wire)
+  unit_rhomboid(
+    int wire)
 {
-    glBegin((wire) ? GL_LINE_LOOP : GL_QUADS);
+  glBegin((wire) ? GL_LINE_LOOP : GL_QUADS);
 
-    glNormal3f(0.0f, 1.0f, 0.0f);
-    glVertex3f(0, alpha, 0);
-    glVertex3f(1, alpha, 1);
-    glVertex3f(1, alpha, 2);
-    glVertex3f(0, alpha, 1);
+  glNormal3f(0.0f, 1.0f, 0.0f);
+  glVertex3f(0, alpha, 0);
+  glVertex3f(1, alpha, 1);
+  glVertex3f(1, alpha, 2);
+  glVertex3f(0, alpha, 1);
 
-    glNormal3f(0.0f, -1.0f, 0.0f);
-    glVertex3f(0, -alpha, 0);
-    glVertex3f(0, -alpha, 1);
-    glVertex3f(1, -alpha, 2);
-    glVertex3f(1, -alpha, 1);
+  glNormal3f(0.0f, -1.0f, 0.0f);
+  glVertex3f(0, -alpha, 0);
+  glVertex3f(0, -alpha, 1);
+  glVertex3f(1, -alpha, 2);
+  glVertex3f(1, -alpha, 1);
 
-    glNormal3f(-1.0f, 0.0f, 0.0f);
-    glVertex3f(0, alpha, 0);
-    glVertex3f(0, alpha, 1);
-    glVertex3f(0, -alpha, 1);
-    glVertex3f(0, -alpha, 0);
+  glNormal3f(-1.0f, 0.0f, 0.0f);
+  glVertex3f(0, alpha, 0);
+  glVertex3f(0, alpha, 1);
+  glVertex3f(0, -alpha, 1);
+  glVertex3f(0, -alpha, 0);
 
 
-    glNormal3f(0.0f, 0.0f, 1.0f);
-    glVertex3f(0, alpha, 1);
-    glVertex3f(1, alpha, 2);
-    glVertex3f(1, -alpha, 2);
-    glVertex3f(0, -alpha, 1);
+  glNormal3f(0.0f, 0.0f, 1.0f);
+  glVertex3f(0, alpha, 1);
+  glVertex3f(1, alpha, 2);
+  glVertex3f(1, -alpha, 2);
+  glVertex3f(0, -alpha, 1);
 
-    glNormal3f(1.0f, 0.0f, 0.0f);
-    glVertex3f(1, alpha, 1);
-    glVertex3f(1, -alpha, 1);
-    glVertex3f(1, -alpha, 2);
-    glVertex3f(1, alpha, 2);
+  glNormal3f(1.0f, 0.0f, 0.0f);
+  glVertex3f(1, alpha, 1);
+  glVertex3f(1, -alpha, 1);
+  glVertex3f(1, -alpha, 2);
+  glVertex3f(1, alpha, 2);
 
-    glNormal3f(0.0f, 0.0f, 1.0f);
-    glVertex3f(0, alpha, 0);
-    glVertex3f(0, -alpha, 0);
-    glVertex3f(1, -alpha, 1);
-    glVertex3f(1, alpha, 1);
+  glNormal3f(0.0f, 0.0f, 1.0f);
+  glVertex3f(0, alpha, 0);
+  glVertex3f(0, -alpha, 0);
+  glVertex3f(1, -alpha, 1);
+  glVertex3f(1, alpha, 1);
 
-    glEnd();
+  glEnd();
 }
 
 /* All of the pieces have the same thickness so all of the Y values are the same */
 
 GLuint
-tangram_get_sm_tri_dl(int wire)
+  tangram_get_sm_tri_dl(
+    int wire)
 {
-    GLuint triangle = glGenLists(1);
-    glNewList(triangle, GL_COMPILE);
-    glScalef(small_scale, small_scale, small_scale);
-    tri_45_90(wire);
-    glEndList();
-    return triangle;
+  GLuint triangle= glGenLists(1);
+  glNewList(triangle, GL_COMPILE);
+  glScalef(small_scale, small_scale, small_scale);
+  tri_45_90(wire);
+  glEndList();
+  return triangle;
 }
 
 GLuint
-tangram_get_lg_tri_dl(int wire)
+  tangram_get_lg_tri_dl(
+    int wire)
 {
-    GLuint triangle = glGenLists(1);
-    glNewList(triangle, GL_COMPILE);
-    glScalef(large_scale, small_scale, large_scale);
-    tri_45_90(wire);
-    glEndList();
-    return triangle;
+  GLuint triangle= glGenLists(1);
+  glNewList(triangle, GL_COMPILE);
+  glScalef(large_scale, small_scale, large_scale);
+  tri_45_90(wire);
+  glEndList();
+  return triangle;
 }
 
 GLuint
-tangram_get_md_tri_dl(int wire)
+  tangram_get_md_tri_dl(
+    int wire)
 {
-    GLuint triangle = glGenLists(1);
-    glNewList(triangle, GL_COMPILE);
-    glScalef(medium_scale, small_scale, medium_scale);
-    tri_45_90(wire);
-    glEndList();
-    return triangle;
+  GLuint triangle= glGenLists(1);
+  glNewList(triangle, GL_COMPILE);
+  glScalef(medium_scale, small_scale, medium_scale);
+  tri_45_90(wire);
+  glEndList();
+  return triangle;
 }
 
 GLuint
-tangram_get_square_dl(int wire)
+  tangram_get_square_dl(
+    int wire)
 {
-    GLuint square = glGenLists(1);
-    glNewList(square, GL_COMPILE);
-    glScalef(small_scale, small_scale, small_scale);
-    unit_cube(wire);
-    glEndList();
-    return square;
+  GLuint square= glGenLists(1);
+  glNewList(square, GL_COMPILE);
+  glScalef(small_scale, small_scale, small_scale);
+  unit_cube(wire);
+  glEndList();
+  return square;
 }
 
 GLuint
-tangram_get_rhomboid_dl(int wire)
+  tangram_get_rhomboid_dl(
+    int wire)
 {
-    GLuint rhomboid = glGenLists(1);
-    glNewList(rhomboid, GL_COMPILE);
-    glScalef(small_scale, small_scale, small_scale);
-    unit_rhomboid(wire);
-    glEndList();
-    return rhomboid;
+  GLuint rhomboid= glGenLists(1);
+  glNewList(rhomboid, GL_COMPILE);
+  glScalef(small_scale, small_scale, small_scale);
+  unit_rhomboid(wire);
+  glEndList();
+  return rhomboid;
 }

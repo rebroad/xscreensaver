@@ -26,37 +26,41 @@ NS_ASSUME_NONNULL_BEGIN
 /**
  A choice made by the user when prompted with a new update.
  */
-typedef NS_ENUM(NSInteger, SPUUserUpdateChoice) {
-    /**
-     Dismisses the update and skips being notified of it in the future.
-     */
-    SPUUserUpdateChoiceSkip,
-    /**
-     Downloads (if needed) and installs the update.
-     */
-    SPUUserUpdateChoiceInstall,
-    /**
-     Dismisses the update until Sparkle reminds the user of it at a later time.
-     */
-    SPUUserUpdateChoiceDismiss,
+typedef NS_ENUM(
+  NSInteger,
+  SPUUserUpdateChoice) {
+  /**
+   Dismisses the update and skips being notified of it in the future.
+   */
+  SPUUserUpdateChoiceSkip,
+  /**
+   Downloads (if needed) and installs the update.
+   */
+  SPUUserUpdateChoiceInstall,
+  /**
+   Dismisses the update until Sparkle reminds the user of it at a later time.
+   */
+  SPUUserUpdateChoiceDismiss,
 };
 
 /**
  Describes the current stage an update is undergoing.
  */
-typedef NS_ENUM(NSInteger, SPUUserUpdateStage) {
-    /**
-     The update has not been downloaded.
-     */
-    SPUUserUpdateStageNotDownloaded,
-    /**
-     The update has already been downloaded but not begun installing.
-     */
-    SPUUserUpdateStageDownloaded,
-    /**
-     The update has already been downloaded and began installing in the background.
-     */
-    SPUUserUpdateStageInstalling
+typedef NS_ENUM(
+  NSInteger,
+  SPUUserUpdateStage) {
+  /**
+   The update has not been downloaded.
+   */
+  SPUUserUpdateStageNotDownloaded,
+  /**
+   The update has already been downloaded but not begun installing.
+   */
+  SPUUserUpdateStageDownloaded,
+  /**
+   The update has already been downloaded and began installing in the background.
+   */
+  SPUUserUpdateStageInstalling
 };
 
 /**
@@ -68,7 +72,7 @@ SU_EXPORT @interface SPUUserUpdateState : NSObject
 
 /**
  The current update stage.
- 
+
  This stage indicates if data has been already downloaded or not, or if an update is currently being installed.
  */
 @property (nonatomic, readonly) SPUUserUpdateStage stage;

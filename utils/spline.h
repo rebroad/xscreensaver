@@ -29,23 +29,23 @@
 
 typedef struct _spline
 {
-  /* input */
-  unsigned int	n_controls;
-  double*	control_x;
-  double*	control_y;
+    /* input */
+    unsigned int n_controls;
+    double* control_x;
+    double* control_y;
 
-  /* output */
-  unsigned int		n_points;
-  XPoint*	points;
-  unsigned int		allocated_points;
+    /* output */
+    unsigned int n_points;
+    XPoint* points;
+    unsigned int allocated_points;
 } spline;
 
-spline* make_spline (unsigned int size);
-void compute_spline (spline* s);
-void compute_closed_spline (spline* s);
-void just_fill_spline (spline* s);
-void append_spline_points (spline* s1, spline* s2);
-void spline_bounding_box (spline* s, XRectangle* rectangle_out);
-void free_spline(spline *s);
+spline* make_spline(unsigned int size);
+void compute_spline(spline* s);
+void compute_closed_spline(spline* s);
+void just_fill_spline(spline* s);
+void append_spline_points(spline* s1, spline* s2);
+void spline_bounding_box(spline* s, XRectangle* rectangle_out);
+void free_spline(spline* s);
 
 #endif /* _SPLINE_H_ */

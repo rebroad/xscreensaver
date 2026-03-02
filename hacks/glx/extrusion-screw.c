@@ -1,6 +1,6 @@
-/* 
+/*
  * screw.c
- * 
+ *
  * FUNCTION:
  * Draws a screw shape.
  *
@@ -18,7 +18,7 @@
 /* =========================================================== */
 
 #define SCALE 1.3
-#define CONTOUR(x,y) {					\
+#define CONTOUR(x, y) {					\
    double ax, ay, alen;					\
    contour[i][0] = SCALE * (x);				\
    contour[i][1] = SCALE * (y);				\
@@ -35,80 +35,83 @@
 
 #define NUM_PTS (25)
 
-static double contour [NUM_PTS][2];
-static double norms [NUM_PTS][2];
+static double contour [ NUM_PTS ][ 2 ];
+static double norms [ NUM_PTS ][ 2 ];
 
-static void init_contour (void)
+static void init_contour(
+  void)
 {
-   int i;
+  int i;
 
-   /* outline of extrusion */
-   i=0;
-   CONTOUR (1.0, 1.0);
-   CONTOUR (1.0, 2.9);
-   CONTOUR (0.9, 3.0);
-   CONTOUR (-0.9, 3.0);
-   CONTOUR (-1.0, 2.9);
+  /* outline of extrusion */
+  i= 0;
+  CONTOUR(1.0, 1.0);
+  CONTOUR(1.0, 2.9);
+  CONTOUR(0.9, 3.0);
+  CONTOUR(-0.9, 3.0);
+  CONTOUR(-1.0, 2.9);
 
-   CONTOUR (-1.0, 1.0);
-   CONTOUR (-2.9, 1.0);
-   CONTOUR (-3.0, 0.9);
-   CONTOUR (-3.0, -0.9);
-   CONTOUR (-2.9, -1.0);
+  CONTOUR(-1.0, 1.0);
+  CONTOUR(-2.9, 1.0);
+  CONTOUR(-3.0, 0.9);
+  CONTOUR(-3.0, -0.9);
+  CONTOUR(-2.9, -1.0);
 
-   CONTOUR (-1.0, -1.0);
-   CONTOUR (-1.0, -2.9);
-   CONTOUR (-0.9, -3.0);
-   CONTOUR (0.9, -3.0);
-   CONTOUR (1.0, -2.9);
+  CONTOUR(-1.0, -1.0);
+  CONTOUR(-1.0, -2.9);
+  CONTOUR(-0.9, -3.0);
+  CONTOUR(0.9, -3.0);
+  CONTOUR(1.0, -2.9);
 
-   CONTOUR (1.0, -1.0);
-   CONTOUR (2.9, -1.0);
-   CONTOUR (3.0, -0.9);
-   CONTOUR (3.0, 0.9);
-   CONTOUR (2.9, 1.0);
+  CONTOUR(1.0, -1.0);
+  CONTOUR(2.9, -1.0);
+  CONTOUR(3.0, -0.9);
+  CONTOUR(3.0, 0.9);
+  CONTOUR(2.9, 1.0);
 
-   CONTOUR (1.0, 1.0);   /* repeat so that last normal is computed */
+  CONTOUR(1.0, 1.0); /* repeat so that last normal is computed */
 }
-   
+
 /* =========================================================== */
 
 /* controls shape of object */
 extern float lastx;
 extern float lasty;
 
-void InitStuff_screw (void)
+void InitStuff_screw(
+  void)
 {
-   int style;
+  int style;
 
-   /* configure the pipeline */
-   style = TUBE_JN_CAP;
-   style |= TUBE_CONTOUR_CLOSED;
-   style |= TUBE_NORM_FACET;
-   style |= TUBE_JN_ANGLE;
-   gleSetJoinStyle (style);
+  /* configure the pipeline */
+  style= TUBE_JN_CAP;
+  style|= TUBE_CONTOUR_CLOSED;
+  style|= TUBE_NORM_FACET;
+  style|= TUBE_JN_ANGLE;
+  gleSetJoinStyle(style);
 
-   init_contour();
+  init_contour();
 }
 
 /* =========================================================== */
 
-void DrawStuff_screw (void) {
+void DrawStuff_screw(
+  void)
+{
 
-   glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-   glColor3f (0.5, 0.6, 0.6);
+  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+  glColor3f(0.5, 0.6, 0.6);
 
-   /* set up some matrices so that the object spins with the mouse */
-   glPushMatrix ();
-   /* glTranslatef (0.0, 0.0, -80.0); */
-   /* glRotatef (130.0, 0.0, 1.0, 0.0); */
-   /* glRotatef (65.0, 1.0, 0.0, 0.0); */
+  /* set up some matrices so that the object spins with the mouse */
+  glPushMatrix();
+  /* glTranslatef (0.0, 0.0, -80.0); */
+  /* glRotatef (130.0, 0.0, 1.0, 0.0); */
+  /* glRotatef (65.0, 1.0, 0.0, 0.0); */
 
-   /* draw the brand and the handle */
-   gleScrew (20, contour, norms, 
-                 NULL, -6.0, 9.0, lasty);
+  /* draw the brand and the handle */
+  gleScrew(20, contour, norms, NULL, -6.0, 9.0, lasty);
 
-   glPopMatrix ();
+  glPopMatrix();
 }
 
 /* ===================== END OF FILE ================== */

@@ -7,7 +7,7 @@
  * the above copyright notice appear in all copies and that both that
  * copyright notice and this permission notice appear in supporting
  * documentation.  No representations are made about the suitability of this
- * software for any purpose.  It is provided "as is" without express or 
+ * software for any purpose.  It is provided "as is" without express or
  * implied warranty.
  */
 
@@ -23,14 +23,14 @@
 
 
 #ifdef HAVE_CONFIG_H
-# include "config.h"
+#include "config.h"
 #endif
 
-#ifndef NO_LOCKING  /* whole file */
+#ifndef NO_LOCKING /* whole file */
 
 #include <stdlib.h>
 #ifdef HAVE_UNISTD_H
-# include <unistd.h>
+#include <unistd.h>
 #endif
 
 #include <stdio.h>
@@ -45,28 +45,28 @@
    Thanks to Alexei Kosut <akosut@stanford.edu> for the MacOS X code.
  */
 #ifdef __APPLE__
-# define HAVE_DARWIN
+#define HAVE_DARWIN
 #endif
 
 
 #if defined(HAVE_DARWIN)
-# include <Kerberos/Kerberos.h>
+#include <Kerberos/Kerberos.h>
 #elif defined(HAVE_KERBEROS5)
-# include <kerberosIV/krb.h>
-# include <kerberosIV/des.h>
+#include <kerberosIV/krb.h>
+#include <kerberosIV/des.h>
 #else /* !HAVE_KERBEROS5 (meaning Kerberos 4) */
-# include <krb.h>
-# include <des.h>
+#include <krb.h>
+#include <des.h>
 #endif /* !HAVE_KERBEROS5 */
 
 #include <pwd.h>
 
 
 #ifdef __bsdi__
-# include <sys/param.h>
-# if _BSDI_VERSION >= 199608
-#  define BSD_AUTH
-# endif
+#include <sys/param.h>
+#if _BSDI_VERSION >= 199608
+#define BSD_AUTH
+#endif
 #endif /* __bsdi__ */
 
 #include "blurb.h"
@@ -75,12 +75,12 @@
 
 /* The user information we need to store */
 #ifdef HAVE_DARWIN
- static KLPrincipal princ;
-#else /* !HAVE_DARWIN */
- static char realm[REALM_SZ];
- static char  name[ANAME_SZ];
- static char  inst[INST_SZ];
- static const char *tk_file;
+static KLPrincipal princ;
+#else  /* !HAVE_DARWIN */
+static char realm [ REALM_SZ ];
+static char name [ ANAME_SZ ];
+static char inst [ INST_SZ ];
+static const char *tk_file;
 #endif /* !HAVE_DARWIN */
 
 
@@ -102,62 +102,56 @@
    Like the original lock_init, we return false if something went wrong.
    We don't use the arguments we're given, though.
  */
-Bool
-kerberos_lock_init (void)
+Bool kerberos_lock_init(
+  void)
 {
-# ifdef HAVE_DARWIN
+#ifdef HAVE_DARWIN
 
-    KLBoolean found;
-    return ((klNoErr == (KLCacheHasValidTickets (NULL, kerberosVersion_Any,
-                                                 &found, &princ, NULL)))
-            && found);
+  KLBoolean found;
+  return ((klNoErr == (KLCacheHasValidTickets(NULL, kerberosVersion_Any, &found, &princ, NULL))) && found);
 
-# else /* !HAVE_DARWIN */
+#else /* !HAVE_DARWIN */
 
-    /* Perhaps we should be doing it the Mac way (above) all the time?
-       The following code assumes Unix-style file-based Kerberos credentials
-       cache, which Mac OS X doesn't use.  But is there any real reason to
-       do it this way at all, even on other Unixen?
-     */
-    int k_errno;
-    
-    memset(name, 0, sizeof(name));
-    memset(inst, 0, sizeof(inst));
-    
-    /* find out where the user's keeping his tickets.
-       squirrel it away for later use. */
-    tk_file = tkt_string();
+  /* Perhaps we should be doing it the Mac way (above) all the time?
+     The following code assumes Unix-style file-based Kerberos credentials
+     cache, which Mac OS X doesn't use.  But is there any real reason to
+     do it this way at all, even on other Unixen?
+   */
+  int k_errno;
 
-    /* open ticket file or die trying. */
-    if ((k_errno = tf_init(tk_file, R_TKT_FIL))) {
-	return False;
-    }
+  memset(name, 0, sizeof(name));
+  memset(inst, 0, sizeof(inst));
 
-    /* same with principal and instance names */
-    if ((k_errno = tf_get_pname(name)) ||
-	(k_errno = tf_get_pinst(inst))) {
-	return False;
-    }
+  /* find out where the user's keeping his tickets.
+     squirrel it away for later use. */
+  tk_file= tkt_string();
 
-    /* close the ticketfile to release the lock on it. */
-    tf_close();
+  /* open ticket file or die trying. */
+  if ((k_errno= tf_init(tk_file, R_TKT_FIL)))
+    return False;
 
-    /* figure out what realm we're authenticated to. this ought
-       to be the local realm, but it pays to be sure. */
-    if ((k_errno = krb_get_tf_realm(tk_file, realm))) {
-	return False;
-    }
+  /* same with principal and instance names */
+  if ((k_errno= tf_get_pname(name)) ||
+    (k_errno= tf_get_pinst(inst)))
+    return False;
 
-    /* last-minute sanity check on what we got. */
-    if ((strlen(name)+strlen(inst)+strlen(realm)+3) >
-	(REALM_SZ + ANAME_SZ + INST_SZ + 3)) {
-	return False;
-    }
+  /* close the ticketfile to release the lock on it. */
+  tf_close();
 
-    /* success */
-    return True;
+  /* figure out what realm we're authenticated to. this ought
+     to be the local realm, but it pays to be sure. */
+  if ((k_errno= krb_get_tf_realm(tk_file, realm)))
+    return False;
 
-# endif /* !HAVE_DARWIN */
+  /* last-minute sanity check on what we got. */
+  if ((strlen(name) + strlen(inst) + strlen(realm) + 3) >
+    (REALM_SZ + ANAME_SZ + INST_SZ + 3))
+    return False;
+
+  /* success */
+  return True;
+
+#endif /* !HAVE_DARWIN */
 }
 
 
@@ -167,8 +161,13 @@ kerberos_lock_init (void)
    would have been rude.
  */
 #ifndef HAVE_DARWIN
-static int 
-key_to_key(char *user, char *instance, char *realm, char *passwd, C_Block key)
+static int
+  key_to_key(
+    char *user,
+    char *instance,
+    char *realm,
+    char *passwd,
+    C_Block key)
 {
   memcpy(key, passwd, sizeof(des_cblock));
   return (0);
@@ -182,71 +181,69 @@ key_to_key(char *user, char *instance, char *realm, char *passwd, C_Block key)
    like to stay authenticated, and it would screw with AFS authentication at
    some sites. So, we do a quick, painful hack with a tmpfile.
  */
-Bool
-kerberos_passwd_valid_p (void *closure, const char *typed_passwd)
+Bool kerberos_passwd_valid_p(
+  void *closure,
+  const char *typed_passwd)
 {
-# ifdef HAVE_DARWIN
-    return (klNoErr ==
-            KLAcquireNewInitialTicketsWithPassword (princ, NULL,
-                                                    typed_passwd, NULL));
-# else /* !HAVE_DARWIN */
+#ifdef HAVE_DARWIN
+  return (klNoErr ==
+    KLAcquireNewInitialTicketsWithPassword(princ, NULL, typed_passwd, NULL));
+#else /* !HAVE_DARWIN */
 
-    /* See comments in kerberos_lock_init -- should we do it the Mac Way
-       on all systems?
-     */
-    C_Block mitkey;
-    Bool success;
-    char *newtkfile;
-    int fh = -1;
+  /* See comments in kerberos_lock_init -- should we do it the Mac Way
+     on all systems?
+   */
+  C_Block mitkey;
+  Bool success;
+  char *newtkfile;
+  int fh= -1;
 
-    /* temporarily switch to a new ticketfile.
-       I'm not using tmpnam() because it isn't entirely portable.
-       this could probably be fixed with autoconf. */
-    char *tmpdir = getenv("TMPDIR");
-    if (!tmpdir || !*tmpdir) tmpdir = "/tmp";
-    newtkfile = malloc (strlen(tmpdir) + 40);
-    sprintf (newtkfile, "%s/xscreensaver.XXXXXX", tmpdir);
+  /* temporarily switch to a new ticketfile.
+     I'm not using tmpnam() because it isn't entirely portable.
+     this could probably be fixed with autoconf. */
+  char *tmpdir= getenv("TMPDIR");
+  if (! tmpdir || ! *tmpdir) tmpdir= "/tmp";
+  newtkfile= malloc(strlen(tmpdir) + 40);
+  sprintf(newtkfile, "%s/xscreensaver.XXXXXX", tmpdir);
 
-    if( (fh = mkstemp(newtkfile)) < 0)
+  if ((fh= mkstemp(newtkfile)) < 0)
     {
-        free(newtkfile);
-        return(False);
+      free(newtkfile);
+      return (False);
     }
-    if( fchmod(fh, 0600) < 0)
+  if (fchmod(fh, 0600) < 0)
     {
-        free(newtkfile);
-        return(False);
+      free(newtkfile);
+      return (False);
     }
 
 
-    krb_set_tkt_string(newtkfile);
+  krb_set_tkt_string(newtkfile);
 
-    /* encrypt the typed password. if you have an AFS password instead
-       of a kerberos one, you lose *right here*. If you want to use AFS
-       passwords, you can use ka_StringToKey() instead. As always, ymmv. */
-    des_string_to_key(typed_passwd, mitkey);
+  /* encrypt the typed password. if you have an AFS password instead
+     of a kerberos one, you lose *right here*. If you want to use AFS
+     passwords, you can use ka_StringToKey() instead. As always, ymmv. */
+  des_string_to_key(typed_passwd, mitkey);
 
-    if (krb_get_in_tkt(name, inst, realm, "krbtgt", realm, DEFAULT_TKT_LIFE,
-		       key_to_key, NULL, (char *) mitkey) != 0) {
-	success = False;
-    } else {
-	success = True;
-    }
+  if (krb_get_in_tkt(name, inst, realm, "krbtgt", realm, DEFAULT_TKT_LIFE, key_to_key, NULL, (char *) mitkey) != 0)
+    success= False;
+  else
+    success= True;
 
-    /* quickly block out the tempfile and password to prevent snooping,
-       then restore the old ticketfile and cleean up a bit. */
-    
-    dest_tkt();
-    krb_set_tkt_string(tk_file);
-    free(newtkfile);
-    memset(mitkey, 0, sizeof(mitkey));
-    close(fh); /* #### tom: should the file be removed? */
-    
+  /* quickly block out the tempfile and password to prevent snooping,
+     then restore the old ticketfile and cleean up a bit. */
 
-    /* Did we verify successfully? */
-    return success;
+  dest_tkt();
+  krb_set_tkt_string(tk_file);
+  free(newtkfile);
+  memset(mitkey, 0, sizeof(mitkey));
+  close(fh); /* #### tom: should the file be removed? */
 
-# endif /* !HAVE_DARWIN */
+
+  /* Did we verify successfully? */
+  return success;
+
+#endif /* !HAVE_DARWIN */
 }
 
 #endif /* NO_LOCKING -- whole file */

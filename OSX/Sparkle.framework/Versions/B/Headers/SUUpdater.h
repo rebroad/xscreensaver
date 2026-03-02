@@ -35,17 +35,18 @@
  The legacy API in Sparkle for controlling the update mechanism.
 
  This class is now deprecated and acts as a thin wrapper around `SPUUpdater` and `SPUStandardUserDriver`.
- 
+
  If you are migrating to Sparkle 2, use `SPUStandardUpdaterController` instead, or `SPUUpdater` if you need more control.
  */
-__deprecated_msg("Deprecated in Sparkle 2. Use SPUStandardUpdaterController instead, or SPUUpdater if you need more control.")
-SU_EXPORT @interface SUUpdater : NSObject
+__deprecated_msg(
+  "Deprecated in Sparkle 2. Use SPUStandardUpdaterController instead, or SPUUpdater if you need more control.")
+  SU_EXPORT @interface SUUpdater : NSObject
 
 @property (unsafe_unretained, nonatomic) IBOutlet id<SUUpdaterDelegate> delegate;
 
 /*!
  The shared updater for the main bundle.
- 
+
  This is equivalent to passing [NSBundle mainBundle] to SUUpdater::updaterForBundle:
  */
 + (SUUpdater *)sharedUpdater;
@@ -58,7 +59,7 @@ SU_EXPORT @interface SUUpdater : NSObject
 
 /*!
  Designated initializer for SUUpdater.
- 
+
  If an updater has already been initialized for the provided bundle, that shared instance will be returned.
  */
 - (instancetype)initForBundle:(NSBundle *)bundle;

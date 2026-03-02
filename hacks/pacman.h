@@ -73,11 +73,27 @@ typedef struct
 } tracevec_struct;
 
 typedef enum
-    { inbox = 0, goingout, randdir, chasing, hiding, goingin } GhostState;
+{
+  inbox= 0,
+  goingout,
+  randdir,
+  chasing,
+  hiding,
+  goingin
+} GhostState;
 typedef enum
-    { ps_eating = 0, ps_chasing, ps_hiding, ps_random, ps_dieing } PacmanState;
+{
+  ps_eating= 0,
+  ps_chasing,
+  ps_hiding,
+  ps_random,
+  ps_dieing
+} PacmanState;
 typedef enum
-{ GHOST_DANGER, GHOST_EATEN } GameState;
+{
+  GHOST_DANGER,
+  GHOST_EATEN
+} GameState;
 
 typedef struct
 {
@@ -94,12 +110,12 @@ typedef struct
     XPoint err;
     int flash_scared;
     int trace_idx;
-    tracevec_struct trace[GHOST_TRACE];
+    tracevec_struct trace [ GHOST_TRACE ];
     int home_idx;
     volatile int home_count;
-    tracevec_struct way_home[GHOST_TRACE];
+    tracevec_struct way_home [ GHOST_TRACE ];
     volatile int wait_pos; /* a cycle before calculating the position */
-#if 0  /* Used for debugging */
+#if 0                      /* Used for debugging */
     int ndirs;
     int oldndirs;
 #endif
@@ -121,7 +137,7 @@ typedef struct
     int oldlx, oldly;
     int justate;
     PacmanState aistate;
-    tracevec_struct trace[TRACEVECS];
+    tracevec_struct trace [ TRACEVECS ];
     int cur_trace;
     int state_change;
     int roundscore;
@@ -142,9 +158,10 @@ typedef struct
 
 
 /* This are tiles which can be placed to create a level. */
-struct tiles {
-    char block[TILEWIDTH * TILEHEIGHT + 1];
-    unsigned dirvec[4];
+struct tiles
+{
+    char block [ TILEWIDTH * TILEHEIGHT + 1 ];
+    unsigned dirvec [ 4 ];
     unsigned ndirs;
     unsigned simular_to;
 };
@@ -160,15 +177,15 @@ typedef struct
     pacmanstruct pacman;
     ghoststruct *ghosts;
     unsigned int nghosts;
-    Pixmap pacmanPixmap[4][MAXMOUTH];
-    Pixmap pacmanMask[4][MAXMOUTH];
-    Pixmap pacman_ds[PAC_DEATH_FRAMES]; /* pacman death sequence */
-    Pixmap pacman_ds_mask[PAC_DEATH_FRAMES];
-    Pixmap ghostPixmap[4][MAXGDIR][MAXGWAG];
+    Pixmap pacmanPixmap [ 4 ][ MAXMOUTH ];
+    Pixmap pacmanMask [ 4 ][ MAXMOUTH ];
+    Pixmap pacman_ds [ PAC_DEATH_FRAMES ]; /* pacman death sequence */
+    Pixmap pacman_ds_mask [ PAC_DEATH_FRAMES ];
+    Pixmap ghostPixmap [ 4 ][ MAXGDIR ][ MAXGWAG ];
     Pixmap ghostMask;
-    Pixmap s_ghostPixmap[MAXGFLASH][MAXGWAG];   /* Scared ghost Pixmaps */
-    Pixmap ghostEyes[MAXGDIR];
-    char level[LEVHEIGHT * LEVWIDTH];
+    Pixmap s_ghostPixmap [ MAXGFLASH ][ MAXGWAG ]; /* Scared ghost Pixmaps */
+    Pixmap ghostEyes [ MAXGDIR ];
+    char level [ LEVHEIGHT * LEVWIDTH ];
     unsigned int wallwidth;
     unsigned int dotsleft;
     int spritexs, spriteys, spritedx, spritedy;
@@ -176,7 +193,7 @@ typedef struct
     GameState gamestate;
     unsigned int timeleft;
 
-    char last_pac_stat[1024];
+    char last_pac_stat [ 1024 ];
 
     /* draw_pacman_sprite */
     int pm_mouth;
@@ -185,7 +202,7 @@ typedef struct
     int pm_death_frame;
     int pm_death_delay;
 
-	/* draw_ghost_sprite */
+    /* draw_ghost_sprite */
     int gh_wag;
     int gh_wag_count;
 
@@ -199,7 +216,7 @@ typedef struct
     PacmanState old_pac_state;
 
     /* pacman_level.c */
-    bonus_dot bonus_dots[NUM_BONUS_DOTS];
+    bonus_dot bonus_dots [ NUM_BONUS_DOTS ];
     struct tiles *tiles;
 
 } pacmangamestruct;
@@ -207,6 +224,6 @@ typedef struct
 extern pacmangamestruct *pacman_games;
 extern Bool pacman_trackmouse;
 
-typedef char lev_t[LEVHEIGHT][LEVWIDTH + 1];
+typedef char lev_t [ LEVHEIGHT ][ LEVWIDTH + 1 ];
 
 #endif /* __PACMAN_H__ */

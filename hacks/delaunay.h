@@ -22,12 +22,14 @@
 #ifndef __DELAUNAY_H__
 #define __DELAUNAY_H__
 
-typedef struct {
-   double x,y,z;
+typedef struct
+{
+    double x, y, z;
 } XYZ;
 
-typedef struct {
-   int p1,p2,p3;
+typedef struct
+{
+    int p1, p2, p3;
 } ITRIANGLE;
 
 /*
@@ -38,11 +40,10 @@ typedef struct {
    The vertex array pxyz must be big enough to hold 3 more points
    The vertex array must be sorted in increasing x values
  */
-extern int delaunay (int nv, XYZ *pxyz, ITRIANGLE *v, int *ntri);
+extern int delaunay(int nv, XYZ *pxyz, ITRIANGLE *v, int *ntri);
 
 /* qsort(p,nv,sizeof(XYZ), delaunay_xyzcompare); */
-extern int delaunay_xyzcompare (const void *v1, const void *v2);
+extern int delaunay_xyzcompare(const void *v1, const void *v2);
 
 
 #endif /* __DELAUNAY_H__ */
-

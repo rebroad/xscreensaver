@@ -5,7 +5,7 @@
  * the above copyright notice appear in all copies and that both that
  * copyright notice and this permission notice appear in supporting
  * documentation.  No representations are made about the suitability of this
- * software for any purpose.  It is provided "as is" without express or 
+ * software for any purpose.  It is provided "as is" without express or
  * implied warranty.
  *
  * Wendy, let me explain something to you.  Whenever you come in here and
@@ -20,149 +20,145 @@
 #include <ctype.h>
 #include "screenhack.h"
 
-static const char *source = "All work and no play makes Jack a dull boy.  ";
+static const char *source= "All work and no play makes Jack a dull boy.  ";
 /* If you're here because you're thinking about making the above string be
    customizable, then you don't get the joke.  You loser. */
 
-struct state {
-  Display *dpy;
-  Window window;
-  XWindowAttributes xgwa;
-  XftFont *font;
-  XftColor xft_fg;
-  XftDraw *xftdraw;
-  GC gc;
+struct state
+{
+    Display *dpy;
+    Window window;
+    XWindowAttributes xgwa;
+    XftFont *font;
+    XftColor xft_fg;
+    XftDraw *xftdraw;
+    GC gc;
 
-  const char *s;
-  int columns, rows;		/* characters */
-  int left, right;		/* characters */
-  int char_width, line_height;	/* pixels */
-  int x, y;			/* characters */
-  int mode;
-  int hspace;			/* pixels */
-  int vspace;			/* pixels */
-  Bool break_para;
-  Bool caps;
-  int sentences;
-  int paras;
-  int scrolling;
-  int subscrolling;
-  int pining;
+    const char *s;
+    int columns, rows;           /* characters */
+    int left, right;             /* characters */
+    int char_width, line_height; /* pixels */
+    int x, y;                    /* characters */
+    int mode;
+    int hspace; /* pixels */
+    int vspace; /* pixels */
+    Bool break_para;
+    Bool caps;
+    int sentences;
+    int paras;
+    int scrolling;
+    int subscrolling;
+    int pining;
 
-  int delay;
+    int delay;
 };
 
 
 static void
-xjack_reshape (Display *dpy, Window window, void *closure, 
-                 unsigned int w, unsigned int h)
+  xjack_reshape(
+    Display *dpy,
+    Window window,
+    void *closure,
+    unsigned int w,
+    unsigned int h)
 {
-  struct state *st = (struct state *) closure;
-  XGetWindowAttributes (st->dpy, st->window, &st->xgwa);
-  st->columns = (st->xgwa.width  - st->hspace - st->hspace) / st->char_width;
-  st->rows    = (st->xgwa.height - st->vspace - st->vspace) / st->line_height;
+  struct state *st= (struct state *) closure;
+  XGetWindowAttributes(st->dpy, st->window, &st->xgwa);
+  st->columns= (st->xgwa.width - st->hspace - st->hspace) / st->char_width;
+  st->rows= (st->xgwa.height - st->vspace - st->vspace) / st->line_height;
   st->rows--;
   st->columns--;
 
   /* If the window is stupidly small, just truncate. */
-  if (st->rows < 4)     st->rows = 4;
-  if (st->columns < 12) st->columns = 12;
+  if (st->rows < 4) st->rows= 4;
+  if (st->columns < 12) st->columns= 12;
 
-  if (st->y > st->rows)    st->y = st->rows-1;
-  if (st->x > st->columns) st->x = st->columns-2;
+  if (st->y > st->rows) st->y= st->rows - 1;
+  if (st->x > st->columns) st->x= st->columns - 2;
 
-  if (st->right > st->columns) st->right = st->columns;
-  if (st->left > st->columns-20) st->left = st->columns-20;
-  if (st->left < 0) st->left = 0;
+  if (st->right > st->columns) st->right= st->columns;
+  if (st->left > st->columns - 20) st->left= st->columns - 20;
+  if (st->left < 0) st->left= 0;
 
-  XClearWindow (st->dpy, st->window);
+  XClearWindow(st->dpy, st->window);
 }
 
 
 static void *
-xjack_init (Display *dpy, Window window)
+  xjack_init(
+    Display *dpy,
+    Window window)
 {
-  struct state *st = (struct state *) calloc (1, sizeof(*st));
+  struct state *st= (struct state *) calloc(1, sizeof(*st));
   XGCValues gcv;
   char *fontname, *s;
 
-  st->dpy = dpy;
-  st->window = window;
-  st->s = source;
-  st->delay = get_integer_resource (st->dpy, "delay", "Integer");
+  st->dpy= dpy;
+  st->window= window;
+  st->s= source;
+  st->delay= get_integer_resource(st->dpy, "delay", "Integer");
 
-  XGetWindowAttributes (st->dpy, st->window, &st->xgwa);
+  XGetWindowAttributes(st->dpy, st->window, &st->xgwa);
 
-  if (st->xgwa.width > 1200 || st->xgwa.height > 1200)  /* Retina displays */
-    fontname = get_string_resource (st->dpy, "font3", "Font");
+  if (st->xgwa.width > 1200 || st->xgwa.height > 1200) /* Retina displays */
+    fontname= get_string_resource(st->dpy, "font3", "Font");
   else if (st->xgwa.width > 480)
-    fontname = get_string_resource (st->dpy, "font", "Font");
+    fontname= get_string_resource(st->dpy, "font", "Font");
   else
-    fontname = get_string_resource (st->dpy, "font2", "Font");
+    fontname= get_string_resource(st->dpy, "font2", "Font");
 
-  st->font = load_xft_font_retry (st->dpy, screen_number (st->xgwa.screen),
-                                  fontname);
-  if (!st->font) abort();
-  if (fontname) free (fontname);
+  st->font= load_xft_font_retry(st->dpy, screen_number(st->xgwa.screen), fontname);
+  if (! st->font) abort();
+  if (fontname) free(fontname);
 
-  gcv.foreground = get_pixel_resource (st->dpy, st->xgwa.colormap,
-                                       "foreground", "Foreground");
-  gcv.background = get_pixel_resource (st->dpy, st->xgwa.colormap,
-                                       "background", "Background");
-  st->gc = XCreateGC (st->dpy, st->window,
-                      (GCForeground | GCBackground), &gcv);
-  s = get_string_resource (st->dpy, "foreground", "Foreground");
-  if (!s) s = strdup("black");
-  XftColorAllocName (st->dpy, st->xgwa.visual, st->xgwa.colormap, s,
-                     &st->xft_fg);
-  free (s);
-  st->xftdraw = XftDrawCreate (dpy, st->window, st->xgwa.visual,
-                               st->xgwa.colormap);
+  gcv.foreground= get_pixel_resource(st->dpy, st->xgwa.colormap, "foreground", "Foreground");
+  gcv.background= get_pixel_resource(st->dpy, st->xgwa.colormap, "background", "Background");
+  st->gc= XCreateGC(st->dpy, st->window, (GCForeground | GCBackground), &gcv);
+  s= get_string_resource(st->dpy, "foreground", "Foreground");
+  if (! s) s= strdup("black");
+  XftColorAllocName(st->dpy, st->xgwa.visual, st->xgwa.colormap, s, &st->xft_fg);
+  free(s);
+  st->xftdraw= XftDrawCreate(dpy, st->window, st->xgwa.visual, st->xgwa.colormap);
 
   {
     XGlyphInfo overall;
-    XftTextExtentsUtf8 (st->dpy, st->font, (FcChar8 *) "N", 1, &overall);
-    st->char_width = overall.xOff;
-    st->line_height = st->font->ascent + st->font->descent + 1;
+    XftTextExtentsUtf8(st->dpy, st->font, (FcChar8 *) "N", 1, &overall);
+    st->char_width= overall.xOff;
+    st->line_height= st->font->ascent + st->font->descent + 1;
   }
 
-  xjack_reshape (dpy, window, st, st->xgwa.width, st->xgwa.height);
+  xjack_reshape(dpy, window, st, st->xgwa.width, st->xgwa.height);
 
-  st->left = 0xFF & (random() % ((st->columns / 2)+1));
-  st->right = st->left + (0xFF & (random() % (st->columns - st->left)
-                                  + 10));
-  if (st->right < st->left + 10) st->right = st->left + 10;
-  if (st->right > st->columns)   st->right = st->columns;
+  st->left= 0xFF & (random() % ((st->columns / 2) + 1));
+  st->right= st->left + (0xFF & (random() % (st->columns - st->left) + 10));
+  if (st->right < st->left + 10) st->right= st->left + 10;
+  if (st->right > st->columns) st->right= st->columns;
 
-  st->x = st->left;
-  st->y = 0;
+  st->x= st->left;
+  st->y= 0;
 
   if (st->xgwa.width > 200 && st->xgwa.height > 200)
-    st->hspace = st->vspace = 40;
+    st->hspace= st->vspace= 40;
 
   return st;
 }
 
 static unsigned long
-xjack_scroll (struct state *st)
+  xjack_scroll(
+    struct state *st)
 {
-  st->break_para = 0;
+  st->break_para= 0;
   if (st->subscrolling)
     {
-      int inc = st->line_height / 7;
-      XCopyArea (st->dpy, st->window, st->window, st->gc,
-                 0, inc,
-                 st->xgwa.width, st->xgwa.height - inc,
-                 0, 0);
+      int inc= st->line_height / 7;
+      XCopyArea(st->dpy, st->window, st->window, st->gc, 0, inc, st->xgwa.width, st->xgwa.height - inc, 0, 0);
 
       /* See? It's OK. He saw it on the television. */
-      XClearArea (st->dpy, st->window,
-                  0, st->xgwa.height - inc, st->xgwa.width, inc,
-                  False);
+      XClearArea(st->dpy, st->window, 0, st->xgwa.height - inc, st->xgwa.width, inc, False);
 
-      st->subscrolling -= inc;
+      st->subscrolling-= inc;
       if (st->subscrolling <= 0)
-        st->subscrolling = 0;
+        st->subscrolling= 0;
       if (st->subscrolling == 0)
         {
           if (st->scrolling > 0)
@@ -172,121 +168,125 @@ xjack_scroll (struct state *st)
       return st->delay / 1000;
     }
   else if (st->scrolling)
-    st->subscrolling = st->line_height;
+    {
+      st->subscrolling= st->line_height;
+    }
 
   if (st->y < 0)
-    st->y = 0;
-  else if (st->y >= st->rows-1)
-    st->y = st->rows-1;
+    st->y= 0;
+  else if (st->y >= st->rows - 1)
+    st->y= st->rows - 1;
 
   return st->delay;
 }
 
 static unsigned long
-xjack_pine (struct state *st)
+  xjack_pine(
+    struct state *st)
 {
   /* See also http://catalog.com/hopkins/unix-haters/login.html */
-  const char *n1 = "NFS server overlook not responding, still trying...";
-  const char *n2 = "NFS server overlook ok.";
-  int prev = st->pining;
+  const char *n1= "NFS server overlook not responding, still trying...";
+  const char *n2= "NFS server overlook ok.";
+  int prev= st->pining;
 
-  if (!st->pining)
-    st->pining = 1 + (random() % 3);
+  if (! st->pining)
+    st->pining= 1 + (random() % 3);
 
   if (prev)
-    while (*n2)
-      {
-        XftDrawStringUtf8 (st->xftdraw, &st->xft_fg, st->font,
-                           (st->x * st->char_width) + st->hspace,
-                           ((st->y * st->line_height) + st->vspace
-                            + st->font->ascent),
-                           (FcChar8 *) n2, 1);
-        st->x++;
-        if (st->x >= st->columns) st->x = 0, st->y++;
-        n2++;
-      }
+    {
+      while (*n2)
+        {
+          XftDrawStringUtf8(st->xftdraw, &st->xft_fg, st->font, (st->x * st->char_width) + st->hspace, ((st->y * st->line_height) + st->vspace + st->font->ascent), (FcChar8 *) n2, 1);
+          st->x++;
+          if (st->x >= st->columns) st->x= 0, st->y++;
+          n2++;
+        }
+    }
   st->y++;
-  st->x = 0;
+  st->x= 0;
   st->pining--;
 
   if (st->pining)
-    while (*n1)
-      {
-        XftDrawStringUtf8 (st->xftdraw, &st->xft_fg, st->font,
-                           (st->x * st->char_width) + st->hspace,
-                           ((st->y * st->line_height) + st->vspace
-                            + st->font->ascent),
-                           (FcChar8 *) n1, 1);
-        st->x++;
-        if (st->x >= st->columns) st->x = 0, st->y++;
-        n1++;
-      }
+    {
+      while (*n1)
+        {
+          XftDrawStringUtf8(st->xftdraw, &st->xft_fg, st->font, (st->x * st->char_width) + st->hspace, ((st->y * st->line_height) + st->vspace + st->font->ascent), (FcChar8 *) n1, 1);
+          st->x++;
+          if (st->x >= st->columns) st->x= 0, st->y++;
+          n1++;
+        }
+    }
 
   return 5000000;
 }
 
 
 static unsigned long
-xjack_draw (Display *dpy, Window window, void *closure)
+  xjack_draw(
+    Display *dpy,
+    Window window,
+    void *closure)
 {
-  struct state *st = (struct state *) closure;
-  int this_delay = st->delay;
-  int word_length = 0;
+  struct state *st= (struct state *) closure;
+  int this_delay= st->delay;
+  int word_length= 0;
   const char *s2;
 
   if (st->scrolling)
-    return xjack_scroll (st);
+    return xjack_scroll(st);
   if (st->pining)
-    return xjack_pine (st);
+    return xjack_pine(st);
 
-  for (s2 = st->s; *s2 && *s2 != ' '; s2++)
+  for (s2= st->s; *s2 && *s2 != ' '; s2++)
     word_length++;
 
   if (st->break_para ||
-      (*st->s != ' ' &&
-       (st->x + word_length) >= st->right))
+    (*st->s != ' ' &&
+      (st->x + word_length) >= st->right))
     {
-      st->x = st->left;
+      st->x= st->left;
       st->y++;
 
       if (st->break_para)
         st->y++;
 
-      st->break_para = 0;
+      st->break_para= 0;
 
       if (st->mode == 1 || st->mode == 2)
         {
           /* 1 = left margin goes southwest; 2 = southeast */
-          st->left += (st->mode == 1 ? 1 : -1);
+          st->left+= (st->mode == 1 ? 1 : -1);
           if (st->left >= st->right - 10)
             {
               if ((st->right < (st->columns - 10)) && (random() & 1))
-                st->right += (0xFF & (random() % (st->columns - st->right)));
+                st->right+= (0xFF & (random() % (st->columns - st->right)));
               else
-                st->mode = 2;
+                st->mode= 2;
             }
           else if (st->left <= 0)
             {
-              st->left = 0;
-              st->mode = 1;
+              st->left= 0;
+              st->mode= 1;
             }
         }
       else if (st->mode == 3 || st->mode == 4)
         {
           /* 3 = right margin goes southeast; 4 = southwest */
-          st->right += (st->mode == 3 ? 1 : -1);
+          st->right+= (st->mode == 3 ? 1 : -1);
           if (st->right >= st->columns)
             {
-              st->right = st->columns;
-              st->mode = 4;
+              st->right= st->columns;
+              st->mode= 4;
             }
           else if (st->right <= st->left + 10)
-            st->mode = 3;
+            {
+              st->mode= 3;
+            }
         }
 
-      if (st->y >= st->rows-1)	/* bottom of page */
+      if (st->y >= st->rows - 1) /* bottom of page */
         {
-# if 0    /* Nah, this looks bad. */
+#if 0 /* Nah, this looks bad. */
 
           /* scroll by 1-5 lines */
           st->scrolling = (random() % 5 ? 0 : (0xFF & (random() % 5))) + 1;
@@ -297,80 +297,90 @@ xjack_draw (Display *dpy, Window window, void *closure)
           /* but sometimes scroll by a whole page */
           if (0 == (random() % 100))
             st->scrolling += st->rows;
-# else
-          st->scrolling = 1;
-# endif
+#else
+          st->scrolling= 1;
+#endif
 
-          return xjack_scroll (st);
+          return xjack_scroll(st);
         }
     }
 
   if (*st->s != ' ')
     {
-      char c = *st->s;
-      int xshift = 0, yshift = 0;
+      char c= *st->s;
+      int xshift= 0, yshift= 0;
       if (0 == random() % 50)
         {
-          xshift = random() % ((st->char_width / 3) + 1);      /* mis-strike */
-          yshift = random() % ((st->line_height / 6) + 1);
+          xshift= random() % ((st->char_width / 3) + 1); /* mis-strike */
+          yshift= random() % ((st->line_height / 6) + 1);
           if (0 == (random() % 3))
-            yshift *= 2;
+            yshift*= 2;
           if (random() & 1)
-            xshift = -xshift;
+            xshift= -xshift;
           if (random() & 1)
-            yshift = -yshift;
+            yshift= -yshift;
         }
 
-      if (0 == (random() % 250))	/* introduce adjascent-key typo */
+      if (0 == (random() % 250)) /* introduce adjascent-key typo */
         {
-          static const char * const typo[] = {
-            "asqw", "ASQW", "bgvhn", "cxdfv", "dserfcx", "ewsdrf",
-            "Jhuikmn", "kjiol,m", "lkop;.,", "mnjk,", "nbhjm", "oiklp09",
-            "pol;(-0", "redft54", "sawedxz", "uyhji87", "wqase32",
-            "yuhgt67", ".,l;/", 0 };
-          int i = 0;
-          while (typo[i] && typo[i][0] != c)
+          static const char *const typo []= {
+            "asqw",
+            "ASQW",
+            "bgvhn",
+            "cxdfv",
+            "dserfcx",
+            "ewsdrf",
+            "Jhuikmn",
+            "kjiol,m",
+            "lkop;.,",
+            "mnjk,",
+            "nbhjm",
+            "oiklp09",
+            "pol;(-0",
+            "redft54",
+            "sawedxz",
+            "uyhji87",
+            "wqase32",
+            "yuhgt67",
+            ".,l;/",
+            0};
+          int i= 0;
+          while (typo [ i ] && typo [ i ][ 0 ] != c)
             i++;
-          if (typo[i])
-            c = typo[i][0xFF & ((random() % strlen(typo[i]+1)) + 1)];
+          if (typo [ i ])
+            c= typo [ i ][ 0xFF & ((random() % strlen(typo [ i ] + 1)) + 1) ];
         }
 
       /* caps typo */
       if (c >= 'a' && c <= 'z' && (st->caps || 0 == (random() % 350)))
         {
-          c -= ('a'-'A');
+          c-= ('a' - 'A');
           if (c == 'O' && random() & 1)
-            c = '0';
+            c= '0';
         }
 
-    OVERSTRIKE:
-      XftDrawStringUtf8 (st->xftdraw, &st->xft_fg, st->font,
-                         (st->x * st->char_width) + st->hspace + xshift,
-                         ((st->y * st->line_height) + st->vspace +
-                          st->font->ascent
-                          + yshift),
-                         (FcChar8 *) &c, 1);
+OVERSTRIKE:
+      XftDrawStringUtf8(st->xftdraw, &st->xft_fg, st->font, (st->x * st->char_width) + st->hspace + xshift, ((st->y * st->line_height) + st->vspace + st->font->ascent + yshift), (FcChar8 *) &c, 1);
       if (xshift == 0 && yshift == 0 && (0 == (random() & 3000)))
         {
-          int off = st->font->ascent / 10;
-          if (off <= 0) off = 1;
-          if (random() & 1) off *= 1.5;
+          int off= st->font->ascent / 10;
+          if (off <= 0) off= 1;
+          if (random() & 1) off*= 1.5;
           if (random() & 1)
-            xshift -= off;
+            xshift-= off;
           else
-            yshift -= off;
+            yshift-= off;
           goto OVERSTRIKE;
         }
 
-      if ((tolower(c) != tolower(*st->s))
-          ? (0 == (random() % 10))	/* backup to correct */
-          : (0 == (random() % 400)))	/* fail to advance */
+      if ((tolower(c) != tolower(*st->s)) ? (0 == (random() % 10)) /* backup to correct */
+                                            :
+                                            (0 == (random() % 400))) /* fail to advance */
         {
           st->x--;
           st->s--;
           if (st->delay)
-            this_delay += (0xFFFF & (st->delay + 
-                                     (random() % (st->delay * 10))));
+            this_delay+= (0xFFFF & (st->delay + (random() % (st->delay * 10))));
         }
     }
 
@@ -380,92 +390,96 @@ xjack_draw (Display *dpy, Window window, void *closure)
   if (0 == random() % 200)
     {
       if (random() & 1 && st->s != source)
-        st->s--;	/* duplicate character */
+        st->s--; /* duplicate character */
       else if (*st->s)
-        st->s++;	/* skip character */
+        st->s++; /* skip character */
     }
 
   if (*st->s == 0)
     {
       st->sentences++;
-      st->caps = (0 == random() % 40);	/* capitalize sentence */
+      st->caps= (0 == random() % 40); /* capitalize sentence */
 
-      if (0 == (random() % 10) ||	/* randomly break paragraph */
-          (st->mode == 0 &&
-           ((0 == (random() % 10)) || st->sentences > 20)))
+      if (0 == (random() % 10) || /* randomly break paragraph */
+        (st->mode == 0 &&
+          ((0 == (random() % 10)) || st->sentences > 20)))
         {
-          st->break_para = True;
-          st->sentences = 0;
+          st->break_para= True;
+          st->sentences= 0;
           st->paras++;
 
-          if (random() & 1)		/* mode=0 50% of the time */
-            st->mode = 0;
+          if (random() & 1) /* mode=0 50% of the time */
+            st->mode= 0;
           else
-            st->mode = (0xFF & (random() % 5));
+            st->mode= (0xFF & (random() % 5));
 
-          if (0 == (random() % 2))	/* re-pick margins */
+          if (0 == (random() % 2)) /* re-pick margins */
             {
-              st->left = 0xFF & (random() % (st->columns / 3));
-              st->right = (st->columns -
-                           (0xFF & (random() % (st->columns / 3))));
+              st->left= 0xFF & (random() % (st->columns / 3));
+              st->right= (st->columns -
+                (0xFF & (random() % (st->columns / 3))));
 
-              if (0 == random() % 3)	/* sometimes be wide */
-                st->right = st->left + ((st->right - st->left) / 2);
+              if (0 == random() % 3) /* sometimes be wide */
+                st->right= st->left + ((st->right - st->left) / 2);
             }
 
-          if (st->right - st->left <= 10)	/* introduce sanity */
+          if (st->right - st->left <= 10) /* introduce sanity */
             {
-              st->left = 0;
-              st->right = st->columns;
+              st->left= 0;
+              st->right= st->columns;
             }
 
-          if (st->right - st->left > 50)	/* if wide, shrink and move */
+          if (st->right - st->left > 50) /* if wide, shrink and move */
             {
-              st->left += (0xFF & (random() % ((st->columns - 50) + 1)));
-              st->right = st->left + (0xFF & ((random() % 40) + 10));
+              st->left+= (0xFF & (random() % ((st->columns - 50) + 1)));
+              st->right= st->left + (0xFF & ((random() % 40) + 10));
             }
 
           /* oh, gag. */
           if (st->mode == 0 &&
-              st->right - st->left < 25 &&
-              st->columns > 40)
+            st->right - st->left < 25 &&
+            st->columns > 40)
             {
-              st->right += 20;
+              st->right+= 20;
               if (st->right > st->columns)
-                st->left -= (st->right - st->columns);
+                st->left-= (st->right - st->columns);
             }
 
           if (st->right - st->left < 5)
-            st->left = st->right - 5;
+            st->left= st->right - 5;
           if (st->left < 0)
-            st->left = 0;
+            st->left= 0;
           if (st->right - st->left < 5)
-            st->right = st->left + 5;
+            st->right= st->left + 5;
         }
-      st->s = source;
+      st->s= source;
     }
 
   if (st->delay)
     {
       if (0 == random() % 3)
-        this_delay += (0xFFFFFF & ((random() % (st->delay * 5)) + 1));
+        this_delay+= (0xFFFFFF & ((random() % (st->delay * 5)) + 1));
 
       if (st->break_para)
-        this_delay += (0xFFFFFF & ((random() % (st->delay * 15)) + 1));
+        this_delay+= (0xFFFFFF & ((random() % (st->delay * 15)) + 1));
     }
 
   if (st->paras > 5 &&
-      (0 == (random() % 1000)) &&
-      st->y < st->rows-2)
-    return xjack_pine (st);
+    (0 == (random() % 1000)) &&
+    st->y < st->rows - 2)
+    return xjack_pine(st);
 
   return this_delay;
 }
 
 static Bool
-xjack_event (Display *dpy, Window window, void *closure, XEvent *event)
+  xjack_event(
+    Display *dpy,
+    Window window,
+    void *closure,
+    XEvent *event)
 {
-  struct state *st = (struct state *) closure;
+  struct state *st= (struct state *) closure;
   if (event->xany.type == ButtonPress)
     {
       st->scrolling++;
@@ -476,17 +490,20 @@ xjack_event (Display *dpy, Window window, void *closure, XEvent *event)
 }
 
 static void
-xjack_free (Display *dpy, Window window, void *closure)
+  xjack_free(
+    Display *dpy,
+    Window window,
+    void *closure)
 {
-  struct state *st = (struct state *) closure;
-  XFreeGC (dpy, st->gc);
-  XftFontClose (dpy, st->font);
-  XftDrawDestroy (st->xftdraw);
-  free (st);
+  struct state *st= (struct state *) closure;
+  XFreeGC(dpy, st->gc);
+  XftFontClose(dpy, st->font);
+  XftDrawDestroy(st->xftdraw);
+  free(st);
 }
 
 
-static const char *xjack_defaults [] = {
+static const char *xjack_defaults []= {
   ".background:		#FFF0B4",
   ".foreground:		#000000",
   "*fpsSolid:		true",
@@ -495,13 +512,13 @@ static const char *xjack_defaults [] = {
   ".font2: Special Elite 12, American Typewriter 12, Courier 12, monospace 12",
   ".font3: Special Elite 48, American Typewriter 48, Courier 48, monospace 48",
   "*delay:		50000",
-  0
-};
+  0};
 
-static XrmOptionDescRec xjack_options [] = {
-  { "-delay",		".delay",	XrmoptionSepArg, 0 },
-  { "-font",		".font",	XrmoptionSepArg, 0 },
-  { 0, 0, 0, 0 }
-};
+static XrmOptionDescRec xjack_options []= {
+  {"-delay", ".delay", XrmoptionSepArg, 0},
+  {"-font", ".font", XrmoptionSepArg, 0},
+  {0, 0, 0, 0}};
 
-XSCREENSAVER_MODULE ("XJack", xjack)
+XSCREENSAVER_MODULE(
+  "XJack",
+  xjack)

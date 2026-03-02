@@ -7,7 +7,7 @@
  * the above copyright notice appear in all copies and that both that
  * copyright notice and this permission notice appear in supporting
  * documentation.  No representations are made about the suitability of this
- * software for any purpose.  It is provided "as is" without express or 
+ * software for any purpose.  It is provided "as is" without express or
  * implied warranty.
  */
 
@@ -47,14 +47,14 @@
  */
 
 #ifdef HAVE_CONFIG_H
-# include "config.h"
+#include "config.h"
 #endif
 
-#ifndef NO_LOCKING  /* whole file */
+#ifndef NO_LOCKING /* whole file */
 
 #include <stdlib.h>
 #ifdef HAVE_UNISTD_H
-# include <unistd.h>
+#include <unistd.h>
 #endif
 
 #include <stdio.h>
@@ -68,27 +68,28 @@
 #include "blurb.h"
 #include "auth.h"
 
-static int pam_conversation (int nmsgs,
-                             const struct pam_message **msg,
-                             struct pam_response **resp,
-                             void *closure);
+static int pam_conversation(int nmsgs,
+  const struct pam_message **msg,
+  struct pam_response **resp,
+  void *closure);
 
-typedef struct {
-  Bool (*conv_fn) (void *closure,
-                   int nmsgs,
-                   const auth_message *msg,
-                   auth_response **resp);
-  void *conv_fn_closure;
+typedef struct
+{
+    Bool (*conv_fn)(void *closure,
+      int nmsgs,
+      const auth_message *msg,
+      auth_response **resp);
+    void *conv_fn_closure;
 } pam_conv_closure;
 
 
 #ifdef HAVE_PAM_FAIL_DELAY
-   /* We handle delays ourself.*/
-   /* Don't set this to 0 (Linux bug workaround.) */
-# define PAM_NO_DELAY(pamh) pam_fail_delay ((pamh), 1)
-#else  /* !HAVE_PAM_FAIL_DELAY */
-# define PAM_NO_DELAY(pamh) /* */
-#endif /* !HAVE_PAM_FAIL_DELAY */
+/* We handle delays ourself.*/
+/* Don't set this to 0 (Linux bug workaround.) */
+#define PAM_NO_DELAY(pamh) pam_fail_delay ((pamh), 1)
+#else                      /* !HAVE_PAM_FAIL_DELAY */
+#define PAM_NO_DELAY(pamh) /* */
+#endif                     /* !HAVE_PAM_FAIL_DELAY */
 
 
 /* On SunOS 5.6, and on Linux with PAM 0.64, pam_strerror() takes two args.
@@ -98,93 +99,87 @@ typedef struct {
    figures out which is in use for us.  Shoot me!
  */
 #ifdef PAM_STRERROR_TWO_ARGS
-# define PAM_STRERROR(pamh, status) pam_strerror((pamh), (status))
-#else  /* !PAM_STRERROR_TWO_ARGS */
-# define PAM_STRERROR(pamh, status) pam_strerror((status))
+#define PAM_STRERROR(pamh, status) pam_strerror((pamh), (status))
+#else /* !PAM_STRERROR_TWO_ARGS */
+#define PAM_STRERROR(pamh, status) pam_strerror((status))
 #endif /* !PAM_STRERROR_TWO_ARGS */
 
 
 /* This function invokes the PAM conversation.  It conducts a full
    authentication round by presenting the GUI with various prompts.
  */
-Bool
-pam_try_unlock (void *closure,
-                Bool (*conv_fn) (void *closure,
-                                 int nmsgs,
-                                 const auth_message *msg,
-                                 auth_response **resp))
+Bool pam_try_unlock(
+  void *closure,
+  Bool (*conv_fn)(void *closure,
+    int nmsgs,
+    const auth_message *msg,
+    auth_response **resp))
 {
-  const char *service = PAM_SERVICE_NAME;
-  pam_handle_t *pamh = 0;
-  int status = -1;
+  const char *service= PAM_SERVICE_NAME;
+  pam_handle_t *pamh= 0;
+  int status= -1;
   struct pam_conv pc;
-  struct passwd *p = getpwuid (getuid());
-  const char *user = (p && p->pw_name && *p->pw_name ? p->pw_name : 0);
+  struct passwd *p= getpwuid(getuid());
+  const char *user= (p && p->pw_name && *p->pw_name ? p->pw_name : 0);
   pam_conv_closure conv_closure;
 
-  if (!user)
+  if (! user)
     {
-      fprintf (stderr, "%s: PAM: unable to get current user\n", blurb());
+      fprintf(stderr, "%s: PAM: unable to get current user\n", blurb());
       return False;
     }
 
-  conv_closure.conv_fn = conv_fn;
-  conv_closure.conv_fn_closure = closure;
-  pc.appdata_ptr = &conv_closure;
-  pc.conv = &pam_conversation;
+  conv_closure.conv_fn= conv_fn;
+  conv_closure.conv_fn_closure= closure;
+  pc.appdata_ptr= &conv_closure;
+  pc.conv= &pam_conversation;
 
   /* Initialize PAM.
    */
-  status = pam_start (service, user, &pc, &pamh);
+  status= pam_start(service, user, &pc, &pamh);
   if (verbose_p)
-    fprintf (stderr, "%s: PAM: pam_start (\"%s\", \"%s\", ...) ==> %d (%s)\n",
-             blurb(), service, user,
-             status, PAM_STRERROR (pamh, status));
+    fprintf(stderr, "%s: PAM: pam_start (\"%s\", \"%s\", ...) ==> %d (%s)\n", blurb(), service, user, status, PAM_STRERROR(pamh, status));
   if (status != PAM_SUCCESS) goto DONE;
 
   {
-    char *tty = getenv ("DISPLAY");
-    if (!tty || !*tty) tty = ":0.0";
-    status = pam_set_item (pamh, PAM_TTY, tty);
+    char *tty= getenv("DISPLAY");
+    if (! tty || ! *tty) tty= ":0.0";
+    status= pam_set_item(pamh, PAM_TTY, tty);
     if (verbose_p)
-      fprintf (stderr, "%s:   pam_set_item (p, PAM_TTY, \"%s\") ==> %d (%s)\n",
-               blurb(), tty, status, PAM_STRERROR(pamh, status));
+      fprintf(stderr, "%s:   pam_set_item (p, PAM_TTY, \"%s\") ==> %d (%s)\n", blurb(), tty, status, PAM_STRERROR(pamh, status));
   }
 
   PAM_NO_DELAY(pamh);
 
   if (verbose_p)
-    fprintf (stderr, "%s:   pam_authenticate (...) ...\n", blurb());
+    fprintf(stderr, "%s:   pam_authenticate (...) ...\n", blurb());
 
-  status = pam_authenticate (pamh, 0);
+  status= pam_authenticate(pamh, 0);
 
   if (verbose_p)
-    fprintf (stderr, "%s:   pam_authenticate (...) ==> %d (%s)\n",
-             blurb(), status, PAM_STRERROR(pamh, status));
+    fprintf(stderr, "%s:   pam_authenticate (...) ==> %d (%s)\n", blurb(), status, PAM_STRERROR(pamh, status));
 
-  if (status == PAM_SUCCESS)  /* So far so good... */
+  if (status == PAM_SUCCESS) /* So far so good... */
     {
       /* In the distant past, some systems required that we not call
          pam_acct_mgmt(), and some other systems required that we call
          it but ignore the error code it returned.  I'm going to assume
          that this nonsense is no longer ongoing.  -- jwz 2025.
        */
-      status = pam_acct_mgmt (pamh, 0);
+      status= pam_acct_mgmt(pamh, 0);
 
       if (verbose_p)
-        fprintf (stderr, "%s:   pam_acct_mgmt (...) ==> %d (%s)\n",
-                 blurb(), status, PAM_STRERROR(pamh, status));
+        fprintf(stderr, "%s:   pam_acct_mgmt (...) ==> %d (%s)\n", blurb(), status, PAM_STRERROR(pamh, status));
 
       if (status == PAM_NEW_AUTHTOK_REQD)
         {
-          status = pam_chauthtok (pamh, PAM_CHANGE_EXPIRED_AUTHTOK);
+          status= pam_chauthtok(pamh, PAM_CHANGE_EXPIRED_AUTHTOK);
           if (verbose_p)
-            fprintf (stderr, "%s: pam_chauthtok (...) ==> %d (%s)\n",
-                     blurb(), status, PAM_STRERROR(pamh, status));
+            fprintf(stderr, "%s: pam_chauthtok (...) ==> %d (%s)\n", blurb(), status, PAM_STRERROR(pamh, status));
         }
     }
 
-  if (status == PAM_SUCCESS)  /* So far so good... */
+  if (status == PAM_SUCCESS) /* So far so good... */
     {
       /* Each time we successfully authenticate, refresh credentials,
          for Kerberos/AFS/DCE/etc.  If this fails, just ignore that
@@ -192,37 +187,34 @@ pam_try_unlock (void *closure,
        */
       int status2;
 
-# if defined(__sun) && defined(__SVR4)  /* Solaris */
-      status2 = pam_setcred (pamh, PAM_REFRESH_CRED);
-# else
+#if defined(__sun) && defined(__SVR4) /* Solaris */
+      status2= pam_setcred(pamh, PAM_REFRESH_CRED);
+#else
       /* Apparently the Linux PAM library ignores PAM_REFRESH_CRED and only
          refreshes credentials when using PAM_REINITIALIZE_CRED.  Let's
          assume that other OSes are more like Linux than like Solaris. */
-      status2 = pam_setcred (pamh, PAM_REINITIALIZE_CRED);
-# endif
+      status2= pam_setcred(pamh, PAM_REINITIALIZE_CRED);
+#endif
 
       if (verbose_p)
-        fprintf (stderr, "%s:   pam_setcred (...) ==> %d (%s)\n",
-                 blurb(), status2, PAM_STRERROR(pamh, status2));
+        fprintf(stderr, "%s:   pam_setcred (...) ==> %d (%s)\n", blurb(), status2, PAM_STRERROR(pamh, status2));
     }
 
- DONE:
+DONE:
   if (pamh)
     {
-      int status2 = pam_end (pamh, status);
-      pamh = 0;
+      int status2= pam_end(pamh, status);
+      pamh= 0;
       if (verbose_p)
-        fprintf (stderr, "%s: pam_end (...) ==> %d (%s)\n",
-                 blurb(), status2,
-                 (status2 == PAM_SUCCESS ? "Success" : "Failure"));
+        fprintf(stderr, "%s: pam_end (...) ==> %d (%s)\n", blurb(), status2, (status2 == PAM_SUCCESS ? "Success" : "Failure"));
     }
 
   return (status == PAM_SUCCESS);
 }
 
 
-Bool 
-pam_priv_init (void)
+Bool pam_priv_init(
+  void)
 {
   /* We have nothing to do at init-time.
      However, we might as well do some error checking.
@@ -232,53 +224,58 @@ pam_priv_init (void)
      This is a priv-init instead of a non-priv init in case the directory
      is unreadable or something (don't know if that actually happens.)
    */
-  const char   dir[] = "/etc/pam.d";
-  const char  file[] = "/etc/pam.d/" PAM_SERVICE_NAME;
-  const char file2[] = "/etc/pam.conf";
+  const char dir []= "/etc/pam.d";
+  const char file []= "/etc/pam.d/" PAM_SERVICE_NAME;
+  const char file2 []= "/etc/pam.conf";
   struct stat st;
 
-# ifndef S_ISDIR
-#  define S_ISDIR(mode) (((mode) & S_IFMT) == S_IFDIR)
-# endif
+#ifndef S_ISDIR
+#define S_ISDIR(mode) (((mode) & S_IFMT) == S_IFDIR)
+#endif
 
-  if (stat (dir, &st) == 0 && S_ISDIR(st.st_mode))
+  if (stat(dir, &st) == 0 && S_ISDIR(st.st_mode))
     {
-      if (stat (file, &st) != 0)
-        fprintf (stderr,
-                 "%s: PAM: warning: %s does not exist.\n"
-                 "%s: PAM: password authentication is unlikely to work.\n",
-                 blurb(), file, blurb());
+      if (stat(file, &st) != 0)
+        fprintf(stderr,
+          "%s: PAM: warning: %s does not exist.\n" "%s: PAM: password authentication is unlikely to work.\n",
+          blurb(),
+          file,
+          blurb());
     }
-  else if (stat (file2, &st) == 0)
+  else if (stat(file2, &st) == 0)
     {
-      FILE *f = fopen (file2, "r");
+      FILE *f= fopen(file2, "r");
       if (f)
         {
-          Bool ok = False;
-          char buf[255];
-          while (fgets (buf, sizeof(buf), f))
-            if (strstr (buf, PAM_SERVICE_NAME))
-              {
-                ok = True;
-                break;
-              }
-          fclose (f);
-          if (!ok)
+          Bool ok= False;
+          char buf [ 255 ];
+          while (fgets(buf, sizeof(buf), f))
             {
-              fprintf (stderr,
-                  "%s: PAM: warning: %s does not list the `%s' service.\n"
-                  "%s: PAM: password authentication is unlikely to work.\n",
-                       blurb(), file2, PAM_SERVICE_NAME, blurb());
+              if (strstr(buf, PAM_SERVICE_NAME))
+                {
+                  ok= True;
+                  break;
+                }
             }
+          fclose(f);
+          if (! ok)
+            fprintf(stderr,
+              "%s: PAM: warning: %s does not list the `%s' service.\n" "%s: PAM: password authentication is unlikely to work.\n",
+              blurb(),
+              file2,
+              PAM_SERVICE_NAME,
+              blurb());
         }
       /* else warn about file2 existing but being unreadable? */
     }
   else
     {
-      fprintf (stderr,
-               "%s: PAM: warning: neither %s nor %s exist.\n"
-               "%s: PAM: password authentication is unlikely to work.\n",
-               blurb(), file2, file, blurb());
+      fprintf(stderr,
+        "%s: PAM: warning: neither %s nor %s exist.\n" "%s: PAM: password authentication is unlikely to work.\n",
+        blurb(),
+        file2,
+        file,
+        blurb());
     }
 
   /* Return true anyway, just in case. */
@@ -288,16 +285,17 @@ pam_priv_init (void)
 
 /* This is pam_conv->conv */
 static int
-pam_conversation (int nmsgs,
-		  const struct pam_message **msg,
-		  struct pam_response **resp,
-		  void *closure)
+  pam_conversation(
+    int nmsgs,
+    const struct pam_message **msg,
+    struct pam_response **resp,
+    void *closure)
 {
   int i;
-  auth_message *messages = 0;
-  auth_response *authresp = 0;
+  auth_message *messages= 0;
+  auth_response *authresp= 0;
   struct pam_response *pam_responses;
-  pam_conv_closure *conv_closure = closure;
+  pam_conv_closure *conv_closure= closure;
 
   /* Converting the PAM prompts into the XScreenSaver native format.
    * It was a design goal to collapse (INFO,PROMPT) pairs from PAM
@@ -308,62 +306,66 @@ pam_conversation (int nmsgs,
    * pass along whatever was passed in here.
    */
 
-  messages = calloc (nmsgs, sizeof(*messages));
-  pam_responses = calloc (nmsgs, sizeof(*pam_responses));
-  if (!pam_responses || !messages) abort();
+  messages= calloc(nmsgs, sizeof(*messages));
+  pam_responses= calloc(nmsgs, sizeof(*pam_responses));
+  if (! pam_responses || ! messages) abort();
 
   if (verbose_p)
-    fprintf (stderr, "%s:     pam_conversation (", blurb());
+    fprintf(stderr, "%s:     pam_conversation (", blurb());
 
-  for (i = 0; i < nmsgs; ++i)
+  for (i= 0; i < nmsgs; ++i)
     {
-      if (verbose_p && i > 0) fprintf (stderr, ", ");
+      if (verbose_p && i > 0) fprintf(stderr, ", ");
 
-      messages[i].msg = msg[i]->msg;
+      messages [ i ].msg= msg [ i ]->msg;
 
-      switch (msg[i]->msg_style) {
-      case PAM_PROMPT_ECHO_OFF: messages[i].type = AUTH_MSGTYPE_PROMPT_NOECHO;
-        if (verbose_p) fprintf (stderr, "ECHO_OFF");
-        break;
-      case PAM_PROMPT_ECHO_ON:  messages[i].type = AUTH_MSGTYPE_PROMPT_ECHO;
-        if (verbose_p) fprintf (stderr, "ECHO_ON");
-        break;
-      case PAM_ERROR_MSG:       messages[i].type = AUTH_MSGTYPE_ERROR;
-        if (verbose_p) fprintf (stderr, "ERROR_MSG");
-        break;
-      case PAM_TEXT_INFO:       messages[i].type = AUTH_MSGTYPE_INFO;
-        if (verbose_p) fprintf (stderr, "TEXT_INFO");
-        break;
-      default:                  messages[i].type = AUTH_MSGTYPE_PROMPT_ECHO;
-        if (verbose_p) fprintf (stderr, "PROMPT_ECHO");
-        break;
-      }
+      switch (msg [ i ]->msg_style)
+        {
+          case PAM_PROMPT_ECHO_OFF :
+            messages [ i ].type= AUTH_MSGTYPE_PROMPT_NOECHO;
+            if (verbose_p) fprintf(stderr, "ECHO_OFF");
+            break;
+          case PAM_PROMPT_ECHO_ON :
+            messages [ i ].type= AUTH_MSGTYPE_PROMPT_ECHO;
+            if (verbose_p) fprintf(stderr, "ECHO_ON");
+            break;
+          case PAM_ERROR_MSG :
+            messages [ i ].type= AUTH_MSGTYPE_ERROR;
+            if (verbose_p) fprintf(stderr, "ERROR_MSG");
+            break;
+          case PAM_TEXT_INFO :
+            messages [ i ].type= AUTH_MSGTYPE_INFO;
+            if (verbose_p) fprintf(stderr, "TEXT_INFO");
+            break;
+          default :
+            messages [ i ].type= AUTH_MSGTYPE_PROMPT_ECHO;
+            if (verbose_p) fprintf(stderr, "PROMPT_ECHO");
+            break;
+        }
 
-      if (verbose_p) 
-        fprintf (stderr, "=\"%s\"", msg[i]->msg ? msg[i]->msg : "(null)");
+      if (verbose_p)
+        fprintf(stderr, "=\"%s\"", msg [ i ]->msg ? msg [ i ]->msg : "(null)");
     }
 
   if (verbose_p)
-    fprintf (stderr, ") ...\n");
+    fprintf(stderr, ") ...\n");
 
-  /* This opens the dialog box and runs the X11 event loop. 
+  /* This opens the dialog box and runs the X11 event loop.
      It only returns if the user entered a password.
      If they hit cancel, or timed out, it exited.
   */
-  conv_closure->conv_fn (conv_closure->conv_fn_closure, nmsgs, messages,
-                         &authresp);
+  conv_closure->conv_fn(conv_closure->conv_fn_closure, nmsgs, messages, &authresp);
 
-  for (i = 0; i < nmsgs; ++i)
-    pam_responses[i].resp = authresp[i].response;
+  for (i= 0; i < nmsgs; ++i)
+    pam_responses [ i ].resp= authresp [ i ].response;
 
-  if (messages) free (messages);
-  if (authresp) free (authresp);
+  if (messages) free(messages);
+  if (authresp) free(authresp);
 
   if (verbose_p)
-    fprintf (stderr, "%s:     pam_conversation (...) ==> PAM_SUCCESS\n",
-             blurb());
+    fprintf(stderr, "%s:     pam_conversation (...) ==> PAM_SUCCESS\n", blurb());
 
-  *resp = pam_responses;
+  *resp= pam_responses;
   return PAM_SUCCESS;
 }
 

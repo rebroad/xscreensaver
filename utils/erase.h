@@ -6,7 +6,7 @@
  * the above copyright notice appear in all copies and that both that
  * copyright notice and this permission notice appear in supporting
  * documentation.  No representations are made about the suitability of this
- * software for any purpose.  It is provided "as is" without express or 
+ * software for any purpose.  It is provided "as is" without express or
  * implied warranty.
  */
 
@@ -15,7 +15,7 @@
 
 typedef struct eraser_state eraser_state;
 
-extern void eraser_free (eraser_state *st);
-extern eraser_state *erase_window (Display *, Window, eraser_state *);
+extern void eraser_free(eraser_state *st);
+extern eraser_state *erase_window(Display *, Window, eraser_state *);
 
 #endif /* __XSCREENSAVER_ERASE_H__ */

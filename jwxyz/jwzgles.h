@@ -5,7 +5,7 @@
  * the above copyright notice appear in all copies and that both that
  * copyright notice and this permission notice appear in supporting
  * documentation.  No representations are made about the suitability of this
- * software for any purpose.  It is provided "as is" without express or 
+ * software for any purpose.  It is provided "as is" without express or
  * implied warranty.
  */
 
@@ -18,7 +18,7 @@
 #define __JWZGLES_H__
 
 #ifndef HAVE_JWZGLES
-# error: do not include this without HAVE_JWZGLES
+#error : do not include this without HAVE_JWZGLES
 #endif
 
 #include "jwzglesI.h"
@@ -356,7 +356,7 @@
 #define glVertex4s			jwzgles_glVertex4s
 #define glVertex4sv			jwzgles_glVertex4sv
 
-#define gluOrtho2D(L,R,B,T)		glOrtho(L,R,B,T,-1,1)
+#define gluOrtho2D(L, R, B, T)		glOrtho(L,R,B,T,-1,1)
 #define gluPerspective			jwzgles_gluPerspective
 
 #define glXChooseVisual			jwzgles_glXChooseVisual

@@ -3,16 +3,16 @@
 
 /*  As reported in News of the Weird:
 
-	  In April, Sir Roger Penrose, a British math professor who has worked
-	  with Stephen Hawking on such topics as relativity, black holes, and
-	  whether time has a beginning, filed a copyright-infringement lawsuit
-	  against the Kimberly-Clark Corporation, which Penrose said copied a
-	  pattern he created (a pattern demonstrating that "a nonrepeating
-	  pattern could exist in nature") for its Kleenex quilted toilet paper.
-	  Penrose said he doesn't like litigation but, "When it comes to the
-	  population of Great Britain being invited by a multinational to wipe
-	  their bottoms on what appears to be the work of a Knight of the
-	  Realm, then a last stand must be taken."
+      In April, Sir Roger Penrose, a British math professor who has worked
+      with Stephen Hawking on such topics as relativity, black holes, and
+      whether time has a beginning, filed a copyright-infringement lawsuit
+      against the Kimberly-Clark Corporation, which Penrose said copied a
+      pattern he created (a pattern demonstrating that "a nonrepeating
+      pattern could exist in nature") for its Kleenex quilted toilet paper.
+      Penrose said he doesn't like litigation but, "When it comes to the
+      population of Great Britain being invited by a multinational to wipe
+      their bottoms on what appears to be the work of a Knight of the
+      Realm, then a last stand must be taken."
 
                                 NOTW #491, 4-jul-1997, by Chuck Shepherd.
                                 http://www.nine.org/notw/notw.html
@@ -87,14 +87,14 @@ If one of these are hit penrose will reinitialize.
 					"*size: 40 \n" \
 					"*ncolors: 64 \n" \
 					"*fpsSolid: true \n" \
-					"*ignoreRotation: True \n" \
+					"*ignoreRotation: True \n"
 
-# define release_penrose 0
-# define penrose_handle_event 0
-# include "xlockmore.h"		/* from the xscreensaver distribution */
-#else /* !STANDALONE */
-# include "xlock.h"		/* from the xlockmore distribution */
-#endif /* !STANDALONE */
+#define release_penrose 0
+#define penrose_handle_event 0
+#include "xlockmore.h" /* from the xscreensaver distribution */
+#else                  /* !STANDALONE */
+#include "xlock.h"     /* from the xlockmore distribution */
+#endif                 /* !STANDALONE */
 
 #ifdef MODE_penrose
 
@@ -102,29 +102,23 @@ If one of these are hit penrose will reinitialize.
 
 static Bool ammann;
 
-static XrmOptionDescRec opts[] =
-{
-	{"-ammann", ".penrose.ammann", XrmoptionNoArg, "on"},
-	{"+ammann", ".penrose.ammann", XrmoptionNoArg, "off"}
-};
-static argtype vars[] =
-{
-	{&ammann, "ammann", "Ammann", DEF_AMMANN, t_Bool}
-};
-static OptionStruct desc[] =
-{
-	{"-/+ammann", "turn on/off Ammann lines"}
-};
+static XrmOptionDescRec opts []=
+  {
+    {"-ammann", ".penrose.ammann", XrmoptionNoArg, "on"},
+    {"+ammann", ".penrose.ammann", XrmoptionNoArg, "off"}};
+static argtype vars []=
+  {
+    {&ammann, "ammann", "Ammann", DEF_AMMANN, t_Bool}};
+static OptionStruct desc []=
+  {
+    {"-/+ammann", "turn on/off Ammann lines"}};
 
-ENTRYPOINT ModeSpecOpt penrose_opts =
-{sizeof opts / sizeof opts[0], opts, sizeof vars / sizeof vars[0], vars, desc};
+ENTRYPOINT ModeSpecOpt penrose_opts=
+  {sizeof opts / sizeof opts [ 0 ], opts, sizeof vars / sizeof vars [ 0 ], vars, desc};
 
 #ifdef USE_MODULES
-ModStruct   penrose_description =
-{"penrose", "init_penrose", "draw_penrose", (char *) NULL,
- "init_penrose", "init_penrose", "free_penrose", &penrose_opts,
- 10000, 1, 1, -40, 64, 1.0, "",
- "Shows Penrose's quasiperiodic tilings", 0, NULL};
+ModStruct penrose_description=
+  {"penrose", "init_penrose", "draw_penrose", (char *) NULL, "init_penrose", "init_penrose", "free_penrose", &penrose_opts, 10000, 1, 1, -40, 64, 1.0, "", "Shows Penrose's quasiperiodic tilings", 0, NULL};
 
 #endif
 
@@ -184,9 +178,9 @@ typedef unsigned char vertex_type_c;
  * you are standing at a vertex of type vt looking towards the middle of the
  * tile, VT_LEFT( vt) is the vertex on your left etc.
  */
-#define VT_LEFT( vt) ((((vt) - 1) & VT_CORNER_MASK) | (((vt) & VT_TYPE_MASK)))
-#define VT_RIGHT( vt) ((((vt) + 1) & VT_CORNER_MASK) | (((vt) & VT_TYPE_MASK)))
-#define VT_FAR( vt) ((vt) ^ 2)
+#define VT_LEFT(vt) ((((vt) - 1) & VT_CORNER_MASK) | (((vt) & VT_TYPE_MASK)))
+#define VT_RIGHT(vt) ((((vt) + 1) & VT_CORNER_MASK) | (((vt) & VT_TYPE_MASK)))
+#define VT_FAR(vt) ((vt) ^ 2)
 
 
 /*-
@@ -204,36 +198,38 @@ typedef unsigned char vertex_type_c;
  */
 typedef struct forced_node forced_node_c;
 
-typedef struct fringe_node {
-	struct fringe_node *prev;
-	struct fringe_node *next;
-	/* These are numbered counterclockwise.  The gap, if any, lies
-	   between the last and first tiles.  */
-	vertex_type_c tiles[MAX_TILES_PER_VERTEX];
-	int         n_tiles;
-	/* A bit mask used to indicate vertex rules that are still applicable for
-	   completing this vertex.  Initialize this to (1 << N_VERTEX_RULES) - 1,
-	   i.e., all ones, and the rule matching functions will automatically mask
-	   out rules that no longer match. */
-	unsigned char rule_mask;
-	/* If the vertex is on the forced vertex list, this points to the
-	   pointer to the appropriate node in the list.  To remove the
-	   vertex from the list just set *list_ptr to the next node,
-	   deallocate and decrement node count. */
-	struct forced_node **list_ptr;
-	/* Screen coordinates. */
-	XPoint      loc;
-	/* We also keep track of 5D coordinates to avoid rounding errors.
-	   These are in units of edge length. */
-	int         fived[5];
-	/* This is used to quickly check if a vertex is visible. */
-	unsigned char off_screen;
+typedef struct fringe_node
+{
+    struct fringe_node *prev;
+    struct fringe_node *next;
+    /* These are numbered counterclockwise.  The gap, if any, lies
+       between the last and first tiles.  */
+    vertex_type_c tiles [ MAX_TILES_PER_VERTEX ];
+    int n_tiles;
+    /* A bit mask used to indicate vertex rules that are still applicable for
+       completing this vertex.  Initialize this to (1 << N_VERTEX_RULES) - 1,
+       i.e., all ones, and the rule matching functions will automatically mask
+       out rules that no longer match. */
+    unsigned char rule_mask;
+    /* If the vertex is on the forced vertex list, this points to the
+       pointer to the appropriate node in the list.  To remove the
+       vertex from the list just set *list_ptr to the next node,
+       deallocate and decrement node count. */
+    struct forced_node **list_ptr;
+    /* Screen coordinates. */
+    XPoint loc;
+    /* We also keep track of 5D coordinates to avoid rounding errors.
+       These are in units of edge length. */
+    int fived [ 5 ];
+    /* This is used to quickly check if a vertex is visible. */
+    unsigned char off_screen;
 } fringe_node_c;
 
-typedef struct {
-	fringe_node_c *nodes;
-	/* This does not count off-screen nodes. */
-	int         n_nodes;
+typedef struct
+{
+    fringe_node_c *nodes;
+    /* This does not count off-screen nodes. */
+    int n_nodes;
 } fringe_c;
 
 
@@ -244,131 +240,134 @@ typedef struct {
  * applicable rule.  forced_sides are specified using S_LEFT and
  * S_RIGHT as if looking at the untiled region from the vertex.
  */
-struct forced_node {
-	fringe_node_c *vertex;
-	unsigned    forced_sides;
-	struct forced_node *next;
+struct forced_node
+{
+    fringe_node_c *vertex;
+    unsigned forced_sides;
+    struct forced_node *next;
 };
 
-typedef struct {
-	forced_node_c *first;
-	int         n_nodes, n_visible;
+typedef struct
+{
+    forced_node_c *first;
+    int n_nodes, n_visible;
 } forced_pool_c;
 
 
 /* The tiles are listed in counterclockwise order. */
-typedef struct {
-	vertex_type_c tiles[MAX_TILES_PER_VERTEX];
-	int         n_tiles;
+typedef struct
+{
+    vertex_type_c tiles [ MAX_TILES_PER_VERTEX ];
+    int n_tiles;
 } vertex_rule_c;
 
-static vertex_rule_c vertex_rules[N_VERTEX_RULES] =
-{
-	{
-  {VT_THICK | 2, VT_THICK | 2, VT_THICK | 2, VT_THICK | 2, VT_THICK | 2}, 5},
-	{
-  {VT_THICK | 0, VT_THICK | 0, VT_THICK | 0, VT_THICK | 0, VT_THICK | 0}, 5},
-	{
-		{VT_THICK | 0, VT_THICK | 0, VT_THICK | 0, VT_THIN | 0}, 4},
-	{
-	 {VT_THICK | 2, VT_THICK | 2, VT_THIN | 1, VT_THIN | 3, VT_THICK | 2,
-	  VT_THIN | 1, VT_THIN | 3}, 7},
-	{
-		{VT_THICK | 2, VT_THICK | 2, VT_THICK | 2, VT_THICK | 2,
-		 VT_THIN | 1, VT_THIN | 3}, 6},
-	{
-		{VT_THICK | 1, VT_THICK | 3, VT_THIN | 2}, 3},
-	{
-		{VT_THICK | 0, VT_THIN | 0, VT_THIN | 0}, 3},
-	{
-     {VT_THICK | 2, VT_THIN | 1, VT_THICK | 3, VT_THICK | 1, VT_THIN | 3}, 5}
-};
+static vertex_rule_c vertex_rules [ N_VERTEX_RULES ]=
+  {
+    {{VT_THICK | 2, VT_THICK | 2, VT_THICK | 2, VT_THICK | 2, VT_THICK | 2}, 5},
+    {{VT_THICK | 0, VT_THICK | 0, VT_THICK | 0, VT_THICK | 0, VT_THICK | 0}, 5},
+    {{VT_THICK | 0, VT_THICK | 0, VT_THICK | 0, VT_THIN | 0}, 4},
+    {{VT_THICK | 2, VT_THICK | 2, VT_THIN | 1, VT_THIN | 3, VT_THICK | 2, VT_THIN | 1, VT_THIN | 3}, 7},
+    {{VT_THICK | 2, VT_THICK | 2, VT_THICK | 2, VT_THICK | 2, VT_THIN | 1, VT_THIN | 3}, 6},
+    {{VT_THICK | 1, VT_THICK | 3, VT_THIN | 2}, 3},
+    {{VT_THICK | 0, VT_THIN | 0, VT_THIN | 0}, 3},
+    {{VT_THICK | 2, VT_THIN | 1, VT_THICK | 3, VT_THICK | 1, VT_THIN | 3}, 5}};
 
 
 /* Match information returned by match_rules. */
-typedef struct {
-	int         rule;
-	int         pos;
+typedef struct
+{
+    int rule;
+    int pos;
 } rule_match_c;
 
 
 /* Occasionally floating point coordinates are needed. */
-typedef struct {
-	float       x, y;
+typedef struct
+{
+    float x, y;
 } fcoord_c;
 
 
 /* All angles are measured in multiples of 36 degrees. */
 typedef int angle_c;
 
-static angle_c vtype_angles[] =
-{4, 1, 4, 1, 2, 3, 2, 3};
+static angle_c vtype_angles []=
+  {4, 1, 4, 1, 2, 3, 2, 3};
 
-#define vtype_angle( v) (vtype_angles[ v])
+#define vtype_angle(v) (vtype_angles[ v])
 
 
 /* This is the data related to the tiling of one screen. */
-typedef struct {
-	int         width, height;
-	XPoint      origin;
-	int         edge_length, line_width;
-	fringe_c    fringe;
-	forced_pool_c forced;
-	int         done, failures;
-	unsigned long thick_color, thin_color;
-	int         busyLoop;
-	Bool        ammann;
-    float       ammann_r;
-    fcoord_c    fived_table[5];
+typedef struct
+{
+    int width, height;
+    XPoint origin;
+    int edge_length, line_width;
+    fringe_c fringe;
+    forced_pool_c forced;
+    int done, failures;
+    unsigned long thick_color, thin_color;
+    int busyLoop;
+    Bool ammann;
+    float ammann_r;
+    fcoord_c fived_table [ 5 ];
 } tiling_c;
 
-static tiling_c *tilings = (tiling_c *) NULL;
+static tiling_c *tilings= (tiling_c *) NULL;
 
 
 
 /* Direction angle of an edge. */
-static      angle_c
-vertex_dir(ModeInfo * mi, fringe_node_c * vertex, unsigned side)
+static angle_c
+  vertex_dir(
+    ModeInfo *mi,
+    fringe_node_c *vertex,
+    unsigned side)
 {
-	tiling_c   *tp = &tilings[MI_SCREEN(mi)];
-	fringe_node_c *v2 =
-	(side == S_LEFT ? vertex->next : vertex->prev);
-	register int i;
+  tiling_c *tp= &tilings [ MI_SCREEN(mi) ];
+  fringe_node_c *v2=
+    (side == S_LEFT ? vertex->next : vertex->prev);
+  register int i;
 
-	for (i = 0; i < 5; i++)
-		switch (v2->fived[i] - vertex->fived[i]) {
-			case 1:
-				return 2 * i;
-			case -1:
-				return (2 * i + 5) % 10;
-		}
-	tp->done = True;
-	if (MI_IS_VERBOSE(mi)) {
-		(void) fprintf(stderr,
-		       "Weirdness in vertex_dir (this has been reported)\n");
-		for (i = 0; i < 5; i++)
-			(void) fprintf(stderr, "v2->fived[%d]=%d, vertex->fived[%d]=%d\n",
-				       i, v2->fived[i], i, vertex->fived[i]);
-	}
-	tp->busyLoop = CELEBRATE;
-	return 0;
+  for (i= 0; i < 5; i++)
+    {
+      switch (v2->fived [ i ] - vertex->fived [ i ])
+        {
+          case 1 :
+            return 2 * i;
+          case -1 :
+            return (2 * i + 5) % 10;
+        }
+    }
+  tp->done= True;
+  if (MI_IS_VERBOSE(mi))
+    {
+      (void) fprintf(stderr,
+        "Weirdness in vertex_dir (this has been reported)\n");
+      for (i= 0; i < 5; i++)
+        (void) fprintf(stderr, "v2->fived[%d]=%d, vertex->fived[%d]=%d\n", i, v2->fived [ i ], i, vertex->fived [ i ]);
+    }
+  tp->busyLoop= CELEBRATE;
+  return 0;
 }
 
 
 /* Move one step to a given direction. */
 static void
-add_unit_vec(angle_c dir, int *fived)
+  add_unit_vec(
+    angle_c dir,
+    int *fived)
 {
-	static const int dir2i[] = {0, 3, 1, 4, 2};
+  static const int dir2i []= {0, 3, 1, 4, 2};
 
-	while (dir < 0)
-		dir += 10;
-	fived[dir2i[dir % 5]] += (dir % 2 ? -1 : 1);
+  while (dir < 0)
+    dir+= 10;
+  fived [ dir2i [ dir % 5 ] ]+= (dir % 2 ? -1 : 1);
 }
 
 
 /* For comparing coordinates. */
-#define fived_equal( f1, f2) (!memcmp( (f1), (f2), 5 * sizeof( int)))
+#define fived_equal(f1, f2) (!memcmp( (f1), (f2), 5 * sizeof( int)))
 
 
 /*-
@@ -376,158 +375,177 @@ add_unit_vec(angle_c dir, int *fived)
  * uses left-handed coordinates (y increases downwards).
  */
 static void
-fived_to_loc(int fived[], tiling_c * tp, XPoint *pt)
+  fived_to_loc(
+    int fived [],
+    tiling_c *tp,
+    XPoint *pt)
 {
-	float       fifth = 8 * atan(1.) / 5;
-	register int i;
-	register float r;
-	register fcoord_c offset;
+  float fifth= 8 * atan(1.) / 5;
+  register int i;
+  register float r;
+  register fcoord_c offset;
 
-	*pt = tp->origin;
-	offset.x = 0.0;
-	offset.y = 0.0;
-	if (tp->fived_table[0].x == .0)
-		for (i = 0; i < 5; i++) {
-			tp->fived_table[i].x = cos(fifth * i);
-			tp->fived_table[i].y = sin(fifth * i);
-		}
-	for (i = 0; i < 5; i++) {
-		r = fived[i] * tp->edge_length;
-		offset.x += r * tp->fived_table[i].x;
-		offset.y -= r * tp->fived_table[i].y;
-	}
-	(*pt).x += (int) (offset.x + .5);
-	(*pt).y += (int) (offset.y + .5);
+  *pt= tp->origin;
+  offset.x= 0.0;
+  offset.y= 0.0;
+  if (tp->fived_table [ 0 ].x == .0)
+    {
+      for (i= 0; i < 5; i++)
+        {
+          tp->fived_table [ i ].x= cos(fifth * i);
+          tp->fived_table [ i ].y= sin(fifth * i);
+        }
+    }
+  for (i= 0; i < 5; i++)
+    {
+      r= fived [ i ] * tp->edge_length;
+      offset.x+= r * tp->fived_table [ i ].x;
+      offset.y-= r * tp->fived_table [ i ].y;
+    }
+  (*pt).x+= (int) (offset.x + .5);
+  (*pt).y+= (int) (offset.y + .5);
 }
 
 
 /* Mop up dynamic data for one screen. */
 ENTRYPOINT void
-free_penrose(ModeInfo * mi)
+  free_penrose(
+    ModeInfo *mi)
 {
-	tiling_c * tp = &tilings[MI_SCREEN(mi)];
-	register fringe_node_c *fp1, *fp2;
-	register forced_node_c *lp1, *lp2;
+  tiling_c *tp= &tilings [ MI_SCREEN(mi) ];
+  register fringe_node_c *fp1, *fp2;
+  register forced_node_c *lp1, *lp2;
 
-	if (tp->fringe.nodes == NULL)
-		return;
-	fp1 = tp->fringe.nodes;
-	do {
-		fp2 = fp1;
-		fp1 = fp1->next;
-		(void) free((void *) fp2);
-	} while (fp1 != tp->fringe.nodes);
-	tp->fringe.nodes = (fringe_node_c *) NULL;
-	for (lp1 = tp->forced.first; lp1 != 0;) {
-		lp2 = lp1;
-		lp1 = lp1->next;
-		(void) free((void *) lp2);
-	}
-	tp->forced.first = 0;
+  if (tp->fringe.nodes == NULL)
+    return;
+  fp1= tp->fringe.nodes;
+  do {
+      fp2= fp1;
+      fp1= fp1->next;
+      (void) free((void *) fp2);
+    }
+  while (fp1 != tp->fringe.nodes);
+  tp->fringe.nodes= (fringe_node_c *) NULL;
+  for (lp1= tp->forced.first; lp1 != 0;)
+    {
+      lp2= lp1;
+      lp1= lp1->next;
+      (void) free((void *) lp2);
+    }
+  tp->forced.first= 0;
 }
 
 
 /* Called to init the mode. */
 ENTRYPOINT void
-init_penrose(ModeInfo * mi)
+  init_penrose(
+    ModeInfo *mi)
 {
-	tiling_c   *tp;
-	fringe_node_c *fp;
-	int         i, size;
+  tiling_c *tp;
+  fringe_node_c *fp;
+  int i, size;
 
-	MI_INIT (mi, tilings);
-	tp = &tilings[MI_SCREEN(mi)];
+  MI_INIT(mi, tilings);
+  tp= &tilings [ MI_SCREEN(mi) ];
 
-#if 0 /* if you do this, then the -ammann and -no-ammann options don't work.
-         -- jwz */
+#if 0  /* if you do this, then the -ammann and -no-ammann options don't work. \
+          -- jwz */
 	if (MI_IS_FULLRANDOM(mi))
 		tp->ammann = (Bool) (LRAND() & 1);
 	else
 #endif /* 0 */
-		tp->ammann = ammann;
+  tp->ammann= ammann;
 
-	tp->done = False;
-	tp->busyLoop = 0;
-	tp->failures = 0;
-	tp->width = MI_WIDTH(mi);
-	tp->height = MI_HEIGHT(mi);
-	if (MI_NPIXELS(mi) > 2) {
-		tp->thick_color = NRAND(MI_NPIXELS(mi));
-		/* Insure good contrast */
-		tp->thin_color = (NRAND(2 * MI_NPIXELS(mi) / 3) + tp->thick_color +
-				  MI_NPIXELS(mi) / 6) % MI_NPIXELS(mi);
-	}
-	size = MI_SIZE(mi);
-    tp->line_width = 1;
+  tp->done= False;
+  tp->busyLoop= 0;
+  tp->failures= 0;
+  tp->width= MI_WIDTH(mi);
+  tp->height= MI_HEIGHT(mi);
+  if (MI_NPIXELS(mi) > 2)
+    {
+      tp->thick_color= NRAND(MI_NPIXELS(mi));
+      /* Insure good contrast */
+      tp->thin_color= (NRAND(2 * MI_NPIXELS(mi) / 3) + tp->thick_color +
+                        MI_NPIXELS(mi) / 6) %
+        MI_NPIXELS(mi);
+    }
+  size= MI_SIZE(mi);
+  tp->line_width= 1;
 
-   if (MI_WIDTH(mi) > 2560 || MI_HEIGHT(mi) > 2560) {  /* Retina displays */
-     size *= 3;
-     tp->line_width *= 3;
-   }
+  if (MI_WIDTH(mi) > 2560 || MI_HEIGHT(mi) > 2560)
+    { /* Retina displays */
+      size*= 3;
+      tp->line_width*= 3;
+    }
 
-	if (size < -MINSIZE)
-		tp->edge_length = NRAND(MIN(-size, MAX(MINSIZE,
-		   MIN(tp->width, tp->height) / 2)) - MINSIZE + 1) + MINSIZE;
-	else if (size < MINSIZE) {
-		if (!size)
-			tp->edge_length = MAX(MINSIZE, MIN(tp->width, tp->height) / 2);
-		else
-			tp->edge_length = MINSIZE;
-	} else
-		tp->edge_length = MIN(size, MAX(MINSIZE,
-					    MIN(tp->width, tp->height) / 2));
-	tp->origin.x = (tp->width / 2 + NRAND(tp->width)) / 2;
-	tp->origin.y = (tp->height / 2 + NRAND(tp->height)) / 2;
-	tp->fringe.n_nodes = 2;
-	if (tp->fringe.nodes != NULL)
-		free_penrose(mi);
-	if (tp->fringe.nodes != NULL || tp->forced.first != 0) {
-		if (MI_IS_VERBOSE(mi)) {
-			(void) fprintf(stderr, "Weirdness in init_penrose()\n");
-			(void) fprintf(stderr, "tp->fringe.nodes = NULL && tp->forced.first = 0\n");
-		}
-		free_penrose(mi);	/* Try again */
-		tp->done = True;
-	}
-	tp->forced.n_nodes = tp->forced.n_visible = 0;
-	if ((fp = tp->fringe.nodes = ALLOC_NODE(fringe_node_c)) == NULL) {
-		free_penrose(mi);
-		return;
-	}
-	/* First vertex. */
-	fp->rule_mask = (1 << N_VERTEX_RULES) - 1;
-	fp->list_ptr = 0;
-	if  ((fp->prev = fp->next = ALLOC_NODE(fringe_node_c)) == NULL) {
-		free_penrose(mi);
-		return;
-	}
-	if (fp->next == 0) {
-		if (MI_IS_VERBOSE(mi)) {
-			(void) fprintf(stderr, "Weirdness in init_penrose()\n");
-			(void) fprintf(stderr, "fp->next = 0\n");
-		}
-		if ((fp->prev = fp->next = ALLOC_NODE(fringe_node_c)) == NULL) {
-			free_penrose(mi);
-			return;
-		}
-		tp->done = True;
-	}
-	fp->n_tiles = 0;
-	fp->loc = tp->origin;
-	fp->off_screen = False;
-	for (i = 0; i < 5; i++)
-		fp->fived[i] = 0;
+  if (size < -MINSIZE)
+    tp->edge_length= NRAND(MIN(-size, MAX(MINSIZE, MIN(tp->width, tp->height) / 2)) - MINSIZE + 1) + MINSIZE;
+  else if (size < MINSIZE)
+    if (! size)
+      tp->edge_length= MAX(MINSIZE, MIN(tp->width, tp->height) / 2);
+    else
+      tp->edge_length= MINSIZE;
+  else
+    tp->edge_length= MIN(size, MAX(MINSIZE, MIN(tp->width, tp->height) / 2));
+  tp->origin.x= (tp->width / 2 + NRAND(tp->width)) / 2;
+  tp->origin.y= (tp->height / 2 + NRAND(tp->height)) / 2;
+  tp->fringe.n_nodes= 2;
+  if (tp->fringe.nodes != NULL)
+    free_penrose(mi);
+  if (tp->fringe.nodes != NULL || tp->forced.first != 0)
+    {
+      if (MI_IS_VERBOSE(mi))
+        {
+          (void) fprintf(stderr, "Weirdness in init_penrose()\n");
+          (void) fprintf(stderr, "tp->fringe.nodes = NULL && tp->forced.first = 0\n");
+        }
+      free_penrose(mi); /* Try again */
+      tp->done= True;
+    }
+  tp->forced.n_nodes= tp->forced.n_visible= 0;
+  if ((fp= tp->fringe.nodes= ALLOC_NODE(fringe_node_c)) == NULL)
+    {
+      free_penrose(mi);
+      return;
+    }
+  /* First vertex. */
+  fp->rule_mask= (1 << N_VERTEX_RULES) - 1;
+  fp->list_ptr= 0;
+  if ((fp->prev= fp->next= ALLOC_NODE(fringe_node_c)) == NULL)
+    {
+      free_penrose(mi);
+      return;
+    }
+  if (fp->next == 0)
+    {
+      if (MI_IS_VERBOSE(mi))
+        {
+          (void) fprintf(stderr, "Weirdness in init_penrose()\n");
+          (void) fprintf(stderr, "fp->next = 0\n");
+        }
+      if ((fp->prev= fp->next= ALLOC_NODE(fringe_node_c)) == NULL)
+        {
+          free_penrose(mi);
+          return;
+        }
+      tp->done= True;
+    }
+  fp->n_tiles= 0;
+  fp->loc= tp->origin;
+  fp->off_screen= False;
+  for (i= 0; i < 5; i++)
+    fp->fived [ i ]= 0;
 
-	/* Second vertex. */
-	*(fp->next) = *fp;
-	fp->next->prev = fp->next->next = fp;
-	fp = fp->next;
-	i = NRAND(5);
-	fp->fived[i] = 2 * NRAND(2) - 1;
-	fived_to_loc(fp->fived, tp, &(fp->loc));
-	/* That's it!  We have created our first edge. */
+  /* Second vertex. */
+  *(fp->next)= *fp;
+  fp->next->prev= fp->next->next= fp;
+  fp= fp->next;
+  i= NRAND(5);
+  fp->fived [ i ]= 2 * NRAND(2) - 1;
+  fived_to_loc(fp->fived, tp, &(fp->loc));
+  /* That's it!  We have created our first edge. */
 
-	MI_CLEARWINDOW(mi);
+  MI_CLEARWINDOW(mi);
 }
 
 /*-
@@ -544,62 +562,72 @@ init_penrose(ModeInfo * mi)
  * single-match mode if no match is found.
  */
 static int
-match_rules(fringe_node_c * vertex, rule_match_c * matches, int first_only)
+  match_rules(
+    fringe_node_c *vertex,
+    rule_match_c *matches,
+    int first_only)
 {
-	/* I will assume that I can fit all the relevant bits in vertex->tiles
-	   into one unsigned long.  With 3 bits per element and at most 7
-	   elements this means 21 bits, which should leave plenty of room.
-	   After packing the bits the rest is just integer comparisons and
-	   some bit shuffling.  This is essentially Rabin-Karp without
-	   congruence arithmetic. */
-	register int i, j;
-	int         hits = 0, good_rules[N_VERTEX_RULES], n_good = 0;
-	unsigned long
-	            vertex_hash = 0, lower_bits_mask = ~(VT_TOTAL_MASK << VT_BITS * (vertex->n_tiles - 1));
-	unsigned    new_rule_mask = 0;
+  /* I will assume that I can fit all the relevant bits in vertex->tiles
+     into one unsigned long.  With 3 bits per element and at most 7
+     elements this means 21 bits, which should leave plenty of room.
+     After packing the bits the rest is just integer comparisons and
+     some bit shuffling.  This is essentially Rabin-Karp without
+     congruence arithmetic. */
+  register int i, j;
+  int hits= 0, good_rules [ N_VERTEX_RULES ], n_good= 0;
+  unsigned long
+    vertex_hash= 0,
+    lower_bits_mask= ~(VT_TOTAL_MASK << VT_BITS * (vertex->n_tiles - 1));
+  unsigned new_rule_mask= 0;
 
-	for (i = 0; i < N_VERTEX_RULES; i++)
-		if (vertex->n_tiles >= vertex_rules[i].n_tiles)
-			vertex->rule_mask &= ~(1 << i);
-		else if (vertex->rule_mask & 1 << i)
-			good_rules[n_good++] = i;
-	for (i = 0; i < vertex->n_tiles; i++)
-		vertex_hash |= (unsigned long) vertex->tiles[i] << (VT_BITS * i);
+  for (i= 0; i < N_VERTEX_RULES; i++)
+    if (vertex->n_tiles >= vertex_rules [ i ].n_tiles)
+      vertex->rule_mask&= ~(1 << i);
+    else if (vertex->rule_mask & 1 << i)
+      good_rules [ n_good++ ]= i;
+  for (i= 0; i < vertex->n_tiles; i++)
+    vertex_hash|= (unsigned long) vertex->tiles [ i ] << (VT_BITS * i);
 
-	for (j = 0; j < n_good; j++) {
-		unsigned long rule_hash = 0;
-		vertex_rule_c *vr = vertex_rules + good_rules[j];
+  for (j= 0; j < n_good; j++)
+    {
+      unsigned long rule_hash= 0;
+      vertex_rule_c *vr= vertex_rules + good_rules [ j ];
 
-		for (i = 0; i < vertex->n_tiles; i++)
-			rule_hash |= (unsigned long) vr->tiles[i] << (VT_BITS * i);
-		if (rule_hash == vertex_hash) {
-			if (matches != 0) {
-				matches[hits].rule = good_rules[j];
-				matches[hits].pos = 0;
-			}
-			hits++;
-			if (first_only)
-				return hits;
-			else
-				new_rule_mask |= 1 << good_rules[j];
-		}
-		for (i = vr->n_tiles - 1; i > 0; i--) {
-			rule_hash = vr->tiles[i] | (rule_hash & lower_bits_mask) << VT_BITS;
-			if (vertex_hash == rule_hash) {
-				if (matches != 0) {
-					matches[hits].rule = good_rules[j];
-					matches[hits].pos = i;
-				}
-				hits++;
-				if (first_only)
-					return hits;
-				else
-					new_rule_mask |= 1 << good_rules[j];
-			}
-		}
-	}
-	vertex->rule_mask = new_rule_mask;
-	return hits;
+      for (i= 0; i < vertex->n_tiles; i++)
+        rule_hash|= (unsigned long) vr->tiles [ i ] << (VT_BITS * i);
+      if (rule_hash == vertex_hash)
+        {
+          if (matches != 0)
+            {
+              matches [ hits ].rule= good_rules [ j ];
+              matches [ hits ].pos= 0;
+            }
+          hits++;
+          if (first_only)
+            return hits;
+          else
+            new_rule_mask|= 1 << good_rules [ j ];
+        }
+      for (i= vr->n_tiles - 1; i > 0; i--)
+        {
+          rule_hash= vr->tiles [ i ] | (rule_hash & lower_bits_mask) << VT_BITS;
+          if (vertex_hash == rule_hash)
+            {
+              if (matches != 0)
+                {
+                  matches [ hits ].rule= good_rules [ j ];
+                  matches [ hits ].pos= i;
+                }
+              hits++;
+              if (first_only)
+                return hits;
+              else
+                new_rule_mask|= 1 << good_rules [ j ];
+            }
+        }
+    }
+  vertex->rule_mask= new_rule_mask;
+  return hits;
 }
 
 
@@ -616,34 +644,40 @@ match_rules(fringe_node_c * vertex, rule_match_c * matches, int first_only)
 #define MAX_COMPL 2
 
 static int
-find_completions(fringe_node_c * vertex, rule_match_c * matches, int n_matches,
-	       unsigned side, vertex_type_c * results /*, int first_only */ )
+  find_completions(
+    fringe_node_c *vertex,
+    rule_match_c *matches,
+    int n_matches,
+    unsigned side,
+    vertex_type_c *results /*, int first_only */)
 {
-	int         n_res = 0, cont;
-	register int i, j;
-	vertex_type_c buf[MAX_COMPL];
+  int n_res= 0, cont;
+  register int i, j;
+  vertex_type_c buf [ MAX_COMPL ];
 
-	if (results == 0)
-		results = buf;
-	if (n_matches <= 0)
-		return 0;
-	for (i = 0; i < n_matches; i++) {
-		vertex_rule_c *rule = vertex_rules + matches[i].rule;
-		int         pos = (matches[i].pos
-		   + (side == S_RIGHT ? vertex->n_tiles : rule->n_tiles - 1))
-		% rule->n_tiles;
-		vertex_type_c vtype = rule->tiles[pos];
+  if (results == 0)
+    results= buf;
+  if (n_matches <= 0)
+    return 0;
+  for (i= 0; i < n_matches; i++)
+    {
+      vertex_rule_c *rule= vertex_rules + matches [ i ].rule;
+      int pos= (matches [ i ].pos + (side == S_RIGHT ? vertex->n_tiles : rule->n_tiles - 1)) % rule->n_tiles;
+      vertex_type_c vtype= rule->tiles [ pos ];
 
-		cont = 1;
-		for (j = 0; j < n_res; j++)
-			if (vtype == results[j]) {
-				cont = 0;
-				break;
-			}
-		if (cont)
-			results[n_res++] = vtype;
-	}
-	return n_res;
+      cont= 1;
+      for (j= 0; j < n_res; j++)
+        {
+          if (vtype == results [ j ])
+            {
+              cont= 0;
+              break;
+            }
+        }
+      if (cont)
+        results [ n_res++ ]= vtype;
+    }
+  return n_res;
 }
 
 
@@ -653,77 +687,83 @@ find_completions(fringe_node_c * vertex, rule_match_c * matches, int n_matches,
  * also gives the tile type).
  */
 static void
-draw_tile(fringe_node_c * v1, fringe_node_c * v2,
-	  fringe_node_c * v3, fringe_node_c * v4,
-	  vertex_type_c vtype, ModeInfo * mi)
+  draw_tile(
+    fringe_node_c *v1,
+    fringe_node_c *v2,
+    fringe_node_c *v3,
+    fringe_node_c *v4,
+    vertex_type_c vtype,
+    ModeInfo *mi)
 {
-	Display    *display = MI_DISPLAY(mi);
-	Window      window = MI_WINDOW(mi);
-	GC          gc = MI_GC(mi);
-	tiling_c   *tp = &tilings[MI_SCREEN(mi)];
-	XPoint      pts[5];
-	vertex_type_c corner = vtype & VT_CORNER_MASK;
+  Display *display= MI_DISPLAY(mi);
+  Window window= MI_WINDOW(mi);
+  GC gc= MI_GC(mi);
+  tiling_c *tp= &tilings [ MI_SCREEN(mi) ];
+  XPoint pts [ 5 ];
+  vertex_type_c corner= vtype & VT_CORNER_MASK;
 
-	if (v1->off_screen && v2->off_screen && v3->off_screen && v4->off_screen)
-		return;
-	pts[corner] = v1->loc;
-	pts[VT_RIGHT(corner)] = v2->loc;
-	pts[VT_FAR(corner)] = v3->loc;
-	pts[VT_LEFT(corner)] = v4->loc;
-	pts[4] = pts[0];
-	if (MI_NPIXELS(mi) > 2) {
-		if ((vtype & VT_TYPE_MASK) == VT_THICK)
-			XSetForeground(display, gc, MI_PIXEL(mi, tp->thick_color));
-		else
-			XSetForeground(display, gc, MI_PIXEL(mi, tp->thin_color));
-	} else
-		XSetForeground(display, gc, MI_WHITE_PIXEL(mi));
-	XFillPolygon(display, window, gc, pts, 4, Convex, CoordModeOrigin);
-	XSetForeground(display, gc, MI_BLACK_PIXEL(mi));
-    XSetLineAttributes(display, gc, tp->line_width,
-                       LineSolid, CapNotLast, JoinMiter);
-	XDrawLines(display, window, gc, pts, 5, CoordModeOrigin);
+  if (v1->off_screen && v2->off_screen && v3->off_screen && v4->off_screen)
+    return;
+  pts [ corner ]= v1->loc;
+  pts [ VT_RIGHT(corner) ]= v2->loc;
+  pts [ VT_FAR(corner) ]= v3->loc;
+  pts [ VT_LEFT(corner) ]= v4->loc;
+  pts [ 4 ]= pts [ 0 ];
+  if (MI_NPIXELS(mi) > 2)
+    if ((vtype & VT_TYPE_MASK) == VT_THICK)
+      XSetForeground(display, gc, MI_PIXEL(mi, tp->thick_color));
+    else
+      XSetForeground(display, gc, MI_PIXEL(mi, tp->thin_color));
+  else
+    XSetForeground(display, gc, MI_WHITE_PIXEL(mi));
+  XFillPolygon(display, window, gc, pts, 4, Convex, CoordModeOrigin);
+  XSetForeground(display, gc, MI_BLACK_PIXEL(mi));
+  XSetLineAttributes(display, gc, tp->line_width, LineSolid, CapNotLast, JoinMiter);
+  XDrawLines(display, window, gc, pts, 5, CoordModeOrigin);
 
-	if (tp->ammann) {
-		/* Draw some Ammann lines for debugging purposes.  This will probably
-		   fail miserably on a b&w display. */
+  if (tp->ammann)
+    {
+      /* Draw some Ammann lines for debugging purposes.  This will probably
+         fail miserably on a b&w display. */
 
-		if ((vtype & VT_TYPE_MASK) == VT_THICK) {
+      if ((vtype & VT_TYPE_MASK) == VT_THICK)
+        {
 
-			if (tp->ammann_r == .0) {
-				float       pi10 = 2 * atan(1.) / 5;
+          if (tp->ammann_r == .0)
+            {
+              float pi10= 2 * atan(1.) / 5;
 
-				tp->ammann_r = 1 - sin(pi10) / (2 * sin(3 * pi10));
-			}
-			if (MI_NPIXELS(mi) > 2)
-				XSetForeground(display, gc, MI_PIXEL(mi, tp->thin_color));
-			else {
-				XSetForeground(display, gc, MI_BLACK_PIXEL(mi));
-				XSetLineAttributes(display, gc, 1, LineOnOffDash, CapNotLast, JoinMiter);
-			}
-			XDrawLine(display, window, gc,
-			      (int) (tp->ammann_r * pts[3].x + (1 - tp->ammann_r) * pts[0].x + .5),
-			      (int) (tp->ammann_r * pts[3].y + (1 - tp->ammann_r) * pts[0].y + .5),
-			      (int) (tp->ammann_r * pts[1].x + (1 - tp->ammann_r) * pts[0].x + .5),
-			     (int) (tp->ammann_r * pts[1].y + (1 - tp->ammann_r) * pts[0].y + .5));
-			if (MI_NPIXELS(mi) <= 2)
-				XSetLineAttributes(display, gc, 1, LineSolid, CapNotLast, JoinMiter);
-		} else {
-			if (MI_NPIXELS(mi) > 2)
-				XSetForeground(display, gc, MI_PIXEL(mi, tp->thick_color));
-			else {
-				XSetForeground(display, gc, MI_BLACK_PIXEL(mi));
-				XSetLineAttributes(display, gc, 1, LineOnOffDash, CapNotLast, JoinMiter);
-			}
-			XDrawLine(display, window, gc,
-				  (int) ((pts[3].x + pts[2].x) / 2 + .5),
-				  (int) ((pts[3].y + pts[2].y) / 2 + .5),
-				  (int) ((pts[1].x + pts[2].x) / 2 + .5),
-				  (int) ((pts[1].y + pts[2].y) / 2 + .5));
-			if (MI_NPIXELS(mi) <= 2)
-				XSetLineAttributes(display, gc, 1, LineSolid, CapNotLast, JoinMiter);
-		}
-	}
+              tp->ammann_r= 1 - sin(pi10) / (2 * sin(3 * pi10));
+            }
+          if (MI_NPIXELS(mi) > 2)
+            {
+              XSetForeground(display, gc, MI_PIXEL(mi, tp->thin_color));
+            }
+          else
+            {
+              XSetForeground(display, gc, MI_BLACK_PIXEL(mi));
+              XSetLineAttributes(display, gc, 1, LineOnOffDash, CapNotLast, JoinMiter);
+            }
+          XDrawLine(display, window, gc, (int) (tp->ammann_r * pts [ 3 ].x + (1 - tp->ammann_r) * pts [ 0 ].x + .5), (int) (tp->ammann_r * pts [ 3 ].y + (1 - tp->ammann_r) * pts [ 0 ].y + .5), (int) (tp->ammann_r * pts [ 1 ].x + (1 - tp->ammann_r) * pts [ 0 ].x + .5), (int) (tp->ammann_r * pts [ 1 ].y + (1 - tp->ammann_r) * pts [ 0 ].y + .5));
+          if (MI_NPIXELS(mi) <= 2)
+            XSetLineAttributes(display, gc, 1, LineSolid, CapNotLast, JoinMiter);
+        }
+      else
+        {
+          if (MI_NPIXELS(mi) > 2)
+            {
+              XSetForeground(display, gc, MI_PIXEL(mi, tp->thick_color));
+            }
+          else
+            {
+              XSetForeground(display, gc, MI_BLACK_PIXEL(mi));
+              XSetLineAttributes(display, gc, 1, LineOnOffDash, CapNotLast, JoinMiter);
+            }
+          XDrawLine(display, window, gc, (int) ((pts [ 3 ].x + pts [ 2 ].x) / 2 + .5), (int) ((pts [ 3 ].y + pts [ 2 ].y) / 2 + .5), (int) ((pts [ 1 ].x + pts [ 2 ].x) / 2 + .5), (int) ((pts [ 1 ].y + pts [ 2 ].y) / 2 + .5));
+          if (MI_NPIXELS(mi) <= 2)
+            XSetLineAttributes(display, gc, 1, LineSolid, CapNotLast, JoinMiter);
+        }
+    }
 }
 
 /*-
@@ -742,55 +782,66 @@ draw_tile(fringe_node_c * v1, fringe_node_c * v2,
  * A delayLoop celebrates the dislocation.
  */
 static void
-check_vertex(ModeInfo * mi, fringe_node_c * vertex, tiling_c * tp)
+  check_vertex(
+    ModeInfo *mi,
+    fringe_node_c *vertex,
+    tiling_c *tp)
 {
-	rule_match_c hits[MAX_TILES_PER_VERTEX * N_VERTEX_RULES];
-	int         n_hits = match_rules(vertex, hits, False);
-	unsigned    forced_sides = 0;
+  rule_match_c hits [ MAX_TILES_PER_VERTEX * N_VERTEX_RULES ];
+  int n_hits= match_rules(vertex, hits, False);
+  unsigned forced_sides= 0;
 
-	if (vertex->rule_mask == 0) {
-		tp->done = True;
-		if (MI_IS_VERBOSE(mi)) {
-			(void) fprintf(stderr, "Dislocation occurred!\n");
-		}
-		tp->busyLoop = CELEBRATE;	/* Should be able to recover */
-	}
-	if (1 == find_completions(vertex, hits, n_hits, S_LEFT, 0 /*, False */ ))
-		forced_sides |= S_LEFT;
-	if (1 == find_completions(vertex, hits, n_hits, S_RIGHT, 0 /*, False */ ))
-		forced_sides |= S_RIGHT;
-	if (forced_sides == 0) {
-		if (vertex->list_ptr != 0) {
-			forced_node_c *node = *vertex->list_ptr;
+  if (vertex->rule_mask == 0)
+    {
+      tp->done= True;
+      if (MI_IS_VERBOSE(mi))
+        (void) fprintf(stderr, "Dislocation occurred!\n");
+      tp->busyLoop= CELEBRATE; /* Should be able to recover */
+    }
+  if (1 == find_completions(vertex, hits, n_hits, S_LEFT, 0 /*, False */))
+    forced_sides|= S_LEFT;
+  if (1 == find_completions(vertex, hits, n_hits, S_RIGHT, 0 /*, False */))
+    forced_sides|= S_RIGHT;
+  if (forced_sides == 0)
+    {
+      if (vertex->list_ptr != 0)
+        {
+          forced_node_c *node= *vertex->list_ptr;
 
-			*vertex->list_ptr = node->next;
-			if (node->next != 0)
-				node->next->vertex->list_ptr = vertex->list_ptr;
-			(void) free((void *) node);
-			tp->forced.n_nodes--;
-			if (!vertex->off_screen)
-				tp->forced.n_visible--;
-			vertex->list_ptr = 0;
-		}
-	} else {
-		forced_node_c *node;
+          *vertex->list_ptr= node->next;
+          if (node->next != 0)
+            node->next->vertex->list_ptr= vertex->list_ptr;
+          (void) free((void *) node);
+          tp->forced.n_nodes--;
+          if (! vertex->off_screen)
+            tp->forced.n_visible--;
+          vertex->list_ptr= 0;
+        }
+    }
+  else
+    {
+      forced_node_c *node;
 
-		if (vertex->list_ptr == 0) {
-			if ((node = ALLOC_NODE(forced_node_c)) == NULL)
-				return;
-			node->vertex = vertex;
-			node->next = tp->forced.first;
-			if (tp->forced.first != 0)
-				tp->forced.first->vertex->list_ptr = &(node->next);
-			tp->forced.first = node;
-			vertex->list_ptr = &(tp->forced.first);
-			tp->forced.n_nodes++;
-			if (!vertex->off_screen)
-				tp->forced.n_visible++;
-		} else
-			node = *vertex->list_ptr;
-		node->forced_sides = forced_sides;
-	}
+      if (vertex->list_ptr == 0)
+        {
+          if ((node= ALLOC_NODE(forced_node_c)) == NULL)
+            return;
+          node->vertex= vertex;
+          node->next= tp->forced.first;
+          if (tp->forced.first != 0)
+            tp->forced.first->vertex->list_ptr= &(node->next);
+          tp->forced.first= node;
+          vertex->list_ptr= &(tp->forced.first);
+          tp->forced.n_nodes++;
+          if (! vertex->off_screen)
+            tp->forced.n_visible++;
+        }
+      else
+        {
+          node= *vertex->list_ptr;
+        }
+      node->forced_sides= forced_sides;
+    }
 }
 
 
@@ -801,30 +852,36 @@ check_vertex(ModeInfo * mi, fringe_node_c * vertex, tiling_c * tp)
  * the vertex being deleted.
  */
 static void
-delete_vertex(ModeInfo * mi, fringe_node_c * vertex, tiling_c * tp)
+  delete_vertex(
+    ModeInfo *mi,
+    fringe_node_c *vertex,
+    tiling_c *tp)
 {
-	if (tp->fringe.nodes == vertex) {
-		tp->done = True;
-		if (MI_IS_VERBOSE(mi)) {
-			(void) fprintf(stderr, "Weirdness in delete_penrose()\n");
-			(void) fprintf(stderr, "tp->fringe.nodes == vertex\n");
-		}
-		tp->busyLoop = CELEBRATE;
-	}
-	if (vertex->list_ptr != 0) {
-		forced_node_c *node = *vertex->list_ptr;
+  if (tp->fringe.nodes == vertex)
+    {
+      tp->done= True;
+      if (MI_IS_VERBOSE(mi))
+        {
+          (void) fprintf(stderr, "Weirdness in delete_penrose()\n");
+          (void) fprintf(stderr, "tp->fringe.nodes == vertex\n");
+        }
+      tp->busyLoop= CELEBRATE;
+    }
+  if (vertex->list_ptr != 0)
+    {
+      forced_node_c *node= *vertex->list_ptr;
 
-		*vertex->list_ptr = node->next;
-		if (node->next != 0)
-			node->next->vertex->list_ptr = vertex->list_ptr;
-		(void) free((void *) node);
-		tp->forced.n_nodes--;
-		if (!vertex->off_screen)
-			tp->forced.n_visible--;
-	}
-	if (!vertex->off_screen)
-		tp->fringe.n_nodes--;
-	(void) free((void *) vertex);
+      *vertex->list_ptr= node->next;
+      if (node->next != 0)
+        node->next->vertex->list_ptr= vertex->list_ptr;
+      (void) free((void *) node);
+      tp->forced.n_nodes--;
+      if (! vertex->off_screen)
+        tp->forced.n_visible--;
+    }
+  if (! vertex->off_screen)
+    tp->fringe.n_nodes--;
+  (void) free((void *) vertex);
 }
 
 
@@ -833,11 +890,12 @@ delete_vertex(ModeInfo * mi, fringe_node_c * vertex, tiling_c * tp)
  * the space available at vertex.
  */
 static int
-fills_vertex(ModeInfo * mi, vertex_type_c vtype, fringe_node_c * vertex)
+  fills_vertex(
+    ModeInfo *mi,
+    vertex_type_c vtype,
+    fringe_node_c *vertex)
 {
-	return
-		(vertex_dir(mi, vertex, S_LEFT) - vertex_dir(mi, vertex, S_RIGHT)
-		 - vtype_angle(vtype)) % 10 == 0;
+  return (vertex_dir(mi, vertex, S_LEFT) - vertex_dir(mi, vertex, S_RIGHT) - vtype_angle(vtype)) % 10 == 0;
 }
 
 
@@ -864,116 +922,140 @@ fills_vertex(ModeInfo * mi, vertex_type_c vtype, fringe_node_c * vertex)
 #define FC_TOTAL_MASK 0xff
 
 static unsigned
-fringe_changes(ModeInfo * mi, fringe_node_c * vertex,
-	       unsigned side, vertex_type_c vtype,
-	       fringe_node_c ** right, fringe_node_c ** far,
-	       fringe_node_c ** left)
+  fringe_changes(
+    ModeInfo *mi,
+    fringe_node_c *vertex,
+    unsigned side,
+    vertex_type_c vtype,
+    fringe_node_c **right,
+    fringe_node_c **far,
+    fringe_node_c **left)
 {
-	fringe_node_c *v, *f = (fringe_node_c *) NULL;
-	unsigned    result = FC_NEW_FAR;	/* We clear this later if necessary. */
+  fringe_node_c *v, *f= (fringe_node_c *) NULL;
+  unsigned result= FC_NEW_FAR; /* We clear this later if necessary. */
 
-	if (far)
-		*far = 0;
-	if (fills_vertex(mi, vtype, vertex)) {
-		result |= FC_CUT_THIS;
-	} else if (side == S_LEFT) {
-		result |= FC_NEW_RIGHT;
-		if (right)
-			*right = 0;
-	} else {
-		result |= FC_NEW_LEFT;
-		if (left)
-			*left = 0;
-	}
+  if (far)
+    *far= 0;
+  if (fills_vertex(mi, vtype, vertex))
+    {
+      result|= FC_CUT_THIS;
+    }
+  else if (side == S_LEFT)
+    {
+      result|= FC_NEW_RIGHT;
+      if (right)
+        *right= 0;
+    }
+  else
+    {
+      result|= FC_NEW_LEFT;
+      if (left)
+        *left= 0;
+    }
 
-	if (!(result & FC_NEW_LEFT)) {
-		v = vertex->next;
-		if (left)
-			*left = v;
-		if (fills_vertex(mi, VT_LEFT(vtype), v)) {
-			result = (result & ~FC_NEW_FAR) | FC_CUT_LEFT;
-			f = v->next;
-			if (far)
-				*far = f;
-		}
-	}
-	if (!(result & FC_NEW_RIGHT)) {
-		v = vertex->prev;
-		if (right)
-			*right = v;
-		if (fills_vertex(mi, VT_RIGHT(vtype), v)) {
-			result = (result & ~FC_NEW_FAR) | FC_CUT_RIGHT;
-			f = v->prev;
-			if (far)
-				*far = f;
-		}
-	}
-	if (!(result & FC_NEW_FAR)
-	    && fills_vertex(mi, VT_FAR(vtype), f)) {
-		result |= FC_CUT_FAR;
-		result &= (~FC_NEW_LEFT & ~FC_NEW_RIGHT);
-		if (right && (result & FC_CUT_LEFT))
-			*right = f->next;
-		if (left && (result & FC_CUT_RIGHT))
-			*left = f->prev;
-	}
-	if (((result & FC_CUT_LEFT) && (result & FC_CUT_RIGHT))
-	    || ((result & FC_CUT_THIS) && (result & FC_CUT_FAR)))
-		result |= FC_BAG;
-	return result;
+  if (! (result & FC_NEW_LEFT))
+    {
+      v= vertex->next;
+      if (left)
+        *left= v;
+      if (fills_vertex(mi, VT_LEFT(vtype), v))
+        {
+          result= (result & ~FC_NEW_FAR) | FC_CUT_LEFT;
+          f= v->next;
+          if (far)
+            *far= f;
+        }
+    }
+  if (! (result & FC_NEW_RIGHT))
+    {
+      v= vertex->prev;
+      if (right)
+        *right= v;
+      if (fills_vertex(mi, VT_RIGHT(vtype), v))
+        {
+          result= (result & ~FC_NEW_FAR) | FC_CUT_RIGHT;
+          f= v->prev;
+          if (far)
+            *far= f;
+        }
+    }
+  if (! (result & FC_NEW_FAR) && fills_vertex(mi, VT_FAR(vtype), f))
+    {
+      result|= FC_CUT_FAR;
+      result&= (~FC_NEW_LEFT & ~FC_NEW_RIGHT);
+      if (right && (result & FC_CUT_LEFT))
+        *right= f->next;
+      if (left && (result & FC_CUT_RIGHT))
+        *left= f->prev;
+    }
+  if (((result & FC_CUT_LEFT) && (result & FC_CUT_RIGHT)) || ((result & FC_CUT_THIS) && (result & FC_CUT_FAR)))
+    result|= FC_BAG;
+  return result;
 }
 
 
 /* A couple of lesser helper functions for add_tile. */
 static void
-add_vtype(fringe_node_c * vertex, unsigned side, vertex_type_c vtype)
+  add_vtype(
+    fringe_node_c *vertex,
+    unsigned side,
+    vertex_type_c vtype)
 {
-	if (side == S_RIGHT)
-		vertex->tiles[vertex->n_tiles++] = vtype;
-	else {
-		register int i;
+  if (side == S_RIGHT)
+    {
+      vertex->tiles [ vertex->n_tiles++ ]= vtype;
+    }
+  else
+    {
+      register int i;
 
-		for (i = vertex->n_tiles; i > 0; i--)
-			vertex->tiles[i] = vertex->tiles[i - 1];
-		vertex->tiles[0] = vtype;
-		vertex->n_tiles++;
-	}
+      for (i= vertex->n_tiles; i > 0; i--)
+        vertex->tiles [ i ]= vertex->tiles [ i - 1 ];
+      vertex->tiles [ 0 ]= vtype;
+      vertex->n_tiles++;
+    }
 }
 
 static fringe_node_c *
-alloc_vertex(ModeInfo * mi, angle_c dir, fringe_node_c * from, tiling_c * tp)
+  alloc_vertex(
+    ModeInfo *mi,
+    angle_c dir,
+    fringe_node_c *from,
+    tiling_c *tp)
 {
-	fringe_node_c *v;
+  fringe_node_c *v;
 
-	if ((v = ALLOC_NODE(fringe_node_c)) == NULL) {
-		tp->done = True;
-		if (MI_IS_VERBOSE(mi)) {
-			(void) fprintf(stderr, "No memory in alloc_vertex()\n");
-		}
-		tp->busyLoop = CELEBRATE;
-		return v;
-	}
-	*v = *from;
-	add_unit_vec(dir, v->fived);
-	fived_to_loc(v->fived, tp, &(v->loc));
-	if (v->loc.x < 0 || v->loc.y < 0
-	    || v->loc.x >= tp->width || v->loc.y >= tp->height) {
-        int ww = tp->width;
-        int hh = tp->height;
-        if (ww < 200) ww = 200;  /* tiny window */
-        if (hh < 200) hh = 200;
-		v->off_screen = True;
-		if (v->loc.x < -ww || v->loc.y < -hh ||
-            v->loc.x >= 2 * ww || v->loc.y >= 2 * hh)
-			tp->done = True;
-	} else {
-		v->off_screen = False;
-		tp->fringe.n_nodes++;
-	}
-	v->n_tiles = 0;
-	v->rule_mask = (1 << N_VERTEX_RULES) - 1;
-	v->list_ptr = 0;
-	return v;
+  if ((v= ALLOC_NODE(fringe_node_c)) == NULL)
+    {
+      tp->done= True;
+      if (MI_IS_VERBOSE(mi))
+        (void) fprintf(stderr, "No memory in alloc_vertex()\n");
+      tp->busyLoop= CELEBRATE;
+      return v;
+    }
+  *v= *from;
+  add_unit_vec(dir, v->fived);
+  fived_to_loc(v->fived, tp, &(v->loc));
+  if (v->loc.x < 0 || v->loc.y < 0 || v->loc.x >= tp->width || v->loc.y >= tp->height)
+    {
+      int ww= tp->width;
+      int hh= tp->height;
+      if (ww < 200) ww= 200; /* tiny window */
+      if (hh < 200) hh= 200;
+      v->off_screen= True;
+      if (v->loc.x < -ww || v->loc.y < -hh ||
+        v->loc.x >= 2 * ww || v->loc.y >= 2 * hh)
+        tp->done= True;
+    }
+  else
+    {
+      v->off_screen= False;
+      tp->fringe.n_nodes++;
+    }
+  v->n_tiles= 0;
+  v->rule_mask= (1 << N_VERTEX_RULES) - 1;
+  v->list_ptr= 0;
+  return v;
 }
 
 /*-
@@ -987,124 +1069,155 @@ alloc_vertex(ModeInfo * mi, angle_c dir, fringe_node_c * from, tiling_c * tp)
  * is not added.  The return value is true iff a tile was added.
  */
 static int
-add_tile(ModeInfo * mi,
-	 fringe_node_c * vertex, unsigned side, vertex_type_c vtype)
+  add_tile(
+    ModeInfo *mi,
+    fringe_node_c *vertex,
+    unsigned side,
+    vertex_type_c vtype)
 {
-	tiling_c   *tp = &tilings[MI_SCREEN(mi)];
+  tiling_c *tp= &tilings [ MI_SCREEN(mi) ];
 
-	fringe_node_c
-		*left = (fringe_node_c *) NULL,
-		*right = (fringe_node_c *) NULL,
-		*far = (fringe_node_c *) NULL,
-		*node;
-	unsigned    fc = fringe_changes(mi, vertex, side, vtype, &right, &far, &left);
+  fringe_node_c
+    *left= (fringe_node_c *) NULL,
+    *right= (fringe_node_c *) NULL,
+    *far= (fringe_node_c *) NULL,
+    *node;
+  unsigned fc= fringe_changes(mi, vertex, side, vtype, &right, &far, &left);
 
-	vertex_type_c
-		ltype = VT_LEFT(vtype),
-		rtype = VT_RIGHT(vtype),
-		ftype = VT_FAR(vtype);
+  vertex_type_c
+    ltype= VT_LEFT(vtype),
+    rtype= VT_RIGHT(vtype),
+    ftype= VT_FAR(vtype);
 
-	/* By our conventions vertex->next lies to the left of vertex and
-	   vertex->prev to the right. */
+  /* By our conventions vertex->next lies to the left of vertex and
+     vertex->prev to the right. */
 
-	/* This should never occur. */
-	if (fc & FC_BAG) {
-		tp->done = True;
-		if (MI_IS_VERBOSE(mi)) {
-			(void) fprintf(stderr, "Weirdness in add_tile()\n");
-			(void) fprintf(stderr, "fc = %d, FC_BAG = %d\n", fc, FC_BAG);
-		}
-	}
-	if (side == S_LEFT) {
-		if (right == NULL)
-			if ((right = alloc_vertex(mi, vertex_dir(mi, vertex, S_LEFT) -
-					vtype_angle(vtype), vertex, tp)) == NULL)
-				return False;
-		if (far == NULL)
-			if ((far = alloc_vertex(mi, vertex_dir(mi, left, S_RIGHT) +
-					vtype_angle(ltype), left, tp)) == NULL)
-				return False;
-	} else {
-		if (left == NULL)
-			if ((left = alloc_vertex(mi, vertex_dir(mi, vertex, S_RIGHT) +
-					vtype_angle(vtype), vertex, tp)) == NULL)
-				return False;
-		if (far == NULL)
-			if ((far = alloc_vertex(mi, vertex_dir(mi, right, S_LEFT) -
-					vtype_angle(rtype), right, tp)) == NULL)
-				return False;
-	}
+  /* This should never occur. */
+  if (fc & FC_BAG)
+    {
+      tp->done= True;
+      if (MI_IS_VERBOSE(mi))
+        {
+          (void) fprintf(stderr, "Weirdness in add_tile()\n");
+          (void) fprintf(stderr, "fc = %d, FC_BAG = %d\n", fc, FC_BAG);
+        }
+    }
+  if (side == S_LEFT)
+    {
+      if (right == NULL)
+        {
+          if ((right= alloc_vertex(mi, vertex_dir(mi, vertex, S_LEFT) - vtype_angle(vtype), vertex, tp)) == NULL)
+            return False;
+        }
+      if (far == NULL)
+        {
+          if ((far= alloc_vertex(mi, vertex_dir(mi, left, S_RIGHT) + vtype_angle(ltype), left, tp)) == NULL)
+            return False;
+        }
+    }
+  else
+    {
+      if (left == NULL)
+        {
+          if ((left= alloc_vertex(mi, vertex_dir(mi, vertex, S_RIGHT) + vtype_angle(vtype), vertex, tp)) == NULL)
+            return False;
+        }
+      if (far == NULL)
+        {
+          if ((far= alloc_vertex(mi, vertex_dir(mi, right, S_LEFT) - vtype_angle(rtype), right, tp)) == NULL)
+            return False;
+        }
+    }
 
-	/* Having allocated the new vertices, but before joining them with
-	   the rest of the fringe, check if vertices with same coordinates
-	   already exist.  If any such are found, give up. */
-	node = tp->fringe.nodes;
-	do {
-		if (((fc & FC_NEW_LEFT) && fived_equal(node->fived, left->fived))
-		    || ((fc & FC_NEW_RIGHT) && fived_equal(node->fived, right->fived))
-		    || ((fc & FC_NEW_FAR) && fived_equal(node->fived, far->fived))) {
-			/* Better luck next time. */
-			if (fc & FC_NEW_LEFT)
-				delete_vertex(mi, left, tp);
-			if (fc & FC_NEW_RIGHT)
-				delete_vertex(mi, right, tp);
-			if (fc & FC_NEW_FAR)
-				delete_vertex(mi, far, tp);
-			return False;
-		}
-		node = node->next;
-	} while (node != tp->fringe.nodes);
+  /* Having allocated the new vertices, but before joining them with
+     the rest of the fringe, check if vertices with same coordinates
+     already exist.  If any such are found, give up. */
+  node= tp->fringe.nodes;
+  do {
+      if (((fc & FC_NEW_LEFT) && fived_equal(node->fived, left->fived)) || ((fc & FC_NEW_RIGHT) && fived_equal(node->fived, right->fived)) || ((fc & FC_NEW_FAR) && fived_equal(node->fived, far->fived)))
+        {
+          /* Better luck next time. */
+          if (fc & FC_NEW_LEFT)
+            delete_vertex(mi, left, tp);
+          if (fc & FC_NEW_RIGHT)
+            delete_vertex(mi, right, tp);
+          if (fc & FC_NEW_FAR)
+            delete_vertex(mi, far, tp);
+          return False;
+        }
+      node= node->next;
+    }
+  while (node != tp->fringe.nodes);
 
-	/* Rechain. */
-	if (!(fc & FC_CUT_THIS)) {
-		if (side == S_LEFT) {
-			vertex->next = right;
-			right->prev = vertex;
-		} else {
-			vertex->prev = left;
-			left->next = vertex;
-		}
-	}
-	if (!(fc & FC_CUT_FAR)) {
-		if (!(fc & FC_CUT_LEFT)) {
-			far->next = left;
-			left->prev = far;
-		}
-		if (!(fc & FC_CUT_RIGHT)) {
-			far->prev = right;
-			right->next = far;
-		}
-	}
-	draw_tile(vertex, right, far, left, vtype, mi);
+  /* Rechain. */
+  if (! (fc & FC_CUT_THIS))
+    {
+      if (side == S_LEFT)
+        {
+          vertex->next= right;
+          right->prev= vertex;
+        }
+      else
+        {
+          vertex->prev= left;
+          left->next= vertex;
+        }
+    }
+  if (! (fc & FC_CUT_FAR))
+    {
+      if (! (fc & FC_CUT_LEFT))
+        {
+          far->next= left;
+          left->prev= far;
+        }
+      if (! (fc & FC_CUT_RIGHT))
+        {
+          far->prev= right;
+          right->next= far;
+        }
+    }
+  draw_tile(vertex, right, far, left, vtype, mi);
 
-	/* Delete vertices that are no longer on the fringe.  Check the others. */
-	if (fc & FC_CUT_THIS) {
-		tp->fringe.nodes = far;
-		delete_vertex(mi, vertex, tp);
-	} else {
-		add_vtype(vertex, side, vtype);
-		check_vertex(mi, vertex, tp);
-		tp->fringe.nodes = vertex;
-	}
-	if (fc & FC_CUT_FAR)
-		delete_vertex(mi, far, tp);
-	else {
-		add_vtype(far, fc & FC_CUT_RIGHT ? S_LEFT : S_RIGHT, ftype);
-		check_vertex(mi, far, tp);
-	}
-	if (fc & FC_CUT_LEFT)
-		delete_vertex(mi, left, tp);
-	else {
-		add_vtype(left, fc & FC_CUT_FAR ? S_LEFT : S_RIGHT, ltype);
-		check_vertex(mi, left, tp);
-	}
-	if (fc & FC_CUT_RIGHT)
-		delete_vertex(mi, right, tp);
-	else {
-		add_vtype(right, fc & FC_CUT_FAR ? S_RIGHT : S_LEFT, rtype);
-		check_vertex(mi, right, tp);
-	}
-	return True;
+  /* Delete vertices that are no longer on the fringe.  Check the others. */
+  if (fc & FC_CUT_THIS)
+    {
+      tp->fringe.nodes= far;
+      delete_vertex(mi, vertex, tp);
+    }
+  else
+    {
+      add_vtype(vertex, side, vtype);
+      check_vertex(mi, vertex, tp);
+      tp->fringe.nodes= vertex;
+    }
+  if (fc & FC_CUT_FAR)
+    {
+      delete_vertex(mi, far, tp);
+    }
+  else
+    {
+      add_vtype(far, fc & FC_CUT_RIGHT ? S_LEFT : S_RIGHT, ftype);
+      check_vertex(mi, far, tp);
+    }
+  if (fc & FC_CUT_LEFT)
+    {
+      delete_vertex(mi, left, tp);
+    }
+  else
+    {
+      add_vtype(left, fc & FC_CUT_FAR ? S_LEFT : S_RIGHT, ltype);
+      check_vertex(mi, left, tp);
+    }
+  if (fc & FC_CUT_RIGHT)
+    {
+      delete_vertex(mi, right, tp);
+    }
+  else
+    {
+      add_vtype(right, fc & FC_CUT_FAR ? S_RIGHT : S_LEFT, rtype);
+      check_vertex(mi, right, tp);
+    }
+  return True;
 }
 
 
@@ -1119,28 +1232,32 @@ add_tile(ModeInfo * mi,
  * simpler version I used.
  */
 static int
-add_forced_tile(ModeInfo * mi, forced_node_c * node)
+  add_forced_tile(
+    ModeInfo *mi,
+    forced_node_c *node)
 {
-	tiling_c   *tp = &tilings[MI_SCREEN(mi)];
-	unsigned    side;
-	vertex_type_c vtype = 0;
-	rule_match_c hits[MAX_TILES_PER_VERTEX * N_VERTEX_RULES];
-	int         n;
+  tiling_c *tp= &tilings [ MI_SCREEN(mi) ];
+  unsigned side;
+  vertex_type_c vtype= 0;
+  rule_match_c hits [ MAX_TILES_PER_VERTEX * N_VERTEX_RULES ];
+  int n;
 
-	if (node->forced_sides == (S_LEFT | S_RIGHT))
-		side = NRAND(2) ? S_LEFT : S_RIGHT;
-	else
-		side = node->forced_sides;
-	n = match_rules(node->vertex, hits, True);
-	n = find_completions(node->vertex, hits, n, side, &vtype /*, True */ );
-	if (n <= 0) {
-		tp->done = True;
-		if (MI_IS_VERBOSE(mi)) {
-			(void) fprintf(stderr, "Weirdness in add_forced_tile()\n");
-			(void) fprintf(stderr, "n = %d\n", n);
-		}
-	}
-	return add_tile(mi, node->vertex, side, vtype);
+  if (node->forced_sides == (S_LEFT | S_RIGHT))
+    side= NRAND(2) ? S_LEFT : S_RIGHT;
+  else
+    side= node->forced_sides;
+  n= match_rules(node->vertex, hits, True);
+  n= find_completions(node->vertex, hits, n, side, &vtype /*, True */);
+  if (n <= 0)
+    {
+      tp->done= True;
+      if (MI_IS_VERBOSE(mi))
+        {
+          (void) fprintf(stderr, "Weirdness in add_forced_tile()\n");
+          (void) fprintf(stderr, "n = %d\n", n);
+        }
+    }
+  return add_tile(mi, node->vertex, side, vtype);
 }
 
 
@@ -1153,18 +1270,21 @@ add_forced_tile(ModeInfo * mi, forced_node_c * node)
  * relatively infrequent), so I will settle for a simpler implementation.
  */
 static int
-legal_move(fringe_node_c * vertex, unsigned side, vertex_type_c vtype)
+  legal_move(
+    fringe_node_c *vertex,
+    unsigned side,
+    vertex_type_c vtype)
 {
-	rule_match_c hits[MAX_TILES_PER_VERTEX * N_VERTEX_RULES];
-	vertex_type_c legal_vt[MAX_COMPL];
-	int         n_hits, n_legal, i;
+  rule_match_c hits [ MAX_TILES_PER_VERTEX * N_VERTEX_RULES ];
+  vertex_type_c legal_vt [ MAX_COMPL ];
+  int n_hits, n_legal, i;
 
-	n_hits = match_rules(vertex, hits, False);
-	n_legal = find_completions(vertex, hits, n_hits, side, legal_vt /*, False */ );
-	for (i = 0; i < n_legal; i++)
-		if (legal_vt[i] == vtype)
-			return True;
-	return False;
+  n_hits= match_rules(vertex, hits, False);
+  n_legal= find_completions(vertex, hits, n_hits, side, legal_vt /*, False */);
+  for (i= 0; i < n_legal; i++)
+    if (legal_vt [ i ] == vtype)
+      return True;
+  return False;
 }
 
 
@@ -1173,169 +1293,208 @@ legal_move(fringe_node_c * vertex, unsigned side, vertex_type_c vtype)
  * as we must make sure the new tile conforms to the vertex rules at every
  * vertex it touches. */
 static void
-add_random_tile(fringe_node_c * vertex, ModeInfo * mi)
+  add_random_tile(
+    fringe_node_c *vertex,
+    ModeInfo *mi)
 {
-	fringe_node_c *right, *left, *far;
-	int         i, j, n, n_hits, n_good;
-	unsigned    side, fc, no_good, s;
-	vertex_type_c vtypes[MAX_COMPL];
-	rule_match_c hits[MAX_TILES_PER_VERTEX * N_VERTEX_RULES];
-	tiling_c   *tp = &tilings[MI_SCREEN(mi)];
+  fringe_node_c *right, *left, *far;
+  int i, j, n, n_hits, n_good;
+  unsigned side, fc, no_good, s;
+  vertex_type_c vtypes [ MAX_COMPL ];
+  rule_match_c hits [ MAX_TILES_PER_VERTEX * N_VERTEX_RULES ];
+  tiling_c *tp= &tilings [ MI_SCREEN(mi) ];
 
-	if (MI_NPIXELS(mi) > 2) {
-		tp->thick_color = NRAND(MI_NPIXELS(mi));
-		/* Insure good contrast */
-		tp->thin_color = (NRAND(2 * MI_NPIXELS(mi) / 3) + tp->thick_color +
-				  MI_NPIXELS(mi) / 6) % MI_NPIXELS(mi);
-	} else
-		tp->thick_color = tp->thin_color = MI_WHITE_PIXEL(mi);
-	n_hits = match_rules(vertex, hits, False);
-	side = NRAND(2) ? S_LEFT : S_RIGHT;
-	n = find_completions(vertex, hits, n_hits, side, vtypes /*, False */ );
-	/* One answer would mean a forced tile. */
-	if (n <= 0) {
-		tp->done = True;
-		if (MI_IS_VERBOSE(mi)) {
-			(void) fprintf(stderr, "Weirdness in add_random_tile()\n");
-			(void) fprintf(stderr, "n = %d\n", n);
-		}
-	}
-	no_good = 0;
-	n_good = n;
-	for (i = 0; i < n; i++) {
-		fc = fringe_changes(mi, vertex, side, vtypes[i], &right, &far, &left);
-		if (fc & FC_BAG) {
-			tp->done = True;
-			if (MI_IS_VERBOSE(mi)) {
-				(void) fprintf(stderr, "Weirdness in add_random_tile()\n");
-				(void) fprintf(stderr, "fc = %d, FC_BAG = %d\n", fc, FC_BAG);
-			}
-		}
-		if (right) {
-			s = (((fc & FC_CUT_FAR) && (fc & FC_CUT_LEFT)) ? S_RIGHT : S_LEFT);
-			if (!legal_move(right, s, VT_RIGHT(vtypes[i]))) {
-				no_good |= (1 << i);
-				n_good--;
-				continue;
-			}
-		}
-		if (left) {
-			s = (((fc & FC_CUT_FAR) && (fc & FC_CUT_RIGHT)) ? S_LEFT : S_RIGHT);
-			if (!legal_move(left, s, VT_LEFT(vtypes[i]))) {
-				no_good |= (1 << i);
-				n_good--;
-				continue;
-			}
-		}
-		if (far) {
-			s = ((fc & FC_CUT_LEFT) ? S_RIGHT : S_LEFT);
-			if (!legal_move(far, s, VT_FAR(vtypes[i]))) {
-				no_good |= (1 << i);
-				n_good--;
-			}
-		}
-	}
-	if (n_good <= 0) {
-		tp->done = True;
-		if (MI_IS_VERBOSE(mi)) {
-			(void) fprintf(stderr, "Weirdness in add_random_tile()\n");
-			(void) fprintf(stderr, "n_good = %d\n", n_good);
-		}
-	}
-	n = NRAND(n_good);
-	for (i = j = 0; i <= n; i++, j++)
-		while (no_good & (1 << j))
-			j++;
+  if (MI_NPIXELS(mi) > 2)
+    {
+      tp->thick_color= NRAND(MI_NPIXELS(mi));
+      /* Insure good contrast */
+      tp->thin_color= (NRAND(2 * MI_NPIXELS(mi) / 3) + tp->thick_color +
+                        MI_NPIXELS(mi) / 6) %
+        MI_NPIXELS(mi);
+    }
+  else
+    {
+      tp->thick_color= tp->thin_color= MI_WHITE_PIXEL(mi);
+    }
+  n_hits= match_rules(vertex, hits, False);
+  side= NRAND(2) ? S_LEFT : S_RIGHT;
+  n= find_completions(vertex, hits, n_hits, side, vtypes /*, False */);
+  /* One answer would mean a forced tile. */
+  if (n <= 0)
+    {
+      tp->done= True;
+      if (MI_IS_VERBOSE(mi))
+        {
+          (void) fprintf(stderr, "Weirdness in add_random_tile()\n");
+          (void) fprintf(stderr, "n = %d\n", n);
+        }
+    }
+  no_good= 0;
+  n_good= n;
+  for (i= 0; i < n; i++)
+    {
+      fc= fringe_changes(mi, vertex, side, vtypes [ i ], &right, &far, &left);
+      if (fc & FC_BAG)
+        {
+          tp->done= True;
+          if (MI_IS_VERBOSE(mi))
+            {
+              (void) fprintf(stderr, "Weirdness in add_random_tile()\n");
+              (void) fprintf(stderr, "fc = %d, FC_BAG = %d\n", fc, FC_BAG);
+            }
+        }
+      if (right)
+        {
+          s= (((fc & FC_CUT_FAR) && (fc & FC_CUT_LEFT)) ? S_RIGHT : S_LEFT);
+          if (! legal_move(right, s, VT_RIGHT(vtypes [ i ])))
+            {
+              no_good|= (1 << i);
+              n_good--;
+              continue;
+            }
+        }
+      if (left)
+        {
+          s= (((fc & FC_CUT_FAR) && (fc & FC_CUT_RIGHT)) ? S_LEFT : S_RIGHT);
+          if (! legal_move(left, s, VT_LEFT(vtypes [ i ])))
+            {
+              no_good|= (1 << i);
+              n_good--;
+              continue;
+            }
+        }
+      if (far)
+        {
+          s= ((fc & FC_CUT_LEFT) ? S_RIGHT : S_LEFT);
+          if (! legal_move(far, s, VT_FAR(vtypes [ i ])))
+            {
+              no_good|= (1 << i);
+              n_good--;
+            }
+        }
+    }
+  if (n_good <= 0)
+    {
+      tp->done= True;
+      if (MI_IS_VERBOSE(mi))
+        {
+          (void) fprintf(stderr, "Weirdness in add_random_tile()\n");
+          (void) fprintf(stderr, "n_good = %d\n", n_good);
+        }
+    }
+  n= NRAND(n_good);
+  for (i= j= 0; i <= n; i++, j++)
+    while (no_good & (1 << j))
+      j++;
 
-	if (!add_tile(mi, vertex, side, vtypes[j - 1])) {
-		tp->done = True;
-		if (MI_IS_VERBOSE(mi)) {
-			(void) fprintf(stderr, "Weirdness in add_random_tile()\n");
-		}
-		free_penrose(mi);
-	}
+  if (! add_tile(mi, vertex, side, vtypes [ j - 1 ]))
+    {
+      tp->done= True;
+      if (MI_IS_VERBOSE(mi))
+        (void) fprintf(stderr, "Weirdness in add_random_tile()\n");
+      free_penrose(mi);
+    }
 }
 
 /* One step of the growth algorithm. */
 ENTRYPOINT void
-draw_penrose(ModeInfo * mi)
+  draw_penrose(
+    ModeInfo *mi)
 {
-	int         i = 0, n;
-	forced_node_c *p;
-	tiling_c   *tp;
+  int i= 0, n;
+  forced_node_c *p;
+  tiling_c *tp;
 
-	if (tilings == NULL)
-		return;
-	tp = &tilings[MI_SCREEN(mi)];
-	if (tp->fringe.nodes == NULL)
-		return;
+  if (tilings == NULL)
+    return;
+  tp= &tilings [ MI_SCREEN(mi) ];
+  if (tp->fringe.nodes == NULL)
+    return;
 
-	MI_IS_DRAWN(mi) = True;
-	p = tp->forced.first;
-	if (tp->busyLoop > 0) {
-		tp->busyLoop--;
-		return;
-	}
-	if (tp->done || tp->failures >= 100) {
-		init_penrose(mi);
-		return;
-	}
-	/* Check for the initial "2-gon". */
-	if (tp->fringe.nodes->prev == tp->fringe.nodes->next) {
-		vertex_type_c vtype = (unsigned char) (VT_TOTAL_MASK & LRAND());
+  MI_IS_DRAWN(mi)= True;
+  p= tp->forced.first;
+  if (tp->busyLoop > 0)
+    {
+      tp->busyLoop--;
+      return;
+    }
+  if (tp->done || tp->failures >= 100)
+    {
+      init_penrose(mi);
+      return;
+    }
+  /* Check for the initial "2-gon". */
+  if (tp->fringe.nodes->prev == tp->fringe.nodes->next)
+    {
+      vertex_type_c vtype= (unsigned char) (VT_TOTAL_MASK & LRAND());
 
-		if (!add_tile(mi, tp->fringe.nodes, S_LEFT, vtype))
-			free_penrose(mi);
-		return;
-	}
-	/* No visible nodes left. */
-	if (tp->fringe.n_nodes == 0) {
-		tp->done = True;
-		tp->busyLoop = COMPLETION;	/* Just finished drawing */
-		return;
-	}
-	if (tp->forced.n_visible > 0 && tp->failures < 10) {
-		n = NRAND(tp->forced.n_visible);
-		for (;;) {
-			while (p->vertex->off_screen)
-				p = p->next;
-			if (i++ < n)
-				p = p->next;
-			else
-				break;
-		}
-	} else if (tp->forced.n_nodes > 0) {
-		n = NRAND(tp->forced.n_nodes);
-		while (i++ < n)
-			p = p->next;
-	} else {
-		fringe_node_c *fringe_p = tp->fringe.nodes;
+      if (! add_tile(mi, tp->fringe.nodes, S_LEFT, vtype))
+        free_penrose(mi);
+      return;
+    }
+  /* No visible nodes left. */
+  if (tp->fringe.n_nodes == 0)
+    {
+      tp->done= True;
+      tp->busyLoop= COMPLETION; /* Just finished drawing */
+      return;
+    }
+  if (tp->forced.n_visible > 0 && tp->failures < 10)
+    {
+      n= NRAND(tp->forced.n_visible);
+      for (;;)
+        {
+          while (p->vertex->off_screen)
+            p= p->next;
+          if (i++ < n)
+            p= p->next;
+          else
+            break;
+        }
+    }
+  else if (tp->forced.n_nodes > 0)
+    {
+      n= NRAND(tp->forced.n_nodes);
+      while (i++ < n)
+        p= p->next;
+    }
+  else
+    {
+      fringe_node_c *fringe_p= tp->fringe.nodes;
 
-		n = NRAND(tp->fringe.n_nodes);
-		i = 0;
-		for (; i <= n; i++)
-			do {
-				fringe_p = fringe_p->next;
-			} while (fringe_p->off_screen);
-		add_random_tile(fringe_p, mi);
-		tp->failures = 0;
-		return;
-	}
-	if (add_forced_tile(mi, p))
-		tp->failures = 0;
-	else
-		tp->failures++;
+      n= NRAND(tp->fringe.n_nodes);
+      i= 0;
+      for (; i <= n; i++)
+        {
+          do {
+              fringe_p= fringe_p->next;
+            }
+          while (fringe_p->off_screen);
+        }
+      add_random_tile(fringe_p, mi);
+      tp->failures= 0;
+      return;
+    }
+  if (add_forced_tile(mi, p))
+    tp->failures= 0;
+  else
+    tp->failures++;
 }
 
 
 ENTRYPOINT void
-reshape_penrose(ModeInfo * mi, int width, int height)
+  reshape_penrose(
+    ModeInfo *mi,
+    int width,
+    int height)
 {
-	tiling_c   *tp = &tilings[MI_SCREEN(mi)];
-	tp->width = width;
-	tp->height = height;
+  tiling_c *tp= &tilings [ MI_SCREEN(mi) ];
+  tp->width= width;
+  tp->height= height;
 }
 
-XSCREENSAVER_MODULE ("Penrose", penrose)
+XSCREENSAVER_MODULE(
+  "Penrose",
+  penrose)
 
 #endif /* MODE_penrose */

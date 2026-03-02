@@ -34,33 +34,30 @@ static const char sccsid[] = "@(#)spiral.c	5.00 2000/11/01 xlockmore";
  */
 
 #ifdef STANDALONE
-# define MODE_spiral
+#define MODE_spiral
 #define DEFAULTS	"*delay: 50000 \n" \
 					"*count: 40 \n" \
 					"*cycles: 350 \n" \
 					"*ncolors: 64 \n" \
-					"*fpsSolid: true \n" \
+					"*fpsSolid: true \n"
 
-# define SMOOTH_COLORS
-# define release_spiral 0
-# define reshape_spiral 0
-# define spiral_handle_event 0
-# include "xlockmore.h"		/* from the xscreensaver distribution */
-#else /* !STANDALONE */
-# include "xlock.h"		/* from the xlockmore distribution */
-#endif /* !STANDALONE */
+#define SMOOTH_COLORS
+#define release_spiral 0
+#define reshape_spiral 0
+#define spiral_handle_event 0
+#include "xlockmore.h" /* from the xscreensaver distribution */
+#else                  /* !STANDALONE */
+#include "xlock.h"     /* from the xlockmore distribution */
+#endif                 /* !STANDALONE */
 
 #ifdef MODE_spiral
 
-ENTRYPOINT ModeSpecOpt spiral_opts =
-{0, (XrmOptionDescRec *) NULL, 0, (argtype *) NULL, (OptionStruct *) NULL};
+ENTRYPOINT ModeSpecOpt spiral_opts=
+  {0, (XrmOptionDescRec *) NULL, 0, (argtype *) NULL, (OptionStruct *) NULL};
 
 #ifdef USE_MODULES
-ModStruct   spiral_description =
-{"spiral", "init_spiral", "draw_spiral", (char *) NULL,
- "refresh_spiral", "init_spiral", "free_spiral", &spiral_opts,
- 5000, -40, 350, 1, 64, 1.0, "",
- "Shows a helical locus of points", 0, NULL};
+ModStruct spiral_description=
+  {"spiral", "init_spiral", "draw_spiral", (char *) NULL, "refresh_spiral", "init_spiral", "free_spiral", &spiral_opts, 5000, -40, 350, 1, 64, 1.0, "", "Shows a helical locus of points", 0, NULL};
 
 #endif
 
@@ -75,256 +72,273 @@ ModStruct   spiral_description =
 #define REDRAWSTEP 3
 
 
-typedef struct {
-	float       hx, hy, ha, hr;
+typedef struct
+{
+    float hx, hy, ha, hr;
 } Traildots;
 
-typedef struct {
-	Traildots  *traildots;
-	float       cx, cy;
-	float       angle;
-	float       radius;
-	float       dr, da;
-	float       dx, dy;
-	int         erase;
-	int         inc;
-	float       colors;
-	int         width, height;
-	float       top, bottom, left, right;
-	int         dots, nlength;
-	int         redrawing, redrawpos;
+typedef struct
+{
+    Traildots *traildots;
+    float cx, cy;
+    float angle;
+    float radius;
+    float dr, da;
+    float dx, dy;
+    int erase;
+    int inc;
+    float colors;
+    int width, height;
+    float top, bottom, left, right;
+    int dots, nlength;
+    int redrawing, redrawpos;
 } spiralstruct;
 
-static spiralstruct *spirals = (spiralstruct *) NULL;
+static spiralstruct *spirals= (spiralstruct *) NULL;
 
-static void draw_dots(ModeInfo * mi, int in);
+static void draw_dots(ModeInfo *mi, int in);
 
-#define TFX(sp,x) ((int)((x/sp->right)*(float)sp->width))
-#define TFY(sp,y) ((int)((y/sp->top)*(float)sp->height))
+#define TFX(sp, x) ((int)((x/sp->right)*(float)sp->width))
+#define TFY(sp, y) ((int)((y/sp->top)*(float)sp->height))
 
 static void
-draw_dots(ModeInfo * mi, int in)
+  draw_dots(
+    ModeInfo *mi,
+    int in)
 {
 
-	float       i, inc;
-	float       x, y;
+  float i, inc;
+  float x, y;
 
-	spiralstruct *sp = &spirals[MI_SCREEN(mi)];
+  spiralstruct *sp= &spirals [ MI_SCREEN(mi) ];
 
-	inc = TWOPI / (float) sp->dots;
-	for (i = 0.0; i < TWOPI; i += inc) {
-		x = sp->traildots[in].hx + COSF(i + sp->traildots[in].ha) *
-			sp->traildots[in].hr;
-		y = sp->traildots[in].hy + SINF(i + sp->traildots[in].ha) *
-			sp->traildots[in].hr;
-		XDrawPoint(MI_DISPLAY(mi), MI_WINDOW(mi), MI_GC(mi),
-			   TFX(sp, x), TFY(sp, y));
-	}
+  inc= TWOPI / (float) sp->dots;
+  for (i= 0.0; i < TWOPI; i+= inc)
+    {
+      x= sp->traildots [ in ].hx + COSF(i + sp->traildots [ in ].ha) * sp->traildots [ in ].hr;
+      y= sp->traildots [ in ].hy + SINF(i + sp->traildots [ in ].ha) * sp->traildots [ in ].hr;
+      XDrawPoint(MI_DISPLAY(mi), MI_WINDOW(mi), MI_GC(mi), TFX(sp, x), TFY(sp, y));
+    }
 }
 
 ENTRYPOINT void
-init_spiral(ModeInfo * mi)
+  init_spiral(
+    ModeInfo *mi)
 {
-	spiralstruct *sp;
-	int         i;
+  spiralstruct *sp;
+  int i;
 
-	MI_INIT (mi, spirals);
-	sp = &spirals[MI_SCREEN(mi)];
+  MI_INIT(mi, spirals);
+  sp= &spirals [ MI_SCREEN(mi) ];
 
 #ifdef HAVE_JWXYZ
-    jwxyz_XSetAntiAliasing (MI_DISPLAY(mi), MI_GC(mi),  False);
+  jwxyz_XSetAntiAliasing(MI_DISPLAY(mi), MI_GC(mi), False);
 #endif
 
-	sp->width = MI_WIDTH(mi);
-	sp->height = MI_HEIGHT(mi);
+  sp->width= MI_WIDTH(mi);
+  sp->height= MI_HEIGHT(mi);
 
-	MI_CLEARWINDOW(mi);
+  MI_CLEARWINDOW(mi);
 
-	/* Init */
-	sp->nlength = MI_CYCLES(mi);
+  /* Init */
+  sp->nlength= MI_CYCLES(mi);
 
-	if (!sp->traildots)
-		if ((sp->traildots = (Traildots *) malloc(sp->nlength *
-				sizeof (Traildots))) == NULL) {
-			return;
-		}
+  if (! sp->traildots)
+    {
+      if ((sp->traildots= (Traildots *) malloc(sp->nlength *
+             sizeof(Traildots))) == NULL)
+        return;
+    }
 
-	/* initialize the allocated array */
-	for (i = 0; i < sp->nlength; i++) {
-		sp->traildots[i].hx = 0.0;
-		sp->traildots[i].hy = 0.0;
-		sp->traildots[i].ha = 0.0;
-		sp->traildots[i].hr = 0.0;
-	}
-	sp->redrawing = 0;
+  /* initialize the allocated array */
+  for (i= 0; i < sp->nlength; i++)
+    {
+      sp->traildots [ i ].hx= 0.0;
+      sp->traildots [ i ].hy= 0.0;
+      sp->traildots [ i ].ha= 0.0;
+      sp->traildots [ i ].hr= 0.0;
+    }
+  sp->redrawing= 0;
 
-	/* keep the window parameters proportional */
-	sp->top = 10000.0;
-	sp->bottom = 0;
-	sp->right = (float) (sp->width) / (float) (sp->height) * (10000.0);
-	sp->left = 0;
+  /* keep the window parameters proportional */
+  sp->top= 10000.0;
+  sp->bottom= 0;
+  sp->right= (float) (sp->width) / (float) (sp->height) * (10000.0);
+  sp->left= 0;
 
-	/* assign the initial values */
-	sp->cx = (float) (5000.0 - NRAND(2000)) / 10000.0 * sp->right;
-	sp->cy = (float) (5000.0 - NRAND(2000));
-	sp->radius = (float) (NRAND(200) + 200);
-	sp->angle = 0.0;
-	sp->dx = (float) (10 - NRAND(20)) * SPEED;
-	sp->dy = (float) (10 - NRAND(20)) * SPEED;
-	sp->dr = (float) ((NRAND(10) + 4) * (1 - (LRAND() & 1) * 2));
-	sp->da = (float) NRAND(360) / 7200.0 + 0.01;
-	if (MI_NPIXELS(mi) > 2)
-		sp->colors = (float) NRAND(MI_NPIXELS(mi));
-	sp->erase = 0;
-	sp->inc = 0;
-	sp->traildots[sp->inc].hx = sp->cx;
-	sp->traildots[sp->inc].hy = sp->cy;
-	sp->traildots[sp->inc].ha = sp->angle;
-	sp->traildots[sp->inc].hr = sp->radius;
-	sp->inc++;
+  /* assign the initial values */
+  sp->cx= (float) (5000.0 - NRAND(2000)) / 10000.0 * sp->right;
+  sp->cy= (float) (5000.0 - NRAND(2000));
+  sp->radius= (float) (NRAND(200) + 200);
+  sp->angle= 0.0;
+  sp->dx= (float) (10 - NRAND(20)) * SPEED;
+  sp->dy= (float) (10 - NRAND(20)) * SPEED;
+  sp->dr= (float) ((NRAND(10) + 4) * (1 - (LRAND() & 1) * 2));
+  sp->da= (float) NRAND(360) / 7200.0 + 0.01;
+  if (MI_NPIXELS(mi) > 2)
+    sp->colors= (float) NRAND(MI_NPIXELS(mi));
+  sp->erase= 0;
+  sp->inc= 0;
+  sp->traildots [ sp->inc ].hx= sp->cx;
+  sp->traildots [ sp->inc ].hy= sp->cy;
+  sp->traildots [ sp->inc ].ha= sp->angle;
+  sp->traildots [ sp->inc ].hr= sp->radius;
+  sp->inc++;
 
-	sp->dots = MI_COUNT(mi);
-	if (sp->dots < -MINDOTS)
-		sp->dots = NRAND(sp->dots - MINDOTS + 1) + MINDOTS;
-	/* Absolute minimum */
-	if (sp->dots < MINDOTS)
-		sp->dots = MINDOTS;
+  sp->dots= MI_COUNT(mi);
+  if (sp->dots < -MINDOTS)
+    sp->dots= NRAND(sp->dots - MINDOTS + 1) + MINDOTS;
+  /* Absolute minimum */
+  if (sp->dots < MINDOTS)
+    sp->dots= MINDOTS;
 }
 
 ENTRYPOINT void
-draw_spiral(ModeInfo * mi)
+  draw_spiral(
+    ModeInfo *mi)
 {
-	Display    *display = MI_DISPLAY(mi);
-	GC          gc = MI_GC(mi);
-	int         i, j;
-	spiralstruct *sp;
+  Display *display= MI_DISPLAY(mi);
+  GC gc= MI_GC(mi);
+  int i, j;
+  spiralstruct *sp;
 
-	if (spirals == NULL)
-		return;
-	sp = &spirals[MI_SCREEN(mi)];
-	if (sp->traildots == NULL)
-		return;
+  if (spirals == NULL)
+    return;
+  sp= &spirals [ MI_SCREEN(mi) ];
+  if (sp->traildots == NULL)
+    return;
 
-	MI_IS_DRAWN(mi) = True;
-	if (sp->erase == 1) {
-		XSetForeground(display, gc, MI_BLACK_PIXEL(mi));
-		draw_dots(mi, sp->inc);
-	}
-	sp->cx += sp->dx;
-	sp->traildots[sp->inc].hx = sp->cx;
+  MI_IS_DRAWN(mi)= True;
+  if (sp->erase == 1)
+    {
+      XSetForeground(display, gc, MI_BLACK_PIXEL(mi));
+      draw_dots(mi, sp->inc);
+    }
+  sp->cx+= sp->dx;
+  sp->traildots [ sp->inc ].hx= sp->cx;
 
-	if ((sp->cx > 9000.0) || (sp->cx < 1000.0))
-		sp->dx *= -1.0;
+  if ((sp->cx > 9000.0) || (sp->cx < 1000.0))
+    sp->dx*= -1.0;
 
-	sp->cy += sp->dy;
-	sp->traildots[sp->inc].hy = sp->cy;
+  sp->cy+= sp->dy;
+  sp->traildots [ sp->inc ].hy= sp->cy;
 
-	if ((sp->cy > 9000.0) || (sp->cy < 1000.0))
-		sp->dy *= -1.0;
+  if ((sp->cy > 9000.0) || (sp->cy < 1000.0))
+    sp->dy*= -1.0;
 
-	sp->radius += sp->dr;
-	sp->traildots[sp->inc].hr = sp->radius;
+  sp->radius+= sp->dr;
+  sp->traildots [ sp->inc ].hr= sp->radius;
 
-	if ((sp->radius > 2500.0) && (sp->dr > 0.0))
-		sp->dr *= -1.0;
-	else if ((sp->radius < 50.0) && (sp->radius < 0.0))
-		sp->dr *= -1.0;
+  if ((sp->radius > 2500.0) && (sp->dr > 0.0))
+    sp->dr*= -1.0;
+  else if ((sp->radius < 50.0) && (sp->radius < 0.0))
+    sp->dr*= -1.0;
 
-	/* Randomly give some variations to:  */
+  /* Randomly give some variations to:  */
 
-	/* spiral direction (if it is within the boundaries) */
-	if ((NRAND(3000) < 1 * JAGGINESS) &&
-	    (((sp->cx > 2000.0) && (sp->cx < 8000.0)) &&
-	     ((sp->cy > 2000.0) && (sp->cy < 8000.0)))) {
-		sp->dx = (float) (10 - NRAND(20)) * SPEED;
-		sp->dy = (float) (10 - NRAND(20)) * SPEED;
-	}
-	/* The speed of the change in size of the spiral */
-	if (NRAND(3000) < 1 * JAGGINESS) {
-		if (LRAND() & 1)
-			sp->dr += (float) (NRAND(3) + 1);
-		else
-			sp->dr -= (float) (NRAND(3) + 1);
+  /* spiral direction (if it is within the boundaries) */
+  if ((NRAND(3000) < 1 * JAGGINESS) &&
+    (((sp->cx > 2000.0) && (sp->cx < 8000.0)) &&
+      ((sp->cy > 2000.0) && (sp->cy < 8000.0))))
+    {
+      sp->dx= (float) (10 - NRAND(20)) * SPEED;
+      sp->dy= (float) (10 - NRAND(20)) * SPEED;
+    }
+  /* The speed of the change in size of the spiral */
+  if (NRAND(3000) < 1 * JAGGINESS)
+    {
+      if (LRAND() & 1)
+        sp->dr+= (float) (NRAND(3) + 1);
+      else
+        sp->dr-= (float) (NRAND(3) + 1);
 
-		/* don't let it get too wild */
-		if (sp->dr > 18.0)
-			sp->dr = 18.0;
-		else if (sp->dr < 4.0)
-			sp->dr = 4.0;
-	}
-	/* The speed of rotation */
-	if (NRAND(3000) < 1 * JAGGINESS)
-		sp->da = (float) NRAND(360) / 7200.0 + 0.01;
+      /* don't let it get too wild */
+      if (sp->dr > 18.0)
+        sp->dr= 18.0;
+      else if (sp->dr < 4.0)
+        sp->dr= 4.0;
+    }
+  /* The speed of rotation */
+  if (NRAND(3000) < 1 * JAGGINESS)
+    sp->da= (float) NRAND(360) / 7200.0 + 0.01;
 
-	/* Reverse rotation */
-	if (NRAND(3000) < 1 * JAGGINESS)
-		sp->da *= -1.0;
+  /* Reverse rotation */
+  if (NRAND(3000) < 1 * JAGGINESS)
+    sp->da*= -1.0;
 
-	sp->angle += sp->da;
-	sp->traildots[sp->inc].ha = sp->angle;
+  sp->angle+= sp->da;
+  sp->traildots [ sp->inc ].ha= sp->angle;
 
-	if (sp->angle > TWOPI)
-		sp->angle -= TWOPI;
-	else if (sp->angle < 0.0)
-		sp->angle += TWOPI;
+  if (sp->angle > TWOPI)
+    sp->angle-= TWOPI;
+  else if (sp->angle < 0.0)
+    sp->angle+= TWOPI;
 
-	sp->colors += (float) MI_NPIXELS(mi) / ((float) (2 * sp->nlength));
-	if (sp->colors >= (float) MI_NPIXELS(mi))
-		sp->colors = 0.0;
+  sp->colors+= (float) MI_NPIXELS(mi) / ((float) (2 * sp->nlength));
+  if (sp->colors >= (float) MI_NPIXELS(mi))
+    sp->colors= 0.0;
 
-	if (MI_NPIXELS(mi) > 2)
-		XSetForeground(display, gc, MI_PIXEL(mi, (int) sp->colors));
-	else
-		XSetForeground(display, gc, MI_WHITE_PIXEL(mi));
-	draw_dots(mi, sp->inc);
-	sp->inc++;
+  if (MI_NPIXELS(mi) > 2)
+    XSetForeground(display, gc, MI_PIXEL(mi, (int) sp->colors));
+  else
+    XSetForeground(display, gc, MI_WHITE_PIXEL(mi));
+  draw_dots(mi, sp->inc);
+  sp->inc++;
 
-	if (sp->inc > sp->nlength - 1) {
-		sp->inc -= sp->nlength;
-		sp->erase = 1;
-	}
-	if (sp->redrawing) {
-		for (i = 0; i < REDRAWSTEP; i++) {
-			j = (sp->inc - sp->redrawpos + sp->nlength) % sp->nlength;
-			draw_dots(mi, j);
+  if (sp->inc > sp->nlength - 1)
+    {
+      sp->inc-= sp->nlength;
+      sp->erase= 1;
+    }
+  if (sp->redrawing)
+    {
+      for (i= 0; i < REDRAWSTEP; i++)
+        {
+          j= (sp->inc - sp->redrawpos + sp->nlength) % sp->nlength;
+          draw_dots(mi, j);
 
-			if (++(sp->redrawpos) >= sp->nlength) {
-				sp->redrawing = 0;
-				break;
-			}
-		}
-	}
+          if (++(sp->redrawpos) >= sp->nlength)
+            {
+              sp->redrawing= 0;
+              break;
+            }
+        }
+    }
 }
 
 ENTRYPOINT void
-free_spiral(ModeInfo * mi)
+  free_spiral(
+    ModeInfo *mi)
 {
-	spiralstruct *sp;
+  spiralstruct *sp;
 
-	if (spirals == NULL)
-		return;
-	sp = &spirals[MI_SCREEN(mi)];
+  if (spirals == NULL)
+    return;
+  sp= &spirals [ MI_SCREEN(mi) ];
 
-	if (sp->traildots)
-		(void) free((void *) sp->traildots);
+  if (sp->traildots)
+    (void) free((void *) sp->traildots);
 }
 
 #ifndef STANDALONE
 ENTRYPOINT void
-refresh_spiral(ModeInfo * mi)
+  refresh_spiral(
+    ModeInfo *mi)
 {
-	spiralstruct *sp;
+  spiralstruct *sp;
 
-	if (spirals == NULL)
-		return;
-	sp = &spirals[MI_SCREEN(mi)];
+  if (spirals == NULL)
+    return;
+  sp= &spirals [ MI_SCREEN(mi) ];
 
-	MI_CLEARWINDOW(mi);
-	sp->redrawing = 1;
-	sp->redrawpos = 0;
+  MI_CLEARWINDOW(mi);
+  sp->redrawing= 1;
+  sp->redrawpos= 0;
 }
 #endif
 
-XSCREENSAVER_MODULE ("Spiral", spiral)
+XSCREENSAVER_MODULE(
+  "Spiral",
+  spiral)
 
 #endif /* MODE_spiral */

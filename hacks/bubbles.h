@@ -6,9 +6,9 @@
 #define _BUBBLES_H_
 
 #ifdef HAVE_JWXYZ
-# include "jwxyz.h"
+#include "jwxyz.h"
 #else
-# include <X11/Xlib.h>
+#include <X11/Xlib.h>
 #endif
 
 /***************************************************************************
@@ -16,10 +16,10 @@
  ***************************************************************************/
 
 /*
- *   Uncommenting the following will enable support for reading bubbles from 
+ *   Uncommenting the following will enable support for reading bubbles from
  * files (using the -file and -directory options to bubbles).  This is
  * disabled by default since such operations are inherently non-portable
- * and we want the program to compile on as many systems as possible.  
+ * and we want the program to compile on as many systems as possible.
  *
  *   If you uncomment this and you figure out how to get it working, please
  * let me (J.Macnicol@student.anu.edu.au) know.  Diffs against the standard
@@ -31,7 +31,7 @@
 
 /*
  *   The following only makes sense if BUBBLES_IO above is defined.
- * 
+ *
  *   Uncomment the following if you always want to use the -file or
  * -directory options on the command line and never to use a default bubble
  * compiled into the program.  This way you would save memory and disk space
@@ -55,7 +55,7 @@
  * won't need this :)  It slows things down a bit, too.
  *
  * NOTE: If you uncomment this you will get some messages about unused
- * functions when you compile.  You can ignore these - they refer to 
+ * functions when you compile.  You can ignore these - they refer to
  * convenient checking routines which simply aren't called but are left
  * in case someone wants to use them.
  */
@@ -85,7 +85,7 @@
  * The name of the directory entry structure is different under Linux
  * (under which this code is being developed) than other systems.  The case
  * alternate form here is that given in Kernighan & Ritchie's C book (which
- * must be authoratitive, no?) 
+ * must be authoratitive, no?)
  *
  * 04/07/96 : People will have to hack this to get it working on some
  * systems.  I believe it doesn't work on SGI, for example.
@@ -97,11 +97,11 @@
 #define STRUCT_DIRENT      Dirent
 #endif
 
-/* 
+/*
  * The naming of fields in struct dirent also seems to differ from system to
  * system.  This may have to be extended to make things truly portable.
  * What we want here is the name field from a dirent struct pointed to
- * by "dp". 
+ * by "dp".
  *
  * 04/07/96 : See above.  This may need to be changed too.
  */
@@ -147,9 +147,9 @@
 #define EOF_REACHED        1
 #define IO_ERROR           2
 
-/* 
+/*
  * Magic number for Bubble struct, in case it's trashed when debugging code
- * (which happened to me often.... :(  
+ * (which happened to me often.... :(
  */
 
 #define BUBBLE_MAGIC       5674
@@ -159,17 +159,18 @@
 #define MIN(A, B) ((A) < (B) ? (A) : (B))
 
 /* How we represent bubbles */
-struct bub {
-  int radius;
-  int step;  /* for rendered bubbles */
-  long area;
-  int x;
-  int y;
-  int magic;
-  int cell_index;
-  int visible;
-  struct bub *next;
-  struct bub *prev;
+struct bub
+{
+    int radius;
+    int step; /* for rendered bubbles */
+    long area;
+    int x;
+    int y;
+    int magic;
+    int cell_index;
+    int visible;
+    struct bub *next;
+    struct bub *prev;
 };
 
 typedef struct bub Bubble;
@@ -180,20 +181,25 @@ typedef struct bub Bubble;
  * better name...)
  */
 
-struct bub_step {
-  int radius;
-  long area;
-  int droppage;
-  Pixmap ball, shape_mask;
-  GC draw_gc, erase_gc;
-  struct bub_step *next;
+struct bub_step
+{
+    int radius;
+    long area;
+    int droppage;
+    Pixmap ball, shape_mask;
+    GC draw_gc, erase_gc;
+    struct bub_step *next;
 };
 
 typedef struct bub_step Bubble_Step;
 
 extern void init_default_bubbles(void);
 extern int num_default_bubbles;
-typedef struct { const unsigned char *png; unsigned long size; } bubble_png;
-extern bubble_png default_bubbles[];
+typedef struct
+{
+    const unsigned char *png;
+    unsigned long size;
+} bubble_png;
+extern bubble_png default_bubbles [];
 
 #endif /* _BUBBLES_H_ */

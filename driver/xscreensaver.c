@@ -5,7 +5,7 @@
  * the above copyright notice appear in all copies and that both that
  * copyright notice and this permission notice appear in supporting
  * documentation.  No representations are made about the suitability of this
- * software for any purpose.  It is provided "as is" without express or 
+ * software for any purpose.  It is provided "as is" without express or
  * implied warranty.
  *
  * ==========================================================================
@@ -195,14 +195,14 @@
  */
 
 #ifdef HAVE_CONFIG_H
-# include "config.h"
+#include "config.h"
 #endif
 
 #include "version.h"
 
 #include <stdlib.h>
 #ifdef HAVE_UNISTD_H
-# include <unistd.h>
+#include <unistd.h>
 #endif
 
 #include <stdio.h>
@@ -214,19 +214,19 @@
 #include <signal.h>
 #include <errno.h>
 
-#include <pwd.h>		/* for getpwuid() */
-#include <grp.h>		/* for getgrgid() */
+#include <pwd.h> /* for getpwuid() */
+#include <grp.h> /* for getgrgid() */
 
 #ifdef HAVE_UNAME
-# include <sys/utsname.h>	/* for uname() */
-#endif /* HAVE_UNAME */
+#include <sys/utsname.h> /* for uname() */
+#endif                   /* HAVE_UNAME */
 
 #ifdef HAVE_SYS_WAIT_H
-# include <sys/wait.h>		/* for waitpid() and associated macros */
+#include <sys/wait.h> /* for waitpid() and associated macros */
 #endif
 
 #ifndef HAVE_XINPUT
-# error The XInput2 extension is required
+#error The XInput2 extension is required
 #endif
 
 #include <X11/Xlib.h>
@@ -237,8 +237,8 @@
 #include <X11/extensions/XInput2.h>
 
 #ifdef HAVE_WAYLAND
-# include "wayland-dpy.h"
-# include "wayland-idle.h"
+#include "wayland-dpy.h"
+#include "wayland-idle.h"
 #endif
 
 
@@ -257,39 +257,39 @@
 #define ABS(x)((x)<0?-(x):(x))
 
 #undef MAX
-#define MAX(x,y)((x)>(y)?(x):(y))
+#define MAX(x, y)((x)>(y)?(x):(y))
 
 
 /* Globals used in this file.
  */
-Bool debug_p = False;
-static Bool splash_p = True;
-static const char *version_number = 0;
+Bool debug_p= False;
+static Bool splash_p= True;
+static const char *version_number= 0;
 
 /* Preferences. */
-static Bool lock_p = False;
-static Bool locking_disabled_p = False;
-static Bool blanking_disabled_p = False;
-static unsigned int blank_timeout = 0;
-static unsigned int lock_timeout = 0;
-static unsigned int pointer_hysteresis = 0;
-static unsigned int cursor_blank_interval = 60 * 30 + 17;
+static Bool lock_p= False;
+static Bool locking_disabled_p= False;
+static Bool blanking_disabled_p= False;
+static unsigned int blank_timeout= 0;
+static unsigned int lock_timeout= 0;
+static unsigned int pointer_hysteresis= 0;
+static unsigned int cursor_blank_interval= 60 * 30 + 17;
 
 /* Subprocesses. */
 #define SAVER_GFX_PROGRAM     "xscreensaver-gfx"
 #define SAVER_AUTH_PROGRAM    "xscreensaver-auth"
 #define SAVER_SYSTEMD_PROGRAM "xscreensaver-systemd"
-static pid_t saver_gfx_pid     = 0;
-static pid_t saver_auth_pid    = 0;
-static pid_t saver_systemd_pid = 0;
-static int sighup_received  = 0;
-static int sigterm_received = 0;
-static int sigchld_received = 0;
-static Bool gfx_stopped_p = False;
+static pid_t saver_gfx_pid= 0;
+static pid_t saver_auth_pid= 0;
+static pid_t saver_systemd_pid= 0;
+static int sighup_received= 0;
+static int sigterm_received= 0;
+static int sigchld_received= 0;
+static Bool gfx_stopped_p= False;
 
-Window daemon_window = 0;
-Cursor blank_cursor = None;
-Cursor auth_cursor  = None;
+Window daemon_window= 0;
+Cursor blank_cursor= None;
+Cursor auth_cursor= None;
 
 
 /* for the --restart command.
@@ -297,84 +297,86 @@ Cursor auth_cursor  = None;
 static char **saved_argv;
 
 static void
-save_argv (int ac, char **av)
+  save_argv(
+    int ac,
+    char **av)
 {
-  saved_argv = (char **) calloc (ac+2, sizeof (char *));
-  saved_argv [ac] = 0;
+  saved_argv= (char **) calloc(ac + 2, sizeof(char *));
+  saved_argv [ ac ]= 0;
   while (ac--)
     {
-      int i = strlen (av[ac]) + 1;
-      saved_argv[ac] = (char *) malloc (i);
-      memcpy (saved_argv[ac], av[ac], i);
+      int i= strlen(av [ ac ]) + 1;
+      saved_argv [ ac ]= (char *) malloc(i);
+      memcpy(saved_argv [ ac ], av [ ac ], i);
     }
 }
 
 
 static void
-kill_all_subprocs (void)
+  kill_all_subprocs(
+    void)
 {
   if (saver_gfx_pid)
     {
       if (verbose_p)
-        fprintf (stderr, "%s: pid %lu: killing " SAVER_GFX_PROGRAM "\n",
-                 blurb(), (unsigned long) saver_gfx_pid);
-      kill (saver_gfx_pid, SIGTERM);
+        fprintf(stderr, "%s: pid %lu: killing " SAVER_GFX_PROGRAM "\n", blurb(), (unsigned long) saver_gfx_pid);
+      kill(saver_gfx_pid, SIGTERM);
 
-      if (gfx_stopped_p)	/* SIGCONT to allow SIGTERM to proceed */
+      if (gfx_stopped_p) /* SIGCONT to allow SIGTERM to proceed */
         {
           if (verbose_p)
-            fprintf (stderr, "%s: pid %lu: sending " SAVER_GFX_PROGRAM
-                     " SIGCONT\n",
-                     blurb(), (unsigned long) saver_gfx_pid);
-          gfx_stopped_p = False;
-          kill (-saver_gfx_pid, SIGCONT);  /* send to process group */
+            fprintf(stderr, "%s: pid %lu: sending " SAVER_GFX_PROGRAM " SIGCONT\n", blurb(), (unsigned long) saver_gfx_pid);
+          gfx_stopped_p= False;
+          kill(-saver_gfx_pid, SIGCONT); /* send to process group */
         }
     }
 
   if (saver_auth_pid)
     {
       if (verbose_p)
-        fprintf (stderr, "%s: pid %lu: killing " SAVER_AUTH_PROGRAM "\n",
-                 blurb(), (unsigned long) saver_auth_pid);
-      kill (saver_auth_pid, SIGTERM);
+        fprintf(stderr, "%s: pid %lu: killing " SAVER_AUTH_PROGRAM "\n", blurb(), (unsigned long) saver_auth_pid);
+      kill(saver_auth_pid, SIGTERM);
     }
 
   if (saver_systemd_pid)
     {
       if (verbose_p)
-        fprintf (stderr, "%s: pid %lu: killing " SAVER_SYSTEMD_PROGRAM "\n",
-                 blurb(), (unsigned long) saver_systemd_pid);
-      kill (saver_systemd_pid, SIGTERM);
+        fprintf(stderr, "%s: pid %lu: killing " SAVER_SYSTEMD_PROGRAM "\n", blurb(), (unsigned long) saver_systemd_pid);
+      kill(saver_systemd_pid, SIGTERM);
     }
 }
 
 
 static void
-saver_exit (int status)
+  saver_exit(
+    int status)
 {
   kill_all_subprocs();
-  exit (status);
+  exit(status);
 }
 
 
 #ifdef HAVE_WAYLAND
 static void
-saver_wayland_exit (void *closure)
+  saver_wayland_exit(
+    void *closure)
 {
-  saver_exit (1);
+  saver_exit(1);
 }
 #endif
 
 
 static void
-catch_signal (int sig, RETSIGTYPE (*handler) (int))
+  catch_signal(
+    int sig,
+    RETSIGTYPE (*handler)(int))
 {
-# ifdef HAVE_SIGACTION
+#ifdef HAVE_SIGACTION
 
   struct sigaction a;
-  a.sa_handler = handler;
-  sigemptyset (&a.sa_mask);
-  a.sa_flags = 0;
+  a.sa_handler= handler;
+  sigemptyset(&a.sa_mask);
+  a.sa_flags= 0;
 
   /* On Linux 2.4.9 (at least) we need to tell the kernel to not mask delivery
      of this signal from inside its handler, or else when we execvp() the
@@ -382,21 +384,21 @@ catch_signal (int sig, RETSIGTYPE (*handler) (int))
      it with -HUP only works *once*.  You'd think that execvp() would reset
      all the signal masks, but it doesn't.
    */
-#  if defined(SA_NOMASK)
-  a.sa_flags |= SA_NOMASK;
-#  elif defined(SA_NODEFER)
-  a.sa_flags |= SA_NODEFER;
-#  endif
+#if defined(SA_NOMASK)
+  a.sa_flags|= SA_NOMASK;
+#elif defined(SA_NODEFER)
+  a.sa_flags|= SA_NODEFER;
+#endif
 
-  if (sigaction (sig, &a, 0) < 0)
-# else  /* !HAVE_SIGACTION */
-  if (((long) signal (sig, handler)) == -1L)
-# endif /* !HAVE_SIGACTION */
+  if (sigaction(sig, &a, 0) < 0)
+#else  /* !HAVE_SIGACTION */
+  if (((long) signal(sig, handler)) == -1L)
+#endif /* !HAVE_SIGACTION */
     {
-      char buf [255];
-      sprintf (buf, "%s: couldn't catch signal %d", blurb(), sig);
-      perror (buf);
-      saver_exit (1);
+      char buf [ 255 ];
+      sprintf(buf, "%s: couldn't catch signal %d", blurb(), sig);
+      perror(buf);
+      saver_exit(1);
     }
 }
 
@@ -405,83 +407,99 @@ catch_signal (int sig, RETSIGTYPE (*handler) (int))
    Do not call this while the screen is locked: user must unlock first.
  */
 static void
-restart_process (void)
+  restart_process(
+    void)
 {
   kill_all_subprocs();
-  execvp (saved_argv [0], saved_argv);	/* shouldn't return */
+  execvp(saved_argv [ 0 ], saved_argv); /* shouldn't return */
   {
-    char buf [512];
-    sprintf (buf, "%s: could not restart process", blurb());
+    char buf [ 512 ];
+    sprintf(buf, "%s: could not restart process", blurb());
     perror(buf);
     fflush(stderr);
     abort();
   }
 }
 
-static RETSIGTYPE saver_sighup_handler  (int sig) { sighup_received  = sig; }
-static RETSIGTYPE saver_sigchld_handler (int sig) { sigchld_received = sig; }
-static RETSIGTYPE saver_sigterm_handler (int sig) { sigterm_received = sig; }
+static RETSIGTYPE saver_sighup_handler(
+  int sig)
+{
+  sighup_received= sig;
+}
+static RETSIGTYPE saver_sigchld_handler(
+  int sig)
+{
+  sigchld_received= sig;
+}
+static RETSIGTYPE saver_sigterm_handler(
+  int sig)
+{
+  sigterm_received= sig;
+}
 
 static void
-handle_signals (void)
+  handle_signals(
+    void)
 {
-  catch_signal (SIGHUP,  saver_sighup_handler);
-  catch_signal (SIGCHLD, saver_sigchld_handler);
-  catch_signal (SIGTERM, saver_sigterm_handler);	/* kill     */
-  catch_signal (SIGINT,  saver_sigterm_handler);	/* shell ^C */
-  catch_signal (SIGQUIT, saver_sigterm_handler);	/* shell ^| */
+  catch_signal(SIGHUP, saver_sighup_handler);
+  catch_signal(SIGCHLD, saver_sigchld_handler);
+  catch_signal(SIGTERM, saver_sigterm_handler); /* kill     */
+  catch_signal(SIGINT, saver_sigterm_handler);  /* shell ^C */
+  catch_signal(SIGQUIT, saver_sigterm_handler); /* shell ^| */
 }
 
 
 static pid_t
-fork_and_exec (Display *dpy, int argc, char **argv)
+  fork_and_exec(
+    Display *dpy,
+    int argc,
+    char **argv)
 {
-  char buf [255];
-  pid_t forked = fork();
-  switch ((int) forked) {
-  case -1:
-    sprintf (buf, "%s: couldn't fork", blurb());
-    perror (buf);
-    break;
+  char buf [ 255 ];
+  pid_t forked= fork();
+  switch ((int) forked)
+    {
+      case -1 :
+        sprintf(buf, "%s: couldn't fork", blurb());
+        perror(buf);
+        break;
 
-  case 0:
-    close (ConnectionNumber (dpy));	/* close display fd */
-    execvp (argv[0], argv);		/* shouldn't return. */
+      case 0 :
+        close(ConnectionNumber(dpy)); /* close display fd */
+        execvp(argv [ 0 ], argv);     /* shouldn't return. */
 
-    sprintf (buf, "%s: pid %lu: couldn't exec %s", blurb(),
-             (unsigned long) getpid(), argv[0]);
-    perror (buf);
-    exit (1);				/* exits child fork */
-    break;
+        sprintf(buf, "%s: pid %lu: couldn't exec %s", blurb(), (unsigned long) getpid(), argv [ 0 ]);
+        perror(buf);
+        exit(1); /* exits child fork */
+        break;
 
-  default:				/* parent fork */
-    if (verbose_p)
-      {
-        int i;
-        fprintf (stderr, "%s: pid %lu: launched",
-                 blurb(), (unsigned long) forked);
-        for (i = 0; i < argc; i++)
-          fprintf (stderr, " %s", argv[i]);
-        fprintf (stderr, "\n");
-      }
+      default : /* parent fork */
+        if (verbose_p)
+          {
+            int i;
+            fprintf(stderr, "%s: pid %lu: launched", blurb(), (unsigned long) forked);
+            for (i= 0; i < argc; i++)
+              fprintf(stderr, " %s", argv [ i ]);
+            fprintf(stderr, "\n");
+          }
 
-    /* Put each launched process in its own process group so that
-       SIGSTOP will affect all of its inferior processes as well.
-     */
-    if (setpgid (forked, 0))
-      {
-        char buf [255];
-        sprintf (buf, "%s: setpgid %d", blurb(), forked);
-        perror (buf);
-      }
-    break;
-  }
+        /* Put each launched process in its own process group so that
+           SIGSTOP will affect all of its inferior processes as well.
+         */
+        if (setpgid(forked, 0))
+          {
+            char buf [ 255 ];
+            sprintf(buf, "%s: setpgid %d", blurb(), forked);
+            perror(buf);
+          }
+        break;
+    }
 
   return forked;
 }
 
 
-static int respawn_thrashing_count = 0;
+static int respawn_thrashing_count= 0;
 
 /* Called from the main loop some time after the SIGCHLD signal has fired.
    Returns true if:
@@ -489,66 +507,67 @@ static int respawn_thrashing_count = 0;
      - it exited with a "success" status meaning "user is authenticated".
  */
 static Bool
-handle_sigchld (Display *dpy, Bool blanked_p)
+  handle_sigchld(
+    Display *dpy,
+    Bool blanked_p)
 {
-  Bool authenticated_p = False;
+  Bool authenticated_p= False;
 
-  sigchld_received = 0;
+  sigchld_received= 0;
   if (debug_p)
-    fprintf (stderr, "%s: SIGCHLD received\n", blurb());
+    fprintf(stderr, "%s: SIGCHLD received\n", blurb());
 
   /* Reap every now-dead inferior without blocking. */
   while (1)
     {
-      int wait_status = 0;
-      pid_t kid = waitpid (-1, &wait_status, WNOHANG | WUNTRACED);
-      char how[100];
+      int wait_status= 0;
+      pid_t kid= waitpid(-1, &wait_status, WNOHANG | WUNTRACED);
+      char how [ 100 ];
 
       /* 0 means no more children to reap.
          -1 means error -- except "interrupted system call"
          isn't a "real" error, so if we get that, try again.
        */
       if (kid == 0 ||
-          (kid < 0 && errno != EINTR))
+        (kid < 0 && errno != EINTR))
         break;
 
       /* We get SIGCHLD after sending SIGSTOP, but no action is required. */
-      if (WIFSTOPPED (wait_status))
+      if (WIFSTOPPED(wait_status))
         {
           if (verbose_p)
-            fprintf (stderr, "%s: pid %lu: %s stopped\n", blurb(),
-                     (unsigned long) kid,
-                     (kid == saver_gfx_pid     ? SAVER_GFX_PROGRAM :
-                      kid == saver_auth_pid    ? SAVER_AUTH_PROGRAM :
-                      kid == saver_systemd_pid ? SAVER_SYSTEMD_PROGRAM :
-                      "unknown"));
+            fprintf(stderr, "%s: pid %lu: %s stopped\n", blurb(), (unsigned long) kid, (kid == saver_gfx_pid ? SAVER_GFX_PROGRAM : kid == saver_auth_pid ? SAVER_AUTH_PROGRAM :
+                                                                                           kid == saver_systemd_pid                                      ? SAVER_SYSTEMD_PROGRAM :
+                                                                                                                                                           "unknown"));
           continue;
         }
 
-      if (WIFSIGNALED (wait_status))
+      if (WIFSIGNALED(wait_status))
         {
-          if (WTERMSIG (wait_status) == SIGTERM)
-            strcpy (how, "with SIGTERM");
+          if (WTERMSIG(wait_status) == SIGTERM)
+            strcpy(how, "with SIGTERM");
           else
-            sprintf (how, "with signal %d", WTERMSIG (wait_status));
+            sprintf(how, "with signal %d", WTERMSIG(wait_status));
         }
-      else if (WIFEXITED (wait_status))
+      else if (WIFEXITED(wait_status))
         {
-          int exit_status = WEXITSTATUS (wait_status);
+          int exit_status= WEXITSTATUS(wait_status);
           /* Treat exit code as a signed 8-bit quantity. */
-          if (exit_status & 0x80) exit_status |= ~0xFF;
+          if (exit_status & 0x80) exit_status|= ~0xFF;
           if (exit_status)
-            sprintf (how, "with status %d", exit_status);
+            sprintf(how, "with status %d", exit_status);
           else
-            strcpy (how, "normally");
+            strcpy(how, "normally");
         }
       else
-        sprintf (how, "for unknown reason %d", wait_status);
+        {
+          sprintf(how, "for unknown reason %d", wait_status);
+        }
 
       if (kid == saver_gfx_pid)
         {
-          saver_gfx_pid = 0;
-          gfx_stopped_p = False;
+          saver_gfx_pid= 0;
+          gfx_stopped_p= False;
           if (blanked_p)
             {
               if (respawn_thrashing_count > 5)
@@ -558,26 +577,22 @@ handle_sigchld (Display *dpy, Bool blanked_p)
                      tight loop.  Screen will remain grabbed, but desktop will
                      be visible.
                    */
-                  fprintf (stderr, "%s: pid %lu: " SAVER_GFX_PROGRAM
-                           " won't re-launch!\n",
-                           blurb(), (unsigned long) kid);
+                  fprintf(stderr, "%s: pid %lu: " SAVER_GFX_PROGRAM " won't re-launch!\n", blurb(), (unsigned long) kid);
                 }
               else
                 {
-                  char *av[10];
-                  int ac = 0;
-                  av[ac++] = SAVER_GFX_PROGRAM;
-                  av[ac++] = "--emergency";
-                  if (verbose_p)     av[ac++] = "--verbose";
-                  if (verbose_p > 1) av[ac++] = "--verbose";
-                  if (verbose_p > 2) av[ac++] = "--verbose";
-                  if (debug_p)       av[ac++] = "--debug";
-                  av[ac] = 0;
-                  fprintf (stderr, "%s: pid %lu: " SAVER_GFX_PROGRAM
-                           " exited unexpectedly %s: re-launching\n",
-                           blurb(), (unsigned long) kid, how);
-                  gfx_stopped_p = False;
-                  saver_gfx_pid = fork_and_exec (dpy, ac, av);
+                  char *av [ 10 ];
+                  int ac= 0;
+                  av [ ac++ ]= SAVER_GFX_PROGRAM;
+                  av [ ac++ ]= "--emergency";
+                  if (verbose_p) av [ ac++ ]= "--verbose";
+                  if (verbose_p > 1) av [ ac++ ]= "--verbose";
+                  if (verbose_p > 2) av [ ac++ ]= "--verbose";
+                  if (debug_p) av [ ac++ ]= "--debug";
+                  av [ ac ]= 0;
+                  fprintf(stderr, "%s: pid %lu: " SAVER_GFX_PROGRAM " exited unexpectedly %s: re-launching\n", blurb(), (unsigned long) kid, how);
+                  gfx_stopped_p= False;
+                  saver_gfx_pid= fork_and_exec(dpy, ac, av);
                   respawn_thrashing_count++;
                 }
             }
@@ -585,8 +600,7 @@ handle_sigchld (Display *dpy, Bool blanked_p)
             {
               /* Should not have been running anyway. */
               if (verbose_p)
-                fprintf (stderr, "%s: pid %lu: " SAVER_GFX_PROGRAM
-                         " exited %s\n", blurb(), (unsigned long) kid, how);
+                fprintf(stderr, "%s: pid %lu: " SAVER_GFX_PROGRAM " exited %s\n", blurb(), (unsigned long) kid, how);
             }
         }
       else if (kid == saver_systemd_pid)
@@ -597,44 +611,49 @@ handle_sigchld (Display *dpy, Bool blanked_p)
              this system doesn't use systemd.  So don't re-launch it if it
              failed to start, or dies.
            */
-          saver_systemd_pid = 0;
-          fprintf (stderr, "%s: pid %lu: " SAVER_SYSTEMD_PROGRAM
-                   " exited unexpectedly %s\n",
-                   blurb(), (unsigned long) kid, how);
+          saver_systemd_pid= 0;
+          fprintf(stderr, "%s: pid %lu: " SAVER_SYSTEMD_PROGRAM " exited unexpectedly %s\n", blurb(), (unsigned long) kid, how);
         }
       else if (kid == saver_auth_pid)
         {
-          saver_auth_pid = 0;
+          saver_auth_pid= 0;
 
           /* xscreensaver-auth exits with status 200 to mean "ok to unlock".
              Any other exit code, or dying with a signal, means "nope".
            */
-          if (!WIFSIGNALED (wait_status) &&
-              WIFEXITED (wait_status))
+          if (! WIFSIGNALED(wait_status) &&
+            WIFEXITED(wait_status))
             {
-              unsigned int status = (unsigned int) WEXITSTATUS (wait_status);
+              unsigned int status= (unsigned int) WEXITSTATUS(wait_status);
               if (status == 200)
                 {
-                  authenticated_p = True;
-                  strcpy (how, "and authenticated");
+                  authenticated_p= True;
+                  strcpy(how, "and authenticated");
                 }
-              else if (status == 0 && !blanked_p)
-                strcpy (how, "normally");   /* This was the splash dialog */
+              else if (status == 0 && ! blanked_p)
+                {
+                  strcpy(how, "normally"); /* This was the splash dialog */
+                }
               else if (status == 0)
-                strcpy (how, "and authentication canceled");
-              else if (status == 255)  /* which is -1 */
-                strcpy (how, "and authentication failed");
+                {
+                  strcpy(how, "and authentication canceled");
+                }
+              else if (status == 255) /* which is -1 */
+                {
+                  strcpy(how, "and authentication failed");
+                }
             }
 
           if (verbose_p)
-            fprintf (stderr, "%s: pid %lu: " SAVER_AUTH_PROGRAM " exited %s\n",
-                     blurb(), (unsigned long) kid, how);
+            fprintf(stderr, "%s: pid %lu: " SAVER_AUTH_PROGRAM " exited %s\n", blurb(), (unsigned long) kid, how);
         }
       else if (verbose_p)
         {
-          fprintf (stderr, "%s: pid %lu: unknown child"
-                   " exited unexpectedly %s\n",
-                   blurb(), (unsigned long) kid, how);
+          fprintf(stderr,
+            "%s: pid %lu: unknown child" " exited unexpectedly %s\n",
+            blurb(),
+            (unsigned long) kid,
+            how);
         }
     }
 
@@ -646,20 +665,21 @@ handle_sigchld (Display *dpy, Bool blanked_p)
    Typically "/usr/libexec/xscreensaver".
  */
 static void
-hack_environment (void)
+  hack_environment(
+    void)
 {
-  static const char *def_path = DEFAULT_PATH_PREFIX;
-  const char *opath = getenv("PATH");
+  static const char *def_path= DEFAULT_PATH_PREFIX;
+  const char *opath= getenv("PATH");
   char *npath;
-  if (! opath) opath = "/bin:/usr/bin";  /* WTF */
-  npath = (char *) malloc(strlen(def_path) + strlen(opath) + 20);
-  strcpy (npath, "PATH=");
-  strcat (npath, def_path);
-  strcat (npath, ":");
-  strcat (npath, opath);
+  if (! opath) opath= "/bin:/usr/bin"; /* WTF */
+  npath= (char *) malloc(strlen(def_path) + strlen(opath) + 20);
+  strcpy(npath, "PATH=");
+  strcat(npath, def_path);
+  strcat(npath, ":");
+  strcat(npath, opath);
 
   /* Can fail if out of memory, I guess. Ignore errors. */
-  putenv (npath);
+  putenv(npath);
 
   /* don't free (npath) -- some implementations of putenv (BSD 4.4,
      glibc 2.0) copy the argument, but some (libc4,5, glibc 2.1.2)
@@ -669,66 +689,67 @@ hack_environment (void)
 
 
 static void
-print_banner(void)
+  print_banner(
+    void)
 {
-  const time_t rel = XSCREENSAVER_RELEASED;
-  struct tm *tm = localtime (&rel);
-  char buf[100];
-  int months = (time ((time_t *) 0) - XSCREENSAVER_RELEASED) / (60*60*24*30);
-  int years = months / 12.0 + 0.7;
+  const time_t rel= XSCREENSAVER_RELEASED;
+  struct tm *tm= localtime(&rel);
+  char buf [ 100 ];
+  int months= (time((time_t *) 0) - XSCREENSAVER_RELEASED) / (60 * 60 * 24 * 30);
+  int years= months / 12.0 + 0.7;
 
-  strftime (buf, sizeof(buf), "%b %Y", tm);
+  strftime(buf, sizeof(buf), "%b %Y", tm);
 
   if (months > 18)
-    sprintf (buf + strlen(buf),  " -- %d years ago", years);
+    sprintf(buf + strlen(buf), " -- %d years ago", years);
   else if (months > 1)
-    sprintf (buf + strlen(buf), " -- %d months ago", months);
+    sprintf(buf + strlen(buf), " -- %d months ago", months);
 
   if (verbose_p || debug_p)
     {
-      fprintf (stderr,
-               "\tXScreenSaver " XSCREENSAVER_VERSION ", released %s\n"
-               "\tCopyright \302\251 1991-%d by"
-               " Jamie Zawinski <jwz@jwz.org>\n\n",
-               buf, tm->tm_year + 1900);
+      fprintf(stderr,
+        "\tXScreenSaver " XSCREENSAVER_VERSION
+        ", released %s\n"
+        "\tCopyright \302\251 1991-%d by" " Jamie Zawinski <jwz@jwz.org>\n\n",
+        buf,
+        tm->tm_year + 1900);
       if (months > 18)
-        fprintf (stderr,
-                 /* Hey jerks, the only time someone will see this particular
-                    message is if they are running xscreensaver with '--log'
-                    to order to send me a bug report, and they had damned
-                    well better try the latest release before they do that --
-                    even if your perma-out-of-date distro does not make that
-                    easily available to them. */
-                 "\t   ###################################################\n"
-                 "\t   ###                                             ###\n"
-                 "\t   ###  THIS VERSION IS VERY OLD! PLEASE UPGRADE!  ###\n"
-                 "\t   ###                                             ###\n"
-                 "\t   ###################################################\n"
-                 "\n");
+        fprintf(stderr,
+          /* Hey jerks, the only time someone will see this particular
+             message is if they are running xscreensaver with '--log'
+             to order to send me a bug report, and they had damned
+             well better try the latest release before they do that --
+             even if your perma-out-of-date distro does not make that
+             easily available to them. */
+          "\t   ###################################################\n"
+          "\t   ###                                             ###\n"
+          "\t   ###  THIS VERSION IS VERY OLD! PLEASE UPGRADE!  ###\n"
+          "\t   ###                                             ###\n"
+          "\t   ###################################################\n" "\n");
     }
 
   if (debug_p)
-      fprintf (stderr,
-               "#####################################"
-               "#####################################\n"
-               "\n"
-               "\t\t\t DEBUG MODE IS NOT SECURE\n"
-               "\n"
-               "\tThe XScreenSaver window will only cover the left half of\n"
-               "\tthe screen.  Position your terminal window on the right.\n"
-               "\tWARNING: stderr and the log file will include every\n"
-               "\tcharacter that you type, including passwords.\n"
-               "\n"
-               "#####################################"
-               "#####################################\n"
-               "\n");
+    fprintf(stderr,
+      "#####################################"
+      "#####################################\n"
+      "\n"
+      "\t\t\t DEBUG MODE IS NOT SECURE\n"
+      "\n"
+      "\tThe XScreenSaver window will only cover the left half of\n"
+      "\tthe screen.  Position your terminal window on the right.\n"
+      "\tWARNING: stderr and the log file will include every\n"
+      "\tcharacter that you type, including passwords.\n"
+      "\n"
+      "#####################################"
+      "#####################################\n" "\n");
 
-  version_number = XSCREENSAVER_VERSION;
+  version_number= XSCREENSAVER_VERSION;
 }
 
 
 static void
-fix_fds (void)
+  fix_fds(
+    void)
 {
   /* Bad Things Happen if stdin, stdout, and stderr have been closed
      (as by the `sh incantation "xscreensaver >&- 2>&-").  When you do
@@ -748,44 +769,51 @@ fix_fds (void)
      Really, this crap is technically required of *every* X program,
      if you want it to be robust in the face of "2>&-".
    */
-  int fd0 = open ("/dev/null", O_RDWR);
-  int fd1 = open ("/dev/null", O_RDWR);
-  int fd2 = open ("/dev/null", O_RDWR);
-  if (fd0 > 2) close (fd0);
-  if (fd1 > 2) close (fd1);
-  if (fd2 > 2) close (fd2);
+  int fd0= open("/dev/null", O_RDWR);
+  int fd1= open("/dev/null", O_RDWR);
+  int fd2= open("/dev/null", O_RDWR);
+  if (fd0 > 2) close(fd0);
+  if (fd1 > 2) close(fd1);
+  if (fd2 > 2) close(fd2);
 }
 
 
 /* Mostly duplicated in resources.c.
  */
 static int
-parse_time (const char *string)
+  parse_time(
+    const char *string)
 {
   unsigned int h, m, s;
   char c;
-  if (3 == sscanf (string,   " %u : %2u : %2u %c", &h, &m, &s, &c))
+  if (3 == sscanf(string, " %u : %2u : %2u %c", &h, &m, &s, &c))
     ;
-  else if (2 == sscanf (string, " : %2u : %2u %c", &m, &s, &c) ||
-	   2 == sscanf (string,    " %u : %2u %c", &m, &s, &c))
-    h = 0;
-  else if (1 == sscanf (string,       " : %2u %c", &s, &c))
-    h = m = 0;
-  else if (1 == sscanf (string,          " %u %c", &m, &c))
-    h = s = 0;
+  else if (2 == sscanf(string, " : %2u : %2u %c", &m, &s, &c) ||
+    2 == sscanf(string, " %u : %2u %c", &m, &s, &c))
+    {
+      h= 0;
+    }
+  else if (1 == sscanf(string, " : %2u %c", &s, &c))
+    {
+      h= m= 0;
+    }
+  else if (1 == sscanf(string, " %u %c", &m, &c))
+    {
+      h= s= 0;
+    }
   else
     {
-      fprintf (stderr, "%s: unparsable duration \"%s\"\n", blurb(), string);
+      fprintf(stderr, "%s: unparsable duration \"%s\"\n", blurb(), string);
       return -1;
     }
   if (s >= 60 && (h != 0 || m != 0))
     {
-      fprintf (stderr, "%s: seconds > 59 in \"%s\"\n", blurb(), string);
+      fprintf(stderr, "%s: seconds > 59 in \"%s\"\n", blurb(), string);
       return -1;
     }
   if (m >= 60 && h > 0)
     {
-      fprintf (stderr, "%s: minutes > 59 in \"%s\"\n", blurb(), string);
+      fprintf(stderr, "%s: minutes > 59 in \"%s\"\n", blurb(), string);
       return -1;
     }
   return ((h * 60 * 60) + (m * 60) + s);
@@ -796,94 +824,110 @@ parse_time (const char *string)
    just reads the .ad file and the .xscreensaver file directly rather
    than going through Xt and Xrm.
  */
-static void init_line_handler (int lineno, 
-                               const char *key, const char *val,
-                               void *closure)
+static void init_line_handler(
+  int lineno,
+  const char *key,
+  const char *val,
+  void *closure)
 {
-  if (*key == '*' || *key == '.') key++;	/* Xrm wildcards */
+  if (*key == '*' || *key == '.') key++; /* Xrm wildcards */
 
-  if      (!strcmp (key, "verbose")) verbose_p = !strcasecmp (val, "true");
-  else if (!strcmp (key, "splash"))  splash_p  = !strcasecmp (val, "true");
-  else if (!strcmp (key, "lock"))    lock_p    = !strcasecmp (val, "true");
-  else if (!strcmp (key, "mode"))    blanking_disabled_p =
-                                       !strcasecmp (val, "off");
-  else if (!strcmp (key, "timeout"))
+  if (! strcmp(key, "verbose"))
     {
-      int t = parse_time (val);
-      if (t > 0) blank_timeout = t;
+      verbose_p= ! strcasecmp(val, "true");
     }
-  else if (!strcmp (key, "lockTimeout"))
+  else if (! strcmp(key, "splash"))
     {
-      int t = parse_time (val);
-      if (t >= 0) lock_timeout = t;
+      splash_p= ! strcasecmp(val, "true");
     }
-  else if (!strcmp (key, "pointerHysteresis"))
+  else if (! strcmp(key, "lock"))
     {
-      int i = atoi (val);
+      lock_p= ! strcasecmp(val, "true");
+    }
+  else if (! strcmp(key, "mode"))
+    {
+      blanking_disabled_p=
+        ! strcasecmp(val, "off");
+    }
+  else if (! strcmp(key, "timeout"))
+    {
+      int t= parse_time(val);
+      if (t > 0) blank_timeout= t;
+    }
+  else if (! strcmp(key, "lockTimeout"))
+    {
+      int t= parse_time(val);
+      if (t >= 0) lock_timeout= t;
+    }
+  else if (! strcmp(key, "pointerHysteresis"))
+    {
+      int i= atoi(val);
       if (i >= 0)
-        pointer_hysteresis = i;
+        pointer_hysteresis= i;
     }
 }
 
 static void
-read_init_file_simple (const char *filename)
+  read_init_file_simple(
+    const char *filename)
 {
   if (debug_p)
-    fprintf (stderr, "%s: reading %s\n", blurb(), filename);
-  parse_init_file (filename, init_line_handler, 0);
+    fprintf(stderr, "%s: reading %s\n", blurb(), filename);
+  parse_init_file(filename, init_line_handler, 0);
 }
 
 
-static time_t init_file_time = 0;
+static time_t init_file_time= 0;
 
 static void
-read_init_files (Bool both_p)
+  read_init_files(
+    Bool both_p)
 {
-  static const char *home = 0;
+  static const char *home= 0;
   char *fn;
   struct stat st;
-  Bool read_p = False;
+  Bool read_p= False;
 
-  if (!home)
+  if (! home)
     {
-      home = getenv("HOME");
-      if (!home) home = "";
+      home= getenv("HOME");
+      if (! home) home= "";
     }
 
   if (both_p)
     {
-      read_init_file_simple (AD_DIR "/XScreenSaver");
-      read_p = True;
+      read_init_file_simple(AD_DIR "/XScreenSaver");
+      read_p= True;
     }
 
-  fn = (char *) malloc (strlen(home) + 40);
-  sprintf (fn, "%s/.xscreensaver", home);
+  fn= (char *) malloc(strlen(home) + 40);
+  sprintf(fn, "%s/.xscreensaver", home);
 
-  if (!stat (fn, &st))
+  if (! stat(fn, &st))
     {
       if (both_p || st.st_mtime != init_file_time)
         {
-          Bool ov = verbose_p;
-          init_file_time = st.st_mtime;
-          read_init_file_simple (fn);
-          read_p = True;
+          Bool ov= verbose_p;
+          init_file_time= st.st_mtime;
+          read_init_file_simple(fn);
+          read_p= True;
 
           /* Changes to verbose in .xscreenaver after startup are ignored; else
              running xscreensaver-settings would turn off cmdline --verbose. */
-          if (!both_p) verbose_p = ov;
+          if (! both_p) verbose_p= ov;
         }
     }
 
   if (blank_timeout < 5)
-    blank_timeout = 60 * 60 * 10;
+    blank_timeout= 60 * 60 * 10;
 
-  free (fn);
+  free(fn);
 
   if (read_p && verbose_p)
     {
-      fprintf (stderr, "%s: blank after: %d\n", blurb(), blank_timeout);
+      fprintf(stderr, "%s: blank after: %d\n", blurb(), blank_timeout);
       if (lock_p)
-        fprintf (stderr, "%s: lock after:  %d\n", blurb(), lock_timeout);
+        fprintf(stderr, "%s: lock after:  %d\n", blurb(), lock_timeout);
     }
 }
 
@@ -894,46 +938,48 @@ read_init_files (Bool both_p)
    By default, Xlib would exit.  Ignoring an X error is less bad than
    crashing and unlocking.
  */
-static Bool ignore_x11_error_p  = False;
-static Bool error_handler_hit_p = False;
-static Bool print_x11_error_p   = True;
+static Bool ignore_x11_error_p= False;
+static Bool error_handler_hit_p= False;
+static Bool print_x11_error_p= True;
 
 static int
-error_handler (Display *dpy, XErrorEvent *event)
+  error_handler(
+    Display *dpy,
+    XErrorEvent *event)
 {
-  error_handler_hit_p = True;
+  error_handler_hit_p= True;
 
   if (print_x11_error_p)
     {
-      const char *b = blurb();
-      const char *p = progname;
-      fprintf (stderr, "\n%s: X ERROR! PLEASE REPORT THIS BUG!\n\n", b);
-      progname = b;
-      XmuPrintDefaultErrorMessage (dpy, event, stderr);
-      progname = p;
+      const char *b= blurb();
+      const char *p= progname;
+      fprintf(stderr, "\n%s: X ERROR! PLEASE REPORT THIS BUG!\n\n", b);
+      progname= b;
+      XmuPrintDefaultErrorMessage(dpy, event, stderr);
+      progname= p;
 
-# ifdef __GNUC__
-  __extension__   /* don't warn about "string length is greater than the
-                     length ISO C89 compilers are required to support". */
-# endif
-    fprintf (stderr, "\n"
-   "#######################################################################\n"
-   "\n"
-   "    If at all possible, please re-run xscreensaver with the command\n"
-   "    line arguments \"--sync --log log.txt\", and reproduce this bug.\n"
-   "    Please include the complete \"log.txt\" file with your bug report.\n"
-   "\n"
-   "    https://www.jwz.org/xscreensaver/bugs.html explains how to create\n"
-   "    the most useful bug reports.\n"
-   "\n"
-   "    The more information you can provide, the better.  But please\n"
-   "    report this bug, regardless!\n"
-   "\n"
-   "#######################################################################\n"
-   "\n"
-   "\n");
+#ifdef __GNUC__
+      __extension__ /* don't warn about "string length is greater than the
+                       length ISO C89 compilers are required to support". */
+#endif
+        fprintf(stderr,
+          "\n"
+          "#######################################################################\n"
+          "\n"
+          "    If at all possible, please re-run xscreensaver with the command\n"
+          "    line arguments \"--sync --log log.txt\", and reproduce this bug.\n"
+          "    Please include the complete \"log.txt\" file with your bug report.\n"
+          "\n"
+          "    https://www.jwz.org/xscreensaver/bugs.html explains how to create\n"
+          "    the most useful bug reports.\n"
+          "\n"
+          "    The more information you can provide, the better.  But please\n"
+          "    report this bug, regardless!\n"
+          "\n"
+          "#######################################################################\n"
+          "\n" "\n");
 
-      fflush (stderr);
+      fflush(stderr);
 
       if (! ignore_x11_error_p)
         abort();
@@ -946,78 +992,64 @@ error_handler (Display *dpy, XErrorEvent *event)
 /* Check for other running instances of XScreenSaver, gnome-screensaver, etc.
  */
 static void
-ensure_no_screensaver_running (Display *dpy)
+  ensure_no_screensaver_running(
+    Display *dpy)
 {
-  int screen, nscreens = ScreenCount (dpy);
+  int screen, nscreens= ScreenCount(dpy);
 
   /* Silently ignore BadWindow race conditions. */
-  Bool op = print_x11_error_p;
-  print_x11_error_p = False;
+  Bool op= print_x11_error_p;
+  print_x11_error_p= False;
 
-  for (screen = 0; screen < nscreens; screen++)
+  for (screen= 0; screen < nscreens; screen++)
     {
       int i;
-      Window root = RootWindow (dpy, screen);
-      Window root2 = 0, parent = 0, *kids = 0;
-      unsigned int nkids = 0;
+      Window root= RootWindow(dpy, screen);
+      Window root2= 0, parent= 0, *kids= 0;
+      unsigned int nkids= 0;
 
-      if (! XQueryTree (dpy, root, &root2, &parent, &kids, &nkids))
+      if (! XQueryTree(dpy, root, &root2, &parent, &kids, &nkids))
         continue;
       if (root != root2)
         continue;
       if (parent)
         continue;
-      for (i = 0; i < nkids; i++)
+      for (i= 0; i < nkids; i++)
         {
           Atom type;
           int format;
           unsigned long nitems, bytesafter;
           unsigned char *version;
 
-          if (XGetWindowProperty (dpy, kids[i], XA_SCREENSAVER_VERSION, 0, 1,
-                                  False, XA_STRING, &type, &format, &nitems,
-                                  &bytesafter, &version)
-              == Success
-              && type != None)
+          if (XGetWindowProperty(dpy, kids [ i ], XA_SCREENSAVER_VERSION, 0, 1, False, XA_STRING, &type, &format, &nitems, &bytesafter, &version) == Success && type != None)
             {
               unsigned char *id;
-              if (XGetWindowProperty (dpy, kids[i], XA_SCREENSAVER_ID, 0, 512,
-                                      False, XA_STRING, &type, &format,
-                                      &nitems, &bytesafter, &id)
-                  != Success
-                  || type == None)
-                id = (unsigned char *) "???";
+              if (XGetWindowProperty(dpy, kids [ i ], XA_SCREENSAVER_ID, 0, 512, False, XA_STRING, &type, &format, &nitems, &bytesafter, &id) != Success || type == None)
+                id= (unsigned char *) "???";
 
-              fprintf (stderr,
-                       "%s: already running on display %s"
-                       " (window 0x%x)\n from process %s\n",
-                       blurb(), DisplayString (dpy), (int) kids [i],
-                       (char *) id);
-              saver_exit (1);
+              fprintf(stderr,
+                "%s: already running on display %s" " (window 0x%x)\n from process %s\n",
+                blurb(),
+                DisplayString(dpy),
+                (int) kids [ i ],
+                (char *) id);
+              saver_exit(1);
             }
-          else if (XGetWindowProperty (dpy, kids[i], XA_WM_COMMAND, 0, 128,
-                                       False, XA_STRING, &type, &format,
-                                       &nitems, &bytesafter, &version)
-                   == Success
-                   && type != None
-                   && (!strcmp ((char *) version, "gnome-screensaver") ||
-                       !strcmp ((char *) version, "mate-screensaver") ||
-                       !strcmp ((char *) version, "cinnamon-screensaver") ||
-                       !strcmp ((char *) version, "xfce4-screensaver") ||
-                       !strcmp ((char *) version, "light-locker")))
+          else if (XGetWindowProperty(dpy, kids [ i ], XA_WM_COMMAND, 0, 128, False, XA_STRING, &type, &format, &nitems, &bytesafter, &version) == Success && type != None && (! strcmp((char *) version, "gnome-screensaver") || ! strcmp((char *) version, "mate-screensaver") || ! strcmp((char *) version, "cinnamon-screensaver") || ! strcmp((char *) version, "xfce4-screensaver") || ! strcmp((char *) version, "light-locker")))
             {
-              fprintf (stderr,
-                       "%s: \"%s\" is already running on display %s"
-                       " (window 0x%x)\n",
-                       blurb(), (char *) version,
-                       DisplayString (dpy), (int) kids [i]);
-              saver_exit (1);
+              fprintf(stderr,
+                "%s: \"%s\" is already running on display %s" " (window 0x%x)\n",
+                blurb(),
+                (char *) version,
+                DisplayString(dpy),
+                (int) kids [ i ]);
+              saver_exit(1);
             }
         }
-      if (kids) XFree ((char *) kids);
+      if (kids) XFree((char *) kids);
     }
 
-  print_x11_error_p = op;
+  print_x11_error_p= op;
 }
 
 
@@ -1028,9 +1060,12 @@ ensure_no_screensaver_running (Display *dpy)
    which screenhacks are running.
  */
 static void
-store_saver_status (Display *dpy,
-                    Bool blanked_p, Bool locked_p, Bool auth_p,
-                    time_t blank_time)
+  store_saver_status(
+    Display *dpy,
+    Bool blanked_p,
+    Bool locked_p,
+    Bool auth_p,
+    time_t blank_time)
 {
   /* See the different version of this function in windows.c, which explains
      the structure of the XA_SCREENSAVER_STATUS property.
@@ -1049,49 +1084,40 @@ store_saver_status (Display *dpy,
      These properties are not used on the windows created by "xscreensaver-gfx"
      for use by the display hacks.
    */
-  Window w = RootWindow (dpy, 0);  /* always screen 0 */
+  Window w= RootWindow(dpy, 0); /* always screen 0 */
   Atom type;
-  unsigned char *dataP = 0;
-  PROP32 *status = 0;
+  unsigned char *dataP= 0;
+  PROP32 *status= 0;
   int format;
   unsigned long nitems, bytesafter;
 
   /* I hate using XGrabServer, but the calls to read and then alter the
      property must be atomic, and there's no other way to do that. */
-  XGrabServer (dpy);
-  XSync (dpy, False);
+  XGrabServer(dpy);
+  XSync(dpy, False);
 
   /* Read the old property, so we can change just our parts. */
-  if (XGetWindowProperty (dpy, w,
-                          XA_SCREENSAVER_STATUS,
-                          0, 999, False, XA_INTEGER,
-                          &type, &format, &nitems, &bytesafter,
-                          &dataP)
-      == Success
-      && type == XA_INTEGER
-      && nitems >= 3
-      && dataP)
-    status = (PROP32 *) dataP;
+  if (XGetWindowProperty(dpy, w, XA_SCREENSAVER_STATUS, 0, 999, False, XA_INTEGER, &type, &format, &nitems, &bytesafter, &dataP) == Success && type == XA_INTEGER && nitems >= 3 && dataP)
+    status= (PROP32 *) dataP;
 
-  if (!status)	/* There was no existing property, or it was bogus. */
+  if (! status) /* There was no existing property, or it was bogus. */
     {
-      nitems = 3;
-      status = (PROP32 *) calloc (nitems, sizeof(*status));
+      nitems= 3;
+      status= (PROP32 *) calloc(nitems, sizeof(*status));
     }
 
-  status[0] = (PROP32) (auth_p    ? XA_AUTH  :
-                        locked_p  ? XA_LOCK  :
-                        blanked_p ? XA_BLANK :
-                        0);
-  status[1] = (PROP32) (((unsigned long) blank_time) >> 32);
-  status[2] = (PROP32) (((unsigned long) blank_time) & 0xFFFFFFFFL);
+  status [ 0 ]= (PROP32) (auth_p ? XA_AUTH :
+      locked_p                   ? XA_LOCK :
+      blanked_p                  ? XA_BLANK :
+                                   0);
+  status [ 1 ]= (PROP32) (((unsigned long) blank_time) >> 32);
+  status [ 2 ]= (PROP32) (((unsigned long) blank_time) & 0xFFFFFFFFL);
 
-  XChangeProperty (dpy, w, XA_SCREENSAVER_STATUS, XA_INTEGER, 32,
-                   PropModeReplace, (unsigned char *) status, nitems);
-  XUngrabServer (dpy);
-  XSync (dpy, False);
+  XChangeProperty(dpy, w, XA_SCREENSAVER_STATUS, XA_INTEGER, 32, PropModeReplace, (unsigned char *) status, nitems);
+  XUngrabServer(dpy);
+  XSync(dpy, False);
 
-# if 0
+#if 0
   if (debug_p && verbose_p)
     {
       int i;
@@ -1113,12 +1139,12 @@ store_saver_status (Display *dpy,
       if (system ("xprop -root _SCREENSAVER_STATUS") != 0)
         fprintf (stderr, "%s: xprop exec failed\n", blurb());
     }
-# endif /* 0 */
+#endif /* 0 */
 
   if (status != (PROP32 *) dataP)
-    free (status);
+    free(status);
   if (dataP)
-    XFree (dataP);
+    XFree(dataP);
 }
 
 
@@ -1129,140 +1155,133 @@ store_saver_status (Display *dpy,
    bidirectional ClientMessage communication takes place.  Since there are
    no "blanking" windows around at all when xscreensaver-gfx is not running,
    this window is needed.  We could have instead re-tooled xscreensaver-command
-   to do all of its communication through the root window instead, but this 
+   to do all of its communication through the root window instead, but this
    seemed easier.
  */
 static void
-create_daemon_window (Display *dpy)
+  create_daemon_window(
+    Display *dpy)
 {
   XClassHint class_hints;
   XSetWindowAttributes attrs;
-  unsigned long attrmask = 0;
-  const char *name = "???";
-  const char *host = "???";
-  char buf[20];
-  pid_t pid = getpid();
-  struct passwd *p = getpwuid (getuid ());
-  time_t now = time ((time_t *) 0);
+  unsigned long attrmask= 0;
+  const char *name= "???";
+  const char *host= "???";
+  char buf [ 20 ];
+  pid_t pid= getpid();
+  struct passwd *p= getpwuid(getuid());
+  time_t now= time((time_t *) 0);
   char *id;
-# ifdef HAVE_UNAME
+#ifdef HAVE_UNAME
   struct utsname uts;
-# endif
+#endif
 
   if (p && p->pw_name && *p->pw_name)
-    name = p->pw_name;
+    {
+      name= p->pw_name;
+    }
   else if (p)
     {
-      sprintf (buf, "%lu", (unsigned long) p->pw_uid);
-      name = buf;
+      sprintf(buf, "%lu", (unsigned long) p->pw_uid);
+      name= buf;
     }
   else
-    name = "???";
+    {
+      name= "???";
+    }
 
-# ifdef HAVE_UNAME
+#ifdef HAVE_UNAME
   {
-    if (! uname (&uts))
-      host = uts.nodename;
+    if (! uname(&uts))
+      host= uts.nodename;
   }
-# endif
+#endif
 
-  class_hints.res_name  = (char *) progname;  /* not const? */
-  class_hints.res_class = "XScreenSaver";
-  id = (char *) malloc (strlen(name) + strlen(host) + 50);
-  sprintf (id, "%lu (%s@%s)", (unsigned long) pid, name, host);
+  class_hints.res_name= (char *) progname; /* not const? */
+  class_hints.res_class= "XScreenSaver";
+  id= (char *) malloc(strlen(name) + strlen(host) + 50);
+  sprintf(id, "%lu (%s@%s)", (unsigned long) pid, name, host);
 
-  attrmask = CWOverrideRedirect | CWEventMask;
-  attrs.override_redirect = True;
-  attrs.event_mask = PropertyChangeMask;
+  attrmask= CWOverrideRedirect | CWEventMask;
+  attrs.override_redirect= True;
+  attrs.event_mask= PropertyChangeMask;
 
-  daemon_window = XCreateWindow (dpy, RootWindow (dpy, 0),
-                                 0, 0, 1, 1, 0,
-                                 DefaultDepth (dpy, 0), InputOutput,
-                                 DefaultVisual (dpy, 0), attrmask, &attrs);
-  XStoreName (dpy, daemon_window, "XScreenSaver Daemon");
-  XSetClassHint (dpy, daemon_window, &class_hints);
-  XChangeProperty (dpy, daemon_window, XA_WM_COMMAND, XA_STRING,
-		   8, PropModeReplace, (unsigned char *) progname,
-                   strlen (progname));
-  XChangeProperty (dpy, daemon_window, XA_SCREENSAVER_VERSION, XA_STRING,
-                   8, PropModeReplace, (unsigned char *) version_number,
-		   strlen (version_number));
-  XChangeProperty (dpy, daemon_window, XA_SCREENSAVER_ID, XA_STRING,
-		   8, PropModeReplace, (unsigned char *) id, strlen (id));
+  daemon_window= XCreateWindow(dpy, RootWindow(dpy, 0), 0, 0, 1, 1, 0, DefaultDepth(dpy, 0), InputOutput, DefaultVisual(dpy, 0), attrmask, &attrs);
+  XStoreName(dpy, daemon_window, "XScreenSaver Daemon");
+  XSetClassHint(dpy, daemon_window, &class_hints);
+  XChangeProperty(dpy, daemon_window, XA_WM_COMMAND, XA_STRING, 8, PropModeReplace, (unsigned char *) progname, strlen(progname));
+  XChangeProperty(dpy, daemon_window, XA_SCREENSAVER_VERSION, XA_STRING, 8, PropModeReplace, (unsigned char *) version_number, strlen(version_number));
+  XChangeProperty(dpy, daemon_window, XA_SCREENSAVER_ID, XA_STRING, 8, PropModeReplace, (unsigned char *) id, strlen(id));
 
-  store_saver_status (dpy, False, False, False, now);
-  free (id);
+  store_saver_status(dpy, False, False, False, now);
+  free(id);
 }
 
 
 static const char *
-grab_string (int status)
+  grab_string(
+    int status)
 {
-  switch (status) {
-  case GrabSuccess:     return "GrabSuccess";
-  case AlreadyGrabbed:  return "AlreadyGrabbed";
-  case GrabInvalidTime: return "GrabInvalidTime";
-  case GrabNotViewable: return "GrabNotViewable";
-  case GrabFrozen:      return "GrabFrozen";
-  default:
+  switch (status)
     {
-      static char buf[255];
-      sprintf(buf, "unknown status: %d", status);
-      return buf;
+      case GrabSuccess : return "GrabSuccess";
+      case AlreadyGrabbed : return "AlreadyGrabbed";
+      case GrabInvalidTime : return "GrabInvalidTime";
+      case GrabNotViewable : return "GrabNotViewable";
+      case GrabFrozen : return "GrabFrozen";
+      default :
+        {
+          static char buf [ 255 ];
+          sprintf(buf, "unknown status: %d", status);
+          return buf;
+        }
     }
-  }
 }
 
 static int
-grab_kbd (Screen *screen)
+  grab_kbd(
+    Screen *screen)
 {
-  Display *dpy = DisplayOfScreen (screen);
-  Window w = RootWindowOfScreen (screen);
-  int status = XGrabKeyboard (dpy, w, True, GrabModeAsync, GrabModeAsync,
-                              CurrentTime);
+  Display *dpy= DisplayOfScreen(screen);
+  Window w= RootWindowOfScreen(screen);
+  int status= XGrabKeyboard(dpy, w, True, GrabModeAsync, GrabModeAsync, CurrentTime);
   if (verbose_p)
-    fprintf (stderr, "%s: grabbing keyboard on 0x%lx: %s\n",
-             blurb(), (unsigned long) w, grab_string (status));
+    fprintf(stderr, "%s: grabbing keyboard on 0x%lx: %s\n", blurb(), (unsigned long) w, grab_string(status));
   return status;
 }
 
 
 static int
-grab_mouse (Screen *screen, Cursor cursor)
+  grab_mouse(
+    Screen *screen,
+    Cursor cursor)
 {
-  Display *dpy = DisplayOfScreen (screen);
-  Window w = RootWindowOfScreen (screen);
-  int status = XGrabPointer (dpy, w, True, 
-                             (ButtonPressMask   | ButtonReleaseMask |
-                              EnterWindowMask   | LeaveWindowMask |
-                              PointerMotionMask | PointerMotionHintMask |
-                              Button1MotionMask | Button2MotionMask |
-                              Button3MotionMask | Button4MotionMask |
-                              Button5MotionMask | ButtonMotionMask),
-                             GrabModeAsync, GrabModeAsync, w,
-                             cursor, CurrentTime);
+  Display *dpy= DisplayOfScreen(screen);
+  Window w= RootWindowOfScreen(screen);
+  int status= XGrabPointer(dpy, w, True, (ButtonPressMask | ButtonReleaseMask | EnterWindowMask | LeaveWindowMask | PointerMotionMask | PointerMotionHintMask | Button1MotionMask | Button2MotionMask | Button3MotionMask | Button4MotionMask | Button5MotionMask | ButtonMotionMask), GrabModeAsync, GrabModeAsync, w, cursor, CurrentTime);
   if (verbose_p)
-    fprintf (stderr, "%s: grabbing mouse on 0x%lx... %s\n",
-             blurb(), (unsigned long) w, grab_string (status));
+    fprintf(stderr, "%s: grabbing mouse on 0x%lx... %s\n", blurb(), (unsigned long) w, grab_string(status));
   return status;
 }
 
 
 static void
-ungrab_kbd (Display *dpy)
+  ungrab_kbd(
+    Display *dpy)
 {
   if (verbose_p)
-    fprintf (stderr, "%s: ungrabbing keyboard\n", blurb());
-  XUngrabKeyboard (dpy, CurrentTime);
+    fprintf(stderr, "%s: ungrabbing keyboard\n", blurb());
+  XUngrabKeyboard(dpy, CurrentTime);
 }
 
 
 static void
-ungrab_mouse (Display *dpy)
+  ungrab_mouse(
+    Display *dpy)
 {
   if (verbose_p)
-    fprintf (stderr, "%s: ungrabbing mouse\n", blurb());
-  XUngrabPointer (dpy, CurrentTime);
+    fprintf(stderr, "%s: ungrabbing mouse\n", blurb());
+  XUngrabPointer(dpy, CurrentTime);
 }
 
 
@@ -1278,94 +1297,101 @@ ungrab_mouse (Display *dpy)
    already having a hard time getting a grab.
  */
 static void
-nuke_focus (Screen *screen)
+  nuke_focus(
+    Screen *screen)
 {
-  Display *dpy = DisplayOfScreen (screen);
-  Window focus = 0;
-  int rev = 0;
+  Display *dpy= DisplayOfScreen(screen);
+  Window focus= 0;
+  int rev= 0;
 
-  XGetInputFocus (dpy, &focus, &rev);
+  XGetInputFocus(dpy, &focus, &rev);
 
   if (verbose_p)
     {
-      char w[255], r[255];
+      char w [ 255 ], r [ 255 ];
 
-      if      (focus == PointerRoot) strcpy (w, "PointerRoot");
-      else if (focus == None)        strcpy (w, "None");
-      else    sprintf (w, "0x%lx", (unsigned long) focus);
+      if (focus == PointerRoot)
+        strcpy(w, "PointerRoot");
+      else if (focus == None)
+        strcpy(w, "None");
+      else
+        sprintf(w, "0x%lx", (unsigned long) focus);
 
-      if      (rev == RevertToParent)      strcpy (r, "RevertToParent");
-      else if (rev == RevertToPointerRoot) strcpy (r, "RevertToPointerRoot");
-      else if (rev == RevertToNone)        strcpy (r, "RevertToNone");
-      else    sprintf (r, "0x%x", rev);
+      if (rev == RevertToParent)
+        strcpy(r, "RevertToParent");
+      else if (rev == RevertToPointerRoot)
+        strcpy(r, "RevertToPointerRoot");
+      else if (rev == RevertToNone)
+        strcpy(r, "RevertToNone");
+      else
+        sprintf(r, "0x%x", rev);
 
-      fprintf (stderr, "%s: removing focus from %s / %s\n",
-               blurb(), w, r);
+      fprintf(stderr, "%s: removing focus from %s / %s\n", blurb(), w, r);
     }
 
-  XSetInputFocus (dpy, None, RevertToNone, CurrentTime);
+  XSetInputFocus(dpy, None, RevertToNone, CurrentTime);
 }
 
 
 static void
-ungrab_keyboard_and_mouse (Display *dpy)
+  ungrab_keyboard_and_mouse(
+    Display *dpy)
 {
-  ungrab_mouse (dpy);
-  ungrab_kbd (dpy);
+  ungrab_mouse(dpy);
+  ungrab_kbd(dpy);
 }
 
 
 /* Returns true if it succeeds.
  */
 static Bool
-grab_keyboard_and_mouse (Screen *screen)
+  grab_keyboard_and_mouse(
+    Screen *screen)
 {
-  Display *dpy = DisplayOfScreen (screen);
-  Status mstatus = 0, kstatus = 0;
+  Display *dpy= DisplayOfScreen(screen);
+  Status mstatus= 0, kstatus= 0;
   int i;
-  int retries = 4;
-  Bool focus_fuckus = False;
+  int retries= 4;
+  Bool focus_fuckus= False;
 
- AGAIN:
+AGAIN:
 
-  for (i = 0; i < retries; i++)
+  for (i= 0; i < retries; i++)
     {
-      XSync (dpy, False);
-      kstatus = grab_kbd (screen);
+      XSync(dpy, False);
+      kstatus= grab_kbd(screen);
       if (kstatus == GrabSuccess)
         break;
 
       /* else, wait a second and try to grab again. */
-      sleep (1);
+      sleep(1);
     }
 
   if (kstatus != GrabSuccess)
     {
-      fprintf (stderr, "%s: couldn't grab keyboard: %s\n",
-               blurb(), grab_string (kstatus));
+      fprintf(stderr, "%s: couldn't grab keyboard: %s\n", blurb(), grab_string(kstatus));
 
       if (! focus_fuckus)
         {
-          focus_fuckus = True;
-          nuke_focus (screen);
+          focus_fuckus= True;
+          nuke_focus(screen);
           goto AGAIN;
         }
     }
 
-  for (i = 0; i < retries; i++)
+  for (i= 0; i < retries; i++)
     {
-      XSync (dpy, False);
-      mstatus = grab_mouse (screen, blank_cursor);
+      XSync(dpy, False);
+      mstatus= grab_mouse(screen, blank_cursor);
       if (mstatus == GrabSuccess)
         break;
 
       /* else, wait a second and try to grab again. */
-      sleep (1);
+      sleep(1);
     }
 
   if (mstatus != GrabSuccess)
-    fprintf (stderr, "%s: couldn't grab pointer: %s\n",
-             blurb(), grab_string (mstatus));
+    fprintf(stderr, "%s: couldn't grab pointer: %s\n", blurb(), grab_string(mstatus));
 
 
   /* When should we allow blanking to proceed?  The current theory
@@ -1400,245 +1426,259 @@ grab_keyboard_and_mouse (Screen *screen)
      because I'm not completely convinced it is a safe thing to do.
    */
 
-  if (kstatus != GrabSuccess)	/* Do not blank without a kbd grab. */
+  if (kstatus != GrabSuccess) /* Do not blank without a kbd grab. */
     {
       /* If we didn't get both grabs, release the one we did get. */
-      ungrab_keyboard_and_mouse (dpy);
+      ungrab_keyboard_and_mouse(dpy);
       return False;
     }
 
-  return True;			/* Grab is good, go ahead and blank. */
+  return True; /* Grab is good, go ahead and blank. */
 }
 
 
 /* Which screen is the mouse on?
  */
 static Screen *
-mouse_screen (Display *dpy)
+  mouse_screen(
+    Display *dpy)
 {
-  int i, nscreens = ScreenCount (dpy);
+  int i, nscreens= ScreenCount(dpy);
   if (nscreens > 1)
-    for (i = 0; i < nscreens; i++)
-      {
-        Window pointer_root, pointer_child;
-        int root_x, root_y, win_x, win_y;
-        unsigned int mask;
-        int status = XQueryPointer (dpy, RootWindow (dpy, i),
-                                    &pointer_root, &pointer_child,
-                                    &root_x, &root_y, &win_x, &win_y, &mask);
-        if (status != None)
-          {
-            if (verbose_p)
-              fprintf (stderr, "%s: mouse is on screen %d of %d\n",
-                       blurb(), i, nscreens);
-            return ScreenOfDisplay (dpy, i);
-          }
-      }
+    {
+      for (i= 0; i < nscreens; i++)
+        {
+          Window pointer_root, pointer_child;
+          int root_x, root_y, win_x, win_y;
+          unsigned int mask;
+          int status= XQueryPointer(dpy, RootWindow(dpy, i), &pointer_root, &pointer_child, &root_x, &root_y, &win_x, &win_y, &mask);
+          if (status != None)
+            {
+              if (verbose_p)
+                fprintf(stderr, "%s: mouse is on screen %d of %d\n", blurb(), i, nscreens);
+              return ScreenOfDisplay(dpy, i);
+            }
+        }
+    }
 
-  return ScreenOfDisplay (dpy, 0);
+  return ScreenOfDisplay(dpy, 0);
 }
 
 
 static void
-maybe_disable_locking (Display *dpy, Bool wayland_p)
+  maybe_disable_locking(
+    Display *dpy,
+    Bool wayland_p)
 {
-  const char *why = 0;
+  const char *why= 0;
 
-# ifdef NO_LOCKING
-  why = "locking disabled at compile time";
-# endif
+#ifdef NO_LOCKING
+  why= "locking disabled at compile time";
+#endif
 
-  if (!why)
+  if (! why)
     {
-      uid_t u = getuid();
+      uid_t u= getuid();
       if (u == 0 || u == (uid_t) -1 || u == (uid_t) -2)
-        why = "cannot lock when running as root";
+        why= "cannot lock when running as root";
     }
 
-  if (!why && getenv ("RUNNING_UNDER_GDM"))
-    /* Launched as GDM's "Background" program */
-    why = "cannot lock when running under GDM";
+  if (! why && getenv("RUNNING_UNDER_GDM"))
+    {
+      /* Launched as GDM's "Background" program */
+      why= "cannot lock when running under GDM";
+    }
 
   /* X11 grabs don't work under Wayland's embedded X11 server.  The Wayland
      window manager lives at a higher level than the X11 emulation layer. */
-  if (!why && wayland_p)
-    why = "cannot lock securely under Wayland";
+  if (! why && wayland_p)
+    why= "cannot lock securely under Wayland";
 
-  if (!why)
+  if (! why)
     {
       /* Grabs under the macOS XDarwin server only affect other X11 programs:
          you can Cmd-Tab to "Terminal".  These extensions exist on later
          releases XQuartz. */
-      int op = 0, event = 0, error = 0;
-      if (XQueryExtension (dpy, "Apple-DRI", &op, &event, &error) ||
-          XQueryExtension (dpy, "Apple-WM",  &op, &event, &error))
-        why = "cannot lock securely under macOS X11";
+      int op= 0, event= 0, error= 0;
+      if (XQueryExtension(dpy, "Apple-DRI", &op, &event, &error) ||
+        XQueryExtension(dpy, "Apple-WM", &op, &event, &error))
+        why= "cannot lock securely under macOS X11";
     }
 
   if (why)
     {
       if (debug_p)
         {
-          fprintf (stderr, "%s: %s\n", blurb(), why);
-          fprintf (stderr, "%s: DEBUG MODE: allowing locking anyway!\n",
-                   blurb());
+          fprintf(stderr, "%s: %s\n", blurb(), why);
+          fprintf(stderr, "%s: DEBUG MODE: allowing locking anyway!\n", blurb());
         }
       else
         {
-          locking_disabled_p = True;
+          locking_disabled_p= True;
           if (lock_p || verbose_p)
-            fprintf (stderr, "%s: locking disabled: %s\n", blurb(), why);
+            fprintf(stderr, "%s: locking disabled: %s\n", blurb(), why);
         }
     }
 }
 
 
 static void
-query_pointer (Display *dpy, int *root_xP, int *root_yP)
+  query_pointer(
+    Display *dpy,
+    int *root_xP,
+    int *root_yP)
 {
   Window root_ret, child_ret;
   int win_x, win_y;
   unsigned int mask;
-  XQueryPointer (dpy, DefaultRootWindow (dpy),
-                 &root_ret, &child_ret, root_xP, root_yP,
-                 &win_x, &win_y, &mask);
+  XQueryPointer(dpy, DefaultRootWindow(dpy), &root_ret, &child_ret, root_xP, root_yP, &win_x, &win_y, &mask);
 }
 
 
 #ifdef HAVE_WAYLAND
-static void 
-wayland_activity_cb (void *closure)
+static void
+  wayland_activity_cb(
+    void *closure)
 {
-  Bool *activeP = (Bool *) closure;
-  *activeP = True;
+  Bool *activeP= (Bool *) closure;
+  *activeP= True;
 }
 #endif /* HAVE_WAYLAND */
 
 
 static void
-main_loop (Display *dpy)
+  main_loop(
+    Display *dpy)
 {
   int xi_opcode;
-  time_t now = time ((time_t *) 0);
-  time_t active_at = now;
-  time_t blanked_at = 0;
-  time_t locked_at = 0;
-  time_t cursor_blanked_at = 0;
-  time_t ignore_activity_before = now;
-  time_t last_checked_init_file = now;
-  Bool authenticated_p = False;
-  Bool ignore_motion_p = False;
-  Bool wayland_p = False;
+  time_t now= time((time_t *) 0);
+  time_t active_at= now;
+  time_t blanked_at= 0;
+  time_t locked_at= 0;
+  time_t cursor_blanked_at= 0;
+  time_t ignore_activity_before= now;
+  time_t last_checked_init_file= now;
+  Bool authenticated_p= False;
+  Bool ignore_motion_p= False;
+  Bool wayland_p= False;
 
-  enum { UNBLANKED, BLANKED, LOCKED, AUTH } current_state = UNBLANKED;
+  enum
+  {
+    UNBLANKED,
+    BLANKED,
+    LOCKED,
+    AUTH
+  } current_state= UNBLANKED;
 
-  struct { time_t time; int x, y; } last_mouse = { 0, 0, 0 };
+  struct
+  {
+      time_t time;
+      int x, y;
+  } last_mouse= {0, 0, 0};
 
-# ifdef HAVE_WAYLAND
-  Bool wayland_active_p = False;
-  wayland_dpy *wdpy = wayland_dpy_connect();
-  wayland_idle *widle = wayland_idle_init (wdpy,
-                                           wayland_activity_cb,
-                                           &wayland_active_p);
+#ifdef HAVE_WAYLAND
+  Bool wayland_active_p= False;
+  wayland_dpy *wdpy= wayland_dpy_connect();
+  wayland_idle *widle= wayland_idle_init(wdpy,
+    wayland_activity_cb,
+    &wayland_active_p);
   if (widle)
     {
-      wayland_p = True;   /* Connected to Wayland and can detect activity. */
+      wayland_p= True; /* Connected to Wayland and can detect activity. */
     }
   else if (wdpy)
     {
       /* Connected to Wayland, but no idle protocols available. */
-      fprintf (stderr, "%s: wayland: idle detection is impossible.\n",
-               blurb());
-      exit (1);
+      fprintf(stderr, "%s: wayland: idle detection is impossible.\n", blurb());
+      exit(1);
     }
-  else if (getenv ("WAYLAND_DISPLAY") || getenv ("WAYLAND_SOCKET"))
+  else if (getenv("WAYLAND_DISPLAY") || getenv("WAYLAND_SOCKET"))
     {
       /* Running under Wayland, but unable to connect. */
-      fprintf (stderr, "%s: wayland: connection failed\n", blurb());
-      exit (1);
+      fprintf(stderr, "%s: wayland: connection failed\n", blurb());
+      exit(1);
     }
   else
     {
       if (verbose_p)
-        fprintf (stderr, "%s: wayland: connection failed; assuming real X11\n",
-                 blurb());
+        fprintf(stderr, "%s: wayland: connection failed; assuming real X11\n", blurb());
     }
-# else /* !HAVE_WAYLAND */
+#else  /* !HAVE_WAYLAND */
 
-  if (getenv ("WAYLAND_DISPLAY") || getenv ("WAYLAND_SOCKET"))
+  if (getenv("WAYLAND_DISPLAY") || getenv("WAYLAND_SOCKET"))
     {
-      fprintf (stderr, "%s: not compiled with Wayland support\n", blurb());
-      exit (1);
+      fprintf(stderr, "%s: not compiled with Wayland support\n", blurb());
+      exit(1);
     }
-# endif /* !HAVE_WAYLAND */
+#endif /* !HAVE_WAYLAND */
 
-  maybe_disable_locking (dpy, wayland_p);
-  init_xscreensaver_atoms (dpy);
-  ensure_no_screensaver_running (dpy);
+  maybe_disable_locking(dpy, wayland_p);
+  init_xscreensaver_atoms(dpy);
+  ensure_no_screensaver_running(dpy);
 
-  if (! init_xinput (dpy, &xi_opcode))
-    saver_exit (1);
+  if (! init_xinput(dpy, &xi_opcode))
+    saver_exit(1);
 
-# ifdef HAVE_WAYLAND
+#ifdef HAVE_WAYLAND
   if (wdpy)
-    wayland_dpy_atexit (wdpy, saver_wayland_exit, NULL);
-# endif
+    wayland_dpy_atexit(wdpy, saver_wayland_exit, NULL);
+#endif
 
   /* Disable server built-in screen saver. */
-  XSetScreenSaver (dpy, 0, 0, 0, 0);
-  XForceScreenSaver (dpy, ScreenSaverReset);
+  XSetScreenSaver(dpy, 0, 0, 0, 0);
+  XForceScreenSaver(dpy, ScreenSaverReset);
 
   /* It would be nice to sync the server's DPMS settings here to what is
      specified in the .xscreensaver file, but xscreensaver-gfx handles that,
      so that won't happen until the first time the screen blanks. */
 
-  create_daemon_window (dpy);
+  create_daemon_window(dpy);
 
   handle_signals();
 
-  blank_cursor = None;   /* Cursor of window under mouse (which is blank). */
-  auth_cursor = XCreateFontCursor (dpy, XC_top_left_arrow);
+  blank_cursor= None; /* Cursor of window under mouse (which is blank). */
+  auth_cursor= XCreateFontCursor(dpy, XC_top_left_arrow);
 
-  query_pointer (dpy, &last_mouse.x, &last_mouse.y);
-  last_mouse.time = now;
+  query_pointer(dpy, &last_mouse.x, &last_mouse.y);
+  last_mouse.time= now;
 
-  if (strchr (version_number, 'a') || strchr (version_number, 'b'))
-    splash_p = True;  /* alpha and beta releases */
+  if (strchr(version_number, 'a') || strchr(version_number, 'b'))
+    splash_p= True; /* alpha and beta releases */
 
   /* Launch "xscreensaver-auth" once at startup with either --splash or --init,
      The latter to handle the OOM-killer while setuid. */
   {
-    char *av[10];
-    int ac = 0;
-    av[ac++] = SAVER_AUTH_PROGRAM;
-    av[ac++] = (splash_p ? "--splash" : "--init");
-    if (verbose_p)     av[ac++] = "--verbose";
-    if (verbose_p > 1) av[ac++] = "--verbose";
-    if (verbose_p > 2) av[ac++] = "--verbose";
-    if (debug_p)       av[ac++] = "--debug";
-    av[ac] = 0;
-    saver_auth_pid = fork_and_exec (dpy, ac, av);
+    char *av [ 10 ];
+    int ac= 0;
+    av [ ac++ ]= SAVER_AUTH_PROGRAM;
+    av [ ac++ ]= (splash_p ? "--splash" : "--init");
+    if (verbose_p) av [ ac++ ]= "--verbose";
+    if (verbose_p > 1) av [ ac++ ]= "--verbose";
+    if (verbose_p > 2) av [ ac++ ]= "--verbose";
+    if (debug_p) av [ ac++ ]= "--debug";
+    av [ ac ]= 0;
+    saver_auth_pid= fork_and_exec(dpy, ac, av);
   }
 
-# if defined(HAVE_LIBSYSTEMD) || defined(HAVE_LIBELOGIND) 
+#if defined(HAVE_LIBSYSTEMD) || defined(HAVE_LIBELOGIND)
   /* Launch xscreensaver-systemd at startup. */
   {
-    char *av[10];
-    int ac = 0;
-    av[ac++] = SAVER_SYSTEMD_PROGRAM;
+    char *av [ 10 ];
+    int ac= 0;
+    av [ ac++ ]= SAVER_SYSTEMD_PROGRAM;
     if (verbose_p || debug_p)
-      av[ac++] = "--verbose";
-    av[ac] = 0;
-    saver_systemd_pid = fork_and_exec (dpy, ac, av);
+      av [ ac++ ]= "--verbose";
+    av [ ac ]= 0;
+    saver_systemd_pid= fork_and_exec(dpy, ac, av);
   }
-# endif /* HAVE_LIBSYSTEMD || HAVE_LIBELOGIND */
+#endif /* HAVE_LIBSYSTEMD || HAVE_LIBELOGIND */
 
 
   /* X11 errors during startup initialization were fatal.
      Once we enter the main loop, they are printed but ignored.
    */
-  XSync (dpy, False);
-  ignore_x11_error_p = True;
+  XSync(dpy, False);
+  ignore_x11_error_p= True;
 
   /************************************************************************
    Main loop
@@ -1646,97 +1686,103 @@ main_loop (Display *dpy)
 
   while (1)
     {
-      Bool force_blank_p = False;
-      Bool force_lock_p = False;
-      Atom blank_mode = 0;
-      char blank_mode_arg[20] = { 0 };
+      Bool force_blank_p= False;
+      Bool force_lock_p= False;
+      Atom blank_mode= 0;
+      char blank_mode_arg [ 20 ]= {0};
 
       /* Wait until an event comes in, or a timeout.
 
          There may already be X events on the queue that arrived along with an
          earlier call to XSync(). If so we need to process those immediately
-         without waiting for more activity on the socket. 
+         without waiting for more activity on the socket.
        */
-      if (! XEventsQueued (dpy, QueuedAlready)) {
-        int xfd = ConnectionNumber (dpy);
-        fd_set in_fds;
-        struct timeval tv;
-        time_t until;
-
-        switch (current_state) {
-        case UNBLANKED: until = active_at + blank_timeout; break;
-        case BLANKED:   until = blanked_at + lock_timeout; break;
-        default:        until = 0;
-        }
-
-        if (current_state == BLANKED || current_state == LOCKED)
-          {
-            /* On rare occasions the mouse pointer re-appears, even though we
-               are holding the mouse grabbed with a blank cursor.  This should
-               not be possible, and I don't understand how it happens or under
-               what conditions.  But, let's try blanking it out again by
-               re-asserting our existing grab with the blank cursor every
-               few minutes.
-             */
-            time_t blank_cursor_at = cursor_blanked_at + cursor_blank_interval;
-            if (blank_cursor_at <= now)
-              {
-                if (verbose_p > 3)
-                  fprintf (stderr, "%s: re-blanking cursor\n", blurb());
-                grab_mouse (mouse_screen (dpy), blank_cursor);
-                cursor_blanked_at = now;
-                blank_cursor_at = cursor_blanked_at + cursor_blank_interval;
-              }
-
-            if (until <= now || blank_cursor_at < until)
-              until = blank_cursor_at;
-          }
-
-        tv.tv_sec = 0;
-        tv.tv_usec = 0;
-        if (until > now)
-          tv.tv_sec = until - now;
-          
-        if (verbose_p > 3)
-          {
-            if (!tv.tv_sec && !tv.tv_usec)
-              fprintf (stderr, "%s: block until input\n", blurb());
-            else
-              {
-                struct tm tm;
-                time_t t = now + tv.tv_sec;
-                localtime_r (&t, &tm);
-                fprintf (stderr,
-                         "%s: block for %d:%02d:%02d until %02d:%02d:%02d\n", 
-                         blurb(),
-                         (int) tv.tv_sec / (60 * 60),
-                         (int) (tv.tv_sec % (60 * 60)) / 60,
-                         (int) tv.tv_sec % 60,
-                         tm.tm_hour, tm.tm_min, tm.tm_sec);
-              }
-          }
-
+      if (! XEventsQueued(dpy, QueuedAlready))
         {
-          int fd = xfd;
-          FD_ZERO (&in_fds);
-          FD_SET (xfd, &in_fds);
+          int xfd= ConnectionNumber(dpy);
+          fd_set in_fds;
+          struct timeval tv;
+          time_t until;
 
-# ifdef HAVE_WAYLAND
-          /* Stop blocking if there is activity on either the X11 socket
-             or the Wayland socket. */
-          if (wdpy)
+          switch (current_state)
             {
-              int wfd = wayland_dpy_get_fd (wdpy);
-              FD_SET (wfd, &in_fds);
-              fd = MAX (xfd, wfd);
+              case UNBLANKED : until= active_at + blank_timeout; break;
+              case BLANKED : until= blanked_at + lock_timeout; break;
+              default : until= 0;
             }
-# endif /* HAVE_WAYLAND */
 
-          select (fd + 1, &in_fds, NULL, NULL, (tv.tv_sec ? &tv : NULL));
+          if (current_state == BLANKED || current_state == LOCKED)
+            {
+              /* On rare occasions the mouse pointer re-appears, even though we
+                 are holding the mouse grabbed with a blank cursor.  This should
+                 not be possible, and I don't understand how it happens or under
+                 what conditions.  But, let's try blanking it out again by
+                 re-asserting our existing grab with the blank cursor every
+                 few minutes.
+               */
+              time_t blank_cursor_at= cursor_blanked_at + cursor_blank_interval;
+              if (blank_cursor_at <= now)
+                {
+                  if (verbose_p > 3)
+                    fprintf(stderr, "%s: re-blanking cursor\n", blurb());
+                  grab_mouse(mouse_screen(dpy), blank_cursor);
+                  cursor_blanked_at= now;
+                  blank_cursor_at= cursor_blanked_at + cursor_blank_interval;
+                }
+
+              if (until <= now || blank_cursor_at < until)
+                until= blank_cursor_at;
+            }
+
+          tv.tv_sec= 0;
+          tv.tv_usec= 0;
+          if (until > now)
+            tv.tv_sec= until - now;
+
+          if (verbose_p > 3)
+            {
+              if (! tv.tv_sec && ! tv.tv_usec)
+                {
+                  fprintf(stderr, "%s: block until input\n", blurb());
+                }
+              else
+                {
+                  struct tm tm;
+                  time_t t= now + tv.tv_sec;
+                  localtime_r(&t, &tm);
+                  fprintf(stderr,
+                    "%s: block for %d:%02d:%02d until %02d:%02d:%02d\n",
+                    blurb(),
+                    (int) tv.tv_sec / (60 * 60),
+                    (int) (tv.tv_sec % (60 * 60)) / 60,
+                    (int) tv.tv_sec % 60,
+                    tm.tm_hour,
+                    tm.tm_min,
+                    tm.tm_sec);
+                }
+            }
+
+          {
+            int fd= xfd;
+            FD_ZERO(&in_fds);
+            FD_SET(xfd, &in_fds);
+
+#ifdef HAVE_WAYLAND
+            /* Stop blocking if there is activity on either the X11 socket
+               or the Wayland socket. */
+            if (wdpy)
+              {
+                int wfd= wayland_dpy_get_fd(wdpy);
+                FD_SET(wfd, &in_fds);
+                fd= MAX(xfd, wfd);
+              }
+#endif /* HAVE_WAYLAND */
+
+            select(fd + 1, &in_fds, NULL, NULL, (tv.tv_sec ? &tv : NULL));
+          }
         }
-      }
 
-      now = time ((time_t *) 0);
+      now= time((time_t *) 0);
 
 
       /********************************************************************
@@ -1751,18 +1797,18 @@ main_loop (Display *dpy)
       /* SIGHUP is the same as "xscreensaver-command --restart". */
       if (sighup_received)
         {
-          sighup_received = 0;
+          sighup_received= 0;
           if (current_state == LOCKED)
             {
-              fprintf (stderr,
-                       "%s: SIGHUP received while locked: ignoring\n",
-                       blurb());
+              fprintf(stderr,
+                "%s: SIGHUP received while locked: ignoring\n",
+                blurb());
             }
           else
             {
-              fprintf (stderr, "%s: SIGHUP received: restarting\n", blurb());
-              restart_process();   /* Does not return */
-              fprintf (stderr, "%s: SIGHUP RESTART FAILED!\n", blurb());
+              fprintf(stderr, "%s: SIGHUP received: restarting\n", blurb());
+              restart_process(); /* Does not return */
+              fprintf(stderr, "%s: SIGHUP RESTART FAILED!\n", blurb());
             }
         }
 
@@ -1771,19 +1817,19 @@ main_loop (Display *dpy)
        */
       if (sigterm_received)
         {
-          int sig = sigterm_received;  /* Same handler for all 3 signals */
-          const char *sn = (sig == SIGINT  ? "SIGINT" :
-                            sig == SIGQUIT ? "SIGQUIT" : "SIGTERM");
-          sigterm_received = 0;
-          fprintf (stderr, "%s: %s received%s: exiting\n", blurb(), sn,
-                   (current_state == LOCKED ? " while locked" : ""));
+          int sig= sigterm_received; /* Same handler for all 3 signals */
+          const char *sn= (sig == SIGINT ? "SIGINT" :
+              sig == SIGQUIT             ? "SIGQUIT" :
+                                           "SIGTERM");
+          sigterm_received= 0;
+          fprintf(stderr, "%s: %s received%s: exiting\n", blurb(), sn, (current_state == LOCKED ? " while locked" : ""));
 
           /* Rather than calling saver_exit(), set our SIGTERM handler back to
              the default and re-signal it so that this process actually dies
              with a signal. */
-          signal (sig, SIG_DFL);
+          signal(sig, SIG_DFL);
           kill_all_subprocs();
-          kill (getpid(), sig);
+          kill(getpid(), sig);
           abort();
         }
 
@@ -1791,16 +1837,16 @@ main_loop (Display *dpy)
          When "xscreensaver-auth" dies, we analyze its exit code.
        */
       if (sigchld_received)
-        authenticated_p = handle_sigchld (dpy, current_state != UNBLANKED);
+        authenticated_p= handle_sigchld(dpy, current_state != UNBLANKED);
 
       /* Now process any outstanding X11 events on the queue: user activity
          from XInput, and ClientMessages from xscreensaver-command.
        */
-      while (XPending (dpy))
+      while (XPending(dpy))
         {
           XEvent xev;
-          XNextEvent (dpy, &xev);
-          now = time ((time_t *) 0);
+          XNextEvent(dpy, &xev);
+          now= time((time_t *) 0);
 
           /****************************************************************
            Client Messages
@@ -1810,242 +1856,249 @@ main_loop (Display *dpy)
            xscreensaver-gfx is not already running.
            ****************************************************************/
 
-          switch (xev.xany.type) {
-          case ClientMessage:
+          switch (xev.xany.type)
             {
-              Atom msg = xev.xclient.data.l[0];
-
-              /* Re-load the .xscreensaver file before processing the results
-                 of any ClientMessage, in case they just changed the timeouts.
-               */
-              last_checked_init_file = 0;
-
-              if (! (xev.xclient.message_type == XA_SCREENSAVER &&
-                     xev.xclient.format == 32 &&
-                     xev.xclient.data.l[0]))
+              case ClientMessage :
                 {
-                  goto BAD_CM;
-                }
-              else if (msg == XA_ACTIVATE ||
-                       msg == XA_SELECT ||
-                       msg == XA_DEMO ||
-                       msg == XA_NEXT ||
-                       msg == XA_PREV)
-                {
-                  /* The others are the same as --activate except that they
-                     cause some extra args to be added to the xscreensaver-gfx
-                     command line.
+                  Atom msg= xev.xclient.data.l [ 0 ];
+
+                  /* Re-load the .xscreensaver file before processing the results
+                     of any ClientMessage, in case they just changed the timeouts.
                    */
-                  if (msg != XA_ACTIVATE)
-                    blank_mode = msg;
-                  if (msg == XA_SELECT || msg == XA_DEMO)
-                    { /* see remote.c */
-                      unsigned long  n = xev.xclient.data.l[1];
-                      if (n == 5000) n = xev.xclient.data.l[2];
-                      sprintf (blank_mode_arg, "%lu", n);
-                    }
+                  last_checked_init_file= 0;
 
-                  if (msg == XA_DEMO) ignore_motion_p = True;
+                  if (! (xev.xclient.message_type == XA_SCREENSAVER &&
+                        xev.xclient.format == 32 &&
+                        xev.xclient.data.l [ 0 ]))
+                    {
+                      goto BAD_CM;
+                    }
+                  else if (msg == XA_ACTIVATE ||
+                    msg == XA_SELECT ||
+                    msg == XA_DEMO ||
+                    msg == XA_NEXT ||
+                    msg == XA_PREV)
+                    {
+                      /* The others are the same as --activate except that they
+                         cause some extra args to be added to the xscreensaver-gfx
+                         command line.
+                       */
+                      if (msg != XA_ACTIVATE)
+                        blank_mode= msg;
+                      if (msg == XA_SELECT || msg == XA_DEMO)
+                        { /* see remote.c */
+                          unsigned long n= xev.xclient.data.l [ 1 ];
+                          if (n == 5000) n= xev.xclient.data.l [ 2 ];
+                          sprintf(blank_mode_arg, "%lu", n);
+                        }
 
-                  if (current_state == UNBLANKED)
-                    {
-                      force_blank_p = True;
-                      ignore_activity_before = now + 2;
-                      clientmessage_response (dpy, &xev, True, "blanking");
-                    }
-                  else if (msg == XA_SELECT ||
-                           msg == XA_NEXT ||
-                           msg == XA_PREV)
-                    {
-                      /* When active, these are handled by xscreensaver-gfx
-                         instead of xscreensaver, so silently ignore them,
-                         and allow xscreensaver-gfx to reply instead. */
-                    }
-                  else
-                    clientmessage_response (dpy, &xev, False,
-                                            "already active");
-                }
-              else if (msg == XA_CYCLE)
-                {
-                  if (current_state == UNBLANKED)
-                    /* Only allowed when screen already blanked */
-                    clientmessage_response (dpy, &xev, False, "not blanked");
-                  /* else xscreensaver-gfx will respond to this. */
-                }
-              else if (msg == XA_DEACTIVATE)
-                {
-                  if (current_state == UNBLANKED)
-                    {
-                      clientmessage_response (dpy, &xev, True,
-                                 "already inactive, resetting activity time");
-                      active_at = now;
-                      ignore_activity_before = now;
-                    }
-                  else
-                    {
-                      /* This behaves just like user input: if state is
-                         LOCKED, it will advance to AUTH. */
-                      active_at = now;
-                      ignore_activity_before = now;
-                      clientmessage_response (dpy, &xev, True, "deactivating");
-                    }
+                      if (msg == XA_DEMO) ignore_motion_p= True;
 
-                  /* DEACTIVATE while inactive also needs to reset the
-                     server's DPMS time, but doing that here would mean
-                     linking with additional libraries, doing additional X
-                     protocol, and also some finicky error handling, since
-                     the DPMS extension is a pain in the ass.  So instead,
-                     I made xscreensaver-command:reset_dpms_timer() do that
-                     instead.  This somewhat breaks the abstraction of
-                     ClientMessage handling, but it's more robust. */
-                }
-              else if (msg == XA_LOCK)
-                {
-                  if (locking_disabled_p)
-                    clientmessage_response (dpy, &xev, False,
-                                            "locking disabled");
-                  else if (current_state == UNBLANKED ||
-                           current_state == BLANKED)
+                      if (current_state == UNBLANKED)
+                        {
+                          force_blank_p= True;
+                          ignore_activity_before= now + 2;
+                          clientmessage_response(dpy, &xev, True, "blanking");
+                        }
+                      else if (msg == XA_SELECT ||
+                        msg == XA_NEXT ||
+                        msg == XA_PREV)
+                        {
+                          /* When active, these are handled by xscreensaver-gfx
+                             instead of xscreensaver, so silently ignore them,
+                             and allow xscreensaver-gfx to reply instead. */
+                        }
+                      else
+                        {
+                          clientmessage_response(dpy, &xev, False, "already active");
+                        }
+                    }
+                  else if (msg == XA_CYCLE)
                     {
-                      force_lock_p = True;
-                      ignore_activity_before = now + 2;
-                      clientmessage_response (dpy, &xev, True, "locking");
+                      if (current_state == UNBLANKED)
+                        {
+                          /* Only allowed when screen already blanked */
+                          clientmessage_response(dpy, &xev, False, "not blanked");
+                        }
+                      /* else xscreensaver-gfx will respond to this. */
+                    }
+                  else if (msg == XA_DEACTIVATE)
+                    {
+                      if (current_state == UNBLANKED)
+                        {
+                          clientmessage_response(dpy, &xev, True, "already inactive, resetting activity time");
+                          active_at= now;
+                          ignore_activity_before= now;
+                        }
+                      else
+                        {
+                          /* This behaves just like user input: if state is
+                             LOCKED, it will advance to AUTH. */
+                          active_at= now;
+                          ignore_activity_before= now;
+                          clientmessage_response(dpy, &xev, True, "deactivating");
+                        }
+
+                      /* DEACTIVATE while inactive also needs to reset the
+                         server's DPMS time, but doing that here would mean
+                         linking with additional libraries, doing additional X
+                         protocol, and also some finicky error handling, since
+                         the DPMS extension is a pain in the ass.  So instead,
+                         I made xscreensaver-command:reset_dpms_timer() do that
+                         instead.  This somewhat breaks the abstraction of
+                         ClientMessage handling, but it's more robust. */
+                    }
+                  else if (msg == XA_LOCK)
+                    {
+                      if (locking_disabled_p)
+                        {
+                          clientmessage_response(dpy, &xev, False, "locking disabled");
+                        }
+                      else if (current_state == UNBLANKED ||
+                        current_state == BLANKED)
+                        {
+                          force_lock_p= True;
+                          ignore_activity_before= now + 2;
+                          clientmessage_response(dpy, &xev, True, "locking");
+                        }
+                      else
+                        {
+                          clientmessage_response(dpy, &xev, False, "already locked");
+                        }
+                    }
+                  else if (msg == XA_SUSPEND)
+                    {
+                      force_blank_p= True;
+                      if (lock_p) force_lock_p= True;
+                      ignore_activity_before= now + 2;
+                      blank_mode= msg;
+                      clientmessage_response(dpy, &xev, True, "suspending");
+                    }
+                  else if (msg == XA_EXIT)
+                    {
+                      if (current_state == UNBLANKED ||
+                        current_state == BLANKED)
+                        {
+                          clientmessage_response(dpy, &xev, True, "exiting");
+                          XSync(dpy, False);
+                          saver_exit(0);
+                        }
+                      else
+                        {
+                          clientmessage_response(dpy, &xev, False, "screen is locked");
+                        }
+                    }
+                  else if (msg == XA_RESTART)
+                    {
+                      if (current_state == UNBLANKED ||
+                        current_state == BLANKED)
+                        {
+                          clientmessage_response(dpy, &xev, True, "restarting");
+                          XSync(dpy, False);
+                          restart_process(); /* Does not return */
+                          fprintf(stderr, "%s: RESTART FAILED!\n", blurb());
+                        }
+                      else
+                        {
+                          clientmessage_response(dpy, &xev, False, "screen is locked");
+                        }
                     }
                   else
-                    clientmessage_response (dpy, &xev, False,
-                                            "already locked");
-                }
-              else if (msg == XA_SUSPEND)
-                {
-                  force_blank_p = True;
-                  if (lock_p) force_lock_p = True;
-                  ignore_activity_before = now + 2;
-                  blank_mode = msg;
-                  clientmessage_response (dpy, &xev, True, "suspending");
-                }
-              else if (msg == XA_EXIT)
-                {
-                  if (current_state == UNBLANKED ||
-                      current_state == BLANKED)
                     {
-                      clientmessage_response (dpy, &xev, True, "exiting");
-                      XSync (dpy, False);
-                      saver_exit (0);
+BAD_CM:
+                      if (verbose_p)
+                        {
+                          Atom type;
+                          char *tstr, *name;
+                          Bool op= print_x11_error_p;
+                          print_x11_error_p= False; /* Ignore BadAtom */
+                          type= xev.xclient.message_type;
+                          tstr= type ? XGetAtomName(dpy, type) : 0;
+                          name= msg ? XGetAtomName(dpy, msg) : 0;
+                          fprintf(stderr,
+                            "%s: unrecognized ClientMessage %s %s\n",
+                            blurb(),
+                            (tstr ? tstr : "???"),
+                            (name ? name : "???"));
+                          if (tstr) XFree(tstr);
+                          if (name) XFree(name);
+                          print_x11_error_p= op;
+                        }
                     }
-                  else
-                    clientmessage_response (dpy, &xev, False,
-                                            "screen is locked");
+                  continue;
                 }
-              else if (msg == XA_RESTART)
-                {
-                  if (current_state == UNBLANKED ||
-                      current_state == BLANKED)
-                    {
-                      clientmessage_response (dpy, &xev, True, "restarting");
-                      XSync (dpy, False);
-                      restart_process();   /* Does not return */
-                      fprintf (stderr, "%s: RESTART FAILED!\n", blurb());
-                    }
-                  else
-                    clientmessage_response (dpy, &xev, False,
-                                            "screen is locked");
-                }
-              else
-                {
-                BAD_CM:
-                  if (verbose_p)
-                    {
-                      Atom type;
-                      char *tstr, *name;
-                      Bool op = print_x11_error_p;
-                      print_x11_error_p = False;     /* Ignore BadAtom */
-                      type = xev.xclient.message_type;
-                      tstr = type ? XGetAtomName (dpy, type) : 0;
-                      name = msg  ? XGetAtomName (dpy, msg)  : 0;
-                      fprintf (stderr,
-                               "%s: unrecognized ClientMessage %s %s\n",
-                               blurb(),
-                               (tstr ? tstr : "???"),
-                               (name ? name : "???"));
-                      if (tstr) XFree (tstr);
-                      if (name) XFree (name);
-                      print_x11_error_p = op;
-                    }
-                }
-              continue;
+
+
+                /****************************************************************
+                 Normal X11 keyboard and mouse events
+                 ****************************************************************/
+
+                /* XInput2 "raw" events bypass X11 grabs, but grabs take priority.
+                   If this process has the keyboard and mouse grabbed, it receives
+                   the following events:
+
+                     - X11 KeyPress, KeyRelease
+                     - X11 ButtonPress, ButtonRelease
+                     - X11 MotionNotify
+                     - XInput XI_RawButtonPress, XI_RawButtonRelease
+                     - XInput XI_RawMotion
+
+                   Note that button and motion events are doubly reported, but
+                   keyboard events are not.
+
+                   If this process does *not* have the keyboard and mouse grabbed,
+                   it receives the following events, regardless of the window in
+                   which they occur:
+
+                     - XInput XI_RawKeyPress, XI_RawKeyRelease
+                     - XInput XI_RawButtonPress, XI_RawButtonRelease
+                     - XInput XI_RawMotion
+
+                   But here's an irritating kink: though XInput2 generally allows
+                   snooping of everything, it respects GrabModeSync.  What this
+                   means is that if some other process has the keyboard grabbed with
+                   "Sync" instead of "Async", then this process will not see any of
+                   the events until that process releases its grab, and then the
+                   events come in late, all at once.  Verify this by running:
+
+                     test-xinput &
+                        Note that keyboard and mouse events are detected.
+                     test-grab --mouse --mouse-async --kbd-async
+                        Same.
+                     test-grab --mouse --mouse-sync --kbd-async
+                        Keyboard events are detected.
+                        No motion or button events until "test-grab" is killed.
+                     test-grab --mouse --mouse-async --kbd-sync
+                        Vice versa.
+                 */
+
+              case KeyPress :
+              case KeyRelease :
+                if (current_state != AUTH && /* logged by xscreensaver-auth */
+                  (verbose_p > 1 ||
+                    (verbose_p && now - active_at > 1)))
+                  print_xinput_event(dpy, &xev, NULL, "");
+                active_at= now;
+                continue;
+                break;
+              case ButtonPress :
+              case ButtonRelease :
+                active_at= now;
+                if (verbose_p)
+                  print_xinput_event(dpy, &xev, NULL, "");
+                continue;
+                break;
+              case MotionNotify :
+                /* Since we always get XI_RawMotion, but only get MotionNotify
+                   when grabbed, we can just ignore MotionNotify and let the
+                   XI_RawMotion clause handle hysteresis. */
+                if (verbose_p > 1)
+                  print_xinput_event(dpy, &xev, NULL, "ignored");
+                continue;
+                break;
+              default :
+                break;
             }
-
-
-          /****************************************************************
-           Normal X11 keyboard and mouse events
-           ****************************************************************/
-
-          /* XInput2 "raw" events bypass X11 grabs, but grabs take priority.
-             If this process has the keyboard and mouse grabbed, it receives
-             the following events:
-
-               - X11 KeyPress, KeyRelease
-               - X11 ButtonPress, ButtonRelease
-               - X11 MotionNotify
-               - XInput XI_RawButtonPress, XI_RawButtonRelease
-               - XInput XI_RawMotion
-
-             Note that button and motion events are doubly reported, but
-             keyboard events are not.
-
-             If this process does *not* have the keyboard and mouse grabbed,
-             it receives the following events, regardless of the window in
-             which they occur:
-
-               - XInput XI_RawKeyPress, XI_RawKeyRelease
-               - XInput XI_RawButtonPress, XI_RawButtonRelease
-               - XInput XI_RawMotion
-
-             But here's an irritating kink: though XInput2 generally allows
-             snooping of everything, it respects GrabModeSync.  What this
-             means is that if some other process has the keyboard grabbed with
-             "Sync" instead of "Async", then this process will not see any of
-             the events until that process releases its grab, and then the
-             events come in late, all at once.  Verify this by running:
-
-               test-xinput &
-                  Note that keyboard and mouse events are detected.
-               test-grab --mouse --mouse-async --kbd-async
-                  Same.
-               test-grab --mouse --mouse-sync --kbd-async
-                  Keyboard events are detected.
-                  No motion or button events until "test-grab" is killed.
-               test-grab --mouse --mouse-async --kbd-sync
-                  Vice versa.
-           */
-
-          case KeyPress:
-          case KeyRelease:
-            if (current_state != AUTH &&  /* logged by xscreensaver-auth */
-                (verbose_p > 1 ||
-                 (verbose_p && now - active_at > 1)))
-              print_xinput_event (dpy, &xev, NULL, "");
-            active_at = now;
-            continue;
-            break;
-          case ButtonPress:
-          case ButtonRelease:
-            active_at = now;
-            if (verbose_p)
-              print_xinput_event (dpy, &xev, NULL, "");
-            continue;
-            break;
-          case MotionNotify:
-            /* Since we always get XI_RawMotion, but only get MotionNotify
-               when grabbed, we can just ignore MotionNotify and let the
-               XI_RawMotion clause handle hysteresis. */
-            if (verbose_p > 1)
-              print_xinput_event (dpy, &xev, NULL, "ignored");
-            continue;
-            break;
-          default:
-            break;
-          }
 
 
           /****************************************************************
@@ -2053,97 +2106,96 @@ main_loop (Display *dpy)
            ****************************************************************/
 
           if (xev.xcookie.type != GenericEvent ||
-              xev.xcookie.extension != xi_opcode)
-            continue;  /* not an XInput event */
+            xev.xcookie.extension != xi_opcode)
+            continue; /* not an XInput event */
 
-          if (!xev.xcookie.data)
-            XGetEventData (dpy, &xev.xcookie);
-          if (!xev.xcookie.data)
-            continue;  /* Bogus XInput event */
+          if (! xev.xcookie.data)
+            XGetEventData(dpy, &xev.xcookie);
+          if (! xev.xcookie.data)
+            continue; /* Bogus XInput event */
 
-          switch (xev.xcookie.evtype) {
-          case XI_RawKeyPress:
-          case XI_RawKeyRelease:
-          case XI_RawButtonPress:
-          case XI_RawButtonRelease:
-          case XI_RawTouchBegin:
-          case XI_RawTouchEnd:
-          case XI_RawTouchUpdate:
-            if (current_state != AUTH &&  /* logged by xscreensaver-auth */
-                (verbose_p > 1 ||
-                 (verbose_p && now - active_at > 1)))
-              print_xinput_event (dpy, &xev, NULL, "");
-            active_at = now;
-            break;
-
-          case XI_RawMotion:
+          switch (xev.xcookie.evtype)
             {
-              /* Mouse wheel scrolling sends Button4 and Button5 events as well
-                 as motion, so we handled those above, in XI_RawButtonPress.
-                 The raw_values in the motion event for a mouse wheel reflect
-                 the position of the wheel sensor.
+              case XI_RawKeyPress :
+              case XI_RawKeyRelease :
+              case XI_RawButtonPress :
+              case XI_RawButtonRelease :
+              case XI_RawTouchBegin :
+              case XI_RawTouchEnd :
+              case XI_RawTouchUpdate :
+                if (current_state != AUTH && /* logged by xscreensaver-auth */
+                  (verbose_p > 1 ||
+                    (verbose_p && now - active_at > 1)))
+                  print_xinput_event(dpy, &xev, NULL, "");
+                active_at= now;
+                break;
 
-                 On a trackpad where two-finger-swipe is a scroll gesture, I
-                 saw behavior identical to a mouse wheel -- it does not send
-                 RawTouch events.
-               */
-
-              /* Don't poll the mouse position more frequently than once
-                 a second.  The motion only counts as activity if it has
-                 moved farther than N pixels per second.
-               */
-              int secs = now - last_mouse.time;
-              if (secs >= 1)
+              case XI_RawMotion :
                 {
-                  int dist;
-                  Bool ignored_p = False;
-                  int root_x = last_mouse.x, root_y = last_mouse.y;
-                  query_pointer (dpy, &root_x, &root_y); 
-                  dist = MAX (ABS (last_mouse.x - root_x),
-                              ABS (last_mouse.y - root_y));
+                  /* Mouse wheel scrolling sends Button4 and Button5 events as well
+                     as motion, so we handled those above, in XI_RawButtonPress.
+                     The raw_values in the motion event for a mouse wheel reflect
+                     the position of the wheel sensor.
 
-                  ignored_p = (ignore_motion_p || dist < pointer_hysteresis);
+                     On a trackpad where two-finger-swipe is a scroll gesture, I
+                     saw behavior identical to a mouse wheel -- it does not send
+                     RawTouch events.
+                   */
 
-                  if (! ignored_p)
+                  /* Don't poll the mouse position more frequently than once
+                     a second.  The motion only counts as activity if it has
+                     moved farther than N pixels per second.
+                   */
+                  int secs= now - last_mouse.time;
+                  if (secs >= 1)
                     {
-                      active_at = now;
-                      last_mouse.time = now;
-                      last_mouse.x = root_x;
-                      last_mouse.y = root_y;
+                      int dist;
+                      Bool ignored_p= False;
+                      int root_x= last_mouse.x, root_y= last_mouse.y;
+                      query_pointer(dpy, &root_x, &root_y);
+                      dist= MAX(ABS(last_mouse.x - root_x),
+                        ABS(last_mouse.y - root_y));
+
+                      ignored_p= (ignore_motion_p || dist < pointer_hysteresis);
+
+                      if (! ignored_p)
+                        {
+                          active_at= now;
+                          last_mouse.time= now;
+                          last_mouse.x= root_x;
+                          last_mouse.y= root_y;
+                        }
+
+                      if (verbose_p > 1 ||
+                        (verbose_p && now - active_at > 5))
+                        print_xinput_event(dpy, &xev, NULL, (ignored_p ? " ignored" : ""));
                     }
-
-                  if (verbose_p > 1 ||
-                      (verbose_p && now - active_at > 5))
-                    print_xinput_event (dpy, &xev, NULL,
-                                        (ignored_p ? " ignored" : ""));
                 }
+                break;
+
+              default :
+                if (verbose_p)
+                  print_xinput_event(dpy, &xev, NULL, "");
+                break;
             }
-            break;
 
-          default:
-            if (verbose_p)
-              print_xinput_event (dpy, &xev, NULL, "");
-            break;
-          }
-
-          XFreeEventData (dpy, &xev.xcookie);
+          XFreeEventData(dpy, &xev.xcookie);
         }
 
 
-# ifdef HAVE_WAYLAND
+#ifdef HAVE_WAYLAND
       if (wdpy)
         {
-          wayland_dpy_process_events (wdpy, False);
+          wayland_dpy_process_events(wdpy, False);
           if (wayland_active_p)
             {
-              active_at = now;
-              wayland_active_p = False;
+              active_at= now;
+              wayland_active_p= False;
               if (verbose_p)
-                fprintf (stderr,"%s: wayland reports user activity\n",
-                         blurb());
+                fprintf(stderr, "%s: wayland reports user activity\n", blurb());
             }
         }
-# endif /* HAVE_WAYLAND */
+#endif /* HAVE_WAYLAND */
 
 
       /********************************************************************
@@ -2155,255 +2207,254 @@ main_loop (Display *dpy)
        */
       if (now >= last_checked_init_file + 60)
         {
-          last_checked_init_file = now;
+          last_checked_init_file= now;
           if (verbose_p)
-            fprintf(stderr,"%s: checking init file\n", blurb());
-          read_init_files (False);
+            fprintf(stderr, "%s: checking init file\n", blurb());
+          read_init_files(False);
         }
 
       /* Now that events have been processed, see if the state should change,
          based on any events received and the current time.
        */
-      switch (current_state) {
-      case UNBLANKED:
-        if (!locking_disabled_p &&
-            (force_lock_p ||
-             (lock_p && 
-              now >= active_at + blank_timeout + lock_timeout)))
-          {
-            if (verbose_p)
-              fprintf (stderr, "%s: locking\n", blurb());
-            if (grab_keyboard_and_mouse (mouse_screen (dpy)))
-              {
-                current_state = LOCKED;
-                blanked_at = now;
-                locked_at = now;
-                cursor_blanked_at = now;
-                authenticated_p = False;
-                store_saver_status (dpy, True, True, False, locked_at);
-              }
-            else
-              fprintf (stderr, "%s: unable to grab -- locking aborted!\n",
-                       blurb());
-
-            force_lock_p = False;   /* Single shot */
-          }
-        else if (force_blank_p ||
-                 now >= active_at + blank_timeout)
-          {
-            if (blanking_disabled_p && !force_blank_p)
+      switch (current_state)
+        {
+          case UNBLANKED :
+            if (! locking_disabled_p &&
+              (force_lock_p ||
+                (lock_p &&
+                  now >= active_at + blank_timeout + lock_timeout)))
               {
                 if (verbose_p)
-                  fprintf (stderr, "%s: not blanking: disabled\n", blurb());
-              }
-            else
-              {
-                if (verbose_p)
-                  fprintf (stderr, "%s: blanking\n", blurb());
-                if (grab_keyboard_and_mouse (mouse_screen (dpy)))
+                  fprintf(stderr, "%s: locking\n", blurb());
+                if (grab_keyboard_and_mouse(mouse_screen(dpy)))
                   {
-                    current_state = BLANKED;
-                    blanked_at = now;
-                    locked_at = 0;
-                    cursor_blanked_at = now;
-                    store_saver_status (dpy, True, False, False, blanked_at);
+                    current_state= LOCKED;
+                    blanked_at= now;
+                    locked_at= now;
+                    cursor_blanked_at= now;
+                    authenticated_p= False;
+                    store_saver_status(dpy, True, True, False, locked_at);
                   }
                 else
-                  fprintf (stderr, "%s: unable to grab -- blanking aborted!\n",
-                           blurb());
+                  {
+                    fprintf(stderr, "%s: unable to grab -- locking aborted!\n", blurb());
+                  }
+
+                force_lock_p= False; /* Single shot */
               }
-          }
-
-        if (current_state == BLANKED || current_state == LOCKED)
-          {
-            /* Grab succeeded and state changed: launch graphics. */
-            if (! saver_gfx_pid)
+            else if (force_blank_p ||
+              now >= active_at + blank_timeout)
               {
-                static Bool first_time_p = True;
-                char *av[20];
-                int ac = 0;
-                av[ac++] = SAVER_GFX_PROGRAM;
-                if (first_time_p)  av[ac++] = "--init";
-                if (verbose_p)     av[ac++] = "--verbose";
-                if (verbose_p > 1) av[ac++] = "--verbose";
-                if (verbose_p > 2) av[ac++] = "--verbose";
-                if (debug_p)       av[ac++] = "--debug";
-
-                if (blank_mode == XA_NEXT)
-                  av[ac++] = "--next";
-                else if (blank_mode == XA_PREV)
-                  av[ac++] = "--prev";
-                else if (blank_mode == XA_SELECT)
-                  av[ac++] = "--select";
-                else if (blank_mode == XA_DEMO)
-                  av[ac++] = "--demo";
-                else if (blank_mode == XA_SUSPEND)
-                  av[ac++] = "--emergency";
-                  
-                if (blank_mode == XA_SELECT || blank_mode == XA_DEMO)
-                  av[ac++] = blank_mode_arg;
-
-                av[ac] = 0;
-                gfx_stopped_p = False;
-                saver_gfx_pid = fork_and_exec (dpy, ac, av);
-                respawn_thrashing_count = 0;
-                first_time_p = False;
-              }
-          }
-        break;
-
-      case BLANKED:
-        if (!locking_disabled_p &&
-            (force_lock_p ||
-             (lock_p && 
-              now >= blanked_at + lock_timeout)))
-          {
-            if (verbose_p)
-              fprintf (stderr, "%s: locking%s\n", blurb(),
-                       (force_lock_p ? "" : " after timeout"));
-            current_state = LOCKED;
-            authenticated_p = False;
-            locked_at = now;
-            store_saver_status (dpy, True, True, False, locked_at);
-            force_lock_p = False;   /* Single shot */
-          }
-        else if (active_at >= now &&
-                 active_at >= ignore_activity_before)
-          {
-          UNBLANK:
-            if (verbose_p)
-              fprintf (stderr, "%s: unblanking\n", blurb());
-            current_state = UNBLANKED;
-            ignore_motion_p = False;
-            store_saver_status (dpy, False, False, False, now);
-
-            if (saver_gfx_pid)
-              {
-                if (verbose_p)
-                  fprintf (stderr,
-                           "%s: pid %lu: killing " SAVER_GFX_PROGRAM "\n",
-                           blurb(), (unsigned long) saver_gfx_pid);
-                kill (saver_gfx_pid, SIGTERM);
-                respawn_thrashing_count = 0;
-
-                if (gfx_stopped_p)  /* SIGCONT to allow SIGTERM to proceed */
+                if (blanking_disabled_p && ! force_blank_p)
                   {
                     if (verbose_p)
-                      fprintf (stderr, "%s: pid %lu: sending "
-                               SAVER_GFX_PROGRAM " SIGCONT\n",
-                               blurb(), (unsigned long) saver_gfx_pid);
-                    gfx_stopped_p = False;
-                    kill (-saver_gfx_pid, SIGCONT);  /* send to process group */
+                      fprintf(stderr, "%s: not blanking: disabled\n", blurb());
+                  }
+                else
+                  {
+                    if (verbose_p)
+                      fprintf(stderr, "%s: blanking\n", blurb());
+                    if (grab_keyboard_and_mouse(mouse_screen(dpy)))
+                      {
+                        current_state= BLANKED;
+                        blanked_at= now;
+                        locked_at= 0;
+                        cursor_blanked_at= now;
+                        store_saver_status(dpy, True, False, False, blanked_at);
+                      }
+                    else
+                      {
+                        fprintf(stderr, "%s: unable to grab -- blanking aborted!\n", blurb());
+                      }
                   }
               }
 
-            ungrab_keyboard_and_mouse (dpy);
-          }
-        break;
-
-      case LOCKED:
-        if (active_at >= now &&
-            active_at >= ignore_activity_before)
-          {
-            char *av[10];
-            int ac = 0;
-
-            if (saver_gfx_pid)
+            if (current_state == BLANKED || current_state == LOCKED)
               {
-                /* To suspend or not suspend?  If we don't suspend, then a
-                   misbehaving or heavily-loaded screenhack might make it more
-                   difficult to type in the password.  Though that seems pretty
-                   unlikely.
+                /* Grab succeeded and state changed: launch graphics. */
+                if (! saver_gfx_pid)
+                  {
+                    static Bool first_time_p= True;
+                    char *av [ 20 ];
+                    int ac= 0;
+                    av [ ac++ ]= SAVER_GFX_PROGRAM;
+                    if (first_time_p) av [ ac++ ]= "--init";
+                    if (verbose_p) av [ ac++ ]= "--verbose";
+                    if (verbose_p > 1) av [ ac++ ]= "--verbose";
+                    if (verbose_p > 2) av [ ac++ ]= "--verbose";
+                    if (debug_p) av [ ac++ ]= "--debug";
 
-                   But if we do suspend, then attaching a new monitor while
-                   the unlock dialog is up will cause a new desktop to be
-                   visible, since "xscreensaver-gfx" is the process that
-                   handles RANDR.  You can't interact with that new desktop,
-                   but you can see it, possibly including (depending on the
-                   window manager) the names of file icons on the desktop, or
-                   other things. */
-# if 0
+                    if (blank_mode == XA_NEXT)
+                      av [ ac++ ]= "--next";
+                    else if (blank_mode == XA_PREV)
+                      av [ ac++ ]= "--prev";
+                    else if (blank_mode == XA_SELECT)
+                      av [ ac++ ]= "--select";
+                    else if (blank_mode == XA_DEMO)
+                      av [ ac++ ]= "--demo";
+                    else if (blank_mode == XA_SUSPEND)
+                      av [ ac++ ]= "--emergency";
+
+                    if (blank_mode == XA_SELECT || blank_mode == XA_DEMO)
+                      av [ ac++ ]= blank_mode_arg;
+
+                    av [ ac ]= 0;
+                    gfx_stopped_p= False;
+                    saver_gfx_pid= fork_and_exec(dpy, ac, av);
+                    respawn_thrashing_count= 0;
+                    first_time_p= False;
+                  }
+              }
+            break;
+
+          case BLANKED :
+            if (! locking_disabled_p &&
+              (force_lock_p ||
+                (lock_p &&
+                  now >= blanked_at + lock_timeout)))
+              {
+                if (verbose_p)
+                  fprintf(stderr, "%s: locking%s\n", blurb(), (force_lock_p ? "" : " after timeout"));
+                current_state= LOCKED;
+                authenticated_p= False;
+                locked_at= now;
+                store_saver_status(dpy, True, True, False, locked_at);
+                force_lock_p= False; /* Single shot */
+              }
+            else if (active_at >= now &&
+              active_at >= ignore_activity_before)
+              {
+UNBLANK:
+                if (verbose_p)
+                  fprintf(stderr, "%s: unblanking\n", blurb());
+                current_state= UNBLANKED;
+                ignore_motion_p= False;
+                store_saver_status(dpy, False, False, False, now);
+
+                if (saver_gfx_pid)
+                  {
+                    if (verbose_p)
+                      fprintf(stderr,
+                        "%s: pid %lu: killing " SAVER_GFX_PROGRAM "\n",
+                        blurb(),
+                        (unsigned long) saver_gfx_pid);
+                    kill(saver_gfx_pid, SIGTERM);
+                    respawn_thrashing_count= 0;
+
+                    if (gfx_stopped_p) /* SIGCONT to allow SIGTERM to proceed */
+                      {
+                        if (verbose_p)
+                          fprintf(stderr, "%s: pid %lu: sending " SAVER_GFX_PROGRAM " SIGCONT\n", blurb(), (unsigned long) saver_gfx_pid);
+                        gfx_stopped_p= False;
+                        kill(-saver_gfx_pid, SIGCONT); /* send to process group */
+                      }
+                  }
+
+                ungrab_keyboard_and_mouse(dpy);
+              }
+            break;
+
+          case LOCKED :
+            if (active_at >= now &&
+              active_at >= ignore_activity_before)
+              {
+                char *av [ 10 ];
+                int ac= 0;
+
+                if (saver_gfx_pid)
+                  {
+                    /* To suspend or not suspend?  If we don't suspend, then a
+                       misbehaving or heavily-loaded screenhack might make it more
+                       difficult to type in the password.  Though that seems pretty
+                       unlikely.
+
+                       But if we do suspend, then attaching a new monitor while
+                       the unlock dialog is up will cause a new desktop to be
+                       visible, since "xscreensaver-gfx" is the process that
+                       handles RANDR.  You can't interact with that new desktop,
+                       but you can see it, possibly including (depending on the
+                       window manager) the names of file icons on the desktop, or
+                       other things. */
+#if 0
                 if (verbose_p)
                   fprintf (stderr, "%s: pid %lu: sending " SAVER_GFX_PROGRAM
                            " SIGSTOP\n", blurb(),
                            (unsigned long) saver_gfx_pid);
                 gfx_stopped_p = True;
                 kill (-saver_gfx_pid, SIGSTOP);  /* send to process group */
-# endif
-              }
+#endif
+                  }
 
-            if (verbose_p)
-              fprintf (stderr, "%s: authorizing\n", blurb());
-            current_state = AUTH;
-
-            /* We already hold the mouse grab, but try to re-grab it with
-               a different mouse pointer, so that the pointer shows up while
-               the auth dialog is raised.  We can ignore failures here. */
-            grab_mouse (mouse_screen (dpy), auth_cursor);
-
-            store_saver_status (dpy, True, True, True, locked_at);
-
-            av[ac++] = SAVER_AUTH_PROGRAM;
-            if (verbose_p)     av[ac++] = "--verbose";
-            if (verbose_p > 1) av[ac++] = "--verbose";
-            if (verbose_p > 2) av[ac++] = "--verbose";
-            if (debug_p)       av[ac++] = "--debug";
-            av[ac] = 0;
-            saver_auth_pid = fork_and_exec (dpy, ac, av);
-          }
-        break;
-
-      case AUTH:
-        if (saver_auth_pid)
-          {
-            /* xscreensaver-auth still running -- wait for it to exit. */
-          }
-        else if (authenticated_p)
-          {
-            /* xscreensaver-auth exited with "success" status */
-            if (verbose_p)
-              fprintf (stderr, "%s: unlocking\n", blurb());
-            authenticated_p = False;
-            goto UNBLANK;
-          }
-        else
-          {
-            /* xscreensaver-auth exited with non-success, or with signal. */
-            if (verbose_p)
-              fprintf (stderr, "%s: authorization failed\n", blurb());
-            current_state = LOCKED;
-            authenticated_p = False;
-
-            /* We already hold the mouse grab, but try to re-grab it with
-               a different mouse pointer, to hide the pointer again now that
-               the auth dialog is gone.  We can ignore failures here. */
-            grab_mouse (mouse_screen (dpy), blank_cursor);
-            cursor_blanked_at = now;
-
-            /* When the unlock dialog is dismissed, ignore any input for a
-               second to give the user time to take their hands off of the
-               keyboard and mouse, so that it doesn't pop up again
-               immediately. */
-            ignore_activity_before = now + 1;
-
-            store_saver_status (dpy, True, True, False, locked_at);
-
-            if (gfx_stopped_p)	/* SIGCONT to resume savers */
-              {
                 if (verbose_p)
-                  fprintf (stderr, "%s: pid %lu: sending " SAVER_GFX_PROGRAM
-                           " SIGCONT\n",
-                           blurb(), (unsigned long) saver_gfx_pid);
-                gfx_stopped_p = False;
-                kill (-saver_gfx_pid, SIGCONT);  /* send to process group */
-              }
-          }
-        break;
+                  fprintf(stderr, "%s: authorizing\n", blurb());
+                current_state= AUTH;
 
-      default:
-        /* abort(); */
-        break;
-      }
+                /* We already hold the mouse grab, but try to re-grab it with
+                   a different mouse pointer, so that the pointer shows up while
+                   the auth dialog is raised.  We can ignore failures here. */
+                grab_mouse(mouse_screen(dpy), auth_cursor);
+
+                store_saver_status(dpy, True, True, True, locked_at);
+
+                av [ ac++ ]= SAVER_AUTH_PROGRAM;
+                if (verbose_p) av [ ac++ ]= "--verbose";
+                if (verbose_p > 1) av [ ac++ ]= "--verbose";
+                if (verbose_p > 2) av [ ac++ ]= "--verbose";
+                if (debug_p) av [ ac++ ]= "--debug";
+                av [ ac ]= 0;
+                saver_auth_pid= fork_and_exec(dpy, ac, av);
+              }
+            break;
+
+          case AUTH :
+            if (saver_auth_pid)
+              {
+                /* xscreensaver-auth still running -- wait for it to exit. */
+              }
+            else if (authenticated_p)
+              {
+                /* xscreensaver-auth exited with "success" status */
+                if (verbose_p)
+                  fprintf(stderr, "%s: unlocking\n", blurb());
+                authenticated_p= False;
+                goto UNBLANK;
+              }
+            else
+              {
+                /* xscreensaver-auth exited with non-success, or with signal. */
+                if (verbose_p)
+                  fprintf(stderr, "%s: authorization failed\n", blurb());
+                current_state= LOCKED;
+                authenticated_p= False;
+
+                /* We already hold the mouse grab, but try to re-grab it with
+                   a different mouse pointer, to hide the pointer again now that
+                   the auth dialog is gone.  We can ignore failures here. */
+                grab_mouse(mouse_screen(dpy), blank_cursor);
+                cursor_blanked_at= now;
+
+                /* When the unlock dialog is dismissed, ignore any input for a
+                   second to give the user time to take their hands off of the
+                   keyboard and mouse, so that it doesn't pop up again
+                   immediately. */
+                ignore_activity_before= now + 1;
+
+                store_saver_status(dpy, True, True, False, locked_at);
+
+                if (gfx_stopped_p) /* SIGCONT to resume savers */
+                  {
+                    if (verbose_p)
+                      fprintf(stderr, "%s: pid %lu: sending " SAVER_GFX_PROGRAM " SIGCONT\n", blurb(), (unsigned long) saver_gfx_pid);
+                    gfx_stopped_p= False;
+                    kill(-saver_gfx_pid, SIGCONT); /* send to process group */
+                  }
+              }
+            break;
+
+          default :
+            /* abort(); */
+            break;
+        }
     }
 }
 
@@ -2412,13 +2463,14 @@ main_loop (Display *dpy)
    it is, turn that off.
  */
 static const char *
-disavow_privileges (void)
+  disavow_privileges(
+    void)
 {
-  static char msg[255];
-  uid_t euid = geteuid();
-  gid_t egid = getegid();
-  uid_t uid = getuid();
-  gid_t gid = getgid();
+  static char msg [ 255 ];
+  uid_t euid= geteuid();
+  gid_t egid= getegid();
+  uid_t uid= getuid();
+  gid_t gid= getgid();
 
   if (uid == euid && gid == egid)
     return 0;
@@ -2428,224 +2480,229 @@ disavow_privileges (void)
      But setgroups() can only be called by root, and returns EPERM for other
      users even if the call would be a no-op.  So ignore its error status.
    */
-  setgroups (1, &gid);
+  setgroups(1, &gid);
 
-  if (gid != egid && setgid (gid) != 0)
+  if (gid != egid && setgid(gid) != 0)
     {
-      fprintf (stderr, "%s: setgid %d -> %d failed\n", blurb(), egid, gid);
-      exit (1);
+      fprintf(stderr, "%s: setgid %d -> %d failed\n", blurb(), egid, gid);
+      exit(1);
     }
 
-  if (uid != euid && setgid (gid) != 0)
+  if (uid != euid && setgid(gid) != 0)
     {
-      fprintf (stderr, "%s: setuid %d -> %d failed\n", blurb(), euid, uid);
-      exit (1);
+      fprintf(stderr, "%s: setuid %d -> %d failed\n", blurb(), euid, uid);
+      exit(1);
     }
 
   /* Return the message since this is before verbose_p is set or log opened. */
-  sprintf (msg, "setuid %d:%d -> %d:%d", euid, egid, uid, gid);
+  sprintf(msg, "setuid %d:%d -> %d:%d", euid, egid, uid, gid);
   return msg;
 }
 
 
-int
-main (int argc, char **argv)
+int main(
+  int argc,
+  char **argv)
 {
-  Display *dpy = 0;
-  char *dpy_str = getenv ("DISPLAY");
-  char *logfile = 0;
-  Bool sync_p = False;
-  Bool cmdline_verbose_val = False, cmdline_verbose_p = False;
-  Bool cmdline_splash_val  = False, cmdline_splash_p  = False;
+  Display *dpy= 0;
+  char *dpy_str= getenv("DISPLAY");
+  char *logfile= 0;
+  Bool sync_p= False;
+  Bool cmdline_verbose_val= False, cmdline_verbose_p= False;
+  Bool cmdline_splash_val= False, cmdline_splash_p= False;
   const char *s;
   const char *pmsg;
   int i;
 
-  progname = argv[0];
-  s = strrchr (progname, '/');
-  if (s) progname = s+1;
+  progname= argv [ 0 ];
+  s= strrchr(progname, '/');
+  if (s) progname= s + 1;
 
-  pmsg = disavow_privileges();
+  pmsg= disavow_privileges();
 
-  fclose (stdin);
+  fclose(stdin);
   fix_fds();
 
-  for (i = 1; i < argc; i++)
+  for (i= 1; i < argc; i++)
     {
-      const char *oa = argv[i];
+      const char *oa= argv [ i ];
       /* XScreenSaver predates the "--arg" convention. */
-      if (argv[i][0] == '-' && argv[i][1] == '-')
-        argv[i]++;
+      if (argv [ i ][ 0 ] == '-' && argv [ i ][ 1 ] == '-')
+        argv [ i ]++;
 
-      if (!strcmp (argv[i], "-debug"))
-        debug_p = True;
-      else if (!strcmp (argv[i], "-v") || !strcmp (argv[i], "-verbose"))
+      if (! strcmp(argv [ i ], "-debug"))
+        {
+          debug_p= True;
+        }
+      else if (! strcmp(argv [ i ], "-v") || ! strcmp(argv [ i ], "-verbose"))
         {
           verbose_p++;
-          cmdline_verbose_p = True, cmdline_verbose_val = verbose_p;
+          cmdline_verbose_p= True, cmdline_verbose_val= verbose_p;
         }
-      else if (!strcmp (argv[i], "-vv"))
+      else if (! strcmp(argv [ i ], "-vv"))
         {
-          verbose_p += 2;
-          cmdline_verbose_p = True, cmdline_verbose_val = verbose_p;
+          verbose_p+= 2;
+          cmdline_verbose_p= True, cmdline_verbose_val= verbose_p;
         }
-      else if (!strcmp (argv[i], "-vvv"))
+      else if (! strcmp(argv [ i ], "-vvv"))
         {
-          verbose_p += 3;
-          cmdline_verbose_p = True, cmdline_verbose_val = verbose_p;
+          verbose_p+= 3;
+          cmdline_verbose_p= True, cmdline_verbose_val= verbose_p;
         }
-      else if (!strcmp (argv[i], "-vvvv"))
+      else if (! strcmp(argv [ i ], "-vvvv"))
         {
-          verbose_p += 4;
-          cmdline_verbose_p = True, cmdline_verbose_val = verbose_p;
+          verbose_p+= 4;
+          cmdline_verbose_p= True, cmdline_verbose_val= verbose_p;
         }
-      else if (!strcmp (argv[i], "-q") || !strcmp (argv[i], "-quiet"))
+      else if (! strcmp(argv [ i ], "-q") || ! strcmp(argv [ i ], "-quiet"))
         {
-          verbose_p = 0;
-          cmdline_verbose_p = True, cmdline_verbose_val = verbose_p;
+          verbose_p= 0;
+          cmdline_verbose_p= True, cmdline_verbose_val= verbose_p;
         }
-      else if (!strcmp (argv[i], "-splash"))
+      else if (! strcmp(argv [ i ], "-splash"))
         {
-          splash_p = True;
-          cmdline_splash_p = True, cmdline_splash_val = splash_p;
+          splash_p= True;
+          cmdline_splash_p= True, cmdline_splash_val= splash_p;
         }
-      else if (!strcmp (argv[i], "-no-splash") ||
-               !strcmp (argv[i], "-nosplash"))
+      else if (! strcmp(argv [ i ], "-no-splash") ||
+        ! strcmp(argv [ i ], "-nosplash"))
         {
-          splash_p = False;
-          cmdline_splash_p = True, cmdline_splash_val = splash_p;
+          splash_p= False;
+          cmdline_splash_p= True, cmdline_splash_val= splash_p;
         }
-      else if (!strcmp (argv[i], "-log"))
+      else if (! strcmp(argv [ i ], "-log"))
         {
-          logfile = argv[++i];
-          if (!logfile) goto HELP;
-          if (! verbose_p)  /* might already be -vv */
-            verbose_p = cmdline_verbose_p = cmdline_verbose_val = True;
+          logfile= argv [ ++i ];
+          if (! logfile) goto HELP;
+          if (! verbose_p) /* might already be -vv */
+            verbose_p= cmdline_verbose_p= cmdline_verbose_val= True;
         }
-      else if (!strcmp (argv[i], "-ver") ||
-               !strcmp (argv[i], "-vers") ||
-               !strcmp (argv[i], "-version"))
+      else if (! strcmp(argv [ i ], "-ver") ||
+        ! strcmp(argv [ i ], "-vers") ||
+        ! strcmp(argv [ i ], "-version"))
         {
-          fprintf (stderr, "%s\n", screensaver_id+4);
-          exit (1);
+          fprintf(stderr, "%s\n", screensaver_id + 4);
+          exit(1);
         }
-      else if (!strcmp (argv[i], "-d") ||
-               !strcmp (argv[i], "-dpy") ||
-               !strcmp (argv[i], "-disp") ||
-               !strcmp (argv[i], "-display"))
+      else if (! strcmp(argv [ i ], "-d") ||
+        ! strcmp(argv [ i ], "-dpy") ||
+        ! strcmp(argv [ i ], "-disp") ||
+        ! strcmp(argv [ i ], "-display"))
         {
-          dpy_str = argv[++i];
-          if (!dpy_str) goto HELP;
+          dpy_str= argv [ ++i ];
+          if (! dpy_str) goto HELP;
         }
-      else if (!strcmp (argv[i], "-sync") ||
-               !strcmp (argv[i], "-synch") ||
-               !strcmp (argv[i], "-synchronize") ||
-               !strcmp (argv[i], "-synchronise"))
-        sync_p = True;
-      else if (!strcmp (argv[i], "-h") || !strcmp (argv[i], "-help"))
+      else if (! strcmp(argv [ i ], "-sync") ||
+        ! strcmp(argv [ i ], "-synch") ||
+        ! strcmp(argv [ i ], "-synchronize") ||
+        ! strcmp(argv [ i ], "-synchronise"))
         {
-        HELP:
+          sync_p= True;
+        }
+      else if (! strcmp(argv [ i ], "-h") || ! strcmp(argv [ i ], "-help"))
+        {
+HELP:
           print_banner();
-          fprintf (stderr, 
-                   "\t\thttps://www.jwz.org/xscreensaver/\n"
-                   "\n"
-                   "\tOptions:\n\n"
-                   "\t\t--dpy host:display.screen\n"
-                   "\t\t--verbose\n"
-                   "\t\t--no-splash\n"
-                   "\t\t--log logfile\n"
-                   "\t\t--version\n"
-                   "\n"
-                   "\tRun 'xscreensaver-settings' to configure.\n"
-                   "\n");
-          saver_exit (1);
+          fprintf(stderr,
+            "\t\thttps://www.jwz.org/xscreensaver/\n"
+            "\n"
+            "\tOptions:\n\n"
+            "\t\t--dpy host:display.screen\n"
+            "\t\t--verbose\n"
+            "\t\t--no-splash\n"
+            "\t\t--log logfile\n"
+            "\t\t--version\n"
+            "\n"
+            "\tRun 'xscreensaver-settings' to configure.\n" "\n");
+          saver_exit(1);
         }
       else
         {
-          fprintf (stderr, "\n%s: unknown option: %s\n\n", blurb(), oa);
+          fprintf(stderr, "\n%s: unknown option: %s\n\n", blurb(), oa);
           goto HELP;
         }
     }
 
   if (logfile)
     {
-      int stdout_fd = 1;
-      int stderr_fd = 2;
-      int fd = open (logfile, O_WRONLY | O_APPEND | O_CREAT, 0666);
+      int stdout_fd= 1;
+      int stderr_fd= 2;
+      int fd= open(logfile, O_WRONLY | O_APPEND | O_CREAT, 0666);
       if (fd < 0)
         {
-          char buf[255];
-        FAIL:
-          sprintf (buf, "%.100s: %.100s", blurb(), logfile);
-          perror (buf);
-          fflush (stderr);
-          fflush (stdout);
-          saver_exit (1);
+          char buf [ 255 ];
+FAIL:
+          sprintf(buf, "%.100s: %.100s", blurb(), logfile);
+          perror(buf);
+          fflush(stderr);
+          fflush(stdout);
+          saver_exit(1);
         }
 
-      fprintf (stderr, "%s: logging to file %s\n", blurb(), logfile);
+      fprintf(stderr, "%s: logging to file %s\n", blurb(), logfile);
 
-      if (dup2 (fd, stdout_fd) < 0) goto FAIL;
-      if (dup2 (fd, stderr_fd) < 0) goto FAIL;
+      if (dup2(fd, stdout_fd) < 0) goto FAIL;
+      if (dup2(fd, stderr_fd) < 0) goto FAIL;
 
-      fprintf (stderr, "\n\n"
-               "#####################################"
-               "#####################################\n"
-               "%s: logging to \"%s\"\n"
-               "#####################################"
-               "#####################################\n"
-               "\n",
-               blurb(), logfile);
+      fprintf(stderr,
+        "\n\n"
+        "#####################################"
+        "#####################################\n"
+        "%s: logging to \"%s\"\n"
+        "#####################################"
+        "#####################################\n" "\n",
+        blurb(),
+        logfile);
 
-      if (!verbose_p)
-        verbose_p = True;
-      cmdline_verbose_val = verbose_p;
+      if (! verbose_p)
+        verbose_p= True;
+      cmdline_verbose_val= verbose_p;
     }
 
-  save_argv (argc, argv);
+  save_argv(argc, argv);
   hack_environment();
   print_banner();
-  read_init_files (True);
+  read_init_files(True);
 
   /* Command line overrides init file */
-  if (cmdline_verbose_p) verbose_p = cmdline_verbose_val;
-  if (cmdline_splash_p)  splash_p  = cmdline_splash_val;
+  if (cmdline_verbose_p) verbose_p= cmdline_verbose_val;
+  if (cmdline_splash_p) splash_p= cmdline_splash_val;
 
   if (verbose_p)
-    fprintf (stderr, "%s: running in process %lu\n", blurb(),
-             (unsigned long) getpid());
+    fprintf(stderr, "%s: running in process %lu\n", blurb(), (unsigned long) getpid());
 
   if (verbose_p && pmsg)
-    fprintf (stderr, "%s: %s\n", blurb(), pmsg);
+    fprintf(stderr, "%s: %s\n", blurb(), pmsg);
 
   if (! dpy_str)
     {
-      dpy_str = ":0.0";
-      fprintf (stderr,
-               "%s: warning: $DISPLAY is not set: defaulting to \"%s\"\n",
-               blurb(), dpy_str);
+      dpy_str= ":0.0";
+      fprintf(stderr,
+        "%s: warning: $DISPLAY is not set: defaulting to \"%s\"\n",
+        blurb(),
+        dpy_str);
     }
 
   /* Copy the --display arg to $DISPLAY for subprocesses. */
   {
-    char *s = (char *) malloc (strlen(dpy_str) + 20);
-    sprintf (s, "DISPLAY=%s", dpy_str);
-    putenv (s);
-    /* free (s); */  /* some versions of putenv do not copy */
+    char *s= (char *) malloc(strlen(dpy_str) + 20);
+    sprintf(s, "DISPLAY=%s", dpy_str);
+    putenv(s);
+    /* free (s); */ /* some versions of putenv do not copy */
   }
 
-  dpy = XOpenDisplay (dpy_str);
-  if (!dpy) saver_exit (1);
+  dpy= XOpenDisplay(dpy_str);
+  if (! dpy) saver_exit(1);
 
   if (sync_p)
     {
-      XSynchronize (dpy, True);
-      XSync (dpy, False);
+      XSynchronize(dpy, True);
+      XSync(dpy, False);
     }
 
-  XSetErrorHandler (error_handler);
+  XSetErrorHandler(error_handler);
 
-  main_loop (dpy);
-  saver_exit (0);
+  main_loop(dpy);
+  saver_exit(0);
   return (1);
 }

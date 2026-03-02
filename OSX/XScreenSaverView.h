@@ -5,7 +5,7 @@
  * the above copyright notice appear in all copies and that both that
  * copyright notice and this permission notice appear in supporting
  * documentation.  No representations are made about the suitability of this
- * software for any purpose.  It is provided "as is" without express or 
+ * software for any purpose.  It is provided "as is" without express or
  * implied warranty.
  */
 
@@ -16,19 +16,19 @@
  */
 
 #ifdef HAVE_IPHONE
-# import <Foundation/Foundation.h>
-# import <UIKit/UIKit.h>
-# define NSView  UIView
-# define NSRect  CGRect
-# define NSSize  CGSize
-# define NSColor UIColor
-# define NSImage UIImage
-# define NSEvent UIEvent
-# define NSWindow UIWindow
-# define NSOpenGLContext EAGLContext
+#import <Foundation/Foundation.h>
+#import <UIKit/UIKit.h>
+#define NSView  UIView
+#define NSRect  CGRect
+#define NSSize  CGSize
+#define NSColor UIColor
+#define NSImage UIImage
+#define NSEvent UIEvent
+#define NSWindow UIWindow
+#define NSOpenGLContext EAGLContext
 #else
-# import <Cocoa/Cocoa.h>
-# import <ScreenSaver/ScreenSaver.h>
+#import <Cocoa/Cocoa.h>
+#import <ScreenSaver/ScreenSaver.h>
 #endif
 
 
@@ -37,17 +37,17 @@
 
 #ifdef HAVE_IPHONE
 
-# if TARGET_OS_TV && !defined(HAVE_TVOS)
-   // We aren't receiving this from Xcode when compiling libjwxyz.a for tvOS.
-#  define HAVE_TVOS 1
-# endif
+#if TARGET_OS_TV && ! defined(HAVE_TVOS)
+// We aren't receiving this from Xcode when compiling libjwxyz.a for tvOS.
+#define HAVE_TVOS 1
+#endif
 
 @class XScreenSaverView;
 
 @protocol XScreenSaverViewDelegate
-- (void) wantsFadeOut:(XScreenSaverView *)saverView;
-- (void) didShake:(XScreenSaverView *)saverView;
-- (void) openPreferences: (NSString *)which;
+- (void)wantsFadeOut:(XScreenSaverView *)saverView;
+- (void)didShake:(XScreenSaverView *)saverView;
+- (void)openPreferences:(NSString *)which;
 @end
 
 @interface ScreenSaverView : NSView
@@ -60,7 +60,7 @@
 - (void)animateOneFrame;
 - (BOOL)hasConfigureSheet;
 //- (NSWindow*)configureSheet;
-- (UIViewController*)configureView;
+- (UIViewController *)configureView;
 - (BOOL)isPreview;
 @end
 
@@ -68,37 +68,37 @@
 
 
 // Currently only OpenGL backbuffers are supported (OSX and iOS).
-# define BACKBUFFER_OPENGL
+#define BACKBUFFER_OPENGL
 
 @interface XScreenSaverView : ScreenSaverView
-# if defined(HAVE_TVOS)
-			      <UIApplicationDelegate>
-# elif defined(HAVE_IPHONE)
-			      <UIAlertViewDelegate>
-# endif
+#if defined(HAVE_TVOS)
+                              <UIApplicationDelegate>
+#elif defined(HAVE_IPHONE)
+                              <UIAlertViewDelegate>
+#endif
 {
   struct xscreensaver_function_table *xsft;
   PrefsReader *prefsReader;
-  NSString *saver_title;  // "Möbius Gears", not "MoebiusGears"
+  NSString *saver_title; // "Möbius Gears", not "MoebiusGears"
 
-  BOOL setup_p;		   // whether xsft->setup_cb() has been run
-  BOOL initted_p;          // whether xsft->init_cb() has been run
-  BOOL resized_p;	   // whether to run the xsft->reshape_cb() soon
-  double next_frame_time;  // time_t in milliseconds of when to tick the frame
+  BOOL setup_p;           // whether xsft->setup_cb() has been run
+  BOOL initted_p;         // whether xsft->init_cb() has been run
+  BOOL resized_p;         // whether to run the xsft->reshape_cb() soon
+  double next_frame_time; // time_t in milliseconds of when to tick the frame
 
   // Data used by the Xlib-flavored screensaver
   Display *xdpy;
   Window xwindow;
   void *xdata;
   fps_state *fpst;
-  void (*fps_cb) (Display *, Window, fps_state *, void *);
+  void (*fps_cb)(Display *, Window, fps_state *, void *);
 
-  BOOL _lowrez_p;		// Whether the saver prefers 1990s pixels.
+  BOOL _lowrez_p; // Whether the saver prefers 1990s pixels.
 
-# ifdef HAVE_IPHONE
+#ifdef HAVE_IPHONE
   BOOL screenLocked;
-  BOOL _ignoreRotation;		// whether hack requested "always portrait".
-				// some want this, some do not.
+  BOOL _ignoreRotation; // whether hack requested "always portrait".
+                        // some want this, some do not.
   NSTimer *crash_timer;
   NSTimer *cycle_timer;
 
@@ -111,19 +111,19 @@
 
   CGAffineTransform pinch_transform;
 
-# else // !USE_PHONE
+#else // !USE_PHONE
 
   NSOpenGLPixelFormat *pixfmt;
 
-# endif // !HAVE_IPHONE
+#endif // !HAVE_IPHONE
 
-  NSOpenGLContext *ogl_ctx;      // OpenGL rendering context
+  NSOpenGLContext *ogl_ctx; // OpenGL rendering context
 
-# ifdef JWXYZ_QUARTZ
+#ifdef JWXYZ_QUARTZ
   CGContextRef backbuffer;
   CGColorSpaceRef colorspace;
 
-#  ifdef BACKBUFFER_OPENGL
+#ifdef BACKBUFFER_OPENGL
   void *backbuffer_data;
   GLsizei backbuffer_len;
 
@@ -132,35 +132,35 @@
   GLuint backbuffer_texture;
   GLenum gl_texture_target;
   GLenum gl_pixel_format, gl_pixel_type;
-#   ifndef HAVE_IPHONE
+#ifndef HAVE_IPHONE
   BOOL double_buffered_p, gl_apple_client_storage_p;
-#   else // HAVE_IPHONE
+#else  // HAVE_IPHONE
   BOOL gl_limited_npot_p;
   GLuint gl_framebuffer, gl_renderbuffer;
-#   endif // HAVE_IPHONE
-#  endif
+#endif // HAVE_IPHONE
+#endif
 
-# endif // JWXYZ_QUARTZ
+#endif // JWXYZ_QUARTZ
 
-# if defined JWXYZ_GL && defined HAVE_IPHONE
+#if defined JWXYZ_GL && defined HAVE_IPHONE
   NSOpenGLContext *ogl_ctx_pixmap;
-# endif // JWXYZ_GL && HAVE_IPHONE
+#endif // JWXYZ_GL && HAVE_IPHONE
 }
 
-- (id)initWithFrame:(NSRect)f title:(NSString*)t isPreview:(BOOL)p
+- (id)initWithFrame:(NSRect)f title:(NSString *)t isPreview:(BOOL)p
          randomizer:(BOOL)r;
-- (id)initWithFrame:(NSRect)f title:(NSString*)t isPreview:(BOOL)p;
+- (id)initWithFrame:(NSRect)f title:(NSString *)t isPreview:(BOOL)p;
 - (id)initWithFrame:(NSRect)f isPreview:(BOOL)p randomizer:(BOOL)r;
-- (void) stopAnimationWithException:(NSException *)e;
+- (void)stopAnimationWithException:(NSException *)e;
 
-- (void) render_x11;
-- (NSOpenGLContext *) oglContext;
-- (void) prepareContext;
-- (NSUserDefaultsController *) userDefaultsController;
-+ (NSString *) decompressXML:(NSData *)xml;
+- (void)render_x11;
+- (NSOpenGLContext *)oglContext;
+- (void)prepareContext;
+- (NSUserDefaultsController *)userDefaultsController;
++ (NSString *)decompressXML:(NSData *)xml;
 
-- (CGFloat) hackedContentScaleFactor;
-- (CGFloat) hackedContentScaleFactor:(BOOL)fonts_p;
+- (CGFloat)hackedContentScaleFactor;
+- (CGFloat)hackedContentScaleFactor:(BOOL)fonts_p;
 
 #ifdef HAVE_IPHONE
 - (void)setScreenLocked:(BOOL)locked;
@@ -172,7 +172,7 @@
 @property (nonatomic) BOOL ignoreRotation;
 - (BOOL)suppressRotationAnimation;
 - (BOOL)rotateTouches;
-#else // !HAVE_IPHONE
+#else  // !HAVE_IPHONE
 - (NSOpenGLPixelFormat *)getGLPixelFormat;
 #endif // !HAVE_IPHONE
 

@@ -13,6 +13,6 @@
 #define __DOUBLETIME_H__
 
 /* Current time as a double, with (probably) microsecond accuracy. */
-extern double double_time (void);
+extern double double_time(void);
 
 #endif /* __DOUBLETIME_H__ */

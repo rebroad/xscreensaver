@@ -33,17 +33,17 @@ static const char sccsid[] = "@(#)grav.c	5.00 2000/11/01 xlockmore";
 					"*count: 12 \n" \
 					"*ncolors: 64 \n" \
 					"*fpsSolid: true \n" \
-					"*ignoreRotation: True \n" \
+					"*ignoreRotation: True \n"
 
 /*				    "*lowrez: True \n" \ */
 
 #define BRIGHT_COLORS
-# define release_grav 0
-# define grav_handle_event 0
-# include "xlockmore.h"		/* in xscreensaver distribution */
-#else /* STANDALONE */
-# include "xlock.h"		/* in xlockmore distribution */
-#endif /* STANDALONE */
+#define release_grav 0
+#define grav_handle_event 0
+#include "xlockmore.h" /* in xscreensaver distribution */
+#else                  /* STANDALONE */
+#include "xlock.h"     /* in xlockmore distribution */
+#endif                 /* STANDALONE */
 
 #ifdef MODE_grav
 
@@ -53,33 +53,27 @@ static const char sccsid[] = "@(#)grav.c	5.00 2000/11/01 xlockmore";
 static Bool decay;
 static Bool trail;
 
-static XrmOptionDescRec opts[] =
-{
-	{"-decay", ".grav.decay", XrmoptionNoArg, "on"},
-	{"+decay", ".grav.decay", XrmoptionNoArg, "off"},
-	{"-trail", ".grav.trail", XrmoptionNoArg, "on"},
-	{"+trail", ".grav.trail", XrmoptionNoArg, "off"}
-};
-static argtype vars[] =
-{
-	{&decay, "decay", "Decay", DEF_DECAY, t_Bool},
-	{&trail, "trail", "Trail", DEF_TRAIL, t_Bool}
-};
-static OptionStruct desc[] =
-{
-	{"-/+decay", "turn on/off decaying orbits"},
-	{"-/+trail", "turn on/off trail dots"}
-};
+static XrmOptionDescRec opts []=
+  {
+    {"-decay", ".grav.decay", XrmoptionNoArg, "on"},
+    {"+decay", ".grav.decay", XrmoptionNoArg, "off"},
+    {"-trail", ".grav.trail", XrmoptionNoArg, "on"},
+    {"+trail", ".grav.trail", XrmoptionNoArg, "off"}};
+static argtype vars []=
+  {
+    {&decay, "decay", "Decay", DEF_DECAY, t_Bool},
+    {&trail, "trail", "Trail", DEF_TRAIL, t_Bool}};
+static OptionStruct desc []=
+  {
+    {"-/+decay", "turn on/off decaying orbits"},
+    {"-/+trail", "turn on/off trail dots"}};
 
-ENTRYPOINT ModeSpecOpt grav_opts =
-{sizeof opts / sizeof opts[0], opts, sizeof vars / sizeof vars[0], vars, desc};
+ENTRYPOINT ModeSpecOpt grav_opts=
+  {sizeof opts / sizeof opts [ 0 ], opts, sizeof vars / sizeof vars [ 0 ], vars, desc};
 
 #ifdef USE_MODULES
-ModStruct   grav_description =
-{"grav", "init_grav", "draw_grav", (char *) NULL,
- "refresh_grav", "init_grav", "free_grav", &grav_opts,
- 10000, -12, 1, 1, 64, 1.0, "",
- "Shows orbiting planets", 0, NULL};
+ModStruct grav_description=
+  {"grav", "init_grav", "draw_grav", (char *) NULL, "refresh_grav", "init_grav", "free_grav", &grav_opts, 10000, -12, 1, 1, 64, 1.0, "", "Shows orbiting planets", 0, NULL};
 
 #endif
 
@@ -112,248 +106,270 @@ ModStruct   grav_description =
 #define VEL(c) planet->V[c]
 #define ACC(c) planet->A[c]
 
-#define Planet(x,y)\
+#define Planet(x, y)\
   if ((x) >= 0 && (y) >= 0 && (x) <= gp->width && (y) <= gp->height) {\
      XFillArc(display, window, gc,\
       (x) - planet->ri / 2, (y) - planet->ri / 2, planet->ri, planet->ri,\
       0, 23040);\
    }
 
-#define FLOATRAND(min,max)	((min)+(LRAND()/MAXRAND)*((max)-(min)))
+#define FLOATRAND(min, max)	((min)+(LRAND()/MAXRAND)*((max)-(min)))
 
-typedef struct {
-	double      P[DIMENSIONS], V[DIMENSIONS], A[DIMENSIONS];
-	int         xi, yi, ri;
-	unsigned long colors;
+typedef struct
+{
+    double P [ DIMENSIONS ], V [ DIMENSIONS ], A [ DIMENSIONS ];
+    int xi, yi, ri;
+    unsigned long colors;
 } planetstruct;
 
-typedef struct {
-	int         width, height;
-	int         x, y, sr, nplanets;
-	unsigned long starcolor;
-	planetstruct *planets;
+typedef struct
+{
+    int width, height;
+    int x, y, sr, nplanets;
+    unsigned long starcolor;
+    planetstruct *planets;
 } gravstruct;
 
-static gravstruct *gravs = (gravstruct *) NULL;
+static gravstruct *gravs= (gravstruct *) NULL;
 
 static void
-init_planet(ModeInfo * mi, planetstruct * planet)
+  init_planet(
+    ModeInfo *mi,
+    planetstruct *planet)
 {
-	gravstruct *gp = &gravs[MI_SCREEN(mi)];
+  gravstruct *gp= &gravs [ MI_SCREEN(mi) ];
 
-# ifdef HAVE_JWXYZ
-    jwxyz_XSetAntiAliasing (MI_DISPLAY(mi), MI_GC(mi), False);
-# endif
+#ifdef HAVE_JWXYZ
+  jwxyz_XSetAntiAliasing(MI_DISPLAY(mi), MI_GC(mi), False);
+#endif
 
-	if (MI_NPIXELS(mi) > 2)
-		planet->colors = MI_PIXEL(mi, NRAND(MI_NPIXELS(mi)));
-	else
-		planet->colors = MI_WHITE_PIXEL(mi);
-	/* Initialize positions */
-	POS(X) = FLOATRAND(-XR, XR);
-	POS(Y) = FLOATRAND(-YR, YR);
-	POS(Z) = FLOATRAND(-ZR, ZR);
+  if (MI_NPIXELS(mi) > 2)
+    planet->colors= MI_PIXEL(mi, NRAND(MI_NPIXELS(mi)));
+  else
+    planet->colors= MI_WHITE_PIXEL(mi);
+  /* Initialize positions */
+  POS(X)= FLOATRAND(-XR, XR);
+  POS(Y)= FLOATRAND(-YR, YR);
+  POS(Z)= FLOATRAND(-ZR, ZR);
 
-	if (POS(Z) > -ALMOST) {
-		planet->xi = (int)
-			((double) gp->width * (HALF + POS(X) / (POS(Z) + DIST)));
-		planet->yi = (int)
-			((double) gp->height * (HALF + POS(Y) / (POS(Z) + DIST)));
-	} else
-		planet->xi = planet->yi = -1;
-	planet->ri = RADIUS;
+  if (POS(Z) > -ALMOST)
+    {
+      planet->xi= (int) ((double) gp->width * (HALF + POS(X) / (POS(Z) + DIST)));
+      planet->yi= (int) ((double) gp->height * (HALF + POS(Y) / (POS(Z) + DIST)));
+    }
+  else
+    {
+      planet->xi= planet->yi= -1;
+    }
+  planet->ri= RADIUS;
 
-	/* Initialize velocities */
-	VEL(X) = FLOATRAND(-VR, VR);
-	VEL(Y) = FLOATRAND(-VR, VR);
-	VEL(Z) = FLOATRAND(-VR, VR);
+  /* Initialize velocities */
+  VEL(X)= FLOATRAND(-VR, VR);
+  VEL(Y)= FLOATRAND(-VR, VR);
+  VEL(Z)= FLOATRAND(-VR, VR);
 }
 
 static void
-draw_planet(ModeInfo * mi, planetstruct * planet)
+  draw_planet(
+    ModeInfo *mi,
+    planetstruct *planet)
 {
-	Display    *display = MI_DISPLAY(mi);
-	Window      window = MI_WINDOW(mi);
-	GC          gc = MI_GC(mi);
-	gravstruct *gp = &gravs[MI_SCREEN(mi)];
-	double      D;		/* A distance variable to work with */
-	register unsigned char cmpt;
+  Display *display= MI_DISPLAY(mi);
+  Window window= MI_WINDOW(mi);
+  GC gc= MI_GC(mi);
+  gravstruct *gp= &gravs [ MI_SCREEN(mi) ];
+  double D; /* A distance variable to work with */
+  register unsigned char cmpt;
 
-	D = POS(X) * POS(X) + POS(Y) * POS(Y) + POS(Z) * POS(Z);
-	if (D < COLLIDE)
-		D = COLLIDE;
-	D = sqrt(D);
-	D = D * D * D;
-	for (cmpt = X; cmpt < DIMENSIONS; cmpt++) {
-		ACC(cmpt) = POS(cmpt) * GRAV / D;
-		if (decay) {
-			if (ACC(cmpt) > MaxA)
-				ACC(cmpt) = MaxA;
-			else if (ACC(cmpt) < -MaxA)
-				ACC(cmpt) = -MaxA;
-			VEL(cmpt) = VEL(cmpt) + ACC(cmpt);
-			VEL(cmpt) *= DAMP;
-		} else {
-			/* update velocity */
-			VEL(cmpt) = VEL(cmpt) + ACC(cmpt);
-		}
-		/* update position */
-		POS(cmpt) = POS(cmpt) + VEL(cmpt);
-	}
+  D= POS(X) * POS(X) + POS(Y) * POS(Y) + POS(Z) * POS(Z);
+  if (D < COLLIDE)
+    D= COLLIDE;
+  D= sqrt(D);
+  D= D * D * D;
+  for (cmpt= X; cmpt < DIMENSIONS; cmpt++)
+    {
+      ACC(cmpt)= POS(cmpt) * GRAV / D;
+      if (decay)
+        {
+          if (ACC(cmpt) > MaxA)
+            ACC(cmpt)= MaxA;
+          else if (ACC(cmpt) < -MaxA)
+            ACC(cmpt)= -MaxA;
+          VEL(cmpt)= VEL(cmpt) + ACC(cmpt);
+          VEL(cmpt)*= DAMP;
+        }
+      else
+        {
+          /* update velocity */
+          VEL(cmpt)= VEL(cmpt) + ACC(cmpt);
+        }
+      /* update position */
+      POS(cmpt)= POS(cmpt) + VEL(cmpt);
+    }
 
-	gp->x = planet->xi;
-	gp->y = planet->yi;
+  gp->x= planet->xi;
+  gp->y= planet->yi;
 
-	if (POS(Z) > -ALMOST) {
-		planet->xi = (int)
-			((double) gp->width * (HALF + POS(X) / (POS(Z) + DIST)));
-		planet->yi = (int)
-			((double) gp->height * (HALF + POS(Y) / (POS(Z) + DIST)));
-	} else
-		planet->xi = planet->yi = -1;
+  if (POS(Z) > -ALMOST)
+    {
+      planet->xi= (int) ((double) gp->width * (HALF + POS(X) / (POS(Z) + DIST)));
+      planet->yi= (int) ((double) gp->height * (HALF + POS(Y) / (POS(Z) + DIST)));
+    }
+  else
+    {
+      planet->xi= planet->yi= -1;
+    }
 
-	/* Mask */
-	XSetForeground(display, gc, MI_BLACK_PIXEL(mi));
-	Planet(gp->x, gp->y);
-	if (trail) {
-        int r = 1;
-        if (gp->width > 2560 || gp->height > 2560)
-          r *= 3;  /* Retina displays */
-		XSetForeground(display, gc, planet->colors);
-        XFillArc(display, MI_WINDOW(mi), gc,
-                 gp->x-r/2, gp->y-r/2, r, r,
-                 0, 23040);
-	}
-	/* Move */
-	gp->x = planet->xi;
-	gp->y = planet->yi;
-	planet->ri = RADIUS;
+  /* Mask */
+  XSetForeground(display, gc, MI_BLACK_PIXEL(mi));
+  Planet(gp->x, gp->y);
+  if (trail)
+    {
+      int r= 1;
+      if (gp->width > 2560 || gp->height > 2560)
+        r*= 3; /* Retina displays */
+      XSetForeground(display, gc, planet->colors);
+      XFillArc(display, MI_WINDOW(mi), gc, gp->x - r / 2, gp->y - r / 2, r, r, 0, 23040);
+    }
+  /* Move */
+  gp->x= planet->xi;
+  gp->y= planet->yi;
+  planet->ri= RADIUS;
 
-	/* Redraw */
-	XSetForeground(display, gc, planet->colors);
-	Planet(gp->x, gp->y);
+  /* Redraw */
+  XSetForeground(display, gc, planet->colors);
+  Planet(gp->x, gp->y);
 }
 
 ENTRYPOINT void
-init_grav(ModeInfo * mi)
+  init_grav(
+    ModeInfo *mi)
 {
-	unsigned char ball;
-	gravstruct *gp;
+  unsigned char ball;
+  gravstruct *gp;
 
-	MI_INIT (mi, gravs);
-	gp = &gravs[MI_SCREEN(mi)];
+  MI_INIT(mi, gravs);
+  gp= &gravs [ MI_SCREEN(mi) ];
 
-	gp->width = MI_WIDTH(mi);
-	gp->height = MI_HEIGHT(mi);
+  gp->width= MI_WIDTH(mi);
+  gp->height= MI_HEIGHT(mi);
 
-	gp->sr = STARRADIUS;
+  gp->sr= STARRADIUS;
 
-	gp->nplanets = MI_COUNT(mi);
-	if (gp->nplanets < 0) {
-		if (gp->planets) {
-			(void) free((void *) gp->planets);
-			gp->planets = (planetstruct *) NULL;
-		}
-		gp->nplanets = NRAND(-gp->nplanets) + 1;	/* Add 1 so its not too boring */
-	}
-	if (gp->planets == NULL) {
-		if ((gp->planets = (planetstruct *) calloc(gp->nplanets,
-				sizeof (planetstruct))) == NULL)
-			return;
-	}
+  gp->nplanets= MI_COUNT(mi);
+  if (gp->nplanets < 0)
+    {
+      if (gp->planets)
+        {
+          (void) free((void *) gp->planets);
+          gp->planets= (planetstruct *) NULL;
+        }
+      gp->nplanets= NRAND(-gp->nplanets) + 1; /* Add 1 so its not too boring */
+    }
+  if (gp->planets == NULL)
+    {
+      if ((gp->planets= (planetstruct *) calloc(gp->nplanets,
+             sizeof(planetstruct))) == NULL)
+        return;
+    }
 
-	MI_CLEARWINDOW(mi);
+  MI_CLEARWINDOW(mi);
 
-	if (MI_NPIXELS(mi) > 2)
-		gp->starcolor = MI_PIXEL(mi, NRAND(MI_NPIXELS(mi)));
-	else
-		gp->starcolor = MI_WHITE_PIXEL(mi);
-	for (ball = 0; ball < (unsigned char) gp->nplanets; ball++)
-		init_planet(mi, &gp->planets[ball]);
+  if (MI_NPIXELS(mi) > 2)
+    gp->starcolor= MI_PIXEL(mi, NRAND(MI_NPIXELS(mi)));
+  else
+    gp->starcolor= MI_WHITE_PIXEL(mi);
+  for (ball= 0; ball < (unsigned char) gp->nplanets; ball++)
+    init_planet(mi, &gp->planets [ ball ]);
 }
 
 ENTRYPOINT void
-draw_grav(ModeInfo * mi)
+  draw_grav(
+    ModeInfo *mi)
 {
-	Display    *display = MI_DISPLAY(mi);
-	Window      window = MI_WINDOW(mi);
-	GC          gc = MI_GC(mi);
-	register unsigned char ball;
-	gravstruct *gp;
+  Display *display= MI_DISPLAY(mi);
+  Window window= MI_WINDOW(mi);
+  GC gc= MI_GC(mi);
+  register unsigned char ball;
+  gravstruct *gp;
 
-	if (gravs == NULL)
-			return;
-	gp = &gravs[MI_SCREEN(mi)];
-	if (gp->planets == NULL)
-		return;
+  if (gravs == NULL)
+    return;
+  gp= &gravs [ MI_SCREEN(mi) ];
+  if (gp->planets == NULL)
+    return;
 
-	if (!MI_IS_DRAWN(mi)) {
-		for (ball = 0; ball < (unsigned char) gp->nplanets; ball++) {
-			planetstruct *planet = &gp->planets[ball];
+  if (! MI_IS_DRAWN(mi))
+    {
+      for (ball= 0; ball < (unsigned char) gp->nplanets; ball++)
+        {
+          planetstruct *planet= &gp->planets [ ball ];
 
-			/* Draw planets */
-			Planet(planet->xi, planet->yi);
-		}
+          /* Draw planets */
+          Planet(planet->xi, planet->yi);
+        }
 
-		/* Draw centrepoint */
-		XDrawArc(display, MI_WINDOW(mi), gc,
-			 gp->width / 2 - gp->sr / 2, gp->height / 2 - gp->sr / 2, gp->sr, gp->sr,
-			 0, 23040);
-	}
+      /* Draw centrepoint */
+      XDrawArc(display, MI_WINDOW(mi), gc, gp->width / 2 - gp->sr / 2, gp->height / 2 - gp->sr / 2, gp->sr, gp->sr, 0, 23040);
+    }
 
-	MI_IS_DRAWN(mi) = True;
-	/* Mask centrepoint */
-	XSetForeground(display, gc, MI_BLACK_PIXEL(mi));
-	XDrawArc(display, window, gc,
-		 gp->width / 2 - gp->sr / 2, gp->height / 2 - gp->sr / 2, gp->sr, gp->sr,
-		 0, 23040);
+  MI_IS_DRAWN(mi)= True;
+  /* Mask centrepoint */
+  XSetForeground(display, gc, MI_BLACK_PIXEL(mi));
+  XDrawArc(display, window, gc, gp->width / 2 - gp->sr / 2, gp->height / 2 - gp->sr / 2, gp->sr, gp->sr, 0, 23040);
 
-	/* Resize centrepoint */
-	switch (NRAND(4)) {
-		case 0:
-			if (gp->sr < (int) STARRADIUS)
-				gp->sr++;
-			break;
-		case 1:
-			if (gp->sr > 2)
-				gp->sr--;
-	}
+  /* Resize centrepoint */
+  switch (NRAND(4))
+    {
+      case 0 :
+        if (gp->sr < (int) STARRADIUS)
+          gp->sr++;
+        break;
+      case 1 :
+        if (gp->sr > 2)
+          gp->sr--;
+    }
 
-	/* Draw centrepoint */
-	XSetForeground(display, gc, gp->starcolor);
-	XDrawArc(display, window, gc,
-		 gp->width / 2 - gp->sr / 2, gp->height / 2 - gp->sr / 2, gp->sr, gp->sr,
-		 0, 23040);
+  /* Draw centrepoint */
+  XSetForeground(display, gc, gp->starcolor);
+  XDrawArc(display, window, gc, gp->width / 2 - gp->sr / 2, gp->height / 2 - gp->sr / 2, gp->sr, gp->sr, 0, 23040);
 
-	for (ball = 0; ball < (unsigned char) gp->nplanets; ball++)
-		draw_planet(mi, &gp->planets[ball]);
+  for (ball= 0; ball < (unsigned char) gp->nplanets; ball++)
+    draw_planet(mi, &gp->planets [ ball ]);
 }
 
 ENTRYPOINT void
-reshape_grav(ModeInfo * mi, int width, int height)
+  reshape_grav(
+    ModeInfo *mi,
+    int width,
+    int height)
 {
-	gravstruct *gp = &gravs[MI_SCREEN(mi)];
-	gp->width  = width;
-	gp->height = height;
-    XClearWindow (MI_DISPLAY (mi), MI_WINDOW(mi));
+  gravstruct *gp= &gravs [ MI_SCREEN(mi) ];
+  gp->width= width;
+  gp->height= height;
+  XClearWindow(MI_DISPLAY(mi), MI_WINDOW(mi));
 }
 
 ENTRYPOINT void
-free_grav(ModeInfo * mi)
+  free_grav(
+    ModeInfo *mi)
 {
-	gravstruct *gp = &gravs[MI_SCREEN(mi)];
-	if (gp->planets)
-		(void) free((void *) gp->planets);
+  gravstruct *gp= &gravs [ MI_SCREEN(mi) ];
+  if (gp->planets)
+    (void) free((void *) gp->planets);
 }
 
 #ifndef STANDALONE
 ENTRYPOINT void
-refresh_grav(ModeInfo * mi)
+  refresh_grav(
+    ModeInfo *mi)
 {
-	MI_CLEARWINDOW(mi);
+  MI_CLEARWINDOW(mi);
 }
 #endif
 
-XSCREENSAVER_MODULE ("Grav", grav)
+XSCREENSAVER_MODULE(
+  "Grav",
+  grav)
 
 #endif /* MODE_grav */

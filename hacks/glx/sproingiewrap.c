@@ -46,19 +46,19 @@ static const char sccsid[] = "@(#)sproingiewrap.c	4.07 97/11/24 xlockmore";
  */
 
 #ifdef STANDALONE
-# define DEFAULTS	"*delay:		30000   \n"			\
+#define DEFAULTS	"*delay:		30000   \n"			\
 					"*count:		8       \n"			\
 					"*size:			0       \n"			\
 					"*showFPS:      False   \n"			\
 					"*fpsTop:       True    \n"			\
 					"*wireframe:	False	\n"
 
-# define release_sproingies 0
-# define sproingies_handle_event 0
-# include "xlockmore.h"				/* from the xscreensaver distribution */
-#else  /* !STANDALONE */
-# include "xlock.h"					/* from the xlockmore distribution */
-#endif /* !STANDALONE */
+#define release_sproingies 0
+#define sproingies_handle_event 0
+#include "xlockmore.h" /* from the xscreensaver distribution */
+#else                  /* !STANDALONE */
+#include "xlock.h"     /* from the xlockmore distribution */
+#endif                 /* !STANDALONE */
 
 #ifdef USE_GL
 
@@ -66,26 +66,23 @@ static const char sccsid[] = "@(#)sproingiewrap.c	4.07 97/11/24 xlockmore";
 
 #include "sproingies.h"
 
-static XrmOptionDescRec opts[] = {
-    {"-fall",     ".smartSproingies",  XrmoptionNoArg,  "False"},
-    {"-no-fall",  ".smartSproingies",  XrmoptionNoArg,  "True"},
+static XrmOptionDescRec opts []= {
+  {"-fall", ".smartSproingies", XrmoptionNoArg, "False"},
+  {"-no-fall", ".smartSproingies", XrmoptionNoArg, "True"},
 };
 
 static int smrt_spr;
 
-static argtype vars[] = {
-    {&smrt_spr,  "smartSproingies",  "Boolean",  DEF_SMART_SPROINGIES,  t_Bool},
+static argtype vars []= {
+  {&smrt_spr, "smartSproingies", "Boolean", DEF_SMART_SPROINGIES, t_Bool},
 };
 
-ENTRYPOINT ModeSpecOpt sproingies_opts =
-{countof(opts), opts, countof(vars), vars, NULL};
+ENTRYPOINT ModeSpecOpt sproingies_opts=
+  {countof(opts), opts, countof(vars), vars, NULL};
 
 #ifdef USE_MODULES
-ModStruct   sproingies_description =
-{"sproingies", "init_sproingies", "draw_sproingies", NULL,
- "refresh_sproingies", "init_sproingies", "free_sproingies", &sproingies_opts,
- 1000, 5, 0, 400, 4, 1.0, "",
- "Shows Sproingies!  Nontoxic.  Safe for pets and small children", 0, NULL};
+ModStruct sproingies_description=
+  {"sproingies", "init_sproingies", "draw_sproingies", NULL, "refresh_sproingies", "init_sproingies", "free_sproingies", &sproingies_opts, 1000, 5, 0, 400, 4, 1.0, "", "Shows Sproingies!  Nontoxic.  Safe for pets and small children", 0, NULL};
 
 #endif
 
@@ -93,132 +90,149 @@ ModStruct   sproingies_description =
 
 #include <time.h>
 
-typedef struct {
-	GLfloat     view_rotx, view_roty, view_rotz;
-	GLint       gear1, gear2, gear3;
-	GLfloat     angle;
-	GLuint      limit;
-	GLuint      count;
-	GLXContext *glx_context;
-	int         mono;
-	Window      window;
-	sp_instance si;
+typedef struct
+{
+    GLfloat view_rotx, view_roty, view_rotz;
+    GLint gear1, gear2, gear3;
+    GLfloat angle;
+    GLuint limit;
+    GLuint count;
+    GLXContext *glx_context;
+    int mono;
+    Window window;
+    sp_instance si;
 } sproingiesstruct;
 
-static sproingiesstruct *sproingies = NULL;
+static sproingiesstruct *sproingies= NULL;
 
 
 ENTRYPOINT void
-init_sproingies (ModeInfo * mi)
+  init_sproingies(
+    ModeInfo *mi)
 {
-	Window      window = MI_WINDOW(mi);
-	int         screen = MI_SCREEN(mi);
+  Window window= MI_WINDOW(mi);
+  int screen= MI_SCREEN(mi);
 
-	int         count = MI_COUNT(mi);
-	int         size = MI_SIZE(mi);
+  int count= MI_COUNT(mi);
+  int size= MI_SIZE(mi);
 
-	sproingiesstruct *sp;
-	int         wfmode = 0, grnd = 0, mspr, w, h;
+  sproingiesstruct *sp;
+  int wfmode= 0, grnd= 0, mspr, w, h;
 
-	MI_INIT (mi, sproingies);
-	sp = &sproingies[screen];
+  MI_INIT(mi, sproingies);
+  sp= &sproingies [ screen ];
 
-	sp->mono = (MI_IS_MONO(mi) ? 1 : 0);
-	sp->window = window;
-	if ((sp->glx_context = init_GL(mi)) != NULL) {
+  sp->mono= (MI_IS_MONO(mi) ? 1 : 0);
+  sp->window= window;
+  if ((sp->glx_context= init_GL(mi)) != NULL)
+    {
 
-		if (MI_IS_WIREFRAME(mi))
-			wfmode = 1;
+      if (MI_IS_WIREFRAME(mi))
+        wfmode= 1;
 
-		if (grnd > 2)
-			grnd = 2;
+      if (grnd > 2)
+        grnd= 2;
 
-		mspr = count;
-		if (mspr > 100)
-			mspr = 100;
+      mspr= count;
+      if (mspr > 100)
+        mspr= 100;
 
-		/* wireframe, ground, maxsproingies */
-		InitSproingies(&sp->si, wfmode, grnd, mspr, smrt_spr, sp->mono);
+      /* wireframe, ground, maxsproingies */
+      InitSproingies(&sp->si, wfmode, grnd, mspr, smrt_spr, sp->mono);
 
-		/* Viewport is specified size if size >= MINSIZE && size < screensize */
-		if (size == 0) {
-			w = MI_WIDTH(mi);
-			h = MI_HEIGHT(mi);
-		} else if (size < MINSIZE) {
-			w = MINSIZE;
-			h = MINSIZE;
-		} else {
-			w = (size > MI_WIDTH(mi)) ? MI_WIDTH(mi) : size;
-			h = (size > MI_HEIGHT(mi)) ? MI_HEIGHT(mi) : size;
-		}
+      /* Viewport is specified size if size >= MINSIZE && size < screensize */
+      if (size == 0)
+        {
+          w= MI_WIDTH(mi);
+          h= MI_HEIGHT(mi);
+        }
+      else if (size < MINSIZE)
+        {
+          w= MINSIZE;
+          h= MINSIZE;
+        }
+      else
+        {
+          w= (size > MI_WIDTH(mi)) ? MI_WIDTH(mi) : size;
+          h= (size > MI_HEIGHT(mi)) ? MI_HEIGHT(mi) : size;
+        }
 
-		glViewport((MI_WIDTH(mi) - w) / 2, (MI_HEIGHT(mi) - h) / 2, w, h);
-		glMatrixMode(GL_PROJECTION);
-		glLoadIdentity();
-		gluPerspective(65.0, (GLfloat) w / (GLfloat) h, 0.1, 2000.0);	/* was 200000.0 */
-		glMatrixMode(GL_MODELVIEW);
-		glLoadIdentity();
+      glViewport((MI_WIDTH(mi) - w) / 2, (MI_HEIGHT(mi) - h) / 2, w, h);
+      glMatrixMode(GL_PROJECTION);
+      glLoadIdentity();
+      gluPerspective(65.0, (GLfloat) w / (GLfloat) h, 0.1, 2000.0); /* was 200000.0 */
+      glMatrixMode(GL_MODELVIEW);
+      glLoadIdentity();
 
-		DisplaySproingies(&sp->si);
-
-	} else {
-		MI_CLEARWINDOW(mi);
-	}
+      DisplaySproingies(&sp->si);
+    }
+  else
+    {
+      MI_CLEARWINDOW(mi);
+    }
 }
 
 /* ARGSUSED */
 ENTRYPOINT void
-draw_sproingies (ModeInfo * mi)
+  draw_sproingies(
+    ModeInfo *mi)
 {
-	sproingiesstruct *sp = &sproingies[MI_SCREEN(mi)];
-	Display    *display = MI_DISPLAY(mi);
-	Window      window = MI_WINDOW(mi);
+  sproingiesstruct *sp= &sproingies [ MI_SCREEN(mi) ];
+  Display *display= MI_DISPLAY(mi);
+  Window window= MI_WINDOW(mi);
 
-	if (!sp->glx_context)
-		return;
+  if (! sp->glx_context)
+    return;
 
-	glDrawBuffer(GL_BACK);
-	glXMakeCurrent(display, window, *sp->glx_context);
+  glDrawBuffer(GL_BACK);
+  glXMakeCurrent(display, window, *sp->glx_context);
 
-    glPushMatrix();
-    glRotatef(current_device_rotation(), 0, 0, 1);
-	NextSproingieDisplay(&sp->si);	/* It will swap. */
-    glPopMatrix();
+  glPushMatrix();
+  glRotatef(current_device_rotation(), 0, 0, 1);
+  NextSproingieDisplay(&sp->si); /* It will swap. */
+  glPopMatrix();
 
-    if (mi->fps_p) do_fps (mi);
-    glFinish();
-    glXSwapBuffers(MI_DISPLAY(mi), MI_WINDOW(mi));
+  if (mi->fps_p) do_fps(mi);
+  glFinish();
+  glXSwapBuffers(MI_DISPLAY(mi), MI_WINDOW(mi));
 }
 
 #ifndef STANDALONE
 ENTRYPOINT void
-refresh_sproingies(ModeInfo * mi)
+  refresh_sproingies(
+    ModeInfo *mi)
 {
-	/* No need to do anything here... The whole screen is updated
-	 * every frame anyway.  Otherwise this would be just like
-	 * draw_sproingies, above, but replace NextSproingieDisplay(...)
-	 * with DisplaySproingies(...).
-	 */
+  /* No need to do anything here... The whole screen is updated
+   * every frame anyway.  Otherwise this would be just like
+   * draw_sproingies, above, but replace NextSproingieDisplay(...)
+   * with DisplaySproingies(...).
+   */
 }
 #endif /* !STANDALONE */
 
 ENTRYPOINT void
-reshape_sproingies (ModeInfo *mi, int w, int h)
+  reshape_sproingies(
+    ModeInfo *mi,
+    int w,
+    int h)
 {
   ReshapeSproingies(w, h);
 }
 
 
 ENTRYPOINT void
-free_sproingies (ModeInfo * mi)
+  free_sproingies(
+    ModeInfo *mi)
 {
-	sproingiesstruct *sp = &sproingies[MI_SCREEN(mi)];
-    if (!sp->glx_context) return;
-	glXMakeCurrent (MI_DISPLAY(mi), MI_WINDOW(mi), *sp->glx_context);
-    CleanupSproingies(&sp->si);
+  sproingiesstruct *sp= &sproingies [ MI_SCREEN(mi) ];
+  if (! sp->glx_context) return;
+  glXMakeCurrent(MI_DISPLAY(mi), MI_WINDOW(mi), *sp->glx_context);
+  CleanupSproingies(&sp->si);
 }
 
-XSCREENSAVER_MODULE ("Sproingies", sproingies)
+XSCREENSAVER_MODULE(
+  "Sproingies",
+  sproingies)
 
 #endif /* USE_GL */
 

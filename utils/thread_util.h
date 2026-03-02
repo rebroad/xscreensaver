@@ -73,26 +73,26 @@ implied warranty.
 
 #if HAVE_CONFIG_H
 /* For HAVE_PTHREAD. */
-#	include "config.h"
+#include "config.h"
 #endif
 
 #include <stddef.h>
 
 #if HAVE_UNISTD_H
 /* For _POSIX_THREADS. */
-#	include <unistd.h>
+#include <unistd.h>
 #endif
 
 #if defined HAVE_JWXYZ
-#	include "jwxyz.h"
+#include "jwxyz.h"
 #else
-#	include <X11/Xlib.h>
+#include <X11/Xlib.h>
 #endif
 
 #if HAVE_PTHREAD
 int threads_available(Display *dpy);
 #else
-#	define threads_available(dpy) (-1)
+#define threads_available(dpy) (-1)
 #endif
 /* > 0: Threads are available. This is normally _POSIX_VERSION.
     -1: Threads are not available.
@@ -195,62 +195,62 @@ unsigned thread_memory_alignment(Display *dpy);
 #define thread_free(ptr) aligned_free(ptr)
 
 #if HAVE_PTHREAD
-#	if defined _POSIX_THREADS && _POSIX_THREADS >= 0
+#if defined _POSIX_THREADS && _POSIX_THREADS >= 0
 /*
    See The Open Group Base Specifications Issue 7, <unistd.h>, Constants for
    Options and Option Groups
    http://pubs.opengroup.org/onlinepubs/9699919799/basedefs/unistd.h.html#tag_13_77_03_02
 */
 
-#		include <pthread.h>
+#include <pthread.h>
 
 /* Most PThread synchronization functions only fail when they are misused. */
-#		if defined NDEBUG
-#			define PTHREAD_VERIFY(expr) (void)(expr)
-#		else
-#			include <assert.h>
-#			define PTHREAD_VERIFY(expr) assert(!(expr))
-#		endif
+#if defined NDEBUG
+#define PTHREAD_VERIFY(expr) (void)(expr)
+#else
+#include <assert.h>
+#define PTHREAD_VERIFY(expr) assert(!(expr))
+#endif
 
 extern const pthread_mutex_t mutex_initializer;
 extern const pthread_cond_t cond_initializer;
 
-#	else
-		/* Whatever caused HAVE_PTHREAD to be defined (configure script,
-           usually) made a mistake if this is reached. */
-		/* Maybe this should be a warning. */
-#		error HAVE_PTHREAD is defined, but _POSIX_THREADS is not.
-		/* #undef HAVE_PTHREAD */
-#	endif
+#else
+/* Whatever caused HAVE_PTHREAD to be defined (configure script,
+   usually) made a mistake if this is reached. */
+/* Maybe this should be a warning. */
+#error HAVE_PTHREAD is defined, but _POSIX_THREADS is not.
+/* #undef HAVE_PTHREAD */
+#endif
 #endif
 
 struct threadpool
 {
-/*	This is always the same as the count parameter fed to threadpool_create().
-	Here's a neat trick: if the threadpool is zeroed out with a memset, and
-	threadpool_create() is never called to create 0 threads, then
-	threadpool::count can be used to determine if the threadpool object was
-	ever initialized. */
-	unsigned count;
+    /*	This is always the same as the count parameter fed to threadpool_create().
+        Here's a neat trick: if the threadpool is zeroed out with a memset, and
+        threadpool_create() is never called to create 0 threads, then
+        threadpool::count can be used to determine if the threadpool object was
+        ever initialized. */
+    unsigned count;
 
-	/* Copied from threadpool_class. No need for thread_create here, though. */
-	size_t thread_size;
-	void (*thread_run)(void *self);
-	void (*thread_destroy)(void *self);
+    /* Copied from threadpool_class. No need for thread_create here, though. */
+    size_t thread_size;
+    void (*thread_run)(void *self);
+    void (*thread_destroy)(void *self);
 
-	void *serial_threads;
+    void *serial_threads;
 
 #if HAVE_PTHREAD
-	pthread_mutex_t mutex;
-	pthread_cond_t cond;
+    pthread_mutex_t mutex;
+    pthread_cond_t cond;
 
-	/* Number of threads waiting for the startup signal. */
-	unsigned parallel_pending;
+    /* Number of threads waiting for the startup signal. */
+    unsigned parallel_pending;
 
-	/* Number of threads still running. During startup, this is the index of the thread currently being initialized. */
-	unsigned parallel_unfinished;
+    /* Number of threads still running. During startup, this is the index of the thread currently being initialized. */
+    unsigned parallel_unfinished;
 
-	pthread_t *parallel_threads;
+    pthread_t *parallel_threads;
 #endif
 };
 
@@ -276,26 +276,26 @@ struct threadpool
 
 struct threadpool_class
 {
-	/* Size of the thread private object. */
-	size_t size;
+    /* Size of the thread private object. */
+    size_t size;
 
-/*	Create the thread private object. Called in sequence for each thread
-	(effectively) from threadpool_create.
-    self: A pointer to size bytes of memory, allocated to hold the thread
-          object.
-    pool: The threadpool object that owns all the threads. If the threadpool
-          is nested in another struct, try GET_PARENT_OBJ.
-    id:   The ID for the thread; numbering starts at zero and goes up by one
-          for each thread.
-    Return 0 on success. On failure, return a value from errno.h; this will
-    be returned from threadpool_create. */
-	int (*create)(void *self, struct threadpool *pool, unsigned id);
+    /*	Create the thread private object. Called in sequence for each thread
+        (effectively) from threadpool_create.
+        self: A pointer to size bytes of memory, allocated to hold the thread
+              object.
+        pool: The threadpool object that owns all the threads. If the threadpool
+              is nested in another struct, try GET_PARENT_OBJ.
+        id:   The ID for the thread; numbering starts at zero and goes up by one
+              for each thread.
+        Return 0 on success. On failure, return a value from errno.h; this will
+        be returned from threadpool_create. */
+    int (*create)(void *self, struct threadpool *pool, unsigned id);
 
-/*	Destroys the thread private object. Called in sequence (though not always
-	the same sequence as create).  Warning: During shutdown, it is possible
-	for destroy() to be called while other threads are still in
-	threadpool_run(). */
-	void (*destroy)(void *self);
+    /*	Destroys the thread private object. Called in sequence (though not always
+        the same sequence as create).  Warning: During shutdown, it is possible
+        for destroy() to be called while other threads are still in
+        threadpool_run(). */
+    void (*destroy)(void *self);
 };
 
 /* Returns 0 on success, on failure can return ENOMEM, or any error code from
@@ -359,19 +359,21 @@ void threadpool_wait(struct threadpool *self);
 
 enum _io_thread_status
 {
-	_io_thread_working, _io_thread_done, _io_thread_cancelled
+  _io_thread_working,
+  _io_thread_done,
+  _io_thread_cancelled
 };
 
 struct io_thread
 {
 #if HAVE_PTHREAD
-	/* Common misconception: "volatile" should be applied to atomic variables,
-	   such as 'status', below. This is false, see
-	   <http://stackoverflow.com/q/2484980>. */
-	enum _io_thread_status status;
-	pthread_t thread;
+    /* Common misconception: "volatile" should be applied to atomic variables,
+       such as 'status', below. This is false, see
+       <http://stackoverflow.com/q/2484980>. */
+    enum _io_thread_status status;
+    pthread_t thread;
 #else
-	char gcc_emits_a_warning_when_the_struct_has_no_members;
+    char gcc_emits_a_warning_when_the_struct_has_no_members;
 #endif
 };
 
@@ -425,15 +427,15 @@ void io_thread_finish(struct io_thread *self);
 #endif
 
 #if HAVE_PTHREAD
-#	define THREAD_DEFAULTS       "*useThreads: True",
-#	define THREAD_DEFAULTS_XLOCK "*useThreads: True\n"
-#	define THREAD_OPTIONS \
+#define THREAD_DEFAULTS       "*useThreads: True",
+#define THREAD_DEFAULTS_XLOCK "*useThreads: True\n"
+#define THREAD_OPTIONS \
 	{"-threads",    ".useThreads", XrmoptionNoArg, "True"}, \
 	{"-no-threads", ".useThreads", XrmoptionNoArg, "False"},
 #else
-#	define THREAD_DEFAULTS
-#	define THREAD_DEFAULTS_XLOCK
-#	define THREAD_OPTIONS
+#define THREAD_DEFAULTS
+#define THREAD_DEFAULTS_XLOCK
+#define THREAD_OPTIONS
 #endif
 
 /*

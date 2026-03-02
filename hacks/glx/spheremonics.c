@@ -5,7 +5,7 @@
  * the above copyright notice appear in all copies and that both that
  * copyright notice and this permission notice appear in supporting
  * documentation.  No representations are made about the suitability of this
- * software for any purpose.  It is provided "as is" without express or 
+ * software for any purpose.  It is provided "as is" without express or
  * implied warranty.
  *
  * Algorithm by Paul Bourke <pbourke@swin.edu.au>
@@ -22,10 +22,10 @@
  * The formula is quite simple: the form used here is based upon
  * spherical (polar) coordinates (radius, theta, phi).
  *
- *    r = sin(m0 phi)   ^ m1 + 
- *        cos(m2 phi)   ^ m3 + 
- *        sin(m4 theta) ^ m5 + 
- *        cos(m6 theta) ^ m7 
+ *    r = sin(m0 phi)   ^ m1 +
+ *        cos(m2 phi)   ^ m3 +
+ *        sin(m4 theta) ^ m5 +
+ *        cos(m6 theta) ^ m7
  *
  * Where phi ranges from 0 to pi (lines of latitude), and theta ranges
  * from 0 to 2 pi (lines of longitude), and r is the radius.  The
@@ -37,7 +37,7 @@
  * faithfully.
  *
  * jwz adds:
- * 
+ *
  * The eight parameters live in the `cc->m' array.
  * Each time we permute the image, we alter *one* of those eight parameters.
  * Each time we alter a parameter, we move it in the same direction (either
@@ -64,9 +64,9 @@
 		 "*showFPS:	False	    \n" \
 		 "*wireframe:	False	    \n" \
 	         "*labelfont:   sans-serif 18\n" \
-		 "*suppressRotationAnimation: True\n" \
+		 "*suppressRotationAnimation: True\n"
 
-# define release_spheremonics 0
+#define release_spheremonics 0
 
 #include "xlockmore.h"
 #include "texfont.h"
@@ -87,37 +87,38 @@
 #define DEF_SMOOTH      "True"
 #define DEF_PARMS       "(default)"
 
-typedef struct {
-  GLXContext *glx_context;
-  rotator *rot;
-  trackball_state *trackball;
-  Bool button_down_p;
+typedef struct
+{
+    GLXContext *glx_context;
+    rotator *rot;
+    trackball_state *trackball;
+    Bool button_down_p;
 
-  GLuint dlist, dlist2, grid_dlist;
-  GLfloat scale;
-  XYZ bbox[2];
+    GLuint dlist, dlist2, grid_dlist;
+    GLfloat scale;
+    XYZ bbox [ 2 ];
 
-  int resolution;
-  int ncolors;
-  XColor *colors;
+    int resolution;
+    int ncolors;
+    XColor *colors;
 
-  int m[8];
-  int dm[8];
-  int m_max;
+    int m [ 8 ];
+    int dm [ 8 ];
+    int m_max;
 
-  int tracer;
-  int mesher;
-  int polys1, polys2;  /* polygon counts */
+    int tracer;
+    int mesher;
+    int polys1, polys2; /* polygon counts */
 
-  texture_font_data *font_data;
+    texture_font_data *font_data;
 
-  int change_tick;
-  int done_once;
-  double fade;
+    int change_tick;
+    int done_once;
+    double fade;
 
 } spheremonics_configuration;
 
-static spheremonics_configuration *ccs = NULL;
+static spheremonics_configuration *ccs= NULL;
 
 static char *do_spin;
 static Bool do_wander;
@@ -128,67 +129,67 @@ static char *static_parms;
 static int res;
 static int duration;
 
-static XrmOptionDescRec opts[] = {
-  { "-spin",   ".spin",   XrmoptionSepArg, 0 },
-  { "+spin",   ".spin",   XrmoptionNoArg, "" },
-  { "-wander", ".wander", XrmoptionNoArg, "True" },
-  { "+wander", ".wander", XrmoptionNoArg, "False" },
-  { "-resolution", ".resolution", XrmoptionSepArg, 0 },
-  { "-duration",   ".duration",   XrmoptionSepArg, 0 },
-  { "-bbox",   ".bbox",  XrmoptionNoArg, "True" },
-  { "+bbox",   ".bbox",  XrmoptionNoArg, "False" },
-  { "-grid",   ".grid",  XrmoptionNoArg, "True" },
-  { "+grid",   ".grid",  XrmoptionNoArg, "False" },
-  {"-smooth",  ".smooth", XrmoptionNoArg, "True" },
-  {"+smooth",  ".smooth", XrmoptionNoArg, "False" },
-  { "-parameters", ".parameters", XrmoptionSepArg, 0 },
+static XrmOptionDescRec opts []= {
+  {"-spin", ".spin", XrmoptionSepArg, 0},
+  {"+spin", ".spin", XrmoptionNoArg, ""},
+  {"-wander", ".wander", XrmoptionNoArg, "True"},
+  {"+wander", ".wander", XrmoptionNoArg, "False"},
+  {"-resolution", ".resolution", XrmoptionSepArg, 0},
+  {"-duration", ".duration", XrmoptionSepArg, 0},
+  {"-bbox", ".bbox", XrmoptionNoArg, "True"},
+  {"+bbox", ".bbox", XrmoptionNoArg, "False"},
+  {"-grid", ".grid", XrmoptionNoArg, "True"},
+  {"+grid", ".grid", XrmoptionNoArg, "False"},
+  {"-smooth", ".smooth", XrmoptionNoArg, "True"},
+  {"+smooth", ".smooth", XrmoptionNoArg, "False"},
+  {"-parameters", ".parameters", XrmoptionSepArg, 0},
 };
 
-static argtype vars[] = {
-  {&do_spin,      "spin",       "Spin",       DEF_SPIN,       t_String},
-  {&do_wander,    "wander",     "Wander",     DEF_WANDER,     t_Bool},
-  {&res,          "resolution", "Resolution", DEF_RESOLUTION, t_Int},
-  {&duration,     "duration",   "Duration",   DEF_DURATION,   t_Int},
-  {&do_bbox,      "bbox",       "BBox",       DEF_BBOX,       t_Bool},
-  {&do_grid,      "grid",       "Grid",       DEF_GRID,       t_Bool},
-  {&smooth_p,     "smooth",     "Smooth",     DEF_SMOOTH,     t_Bool},
-  {&static_parms, "parameters", "Parameters", DEF_PARMS,      t_String},
+static argtype vars []= {
+  {&do_spin, "spin", "Spin", DEF_SPIN, t_String},
+  {&do_wander, "wander", "Wander", DEF_WANDER, t_Bool},
+  {&res, "resolution", "Resolution", DEF_RESOLUTION, t_Int},
+  {&duration, "duration", "Duration", DEF_DURATION, t_Int},
+  {&do_bbox, "bbox", "BBox", DEF_BBOX, t_Bool},
+  {&do_grid, "grid", "Grid", DEF_GRID, t_Bool},
+  {&smooth_p, "smooth", "Smooth", DEF_SMOOTH, t_Bool},
+  {&static_parms, "parameters", "Parameters", DEF_PARMS, t_String},
 };
 
-ENTRYPOINT ModeSpecOpt spheremonics_opts = {countof(opts), opts, countof(vars), vars, NULL};
+ENTRYPOINT ModeSpecOpt spheremonics_opts= {countof(opts), opts, countof(vars), vars, NULL};
 
 
 /* Window management, etc
  */
 ENTRYPOINT void
-reshape_spheremonics (ModeInfo *mi, int width, int height)
+  reshape_spheremonics(
+    ModeInfo *mi,
+    int width,
+    int height)
 {
-  GLfloat h = (GLfloat) height / (GLfloat) width;
-  int y = 0;
+  GLfloat h= (GLfloat) height / (GLfloat) width;
+  int y= 0;
 
-  if (width > height * 5) {   /* tiny window: show middle */
-    height = width * 9/16;
-    y = -height/2;
-    h = height / (GLfloat) width;
-  }
+  if (width > height * 5)
+    { /* tiny window: show middle */
+      height= width * 9 / 16;
+      y= -height / 2;
+      h= height / (GLfloat) width;
+    }
 
-  glViewport (0, y, (GLint) width, (GLint) height);
+  glViewport(0, y, (GLint) width, (GLint) height);
 
   glMatrixMode(GL_PROJECTION);
   glLoadIdentity();
-  gluPerspective (30.0, 1/h, 1.0, 100.0);
+  gluPerspective(30.0, 1 / h, 1.0, 100.0);
 
   glMatrixMode(GL_MODELVIEW);
   glLoadIdentity();
-  gluLookAt( 0.0, 0.0, 30.0,
-             0.0, 0.0, 0.0,
-             0.0, 1.0, 0.0);
+  gluLookAt(0.0, 0.0, 30.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0);
 
   {
-    GLfloat s = (MI_WIDTH(mi) < MI_HEIGHT(mi)
-                 ? (MI_WIDTH(mi) / (GLfloat) MI_HEIGHT(mi))
-                 : 1);
-    glScalef (s, s, s);
+    GLfloat s= (MI_WIDTH(mi) < MI_HEIGHT(mi) ? (MI_WIDTH(mi) / (GLfloat) MI_HEIGHT(mi)) : 1);
+    glScalef(s, s, s);
   }
 
   glClear(GL_COLOR_BUFFER_BIT);
@@ -196,16 +197,17 @@ reshape_spheremonics (ModeInfo *mi, int width, int height)
 
 
 static void
-gl_init (ModeInfo *mi)
+  gl_init(
+    ModeInfo *mi)
 {
-/*  spheremonics_configuration *cc = &ccs[MI_SCREEN(mi)]; */
-  int wire = MI_IS_WIREFRAME(mi);
+  /*  spheremonics_configuration *cc = &ccs[MI_SCREEN(mi)]; */
+  int wire= MI_IS_WIREFRAME(mi);
 
-  static const GLfloat pos[4] = {5.0, 5.0, 10.0, 1.0};
+  static const GLfloat pos [ 4 ]= {5.0, 5.0, 10.0, 1.0};
 
   glEnable(GL_NORMALIZE);
 
-  if (!wire)
+  if (! wire)
     {
       glLightfv(GL_LIGHT0, GL_POSITION, pos);
       glEnable(GL_LIGHTING);
@@ -232,151 +234,171 @@ gl_init (ModeInfo *mi)
          lighting effect.
        */
       glDisable(GL_CULL_FACE);
-      glLightModeli (GL_LIGHT_MODEL_TWO_SIDE, True);
+      glLightModeli(GL_LIGHT_MODEL_TWO_SIDE, True);
     }
 
-  if (smooth_p) 
+  if (smooth_p)
     {
-      glEnable (GL_LINE_SMOOTH);
-      glHint (GL_LINE_SMOOTH_HINT, GL_NICEST);
-      glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); 
-      glEnable (GL_BLEND);
+      glEnable(GL_LINE_SMOOTH);
+      glHint(GL_LINE_SMOOTH_HINT, GL_NICEST);
+      glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+      glEnable(GL_BLEND);
     }
 }
 
 
-
+
 /* generate the object */
 
 static XYZ
-sphere_eval (double theta, double phi, int *m)
+  sphere_eval(
+    double theta,
+    double phi,
+    int *m)
 {
-  double r = 0;
+  double r= 0;
   XYZ p;
 
-  r += pow (sin(m[0] * phi),  (double)m[1]);
-  r += pow (cos(m[2] * phi),  (double)m[3]);
-  r += pow (sin(m[4] * theta),(double)m[5]);
-  r += pow (cos(m[6] * theta),(double)m[7]);
+  r+= pow(sin(m [ 0 ] * phi), (double) m [ 1 ]);
+  r+= pow(cos(m [ 2 ] * phi), (double) m [ 3 ]);
+  r+= pow(sin(m [ 4 ] * theta), (double) m [ 5 ]);
+  r+= pow(cos(m [ 6 ] * theta), (double) m [ 7 ]);
 
-  p.x = r * sin(phi) * cos(theta);
-  p.y = r * cos(phi);
-  p.z = r * sin(phi) * sin(theta);
+  p.x= r * sin(phi) * cos(theta);
+  p.y= r * cos(phi);
+  p.z= r * sin(phi) * sin(theta);
 
   return (p);
 }
 
 
 static void
-do_color (int i, XColor *colors)
+  do_color(
+    int i,
+    XColor *colors)
 {
-  GLfloat c[4];
-  c[0] = colors[i].red   / 65535.0;
-  c[1] = colors[i].green / 65535.0;
-  c[2] = colors[i].blue  / 65535.0;
-  c[3] = 1.0;
-  glMaterialfv (GL_FRONT, GL_AMBIENT_AND_DIFFUSE, c);
-  glColor3f (c[0], c[1], c[2]);
+  GLfloat c [ 4 ];
+  c [ 0 ]= colors [ i ].red / 65535.0;
+  c [ 1 ]= colors [ i ].green / 65535.0;
+  c [ 2 ]= colors [ i ].blue / 65535.0;
+  c [ 3 ]= 1.0;
+  glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, c);
+  glColor3f(c [ 0 ], c [ 1 ], c [ 2 ]);
 }
 
 
 static void
-draw_circle (ModeInfo *mi, Bool teeth_p)
+  draw_circle(
+    ModeInfo *mi,
+    Bool teeth_p)
 {
   GLfloat th;
-  int tick = 0;
+  int tick= 0;
   GLfloat x, y;
-  GLfloat step = (M_PI / 180);
+  GLfloat step= (M_PI / 180);
 
   glBegin(GL_LINE_LOOP);
-  for (th = 0; th < M_PI*2; th += step*5)
+  for (th= 0; th < M_PI * 2; th+= step * 5)
     {
-      GLfloat r1 = 0.5;
-      x = cos (th);
-      y = sin (th);
-      glVertex3f(x*r1, y*r1,  0);
+      GLfloat r1= 0.5;
+      x= cos(th);
+      y= sin(th);
+      glVertex3f(x * r1, y * r1, 0);
     }
   glEnd();
 
-  if (!teeth_p) return;
+  if (! teeth_p) return;
 
   glBegin(GL_LINES);
-  for (th = 0; th < M_PI*2; th += step)
+  for (th= 0; th < M_PI * 2; th+= step)
     {
-      GLfloat r1 = 0.5;
-      GLfloat r2 = r1 - 0.01;
+      GLfloat r1= 0.5;
+      GLfloat r2= r1 - 0.01;
       if (! (tick % 10))
-        r2 -= 0.02;
+        r2-= 0.02;
       else if (! (tick % 5))
-        r2 -= 0.01;
+        r2-= 0.01;
       tick++;
 
-      x = cos (th);
-      y = sin (th);
-      glVertex3f(x*r1, y*r1,  0);
-      glVertex3f(x*r2, y*r2,  0);
+      x= cos(th);
+      y= sin(th);
+      glVertex3f(x * r1, y * r1, 0);
+      glVertex3f(x * r2, y * r2, 0);
     }
   glEnd();
 }
 
 
 static void
-draw_bounding_box (ModeInfo *mi)
+  draw_bounding_box(
+    ModeInfo *mi)
 {
   /* spheremonics_configuration *cc = &ccs[MI_SCREEN(mi)]; */
 
-  static const GLfloat c1[4] = { 0.2, 0.2, 0.6, 1.0 };
-  int wire = MI_IS_WIREFRAME(mi);
+  static const GLfloat c1 [ 4 ]= {0.2, 0.2, 0.6, 1.0};
+  int wire= MI_IS_WIREFRAME(mi);
 
-  GLfloat x1,y1,z1,x2,y2,z2;
+  GLfloat x1, y1, z1, x2, y2, z2;
 
-# if 0
+#if 0
   x1 = cc->bbox[0].x;
   y1 = cc->bbox[0].y;
   z1 = cc->bbox[0].z;
   x2 = cc->bbox[1].x;
   y2 = cc->bbox[1].y;
   z2 = cc->bbox[1].z;
-# else
-  x1 = y1 = z1 = -0.5;
-  x2 = y2 = z2 =  0.5;
-# endif
+#else
+  x1= y1= z1= -0.5;
+  x2= y2= z2= 0.5;
+#endif
 
-  if (do_bbox && !wire)
+  if (do_bbox && ! wire)
     {
-      glMaterialfv (GL_FRONT, GL_AMBIENT_AND_DIFFUSE, c1);
+      glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, c1);
       glFrontFace(GL_CCW);
       glEnable(GL_CULL_FACE);
 
       glBegin(wire ? GL_LINE_LOOP : GL_QUADS);
       glNormal3f(0, 1, 0);
-      glVertex3f(x1, y1, z1); glVertex3f(x1, y1, z2);
-      glVertex3f(x2, y1, z2); glVertex3f(x2, y1, z1);
+      glVertex3f(x1, y1, z1);
+      glVertex3f(x1, y1, z2);
+      glVertex3f(x2, y1, z2);
+      glVertex3f(x2, y1, z1);
       glEnd();
       glBegin(wire ? GL_LINE_LOOP : GL_QUADS);
       glNormal3f(0, -1, 0);
-      glVertex3f(x2, y2, z1); glVertex3f(x2, y2, z2);
-      glVertex3f(x1, y2, z2); glVertex3f(x1, y2, z1);
+      glVertex3f(x2, y2, z1);
+      glVertex3f(x2, y2, z2);
+      glVertex3f(x1, y2, z2);
+      glVertex3f(x1, y2, z1);
       glEnd();
       glBegin(wire ? GL_LINE_LOOP : GL_QUADS);
       glNormal3f(0, 0, 1);
-      glVertex3f(x1, y1, z1); glVertex3f(x2, y1, z1);
-      glVertex3f(x2, y2, z1); glVertex3f(x1, y2, z1);
+      glVertex3f(x1, y1, z1);
+      glVertex3f(x2, y1, z1);
+      glVertex3f(x2, y2, z1);
+      glVertex3f(x1, y2, z1);
       glEnd();
       glBegin(wire ? GL_LINE_LOOP : GL_QUADS);
       glNormal3f(0, 0, -1);
-      glVertex3f(x1, y2, z2); glVertex3f(x2, y2, z2);
-      glVertex3f(x2, y1, z2); glVertex3f(x1, y1, z2);
+      glVertex3f(x1, y2, z2);
+      glVertex3f(x2, y2, z2);
+      glVertex3f(x2, y1, z2);
+      glVertex3f(x1, y1, z2);
       glEnd();
       glBegin(wire ? GL_LINE_LOOP : GL_QUADS);
       glNormal3f(1, 0, 0);
-      glVertex3f(x1, y2, z1); glVertex3f(x1, y2, z2);
-      glVertex3f(x1, y1, z2); glVertex3f(x1, y1, z1);
+      glVertex3f(x1, y2, z1);
+      glVertex3f(x1, y2, z2);
+      glVertex3f(x1, y1, z2);
+      glVertex3f(x1, y1, z1);
       glEnd();
       glBegin(wire ? GL_LINE_LOOP : GL_QUADS);
       glNormal3f(-1, 0, 0);
-      glVertex3f(x2, y1, z1); glVertex3f(x2, y1, z2);
-      glVertex3f(x2, y2, z2); glVertex3f(x2, y2, z1);
+      glVertex3f(x2, y1, z1);
+      glVertex3f(x2, y1, z2);
+      glVertex3f(x2, y2, z2);
+      glVertex3f(x2, y2, z1);
       glEnd();
       glDisable(GL_CULL_FACE);
     }
@@ -384,118 +406,123 @@ draw_bounding_box (ModeInfo *mi)
 
 
 static void
-do_tracer (ModeInfo *mi)
+  do_tracer(
+    ModeInfo *mi)
 {
-  spheremonics_configuration *cc = &ccs[MI_SCREEN(mi)];
+  spheremonics_configuration *cc= &ccs [ MI_SCREEN(mi) ];
 
   if (cc->tracer == -1 &&
-      cc->mesher == -1 &&
-      !(random() % (duration * 4)))
+    cc->mesher == -1 &&
+    ! (random() % (duration * 4)))
     {
       if (random() & 1)
-        cc->tracer = ((random() & 1) ? 0 : 180);
+        cc->tracer= ((random() & 1) ? 0 : 180);
       else
-        cc->mesher = ((random() % ((duration / 3) + 1)) +
-                      (random() % ((duration / 3) + 1)));
+        cc->mesher= ((random() % ((duration / 3) + 1)) +
+          (random() % ((duration / 3) + 1)));
     }
 
   if (cc->tracer >= 0)
     {
-      int d = (90 - cc->tracer);
-      GLfloat th = d * (M_PI / 180);
-      GLfloat x = cos (th);
-      GLfloat y = sin (th);
-      GLfloat s = 1.5 / cc->scale;
+      int d= (90 - cc->tracer);
+      GLfloat th= d * (M_PI / 180);
+      GLfloat x= cos(th);
+      GLfloat y= sin(th);
+      GLfloat s= 1.5 / cc->scale;
 
       if (s > 0.001)
         {
-          static const GLfloat c[4] = { 0.6, 0.5, 1.0, 1.0 };
+          static const GLfloat c [ 4 ]= {0.6, 0.5, 1.0, 1.0};
 
-          glDisable (GL_LIGHTING);
+          glDisable(GL_LIGHTING);
 
           glPushMatrix();
-          glRotatef (90, 1, 0, 0);
-          glTranslatef (0, 0, y*s/2);
-          s *= x;
+          glRotatef(90, 1, 0, 0);
+          glTranslatef(0, 0, y * s / 2);
+          s*= x;
           glScalef(s, s, s);
-          glColor3f (c[0], c[1], c[2]);
-          draw_circle (mi, False);
+          glColor3f(c [ 0 ], c [ 1 ], c [ 2 ]);
+          draw_circle(mi, False);
           glPopMatrix();
 
-          if (! MI_IS_WIREFRAME(mi)) glEnable (GL_LIGHTING);
+          if (! MI_IS_WIREFRAME(mi)) glEnable(GL_LIGHTING);
         }
 
-      cc->tracer += 5;
+      cc->tracer+= 5;
       if (cc->tracer == 180 || cc->tracer == 360)
-        cc->tracer = -1;
+        cc->tracer= -1;
     }
 }
 
 
 static int
-unit_spheremonics (ModeInfo *mi,
-                   int resolution, Bool wire, int *m, XColor *colors)
+  unit_spheremonics(
+    ModeInfo *mi,
+    int resolution,
+    Bool wire,
+    int *m,
+    XColor *colors)
 {
-  spheremonics_configuration *cc = &ccs[MI_SCREEN(mi)];
-  int polys = 0;
+  spheremonics_configuration *cc= &ccs [ MI_SCREEN(mi) ];
+  int polys= 0;
   int i, j;
   double du, dv;
-  XYZ q[4];
-  XYZ n[4];
-  int res = (wire == 2
-             ? resolution / 2
-             : resolution);
+  XYZ q [ 4 ];
+  XYZ n [ 4 ];
+  int res= (wire == 2 ? resolution / 2 : resolution);
 
-  cc->bbox[0].x = cc->bbox[0].y = cc->bbox[0].z = 0;
-  cc->bbox[1].x = cc->bbox[1].y = cc->bbox[1].z = 0;
+  cc->bbox [ 0 ].x= cc->bbox [ 0 ].y= cc->bbox [ 0 ].z= 0;
+  cc->bbox [ 1 ].x= cc->bbox [ 1 ].y= cc->bbox [ 1 ].z= 0;
 
-  du = (M_PI+M_PI) / (double)res; /* Theta */
-  dv = M_PI        / (double)res; /* Phi   */
+  du= (M_PI + M_PI) / (double) res; /* Theta */
+  dv= M_PI / (double) res;          /* Phi   */
 
   if (wire)
-    glColor3f (1, 1, 1);
+    glColor3f(1, 1, 1);
 
-  glBegin (wire ? GL_LINE_LOOP : GL_QUADS);
+  glBegin(wire ? GL_LINE_LOOP : GL_QUADS);
 
-  for (i = 0; i < res; i++) {
-    double u = i * du;
-    for (j = 0; j < res; j++) {
-      double v = j * dv;
-      q[0] = sphere_eval (u, v, m);
-      n[0] = calc_normal(q[0],
-                         sphere_eval (u+du/10, v, m),
-                         sphere_eval (u, v+dv/10, m));
-      glNormal3f(n[0].x,n[0].y,n[0].z);
-      if (!wire) do_color (i, colors);
-      glVertex3f(q[0].x,q[0].y,q[0].z);
+  for (i= 0; i < res; i++)
+    {
+      double u= i * du;
+      for (j= 0; j < res; j++)
+        {
+          double v= j * dv;
+          q [ 0 ]= sphere_eval(u, v, m);
+          n [ 0 ]= calc_normal(q [ 0 ],
+            sphere_eval(u + du / 10, v, m),
+            sphere_eval(u, v + dv / 10, m));
+          glNormal3f(n [ 0 ].x, n [ 0 ].y, n [ 0 ].z);
+          if (! wire) do_color(i, colors);
+          glVertex3f(q [ 0 ].x, q [ 0 ].y, q [ 0 ].z);
 
-      q[1] = sphere_eval (u+du, v, m);
-      n[1] = calc_normal(q[1],
-                         sphere_eval (u+du+du/10, v, m),
-                         sphere_eval (u+du, v+dv/10, m));
-      glNormal3f(n[1].x,n[1].y,n[1].z);
-      if (!wire) do_color ((i+1)%res, colors);
-      glVertex3f(q[1].x,q[1].y,q[1].z);
+          q [ 1 ]= sphere_eval(u + du, v, m);
+          n [ 1 ]= calc_normal(q [ 1 ],
+            sphere_eval(u + du + du / 10, v, m),
+            sphere_eval(u + du, v + dv / 10, m));
+          glNormal3f(n [ 1 ].x, n [ 1 ].y, n [ 1 ].z);
+          if (! wire) do_color((i + 1) % res, colors);
+          glVertex3f(q [ 1 ].x, q [ 1 ].y, q [ 1 ].z);
 
-      q[2] = sphere_eval (u+du, v+dv, m);
-      n[2] = calc_normal(q[2],
-                         sphere_eval (u+du+du/10, v+dv, m),
-                         sphere_eval (u+du, v+dv+dv/10, m));
-      glNormal3f(n[2].x,n[2].y,n[2].z);
-      if (!wire) do_color ((i+1)%res, colors);
-      glVertex3f(q[2].x,q[2].y,q[2].z);
+          q [ 2 ]= sphere_eval(u + du, v + dv, m);
+          n [ 2 ]= calc_normal(q [ 2 ],
+            sphere_eval(u + du + du / 10, v + dv, m),
+            sphere_eval(u + du, v + dv + dv / 10, m));
+          glNormal3f(n [ 2 ].x, n [ 2 ].y, n [ 2 ].z);
+          if (! wire) do_color((i + 1) % res, colors);
+          glVertex3f(q [ 2 ].x, q [ 2 ].y, q [ 2 ].z);
 
-      q[3] = sphere_eval (u,v+dv, m);
-      n[3] = calc_normal(q[3],
-                         sphere_eval (u+du/10, v+dv, m),
-                         sphere_eval (u, v+dv+dv/10, m));
-      glNormal3f(n[3].x,n[3].y,n[3].z);
-      if (!wire) do_color (i, colors);
-      glVertex3f(q[3].x,q[3].y,q[3].z);
+          q [ 3 ]= sphere_eval(u, v + dv, m);
+          n [ 3 ]= calc_normal(q [ 3 ],
+            sphere_eval(u + du / 10, v + dv, m),
+            sphere_eval(u, v + dv + dv / 10, m));
+          glNormal3f(n [ 3 ].x, n [ 3 ].y, n [ 3 ].z);
+          if (! wire) do_color(i, colors);
+          glVertex3f(q [ 3 ].x, q [ 3 ].y, q [ 3 ].z);
 
-      polys++;
+          polys++;
 
-# define CHECK_BBOX(N) \
+#define CHECK_BBOX(N) \
          if (q[(N)].x < cc->bbox[0].x) cc->bbox[0].x = q[(N)].x; \
          if (q[(N)].y < cc->bbox[0].y) cc->bbox[0].y = q[(N)].y; \
          if (q[(N)].z < cc->bbox[0].z) cc->bbox[0].z = q[(N)].z; \
@@ -503,31 +530,31 @@ unit_spheremonics (ModeInfo *mi,
          if (q[(N)].y > cc->bbox[1].y) cc->bbox[1].y = q[(N)].y; \
          if (q[(N)].z > cc->bbox[1].z) cc->bbox[1].z = q[(N)].z
 
-      CHECK_BBOX(0);
-      CHECK_BBOX(1);
-      CHECK_BBOX(2);
-      CHECK_BBOX(3);
-# undef CHECK_BBOX
+          CHECK_BBOX(0);
+          CHECK_BBOX(1);
+          CHECK_BBOX(2);
+          CHECK_BBOX(3);
+#undef CHECK_BBOX
+        }
     }
-  }
   glEnd();
 
   {
-    GLfloat w = cc->bbox[1].x - cc->bbox[0].x;
-    GLfloat h = cc->bbox[1].y - cc->bbox[0].y;
-    GLfloat d = cc->bbox[1].z - cc->bbox[0].z;
-    GLfloat wh = (w > h ? w : h);
-    GLfloat hd = (h > d ? h : d);
-    GLfloat scale = (wh > hd ? wh : hd);
+    GLfloat w= cc->bbox [ 1 ].x - cc->bbox [ 0 ].x;
+    GLfloat h= cc->bbox [ 1 ].y - cc->bbox [ 0 ].y;
+    GLfloat d= cc->bbox [ 1 ].z - cc->bbox [ 0 ].z;
+    GLfloat wh= (w > h ? w : h);
+    GLfloat hd= (h > d ? h : d);
+    GLfloat scale= (wh > hd ? wh : hd);
 
-    cc->scale = 1/scale;
+    cc->scale= 1 / scale;
 
     if (wire < 2 && (do_bbox || do_grid))
       {
-        GLfloat s = scale * 1.5;
+        GLfloat s= scale * 1.5;
         glPushMatrix();
         glScalef(s, s, s);
-        draw_bounding_box (mi);
+        draw_bounding_box(mi);
         glPopMatrix();
       }
   }
@@ -536,22 +563,21 @@ unit_spheremonics (ModeInfo *mi,
 
 
 static void
-init_colors (ModeInfo *mi)
+  init_colors(
+    ModeInfo *mi)
 {
-  spheremonics_configuration *cc = &ccs[MI_SCREEN(mi)];
+  spheremonics_configuration *cc= &ccs [ MI_SCREEN(mi) ];
   int i;
-  cc->ncolors = cc->resolution;
-  cc->colors = (XColor *) calloc(cc->ncolors, sizeof(XColor));
-  make_smooth_colormap (0, 0, 0,
-                        cc->colors, &cc->ncolors, 
-                        False, 0, False);
+  cc->ncolors= cc->resolution;
+  cc->colors= (XColor *) calloc(cc->ncolors, sizeof(XColor));
+  make_smooth_colormap(0, 0, 0, cc->colors, &cc->ncolors, False, 0, False);
 
   /* brighter colors, please... */
-  for (i = 0; i < cc->ncolors; i++)
+  for (i= 0; i < cc->ncolors; i++)
     {
-      cc->colors[i].red   = (cc->colors[i].red   / 2) + 32767;
-      cc->colors[i].green = (cc->colors[i].green / 2) + 32767;
-      cc->colors[i].blue  = (cc->colors[i].blue  / 2) + 32767;
+      cc->colors [ i ].red= (cc->colors [ i ].red / 2) + 32767;
+      cc->colors [ i ].green= (cc->colors [ i ].green / 2) + 32767;
+      cc->colors [ i ].blue= (cc->colors [ i ].blue / 2) + 32767;
     }
 }
 
@@ -559,43 +585,44 @@ init_colors (ModeInfo *mi)
 /* Pick one of the parameters to the function and tweak it up or down.
  */
 static void
-tweak_parameters (ModeInfo *mi)
+  tweak_parameters(
+    ModeInfo *mi)
 {
-  spheremonics_configuration *cc = &ccs[MI_SCREEN(mi)];
+  spheremonics_configuration *cc= &ccs [ MI_SCREEN(mi) ];
 
   /* If the -parameters command line option was specified, just use that
      all the time.
    */
   if (static_parms &&
-      *static_parms &&
-      !!strcasecmp (static_parms, "(default)"))
+    *static_parms &&
+    ! ! strcasecmp(static_parms, "(default)"))
     {
       unsigned long n;
       char dummy;
-      if (8 == sscanf (static_parms, "%d %d %d %d %d %d %d %d %c",
-                       &cc->m[0], &cc->m[1], &cc->m[2], &cc->m[3],
-                       &cc->m[4], &cc->m[5], &cc->m[6], &cc->m[7],
-                       &dummy))
-        return;
-      else if (strlen (static_parms) == 8 &&
-               1 == sscanf (static_parms, "%lu %c", &n, &dummy))
+      if (8 == sscanf(static_parms, "%d %d %d %d %d %d %d %d %c", &cc->m [ 0 ], &cc->m [ 1 ], &cc->m [ 2 ], &cc->m [ 3 ], &cc->m [ 4 ], &cc->m [ 5 ], &cc->m [ 6 ], &cc->m [ 7 ], &dummy))
         {
-          const char *s = static_parms;
-          int i = 0;
-          while (*s)
-            cc->m[i++] = (*s++)-'0';
           return;
         }
-      fprintf (stderr,
-               "%s: -parameters must be a string of 8 ints (not \"%s\")\n",
-               progname, static_parms);
-      exit (1);
+      else if (strlen(static_parms) == 8 &&
+        1 == sscanf(static_parms, "%lu %c", &n, &dummy))
+        {
+          const char *s= static_parms;
+          int i= 0;
+          while (*s)
+            cc->m [ i++ ]= (*s++) - '0';
+          return;
+        }
+      fprintf(stderr,
+        "%s: -parameters must be a string of 8 ints (not \"%s\")\n",
+        progname,
+        static_parms);
+      exit(1);
     }
 
-  static_parms = 0;
+  static_parms= 0;
 
 
-# define SHIFT(N) do { \
+#define SHIFT(N) do { \
     int n = (N); \
     cc->m[n] += cc->dm[n]; \
     if (cc->m[n] <= 0) \
@@ -604,23 +631,23 @@ tweak_parameters (ModeInfo *mi)
       cc->m[n] = cc->m_max, cc->dm[n] = -cc->dm[n]; \
   } while(0)
 
-/*    else if (cc->m[n] >= cc->m_max/2 && (! (random() % 3))) \
-      cc->m[n] = cc->m_max/2, cc->dm[n] = -cc->dm[n]; \
-*/
+  /*    else if (cc->m[n] >= cc->m_max/2 && (! (random() % 3))) \
+        cc->m[n] = cc->m_max/2, cc->dm[n] = -cc->dm[n]; \
+  */
 
-  switch(random() % 8)
+  switch (random() % 8)
     {
-    case 0: SHIFT(0); break;
-    case 1: SHIFT(1); break;
-    case 2: SHIFT(2); break;
-    case 3: SHIFT(3); break;
-    case 4: SHIFT(4); break;
-    case 5: SHIFT(5); break;
-    case 6: SHIFT(6); break;
-    case 7: SHIFT(7); break;
-    default: abort(); break;
+      case 0 : SHIFT(0); break;
+      case 1 : SHIFT(1); break;
+      case 2 : SHIFT(2); break;
+      case 3 : SHIFT(3); break;
+      case 4 : SHIFT(4); break;
+      case 5 : SHIFT(5); break;
+      case 6 : SHIFT(6); break;
+      case 7 : SHIFT(7); break;
+      default : abort(); break;
     }
-# undef SHIFT
+#undef SHIFT
 
 #if 0
     printf ("%s: state: %d %d %d %d %d %d %d %d\n",
@@ -628,29 +655,29 @@ tweak_parameters (ModeInfo *mi)
             cc->m[0], cc->m[1], cc->m[2], cc->m[3],
             cc->m[4], cc->m[5], cc->m[6], cc->m[7]);
 #endif
-
 }
 
 
 static void
-generate_spheremonics (ModeInfo *mi)
+  generate_spheremonics(
+    ModeInfo *mi)
 {
-  spheremonics_configuration *cc = &ccs[MI_SCREEN(mi)];
-  int wire = MI_IS_WIREFRAME(mi);
+  spheremonics_configuration *cc= &ccs [ MI_SCREEN(mi) ];
+  int wire= MI_IS_WIREFRAME(mi);
 
-  tweak_parameters (mi);
+  tweak_parameters(mi);
 
-  if (!cc->done_once || (0 == (random() % 20)))
-    init_colors (mi);
+  if (! cc->done_once || (0 == (random() % 20)))
+    init_colors(mi);
 
   glNewList(cc->dlist, GL_COMPILE);
-  cc->polys1 = unit_spheremonics (mi, cc->resolution, wire,cc->m,cc->colors);
+  cc->polys1= unit_spheremonics(mi, cc->resolution, wire, cc->m, cc->colors);
   glEndList();
 
   glNewList(cc->dlist2, GL_COMPILE);
   glPushMatrix();
-  glScalef (1.05, 1.05, 1.05);
-  cc->polys2 = unit_spheremonics (mi, cc->resolution, 2, cc->m, cc->colors);
+  glScalef(1.05, 1.05, 1.05);
+  cc->polys2= unit_spheremonics(mi, cc->resolution, 2, cc->m, cc->colors);
   glPopMatrix();
   glEndList();
 
@@ -659,94 +686,101 @@ generate_spheremonics (ModeInfo *mi)
       glNewList(cc->grid_dlist, GL_COMPILE);
       if (do_grid)
         {
-          static const GLfloat c2[4] = { 1.0, 0.0, 0.0, 1.0 };
+          static const GLfloat c2 [ 4 ]= {1.0, 0.0, 0.0, 1.0};
           glPushMatrix();
-          glColor3f (c2[0], c2[1], c2[2]);
+          glColor3f(c2 [ 0 ], c2 [ 1 ], c2 [ 2 ]);
           glBegin(GL_LINES);
           glVertex3f(0, -0.66, 0);
-          glVertex3f(0,  0.66, 0); 
+          glVertex3f(0, 0.66, 0);
           glEnd();
-          draw_circle (mi, True);
+          draw_circle(mi, True);
           glRotatef(90, 1, 0, 0);
-          draw_circle (mi, True);
+          draw_circle(mi, True);
           glRotatef(90, 0, 1, 0);
-          draw_circle (mi, True);
+          draw_circle(mi, True);
           glPopMatrix();
         }
       glEndList();
     }
 
-  cc->done_once = True;
+  cc->done_once= True;
 }
 
 
-
 
-ENTRYPOINT void 
-init_spheremonics (ModeInfo *mi)
+
+ENTRYPOINT void
+  init_spheremonics(
+    ModeInfo *mi)
 {
   spheremonics_configuration *cc;
 
-  MI_INIT (mi, ccs);
+  MI_INIT(mi, ccs);
 
-  cc = &ccs[MI_SCREEN(mi)];
+  cc= &ccs [ MI_SCREEN(mi) ];
 
-  if ((cc->glx_context = init_GL(mi)) != NULL) {
-    gl_init(mi);
-    reshape_spheremonics (mi, MI_WIDTH(mi), MI_HEIGHT(mi));
-  }
+  if ((cc->glx_context= init_GL(mi)) != NULL)
+    {
+      gl_init(mi);
+      reshape_spheremonics(mi, MI_WIDTH(mi), MI_HEIGHT(mi));
+    }
 
   {
-    Bool spinx=False, spiny=False, spinz=False;
-    double spin_speed   = 1.0;
-    double wander_speed = 0.03;
+    Bool spinx= False, spiny= False, spinz= False;
+    double spin_speed= 1.0;
+    double wander_speed= 0.03;
 
-    char *s = do_spin;
+    char *s= do_spin;
     while (*s)
       {
-        if      (*s == 'x' || *s == 'X') spinx = True;
-        else if (*s == 'y' || *s == 'Y') spiny = True;
-        else if (*s == 'z' || *s == 'Z') spinz = True;
-        else if (*s == '0') ;
+        if (*s == 'x' || *s == 'X')
+          spinx= True;
+        else if (*s == 'y' || *s == 'Y')
+          spiny= True;
+        else if (*s == 'z' || *s == 'Z')
+          spinz= True;
+        else if (*s == '0')
+          ;
         else
           {
-            fprintf (stderr,
-         "%s: spin must contain only the characters X, Y, or Z (not \"%s\")\n",
-                     progname, do_spin);
-            exit (1);
+            fprintf(stderr,
+              "%s: spin must contain only the characters X, Y, or Z (not \"%s\")\n",
+              progname,
+              do_spin);
+            exit(1);
           }
         s++;
       }
 
-    cc->rot = make_rotator (spinx ? spin_speed : 0,
-                            spinz ? spin_speed : 0,
-                            spiny ? spin_speed : 0,
-                            1.0,
-                            do_wander ? wander_speed : 0,
-                            (spinx && spiny && spinz));
-    cc->trackball = gltrackball_init (True);
+    cc->rot= make_rotator(spinx ? spin_speed : 0,
+      spinz ? spin_speed : 0,
+      spiny ? spin_speed : 0,
+      1.0,
+      do_wander ? wander_speed : 0,
+      (spinx && spiny && spinz));
+    cc->trackball= gltrackball_init(True);
   }
 
-  cc->tracer = -1;
-  cc->mesher = -1;
+  cc->tracer= -1;
+  cc->mesher= -1;
 
-  cc->resolution = res;
+  cc->resolution= res;
 
-  cc->font_data = load_texture_font (mi->dpy, "labelfont");
+  cc->font_data= load_texture_font(mi->dpy, "labelfont");
 
-  cc->dlist = glGenLists(1);
-  cc->dlist2 = glGenLists(1);
-  cc->grid_dlist = glGenLists(1);
+  cc->dlist= glGenLists(1);
+  cc->dlist2= glGenLists(1);
+  cc->grid_dlist= glGenLists(1);
 
-  cc->m_max = 4; /* 9? */
+  cc->m_max= 4; /* 9? */
   {
     unsigned int i;
-    for (i = 0; i < countof(cc->dm); i++)
-      cc->dm[i] = 1;  /* going up! */
+    for (i= 0; i < countof(cc->dm); i++)
+      cc->dm [ i ]= 1; /* going up! */
 
     /* Generate a few more times so we don't always start off with a sphere */
-    for (i = 0; i < 5; i++)
-      tweak_parameters (mi);
+    for (i= 0; i < 5; i++)
+      tweak_parameters(mi);
   }
 
   generate_spheremonics(mi);
@@ -754,17 +788,19 @@ init_spheremonics (ModeInfo *mi)
 
 
 ENTRYPOINT Bool
-spheremonics_handle_event (ModeInfo *mi, XEvent *event)
+  spheremonics_handle_event(
+    ModeInfo *mi,
+    XEvent *event)
 {
-  spheremonics_configuration *cc = &ccs[MI_SCREEN(mi)];
+  spheremonics_configuration *cc= &ccs [ MI_SCREEN(mi) ];
 
-  if (gltrackball_event_handler (event, cc->trackball,
-                                 MI_WIDTH (mi), MI_HEIGHT (mi),
-                                 &cc->button_down_p))
-    return True;
-  else if (screenhack_event_helper (MI_DISPLAY(mi), MI_WINDOW(mi), event))
+  if (gltrackball_event_handler(event, cc->trackball, MI_WIDTH(mi), MI_HEIGHT(mi), &cc->button_down_p))
     {
-      cc->change_tick = duration;
+      return True;
+    }
+  else if (screenhack_event_helper(MI_DISPLAY(mi), MI_WINDOW(mi), event))
+    {
+      cc->change_tick= duration;
       return True;
     }
 
@@ -773,13 +809,14 @@ spheremonics_handle_event (ModeInfo *mi, XEvent *event)
 
 
 ENTRYPOINT void
-draw_spheremonics (ModeInfo *mi)
+  draw_spheremonics(
+    ModeInfo *mi)
 {
-  spheremonics_configuration *cc = &ccs[MI_SCREEN(mi)];
-  Display *dpy = MI_DISPLAY(mi);
-  Window window = MI_WINDOW(mi);
+  spheremonics_configuration *cc= &ccs [ MI_SCREEN(mi) ];
+  Display *dpy= MI_DISPLAY(mi);
+  Window window= MI_WINDOW(mi);
 
-  if (!cc->glx_context)
+  if (! cc->glx_context)
     return;
 
   glXMakeCurrent(MI_DISPLAY(mi), MI_WINDOW(mi), *cc->glx_context);
@@ -790,78 +827,80 @@ draw_spheremonics (ModeInfo *mi)
 
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-  glPushMatrix ();
+  glPushMatrix();
 
   glScalef(1.1, 1.1, 1.1);
 
   {
     double x, y, z;
-    get_position (cc->rot, &x, &y, &z, !cc->button_down_p);
+    get_position(cc->rot, &x, &y, &z, ! cc->button_down_p);
     glTranslatef((x - 0.5) * 8,
-                 (y - 0.5) * 6,
-                 (z - 0.5) * 8);
+      (y - 0.5) * 6,
+      (z - 0.5) * 8);
 
-    gltrackball_rotate (cc->trackball);
+    gltrackball_rotate(cc->trackball);
 
-    get_rotation (cc->rot, &x, &y, &z, !cc->button_down_p);
-    glRotatef (x * 360, 1.0, 0.0, 0.0);
-    glRotatef (y * 360, 0.0, 1.0, 0.0);
-    glRotatef (z * 360, 0.0, 0.0, 1.0);
+    get_rotation(cc->rot, &x, &y, &z, ! cc->button_down_p);
+    glRotatef(x * 360, 1.0, 0.0, 0.0);
+    glRotatef(y * 360, 0.0, 1.0, 0.0);
+    glRotatef(z * 360, 0.0, 0.0, 1.0);
   }
 
-  glScalef(7,7,7);
+  glScalef(7, 7, 7);
 
-  mi->polygon_count = 0;
+  mi->polygon_count= 0;
 
   if (do_grid)
     {
-      GLfloat s = 1.5;
-      glDisable (GL_LIGHTING);
+      GLfloat s= 1.5;
+      glDisable(GL_LIGHTING);
       glPushMatrix();
-      glScalef (s, s, s);
-      glCallList (cc->grid_dlist);
+      glScalef(s, s, s);
+      glCallList(cc->grid_dlist);
       glPopMatrix();
       if (! MI_IS_WIREFRAME(mi))
-        glEnable (GL_LIGHTING);
+        glEnable(GL_LIGHTING);
     }
 
-  glScalef (cc->scale, cc->scale, cc->scale);
+  glScalef(cc->scale, cc->scale, cc->scale);
   glPushMatrix();
   {
-    double fade_speed = 0.15;
+    double fade_speed= 0.15;
     GLfloat s;
     if (cc->fade == 0)
-      s = 1;
+      {
+        s= 1;
+      }
     else if (cc->fade > 0)
       {
-        s = cc->fade;
-        cc->fade -= fade_speed;
-        cc->change_tick = 0;
+        s= cc->fade;
+        cc->fade-= fade_speed;
+        cc->change_tick= 0;
         if (cc->fade <= 0)
           {
-            cc->fade = -1.0;
-            generate_spheremonics (mi);
+            cc->fade= -1.0;
+            generate_spheremonics(mi);
           }
       }
     else
       {
-        s = 1 + cc->fade;
-        cc->fade += fade_speed;
-        cc->change_tick = 0;
-        if (cc->fade >= 0) cc->fade = 0;
+        s= 1 + cc->fade;
+        cc->fade+= fade_speed;
+        cc->change_tick= 0;
+        if (cc->fade >= 0) cc->fade= 0;
       }
 
-    glScalef (s, s, s);
-    glCallList (cc->dlist);
+    glScalef(s, s, s);
+    glCallList(cc->dlist);
   }
   glPopMatrix();
-  mi->polygon_count += cc->polys1;
+  mi->polygon_count+= cc->polys1;
 
   if (cc->mesher >= 0 /* || cc->button_down_p */)
     {
-      glDisable (GL_LIGHTING);
-      glCallList (cc->dlist2);
-      mi->polygon_count += cc->polys2;
+      glDisable(GL_LIGHTING);
+      glCallList(cc->dlist2);
+      mi->polygon_count+= cc->polys2;
       if (cc->mesher >= 0)
         cc->mesher--;
     }
@@ -871,34 +910,38 @@ draw_spheremonics (ModeInfo *mi)
 
   if (cc->button_down_p)
     {
-      char buf[200];
-      sprintf (buf,
-               ((cc->m[0]<10 && cc->m[1]<10 && cc->m[2]<10 && cc->m[3]<10 &&
-                 cc->m[4]<10 && cc->m[5]<10 && cc->m[6]<10 && cc->m[7]<10)
-                ? "%d%d%d%d%d%d%d%d"
-                : "%d %d %d %d %d %d %d %d"),
-               cc->m[0], cc->m[1], cc->m[2], cc->m[3],
-               cc->m[4], cc->m[5], cc->m[6], cc->m[7]);
+      char buf [ 200 ];
+      sprintf(buf,
+        ((cc->m [ 0 ] < 10 && cc->m [ 1 ] < 10 && cc->m [ 2 ] < 10 && cc->m [ 3 ] < 10 &&
+           cc->m [ 4 ] < 10 && cc->m [ 5 ] < 10 && cc->m [ 6 ] < 10 && cc->m [ 7 ] < 10) ?
+            "%d%d%d%d%d%d%d%d" :
+            "%d %d %d %d %d %d %d %d"),
+        cc->m [ 0 ],
+        cc->m [ 1 ],
+        cc->m [ 2 ],
+        cc->m [ 3 ],
+        cc->m [ 4 ],
+        cc->m [ 5 ],
+        cc->m [ 6 ],
+        cc->m [ 7 ]);
 
       glColor3f(1.0, 1.0, 0.0);
-      print_texture_label (mi->dpy, cc->font_data,
-                           mi->xgwa.width, mi->xgwa.height,
-                           1, buf);
+      print_texture_label(mi->dpy, cc->font_data, mi->xgwa.width, mi->xgwa.height, 1, buf);
     }
 
-  if (!static_parms)
+  if (! static_parms)
     {
-      if (cc->change_tick++ >= duration && !cc->button_down_p)
+      if (cc->change_tick++ >= duration && ! cc->button_down_p)
         {
-          cc->change_tick = 0;
-          cc->fade = 1.0;
-          cc->mesher = -1;  /* turn off the mesh when switching objects */
+          cc->change_tick= 0;
+          cc->fade= 1.0;
+          cc->mesher= -1; /* turn off the mesh when switching objects */
         }
     }
 
   glPopMatrix();
 
-  if (mi->fps_p) do_fps (mi);
+  if (mi->fps_p) do_fps(mi);
   glFinish();
 
   glXSwapBuffers(dpy, window);
@@ -906,20 +949,23 @@ draw_spheremonics (ModeInfo *mi)
 
 
 ENTRYPOINT void
-free_spheremonics (ModeInfo *mi)
+  free_spheremonics(
+    ModeInfo *mi)
 {
-  spheremonics_configuration *cc = &ccs[MI_SCREEN(mi)];
-  if (!cc->glx_context) return;
+  spheremonics_configuration *cc= &ccs [ MI_SCREEN(mi) ];
+  if (! cc->glx_context) return;
   glXMakeCurrent(MI_DISPLAY(mi), MI_WINDOW(mi), *cc->glx_context);
-  if (cc->colors) free (cc->colors);
-  if (cc->trackball) gltrackball_free (cc->trackball);
-  if (cc->rot) free_rotator (cc->rot);
-  if (cc->font_data) free_texture_font (cc->font_data);
+  if (cc->colors) free(cc->colors);
+  if (cc->trackball) gltrackball_free(cc->trackball);
+  if (cc->rot) free_rotator(cc->rot);
+  if (cc->font_data) free_texture_font(cc->font_data);
   if (glIsList(cc->dlist)) glDeleteLists(cc->dlist, 1);
   if (glIsList(cc->dlist2)) glDeleteLists(cc->dlist2, 1);
   if (glIsList(cc->grid_dlist)) glDeleteLists(cc->grid_dlist, 1);
 }
 
-XSCREENSAVER_MODULE ("Spheremonics", spheremonics)
+XSCREENSAVER_MODULE(
+  "Spheremonics",
+  spheremonics)
 
 #endif /* USE_GL */

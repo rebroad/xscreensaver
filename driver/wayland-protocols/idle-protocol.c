@@ -23,7 +23,7 @@
 #include "wayland-util.h"
 
 #ifndef __has_attribute
-# define __has_attribute(x) 0  /* Compatibility with non-clang compilers. */
+#define __has_attribute(x) 0  /* Compatibility with non-clang compilers. */
 #endif
 
 #if (__has_attribute(visibility) || defined(__GNUC__) && __GNUC__ >= 4)
@@ -35,35 +35,40 @@
 extern const struct wl_interface org_kde_kwin_idle_timeout_interface;
 extern const struct wl_interface wl_seat_interface;
 
-static const struct wl_interface *idle_types[] = {
-	&org_kde_kwin_idle_timeout_interface,
-	&wl_seat_interface,
-	NULL,
+static const struct wl_interface *idle_types []= {
+  &org_kde_kwin_idle_timeout_interface,
+  &wl_seat_interface,
+  NULL,
 };
 
-static const struct wl_message org_kde_kwin_idle_requests[] = {
-	{ "get_idle_timeout", "nou", idle_types + 0 },
+static const struct wl_message org_kde_kwin_idle_requests []= {
+  {"get_idle_timeout", "nou", idle_types + 0},
 };
 
-WL_PRIVATE const struct wl_interface org_kde_kwin_idle_interface = {
-	"org_kde_kwin_idle", 1,
-	1, org_kde_kwin_idle_requests,
-	0, NULL,
+WL_PRIVATE const struct wl_interface org_kde_kwin_idle_interface= {
+  "org_kde_kwin_idle",
+  1,
+  1,
+  org_kde_kwin_idle_requests,
+  0,
+  NULL,
 };
 
-static const struct wl_message org_kde_kwin_idle_timeout_requests[] = {
-	{ "release", "", idle_types + 0 },
-	{ "simulate_user_activity", "", idle_types + 0 },
+static const struct wl_message org_kde_kwin_idle_timeout_requests []= {
+  {"release", "", idle_types + 0},
+  {"simulate_user_activity", "", idle_types + 0},
 };
 
-static const struct wl_message org_kde_kwin_idle_timeout_events[] = {
-	{ "idle", "", idle_types + 0 },
-	{ "resumed", "", idle_types + 0 },
+static const struct wl_message org_kde_kwin_idle_timeout_events []= {
+  {"idle", "", idle_types + 0},
+  {"resumed", "", idle_types + 0},
 };
 
-WL_PRIVATE const struct wl_interface org_kde_kwin_idle_timeout_interface = {
-	"org_kde_kwin_idle_timeout", 1,
-	2, org_kde_kwin_idle_timeout_requests,
-	2, org_kde_kwin_idle_timeout_events,
+WL_PRIVATE const struct wl_interface org_kde_kwin_idle_timeout_interface= {
+  "org_kde_kwin_idle_timeout",
+  1,
+  2,
+  org_kde_kwin_idle_timeout_requests,
+  2,
+  org_kde_kwin_idle_timeout_events,
 };
-

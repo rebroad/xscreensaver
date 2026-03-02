@@ -5,7 +5,7 @@
  * the above copyright notice appear in all copies and that both that
  * copyright notice and this permission notice appear in supporting
  * documentation.  No representations are made about the suitability of this
- * software for any purpose.  It is provided "as is" without express or 
+ * software for any purpose.  It is provided "as is" without express or
  * implied warranty.
  */
 
@@ -13,11 +13,11 @@
 #define __YARANDOM_H__
 
 #ifdef HAVE_CONFIG_H
-# include "config.h"
+#include "config.h"
 #endif
 
 #ifdef HAVE_INTTYPES_H
-# include <inttypes.h>
+#include <inttypes.h>
 #endif
 
 #undef random
@@ -45,11 +45,11 @@
 #undef RAND_MAX
 
 #ifdef VMS
-# include "vms-gtod.h"
+#include "vms-gtod.h"
 #endif
 
-extern unsigned int ya_random (void);
-extern void ya_rand_init (unsigned int);
+extern unsigned int ya_random(void);
+extern void ya_rand_init(unsigned int);
 
 #define random()   ya_random()
 #define RAND_MAX   0xFFFFFFFF
@@ -81,10 +81,10 @@ extern void ya_rand_init (unsigned int);
 #define rand_r     __ERROR_do_not_call_rand_r_in_xscreensaver__
 
 
-#if defined (__GNUC__) && (__GNUC__ >= 2)
- /* Implement frand using GCC's statement-expression extension. */
+#if defined(__GNUC__) && (__GNUC__ >= 2)
+/* Implement frand using GCC's statement-expression extension. */
 
-# define frand(f)							\
+#define frand(f)							\
   __extension__								\
   ({ double tmp = ((((double) random()) * ((double) (f))) /		\
 		   ((double) ((unsigned int)~0)));			\
@@ -93,7 +93,7 @@ extern void ya_rand_init (unsigned int);
 #else /* not GCC2 - implement frand using a global variable.*/
 
 static double _frand_tmp_;
-# define frand(f)							\
+#define frand(f)							\
   (_frand_tmp_ = ((((double) random()) * ((double) (f))) /		\
 		  ((double) ((unsigned int)~0))),			\
    _frand_tmp_ < 0 ? (-_frand_tmp_) : _frand_tmp_)
@@ -121,13 +121,13 @@ static double _frand_tmp_;
  * to get random numbers from the range (-n,n).
  */
 #ifdef HAVE_INTTYPES_H
-# define NRAND(n)       ((int32_t) ((uint64_t) random() * (uint32_t) (n) / \
+#define NRAND(n)       ((int32_t) ((uint64_t) random() * (uint32_t) (n) / \
                                     ((uint64_t) RAND_MAX + 1)))
 #else
-# define NRAND(n)       ((int) (LRAND() % (n)))
+#define NRAND(n)       ((int) (LRAND() % (n)))
 #endif
 
 #define MAXRAND         (2147483648.0) /* unsigned 1<<31 as a float */
-#define SRAND(n)        /* already seeded by screenhack.c */
+#define SRAND(n) /* already seeded by screenhack.c */
 
 #endif /* __YARANDOM_H__ */

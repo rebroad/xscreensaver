@@ -6,7 +6,7 @@
  * the above copyright notice appear in all copies and that both that
  * copyright notice and this permission notice appear in supporting
  * documentation.  No representations are made about the suitability of this
- * software for any purpose.  It is provided "as is" without express or 
+ * software for any purpose.  It is provided "as is" without express or
  * implied warranty.
  *
  * The definitions in this file make it possible to compile an xlockmore
@@ -18,14 +18,14 @@
 
 #ifndef __STDC__
 ERROR!  Sorry, xlockmore.h requires ANSI C (gcc, for example.)
-  /* (The ansi dependency is that we use string concatenation,
-     and cpp-based stringification of tokens.) */
+/* (The ansi dependency is that we use string concatenation,
+   and cpp-based stringification of tokens.) */
 #endif
 
 #include "screenhackI.h"
 #include "xlockmoreI.h"
 
-# define ENTRYPOINT static
+#define ENTRYPOINT static
 
 /* Accessor macros for the ModeInfo structure
  */
@@ -37,7 +37,7 @@ ERROR!  Sorry, xlockmore.h requires ANSI C (gcc, for example.)
 #define MI_WIN_WHITE_PIXEL(MI)	((MI)->white)
 #define MI_WIN_BLACK_PIXEL(MI)	((MI)->black)
 #define MI_NPIXELS(MI)		((MI)->npixels)
-#define MI_PIXEL(MI,N)		((MI)->pixels[(N)])
+#define MI_PIXEL(MI, N)		((MI)->pixels[(N)])
 #define MI_WIN_WIDTH(MI)	((MI)->xgwa.width)
 #define MI_WIN_HEIGHT(MI)	((MI)->xgwa.height)
 #define MI_WIN_DEPTH(MI)	((MI)->xgwa.depth)
@@ -92,9 +92,9 @@ ERROR!  Sorry, xlockmore.h requires ANSI C (gcc, for example.)
    init_##() or draw_##() finishes.
  */
 #ifdef USE_GL
-# define MI_CLEARWINDOW(mi) XClearWindow(MI_DISPLAY(mi), MI_WINDOW(mi))
+#define MI_CLEARWINDOW(mi) XClearWindow(MI_DISPLAY(mi), MI_WINDOW(mi))
 #else
-# define MI_CLEARWINDOW(mi) ((mi)->needs_clear = True)
+#define MI_CLEARWINDOW(mi) ((mi)->needs_clear = True)
 #endif
 
 /* MI_INIT and MI_ABORT are XScreenSaver extensions. These exist primarily for
@@ -132,7 +132,7 @@ ERROR!  Sorry, xlockmore.h requires ANSI C (gcc, for example.)
  */
 #define MI_ABORT(mi)		abort();
 
-#define FreeAllGL(dpy)		/* */
+#define FreeAllGL(dpy) /* */
 
 /* Some other utility macros.
  */
@@ -143,8 +143,8 @@ ERROR!  Sorry, xlockmore.h requires ANSI C (gcc, for example.)
 #undef MAX
 #undef MIN
 #undef ABS
-#define MAX(a,b)((a)>(b)?(a):(b))
-#define MIN(a,b)((a)<(b)?(a):(b))
+#define MAX(a, b)((a)>(b)?(a):(b))
+#define MIN(a, b)((a)<(b)?(a):(b))
 #define ABS(a)((a)<0 ? -(a) : (a))
 
 /* Maximum possible number of colors (*not* default number of colors.) */
@@ -159,52 +159,52 @@ ERROR!  Sorry, xlockmore.h requires ANSI C (gcc, for example.)
    the un-prefixed symbol does not exist.
  */
 #ifdef HAVE_MOBILE
-# define XSCREENSAVER_LINK(NAME)
+#define XSCREENSAVER_LINK(NAME)
 #else
-# define XSCREENSAVER_LINK(NAME) \
+#define XSCREENSAVER_LINK(NAME) \
    struct xscreensaver_function_table *xscreensaver_function_table = &NAME;
 #endif
 
 
-# if !defined(USE_GL) || defined(HAVE_COCOA) || defined(HAVE_ANDROID)
-#  define xlockmore_pick_gl_visual 0
-#  define xlockmore_validate_gl_visual 0
-# endif  /* !USE_GL || HAVE_COCOA || HAVE_ANDROID */
+#if ! defined(USE_GL) || defined(HAVE_COCOA) || defined(HAVE_ANDROID)
+#define xlockmore_pick_gl_visual 0
+#define xlockmore_validate_gl_visual 0
+#endif /* !USE_GL || HAVE_COCOA || HAVE_ANDROID */
 
-# ifdef USE_GL
-#  define XLOCKMORE_FPS xlockmore_gl_compute_fps
-#  define XLOCKMORE_FPS_FREE xlockmore_gl_free_fps
-# else
-#  define XLOCKMORE_FPS xlockmore_do_fps
-#  define XLOCKMORE_FPS_FREE fps_free
-# endif
+#ifdef USE_GL
+#define XLOCKMORE_FPS xlockmore_gl_compute_fps
+#define XLOCKMORE_FPS_FREE xlockmore_gl_free_fps
+#else
+#define XLOCKMORE_FPS xlockmore_do_fps
+#define XLOCKMORE_FPS_FREE fps_free
+#endif
 
-# ifdef HAVE_JWXYZ
-#  ifdef USE_GL
-#   define XLOCKMORE_VISUAL GL_VISUAL
-#  else
-#   define XLOCKMORE_VISUAL DEFAULT_VISUAL
-#  endif
-# else /* !HAVE_JWXYZ */
-#  define XLOCKMORE_VISUAL \
+#ifdef HAVE_JWXYZ
+#ifdef USE_GL
+#define XLOCKMORE_VISUAL GL_VISUAL
+#else
+#define XLOCKMORE_VISUAL DEFAULT_VISUAL
+#endif
+#else /* !HAVE_JWXYZ */
+#define XLOCKMORE_VISUAL \
      xlockmore_pick_gl_visual, xlockmore_validate_gl_visual
-# endif /* !HAVE_JWXYZ */
+#endif /* !HAVE_JWXYZ */
 
 #ifdef WRITABLE_COLORS
-# undef WRITABLE_COLORS
-# define WRITABLE_COLORS 1
+#undef WRITABLE_COLORS
+#define WRITABLE_COLORS 1
 #else
-# define WRITABLE_COLORS 0
+#define WRITABLE_COLORS 0
 #endif
 
 #if defined(UNIFORM_COLORS)
-# define XLOCKMORE_COLOR_SCHEME color_scheme_uniform
+#define XLOCKMORE_COLOR_SCHEME color_scheme_uniform
 #elif defined(SMOOTH_COLORS)
-# define XLOCKMORE_COLOR_SCHEME color_scheme_smooth
+#define XLOCKMORE_COLOR_SCHEME color_scheme_smooth
 #elif defined(BRIGHT_COLORS)
-# define XLOCKMORE_COLOR_SCHEME color_scheme_bright
+#define XLOCKMORE_COLOR_SCHEME color_scheme_bright
 #else
-# define XLOCKMORE_COLOR_SCHEME color_scheme_default
+#define XLOCKMORE_COLOR_SCHEME color_scheme_default
 #endif
 
 /* This is the macro that links this program in with the rest of
@@ -221,7 +221,7 @@ ERROR!  Sorry, xlockmore.h requires ANSI C (gcc, for example.)
    NAME and PREFIX are usually the same.  If they are not, use
    XSCREENSAVER_MODULE_2() instead of XSCREENSAVER_MODULE().
  */
-#define XSCREENSAVER_MODULE_2(CLASS,NAME,PREFIX)			\
+#define XSCREENSAVER_MODULE_2(CLASS, NAME, PREFIX)			\
 									\
   static struct xlockmore_function_table				\
 	 NAME ## _xlockmore_function_table = {			\
@@ -250,5 +250,5 @@ ERROR!  Sorry, xlockmore.h requires ANSI C (gcc, for example.)
 									\
   XSCREENSAVER_LINK (NAME ## _xscreensaver_function_table)
 
-#define XSCREENSAVER_MODULE(CLASS,PREFIX)				\
+#define XSCREENSAVER_MODULE(CLASS, PREFIX)				\
       XSCREENSAVER_MODULE_2(CLASS,PREFIX,PREFIX)

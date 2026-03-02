@@ -5,7 +5,7 @@
  * the above copyright notice appear in all copies and that both that
  * copyright notice and this permission notice appear in supporting
  * documentation.  No representations are made about the suitability of this
- * software for any purpose.  It is provided "as is" without express or 
+ * software for any purpose.  It is provided "as is" without express or
  * implied warranty.
  */
 
@@ -29,32 +29,36 @@ typedef struct rotator rotator;
    rotation will be randomized (even if the spin speeds are 0.)  If it
    is false, then all values will be initially zeroed.
  */
-extern rotator *make_rotator (double spin_x_speed,
-                              double spin_y_speed,
-                              double spin_z_speed,
-                              double spin_accel,
-                              double wander_speed,
-                              int randomize_initial_state_p);
+extern rotator *make_rotator(double spin_x_speed,
+  double spin_y_speed,
+  double spin_z_speed,
+  double spin_accel,
+  double wander_speed,
+  int randomize_initial_state_p);
 
 /* Rotates one step, and returns the new rotation values.
    x, y, and z range from 0.0-1.0, the fraction through the circle
    (*not* radians or degrees!)
    If `update_p' is non-zero, then (maybe) rotate first.
  */
-extern void get_rotation (rotator *rot,
-                          double *x_ret, double *y_ret, double *z_ret,
-                          int update_p);
+extern void get_rotation(rotator *rot,
+  double *x_ret,
+  double *y_ret,
+  double *z_ret,
+  int update_p);
 
 /* Moves one step, and returns the new position values.
    x, y, and z range from 0.0-1.0, the fraction through space:
    scale those values as needed.
    If `update_p' is non-zero, then (maybe) move first.
  */
-extern void get_position (rotator *rot,
-                          double *x_ret, double *y_ret, double *z_ret,
-                          int update_p);
+extern void get_position(rotator *rot,
+  double *x_ret,
+  double *y_ret,
+  double *z_ret,
+  int update_p);
 
 /* Destroys and frees a `rotator' object. */
-extern void free_rotator (rotator *r);
+extern void free_rotator(rotator *r);
 
 #endif /* __ROTATOR_H__ */
