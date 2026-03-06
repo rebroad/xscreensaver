@@ -2433,6 +2433,67 @@ main_loop (Display *dpy)
 
         if (current_state & STATE_BLANKED)
           {
+            if (saver_auth_pid)
+              {
+                int i;
+                pid_t auth_pid = saver_auth_pid;
+                int wait_status = 0;
+                Bool exited_p = False;
+
+                DL(1, "pid %lu: killing " SAVER_AUTH_PROGRAM
+                   " before screenshot/fade-out",
+                   (unsigned long) auth_pid);
+                kill (auth_pid, SIGTERM);
+
+                for (i = 0; i < 30; i++)
+                  {
+                    pid_t kid = waitpid (auth_pid, &wait_status, WNOHANG);
+                    if (kid == auth_pid || (kid < 0 && errno == ECHILD))
+                      {
+                        exited_p = True;
+                        break;
+                      }
+                    else if (kid < 0 && errno != EINTR)
+                      break;
+                    usleep (100000);
+                  }
+
+                if (!exited_p)
+                  {
+                    DL(0, "pid %lu: " SAVER_AUTH_PROGRAM
+                       " still running after SIGTERM; sending SIGKILL",
+                       (unsigned long) auth_pid);
+                    kill (auth_pid, SIGKILL);
+                    for (i = 0; i < 10; i++)
+                      {
+                        pid_t kid = waitpid (auth_pid, &wait_status, WNOHANG);
+                        if (kid == auth_pid || (kid < 0 && errno == ECHILD))
+                          {
+                            exited_p = True;
+                            break;
+                          }
+                        else if (kid < 0 && errno != EINTR)
+                          break;
+                        usleep (100000);
+                      }
+                  }
+
+                if (!exited_p)
+                  DL(0, "pid %lu: unable to kill " SAVER_AUTH_PROGRAM
+                     " before screenshot/fade-out",
+                     (unsigned long) auth_pid);
+
+                saver_auth_pid = 0;
+                authenticated_p = False;
+                current_state &= ~STATE_AUTH;
+                store_saver_status (dpy, True,
+                                    ((current_state & STATE_LOCKED) != 0),
+                                    False,
+                                    ((current_state & STATE_LOCKED)
+                                     ? locked_at
+                                     : blanked_at));
+              }
+
             /* Grab succeeded and state changed: launch graphics. */
             if (! saver_gfx_pid)
               {
