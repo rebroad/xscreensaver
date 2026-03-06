@@ -992,7 +992,7 @@ $(srcdir)/$(WAYLAND_PROTO)/ext-idle-notify-v1.xml::
 	  echo "ERROR: $@ does not exist" >&2 ;				\
 	  echo "consider: cp -p $$F $@" ;				\
 	  exit 1 ;							\
-	elif [ -e "$$F" ] && ! cmp -s "$$F" $@ ; then			\
+	elif [ -e "$$F" ] && ! diff -q -w -B "$$F" $@ >/dev/null ; then	\
 	  echo "WARNING: $$F and $@ differ" >&2 ;			\
 	fi
 $(srcdir)/$(WAYLAND_PROTO)/ext-idle-notify-v1-client-protocol.h: \
@@ -1015,7 +1015,7 @@ $(srcdir)/$(WAYLAND_PROTO)/idle.xml::
 	  echo "ERROR: $@ does not exist" >&2 ;				\
 	  echo "consider: cp -p $$F $@" ;				\
 	  exit 1 ;							\
-	elif [ -e "$$F" ] && ! cmp -s "$$F" $@ ; then			\
+	elif [ -e "$$F" ] && ! diff -q -w -B "$$F" $@ >/dev/null ; then	\
 	  echo "WARNING: $$F and $@ differ" >&2 ;			\
 	fi
 $(srcdir)/$(WAYLAND_PROTO)/idle-client-protocol.h: \
@@ -1038,7 +1038,7 @@ $(srcdir)/$(WAYLAND_PROTO)/wlr-output-power-management-unstable-v1.xml::
 	  echo "ERROR: $@ does not exist" >&2 ;				\
 	  echo "consider: cp -p $$F $@" ;				\
 	  exit 1 ;							\
-	elif [ -e "$$F" ] && ! cmp -s "$$F" $@ ; then			\
+	elif [ -e "$$F" ] && ! diff -q -w -B "$$F" $@ >/dev/null ; then	\
 	  echo "WARNING: $$F and $@ differ" >&2 ;			\
 	fi
 $(srcdir)/$(WAYLAND_PROTO)/wlr-output-power-management-unstable-v1-client-protocol.h: \
@@ -1061,7 +1061,7 @@ $(srcdir)/$(WAYLAND_PROTO)/dpms.xml::
 	  echo "ERROR: $@ does not exist" >&2 ;				\
 	  echo "consider: cp -p $$F $@" ;				\
 	  exit 1 ;							\
-	elif [ -e "$$F" ] && ! cmp -s "$$F" $@ ; then			\
+	elif [ -e "$$F" ] && ! diff -q -w -B "$$F" $@ >/dev/null ; then	\
 	  echo "WARNING: $$F and $@ differ" >&2 ;			\
 	fi
 $(srcdir)/$(WAYLAND_PROTO)/dpms-client-protocol.h: \
@@ -1083,7 +1083,7 @@ $(srcdir)/$(WAYLAND_PROTO)/ext-session-lock-v1.xml::
 	  echo "ERROR: $@ does not exist" >&2 ;				\
 	  echo "consider: cp -p $$F $@" ;				\
 	  exit 1 ;							\
-	elif [ -e "$$F" ] && ! cmp -s "$$F" $@ ; then			\
+	elif [ -e "$$F" ] && ! diff -q -w -B "$$F" $@ >/dev/null ; then	\
 	  echo "WARNING: $$F and $@ differ" >&2 ;			\
 	fi
 $(srcdir)/$(WAYLAND_PROTO)/ext-session-lock-v1-client-protocol.h: \
