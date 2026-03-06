@@ -2,11 +2,34 @@
 
 ## Quick Start
 
-If you're building from a git repository or have modified `configure.ac`, you'll need to generate the `./configure` script first:
+### Building from a release tarball
+
+```bash
+./install-dependencies.sh
+./configure --help
+./configure --prefix=/usr
+make
+sudo make install
+
+xscreensaver &
+xscreensaver-settings
+```
+
+### Building from a git checkout (or after editing `configure.ac`)
+
+Install dependencies first:
+
+```bash
+./install-dependencies.sh
+```
+
+Then regenerate `configure`:
 
 ```bash
 INTLTOOLIZE=/bin/true autoreconf -fiv
 ```
+
+`./install-dependencies.sh` also installs `config.guess` and `config.sub` in the source tree if they are missing.
 
 Then configure and build. If you want to reuse a previous configuration:
 
@@ -40,114 +63,28 @@ make CFLAGS="-g"
 
 ## Dependencies
 
-XScreenSaver has many compilation dependencies. The configure script will tell you what is missing, but you can install them all at once using our helper script.
+Use the helper script. It is the canonical dependency installer for Debian/Ubuntu builds and handles package-name differences across releases (for example, GDK Pixbuf development package renames).
 
-### Automatic Installation (Recommended)
-
-For Ubuntu/Debian systems:
 ```bash
 ./install-dependencies.sh
 ```
 
-### Manual Installation
-
-You will need development versions of these libraries. Append "-dev" or "-devel" to most of these:
-
-#### Essential Build Tools
-- `build-essential` - Basic compilation tools (gcc, make, etc.)
-
-#### X11 Development Libraries
-- `libx11-dev` - X11 core library
-- `libxext-dev` - X11 extensions
-- `libxrandr-dev` - X11 RandR extension
-- `libxinerama-dev` - X11 Xinerama extension
-- `libxss-dev` - X11 Screen Saver extension
-- `libxt-dev` - X11 Xt library
-- `libxmu-dev` - X11 Xmu library
-- `libxpm-dev` - X11 Xpm library
-- `libxft-dev` - X11 Xft library
-- `libxrender-dev` - X11 Render extension
-- `libxfixes-dev` - X11 XFixes extension
-- `libxdamage-dev` - X11 Damage extension
-- `libxcomposite-dev` - X11 Composite extension
-- `libxcursor-dev` - X11 Cursor extension
-- `libxtst-dev` - X11 Test extension
-- `libxi-dev` - X11 Input extension
-
-#### OpenGL Development Libraries
-- `libgl1-mesa-dev` - OpenGL development files
-- `libglu1-mesa-dev` - OpenGL Utility library
-- `freeglut3-dev` - FreeGLUT development files
-
-#### GUI Toolkit
-- `libgdk-pixbuf2.0-dev` - GDK Pixbuf library
-- `libgtk-3-dev` - GTK+ 3 development files
-
-#### Multimedia Libraries
-- `libavutil-dev` - FFmpeg utility library
-- `libavcodec-dev` - FFmpeg codec library
-- `libavformat-dev` - FFmpeg format library
-- `libswscale-dev` - FFmpeg scaling library
-- `libswresample-dev` - FFmpeg resampling library
-
-#### Other Libraries
-- `libxml2-dev` - XML parsing library
-- `libsystemd-dev` - systemd development files
-
-### Installation Commands by Distribution
-
-#### Ubuntu/Debian
-```bash
-sudo apt update
-sudo apt install -y build-essential \
-    libx11-dev libxext-dev libxrandr-dev libxinerama-dev libxss-dev \
-    libxt-dev libxmu-dev libxpm-dev libxft-dev libxrender-dev \
-    libxfixes-dev libxdamage-dev libxcomposite-dev libxcursor-dev \
-    libxtst-dev libxi-dev \
-    libgl1-mesa-dev libglu1-mesa-dev freeglut3-dev \
-    libgdk-pixbuf2.0-dev libgtk-3-dev \
-    libavutil-dev libavcodec-dev libavformat-dev libswscale-dev libswresample-dev \
-    libxml2-dev libsystemd-dev
-```
-
-#### Fedora/RHEL/CentOS
-```bash
-sudo dnf install gcc make \
-    libX11-devel libXext-devel libXrandr-devel libXinerama-devel libXScrnSaver-devel \
-    libXt-devel libXmu-devel libXpm-devel libXft-devel libXrender-devel \
-    libXfixes-devel libXdamage-devel libXcomposite-devel libXcursor-devel \
-    libXtst-devel libXi-devel \
-    mesa-libGL-devel mesa-libGLU-devel freeglut-devel \
-    gdk-pixbuf2-devel gtk3-devel \
-    ffmpeg-devel \
-    libxml2-devel systemd-devel
-```
-
-#### Arch Linux
-```bash
-sudo pacman -S base-devel \
-    libx11 libxext libxrandr libxinerama libxss \
-    libxt libxmu libxpm libxft libxrender \
-    libxfixes libxdamage libxcomposite libxcursor \
-    libxtst libxi \
-    mesa glu freeglut \
-    gdk-pixbuf2 gtk3 \
-    ffmpeg \
-    libxml2 systemd-libs
-```
-
-**Note:** BSD systems might need `gmake` instead of `make`.
+For non-apt systems, install the equivalent development packages for:
+`autoconf automake gettext intltool` plus the X11, OpenGL, GTK3/GDK Pixbuf, FFmpeg, XML2, PAM, and systemd headers.
 
 ## Troubleshooting
 
 ### Common Error Messages
 
 - `fatal error: X11/Xlib.h: No such file or directory` → Install `libx11-dev`
+- `error: possibly undefined macro: AM_GNU_GETTEXT` → Install `gettext`/`autopoint` and `intltool`, then rerun `INTLTOOLIZE=/bin/true autoreconf -fiv`
+- `configure: error: cannot find required auxiliary files: config.guess config.sub` → Re-run `./install-dependencies.sh` (it installs these helper files)
 - `fatal error: GL/gl.h: No such file or directory` → Install `libgl1-mesa-dev`
 - `fatal error: gtk/gtk.h: No such file or directory` → Install `libgtk-3-dev`
 - `fatal error: libavcodec/avcodec.h: No such file or directory` → Install `libavcodec-dev`
 - `fatal error: libxml/parser.h: No such file or directory` → Install `libxml2-dev`
 - `fatal error: systemd/sd-bus.h: No such file or directory` → Install `libsystemd-dev`
+- `xscreensaver.service` exits immediately because another locker is running → re-run `sudo make install` so conflicting lockers are disabled and `xscreensaver.service` is globally enabled
 
 ### Development Setup
 

@@ -6,7 +6,7 @@ Documentation=https://www.jwz.org/xscreensaver/
 After=graphical-session-pre.target
 PartOf=graphical-session.target
 ConditionUser=!@system
-Conflicts=org.gnome.ScreenSaver org.cinnamon.ScreenSaver org.mate.ScreenSaver org.xfce.ScreenSaver light-locker
+Conflicts=light-locker.service gnome-screensaver.service cinnamon-screensaver.service mate-screensaver.service xfce4-screensaver.service
 
 [Service]
 ExecStart=/usr/bin/xscreensaver

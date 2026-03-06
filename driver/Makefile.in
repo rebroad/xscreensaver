@@ -553,6 +553,21 @@ install-systemd:: xscreensaver.service
 	        $(INSTALL_DATA) "$$name" "$$dir/$$name"			     ;\
 	 fi
 
+# Configure systemd user defaults for all users at install time.
+# This only runs for real installs (not DESTDIR packaging installs).
+install-systemd::
+	@if [ -z "$(DESTDIR)" ] && command -v systemctl >/dev/null 2>&1; then \
+	  for unit in light-locker.service gnome-screensaver.service	     \
+		      cinnamon-screensaver.service mate-screensaver.service   \
+		      xfce4-screensaver.service ; do			     \
+	    echo systemctl --global disable "$$unit"			     ;\
+		 systemctl --global disable "$$unit" >/dev/null 2>&1 || true  ;\
+	  done								     ;\
+	  echo systemctl --global enable xscreensaver.service		     ;\
+	       systemctl --global enable xscreensaver.service >/dev/null 2>&1 \
+	       || true							     ;\
+	fi
+
 # xscreensaver.service
 # into /usr/share/xscreensaver/
 # Nothing uses this, but the manual's installation instructions reference it.
