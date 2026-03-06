@@ -151,6 +151,7 @@ typedef struct {
   Bool running_preview_error_p;	/* whether the pid died abnormally */
 
   Bool preview_suppressed_p;	/* flag meaning "don't launch subproc" */
+  Bool screen_was_blanked_p;	/* last observed blanked/unblanked state */
   int subproc_timer_id;		/* timer to delay subproc launch */
   int subproc_check_timer_id;	/* timer to check whether it started up */
   int subproc_check_countdown;  /* how many more checks left */
@@ -4141,12 +4142,34 @@ check_blanked_timer (gpointer data)
 {
   state *s = (state *) data;
   Bool blanked_p = screen_blanked_p (s);
+  XScreenSaverDialog *dialog = (s->dialog
+                                ? XSCREENSAVER_DIALOG (s->dialog)
+                                : NULL);
+
   if (blanked_p && s->running_preview_pid)
     {
       if (s->debug_p)
         DL(0, "screen is blanked: killing preview");
       kill_preview_subproc (s, TRUE);
     }
+  else if (!blanked_p &&
+           s->screen_was_blanked_p &&
+           !s->running_preview_pid &&
+           !s->preview_suppressed_p &&
+           dialog)
+    {
+      int page = gtk_notebook_get_current_page
+        (GTK_NOTEBOOK (dialog->opt_notebook));
+      int list_elt = selected_list_element (s);
+      if (page == 0 && list_elt >= 0 && list_elt < s->list_count)
+        {
+          if (s->debug_p)
+            DL(0, "screen unblanked: resuming preview");
+          populate_demo_window (s, list_elt);
+        }
+    }
+
+  s->screen_was_blanked_p = blanked_p;
 
   return TRUE;  /* re-execute timer */
 }
@@ -5467,7 +5490,7 @@ xscreensaver_window_realize (GtkWidget *self, gpointer user_data)
   s->unsaved_changes_p = FALSE;
   update_save_load_buttons (s);
 
-  g_timeout_add (60 * 1000, check_blanked_timer, s);
+  g_timeout_add (1000, check_blanked_timer, s);
 
   /* Attach the actions and their keybindings. */
   {
