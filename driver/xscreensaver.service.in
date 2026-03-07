@@ -9,8 +9,8 @@ ConditionUser=!@system
 Conflicts=light-locker.service gnome-screensaver.service cinnamon-screensaver.service mate-screensaver.service xfce4-screensaver.service
 
 [Service]
-ExecStart=/usr/bin/xscreensaver
-ExecStop=/usr/bin/xscreensaver-command --exit
+ExecStart=xscreensaver
+ExecStop=xscreensaver-command --exit
 Restart=on-failure
 OOMScoreAdjust=-1000
 Type=dbus

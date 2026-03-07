@@ -546,12 +546,18 @@ install-gnome:: xscreensaver.desktop xscreensaver-settings.desktop
 # This is the standard spot for multi-user installations.
 # For single user installations, it can go in $HOME/.config/systemd/user/
 install-systemd:: xscreensaver.service
-	@dir="$(DESTDIR)$(SYSTEMD_DIR)"					     ;\
-	 name="$<"							     ;\
-	 if [ -d "$$dir" ]; then					      \
+	@name="$<"							     ;\
+	 dir1="$(DESTDIR)$(SYSTEMD_DIR)"					     ;\
+	 dir2="$(DESTDIR)/usr/lib/systemd/user"				     ;\
+	 for dir in "$$dir1" "$$dir2"; do					     \
+	   if [ ! -d "$$dir" ]; then					      \
+	     echo $(INSTALL_DIRS) "$$dir"					     ;\
+		  $(INSTALL_DIRS) "$$dir"					     ;\
+	   fi								     ;\
 	   echo $(INSTALL_DATA) "$$name" "$$dir/$$name"			     ;\
 	        $(INSTALL_DATA) "$$name" "$$dir/$$name"			     ;\
-	 fi
+	   if [ "$$dir" = "$$dir2" ] && [ "$$dir1" = "$$dir2" ]; then break; fi ;\
+	 done
 
 # Configure systemd user defaults for all users at install time.
 # This only runs for real installs (not DESTDIR packaging installs).
@@ -566,6 +572,40 @@ install-systemd::
 	  echo systemctl --global enable xscreensaver.service		     ;\
 	       systemctl --global enable xscreensaver.service >/dev/null 2>&1 \
 	       || true							     ;\
+	  if [ -n "$$SUDO_USER" ] && [ "$$SUDO_USER" != root ]; then	      \
+	    uid=`id -u "$$SUDO_USER" 2>/dev/null || true`		     ;\
+	    xdg="/run/user/$$uid"					     ;\
+	    bus="unix:path=$$xdg/bus"					     ;\
+	    if [ -n "$$uid" ] && [ -S "$$xdg/bus" ]; then		      \
+	      if command -v sudo >/dev/null 2>&1; then			      \
+		AS_USER="sudo -u $$SUDO_USER";				     \
+	      elif command -v runuser >/dev/null 2>&1; then		      \
+		AS_USER="runuser -u $$SUDO_USER --";			     \
+	      else								     \
+		AS_USER="";						     \
+	      fi							     ;\
+	      if [ -n "$$AS_USER" ]; then				      \
+		$$AS_USER env XDG_RUNTIME_DIR="$$xdg"			     \
+			 DBUS_SESSION_BUS_ADDRESS="$$bus"			     \
+			 systemctl --user daemon-reload >/dev/null 2>&1 || true ;\
+		for proc in light-locker gnome-screensaver		     \
+			    cinnamon-screensaver mate-screensaver	     \
+			    xfce4-screensaver; do				     \
+		  $$AS_USER pkill -x "$$proc" >/dev/null 2>&1 || true	     ;\
+		done							     ;\
+		$$AS_USER env XDG_RUNTIME_DIR="$$xdg"			     \
+			 DBUS_SESSION_BUS_ADDRESS="$$bus"			     \
+			 systemctl --user enable xscreensaver.service	     \
+			 >/dev/null 2>&1 || true				     ;\
+		$$AS_USER env XDG_RUNTIME_DIR="$$xdg"			     \
+			 DBUS_SESSION_BUS_ADDRESS="$$bus"			     \
+			 systemctl --user start xscreensaver.service	     \
+			 >/dev/null 2>&1 || true				     ;\
+	      fi							     ;\
+	    else							     \
+	      echo "NOTE: user bus $$xdg/bus is unavailable; start at login.";\
+	    fi								     ;\
+	  fi								     ;\
 	fi
 
 # xscreensaver.service
@@ -580,6 +620,11 @@ install-systemd:: xscreensaver.service
 	 fi								     ;\
 	 echo $(INSTALL_DATA) "$$name" "$$dir/$$name"			     ;\
 	      $(INSTALL_DATA) "$$name" "$$dir/$$name"
+
+# Final user hint appears at the end of install output.
+install-systemd::
+	@echo "If XScreenSaver is not running yet, run in your desktop session:" ;\
+	 echo "  systemctl --user start xscreensaver.service"
 
 # xscreensaver.png
 # into /usr/share/pixmaps/
