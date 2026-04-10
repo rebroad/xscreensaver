@@ -1731,6 +1731,40 @@ main_loop (Display *dpy)
 
   create_daemon_window (dpy);
 
+  /* Passively grab Super+L on all root windows so that the key chord is
+     intercepted at the X server level and never reaches the focused window.
+     We grab with all combinations of Num Lock (Mod2) and Caps Lock so that
+     those modifiers don't prevent the grab from matching.
+   */
+  {
+    static const unsigned int ignored_mods[] = {
+      0, Mod2Mask, LockMask, Mod2Mask|LockMask
+    };
+    KeyCode super_l  = XKeysymToKeycode (dpy, XK_Super_L);
+    KeyCode super_r  = XKeysymToKeycode (dpy, XK_Super_R);
+    KeyCode l_key    = XKeysymToKeycode (dpy, XK_l);
+    int nscreens = ScreenCount (dpy);
+    int s, m;
+
+    for (s = 0; s < nscreens; s++)
+      {
+        Window root = RootWindow (dpy, s);
+        for (m = 0; m < countof (ignored_mods); m++)
+          {
+            unsigned int mods = Mod4Mask | ignored_mods[m];
+            if (l_key)
+              XGrabKey (dpy, l_key, mods, root,
+                        True, GrabModeAsync, GrabModeAsync);
+            /* Also grab with Super_R as the modifier in case the keymap
+               maps Mod4 to Super_R rather than Super_L. */
+            (void) super_l;
+            (void) super_r;
+          }
+      }
+    XSync (dpy, False);
+    DL (1, "grabbed Super+L on %d screen root window(s)", nscreens);
+  }
+
   handle_signals();
 
   blank_cursor = None;   /* Cursor of window under mouse (which is blank). */
