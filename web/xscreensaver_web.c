@@ -376,8 +376,6 @@ static GLuint fragment_shader = 0;
 void glGetDoublev(GLenum pname, GLdouble *params) {
     // Handle matrix parameters specially to avoid GL_INVALID_ENUM
     if (pname == GL_MODELVIEW_MATRIX || pname == GL_PROJECTION_MATRIX) {
-/*
-        // Return actual matrix stack values for proper matrix debugging
         Matrix4f* matrix_to_return = NULL;
 
         switch (pname) {
@@ -387,24 +385,16 @@ void glGetDoublev(GLenum pname, GLdouble *params) {
             case GL_PROJECTION_MATRIX:
                 matrix_to_return = &projection_stack.stack[projection_stack.top];
                 break;
-
         }
 
         if (matrix_to_return) {
-            // Copy the actual matrix values
             for (int i = 0; i < 16; i++) {
                 params[i] = matrix_to_return->m[i];
             }
         } else {
-            // Fallback to identity if something went wrong
             for (int i = 0; i < 16; i++) {
                 params[i] = (i % 5 == 0) ? 1.0 : 0.0;
             }
-*/
-        // Return identity matrix for now - this avoids the GL_INVALID_ENUM error
-        // TODO: Later we can implement proper matrix stack retrieval
-        for (int i = 0; i < 16; i++) {
-            params[i] = (i % 5 == 0) ? 1.0 : 0.0; // Identity matrix
         }
         return;
     }
@@ -439,12 +429,8 @@ void glGetFloatv(GLenum pname, GLfloat *params) {
         }
 
         if (matrix_to_return) {
-            // Copy the actual matrix values
-            for (int i = 0; i < 16; i++) {
-                params[i] = matrix_to_return->m[i];
-            }
+            memcpy(params, matrix_to_return->m, sizeof(matrix_to_return->m));
         } else {
-            // Fallback to identity if something went wrong
             for (int i = 0; i < 16; i++) {
                 params[i] = (i % 5 == 0) ? 1.0f : 0.0f;
             }
@@ -469,12 +455,13 @@ static void matrix_identity(Matrix4f *m) {
 
 static void matrix_multiply(Matrix4f *result, const Matrix4f *a, const Matrix4f *b) {
     Matrix4f temp;
-    for (int i = 0; i < 4; i++) {
-        for (int j = 0; j < 4; j++) {
-            temp.m[i * 4 + j] = 0;
+    for (int row = 0; row < 4; row++) {
+        for (int col = 0; col < 4; col++) {
+            GLfloat sum = 0;
             for (int k = 0; k < 4; k++) {
-                temp.m[i * 4 + j] += a->m[i * 4 + k] * b->m[k * 4 + j];
+                sum += a->m[k * 4 + row] * b->m[col * 4 + k];
             }
+            temp.m[col * 4 + row] = sum;
         }
     }
     *result = temp;
@@ -490,19 +477,34 @@ static void matrix_translate(Matrix4f *m, GLfloat x, GLfloat y, GLfloat z) {
 }
 
 static void matrix_rotate(Matrix4f *m, GLfloat angle, GLfloat x, GLfloat y, GLfloat z) {
-    // Simplified rotation - only around Z axis for now
-    if (z != 0) {
-        GLfloat rad = angle * M_PI / 180.0f;
-        GLfloat c = cos(rad);
-        GLfloat s = sin(rad);
-        Matrix4f rotate;
-        matrix_identity(&rotate);
-        rotate.m[0] = c;
-        rotate.m[1] = s;
-        rotate.m[4] = -s;
-        rotate.m[5] = c;
-        matrix_multiply(m, m, &rotate);
+    GLfloat mag = sqrtf(x * x + y * y + z * z);
+    if (mag == 0) {
+        return;
     }
+
+    x /= mag;
+    y /= mag;
+    z /= mag;
+
+    GLfloat rad = angle * (GLfloat)M_PI / 180.0f;
+    GLfloat c = cosf(rad);
+    GLfloat s = sinf(rad);
+    GLfloat t = 1.0f - c;
+
+    Matrix4f rotate;
+    matrix_identity(&rotate);
+
+    rotate.m[0]  = t * x * x + c;
+    rotate.m[1]  = t * x * y + s * z;
+    rotate.m[2]  = t * x * z - s * y;
+    rotate.m[4]  = t * x * y - s * z;
+    rotate.m[5]  = t * y * y + c;
+    rotate.m[6]  = t * y * z + s * x;
+    rotate.m[8]  = t * x * z + s * y;
+    rotate.m[9]  = t * y * z - s * x;
+    rotate.m[10] = t * z * z + c;
+
+    matrix_multiply(m, m, &rotate);
 }
 
 static void matrix_scale(Matrix4f *m, GLfloat x, GLfloat y, GLfloat z) {
@@ -868,7 +870,7 @@ void glOrtho(GLdouble left, GLdouble right, GLdouble bottom, GLdouble top, GLdou
         ortho.m[13] = ty;
         ortho.m[14] = tz;
 
-        matrix_multiply(&stack->stack[stack->top], &ortho, &stack->stack[stack->top]);
+        matrix_multiply(&stack->stack[stack->top], &stack->stack[stack->top], &ortho);
         DL(1, "Orthographic matrix applied\n");
     }
 
@@ -1135,21 +1137,21 @@ void set_thickness(GLfloat new_thickness) {
 EMSCRIPTEN_KEEPALIVE
 void set_spin(int new_spin_enabled) {
     extern Bool do_spin;
-    extern void update_hextrail_rotator(void);
+    extern void update_hextrail_rotator(ModeInfo *mi);
     DL(2, "DEBUG: set_spin called with %d, current do_spin=%d\n", new_spin_enabled, do_spin);
     do_spin = new_spin_enabled;
     DL(1, "Spin %s (do_spin now=%d)\n", do_spin ? "enabled" : "disabled", do_spin);
-    update_hextrail_rotator();
+    update_hextrail_rotator(&web_mi);
 }
 
 EMSCRIPTEN_KEEPALIVE
 void set_wander(int new_wander_enabled) {
     extern Bool do_wander;
-    extern void update_hextrail_rotator(void);
+    extern void update_hextrail_rotator(ModeInfo *mi);
     DL(2, "DEBUG: set_wander called with %d, current do_wander=%d\n", new_wander_enabled, do_wander);
     do_wander = new_wander_enabled;
     DL(1, "Wander %s (do_wander now=%d)\n", do_wander ? "enabled" : "disabled", do_wander);
-    update_hextrail_rotator();
+    update_hextrail_rotator(&web_mi);
 }
 
 EMSCRIPTEN_KEEPALIVE
@@ -2259,4 +2261,3 @@ char *XGetAtomName(Display *display, Atom atom) {
     (void)atom;
     return strdup("WEB_ATOM");
 }
-
