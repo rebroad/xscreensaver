@@ -236,7 +236,7 @@ EMCC_ARGS=(
     -s USE_WEBGL2=1
     -s FULL_ES3=1
     -s ALLOW_MEMORY_GROWTH=1
-    -s EXPORTED_RUNTIME_METHODS=['ccall','cwrap','HEAPU8']
+    -s EXPORTED_RUNTIME_METHODS=['ccall','cwrap']
     -s EXPORTED_FUNCTIONS=['_main','_init_hextrail','_draw_hextrail','_reshape_hextrail_wrapper','_free_hextrail','_set_speed','_set_thickness','_set_spin','_set_wander','_stop_rendering','_start_rendering','_handle_mouse_drag','_handle_mouse_wheel','_handle_keypress','_set_debug_level','_track_memory_allocation','_track_memory_free']
     -s MIN_WEBGL_VERSION=2
     -O3

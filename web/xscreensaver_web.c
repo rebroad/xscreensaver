@@ -738,6 +738,12 @@ struct ModeInfo {
     void *data;
 };
 
+typedef struct {
+    GLXContext *glx_context;
+    GLdouble model[16], proj[16];
+    GLint viewport[4];
+} hextrail_state_prefix;
+
 #define MI_SCREEN(mi) ((mi)->screen)
 #define MI_WIDTH(mi) ((mi)->width)
 #define MI_HEIGHT(mi) ((mi)->height)
@@ -751,6 +757,7 @@ struct ModeInfo {
     if (!bps) { \
         bps = calloc(1, sizeof(*bps)); \
     } \
+    (mi)->data = (void *) (bps); \
 } while(0)
 
 // WebGL context handle
@@ -976,7 +983,7 @@ static int init_webgl() {
 
     webgl_context = emscripten_webgl_create_context("#canvas", &attrs);
     if (webgl_context < 0) {
-        DL(1, "Failed to create WebGL context! Error: %lu\n", webgl_context);
+        DL(1, "Failed to create WebGL context! Error: %d\n", webgl_context);
         return 0;
     }
 
@@ -1767,74 +1774,19 @@ void glEnd(void) {
         glUniform1i(front_face_ccw_loc, (current_front_face == GL_CCW) ? 1 : 0);
     }
 
-    // Set up orthographic projection matrix that scales to fill canvas
+    // Use the actual projection matrix built by the hack.
     GLint projection_loc = glGetUniformLocation(shader_program, "projection");
     if (projection_loc != -1) {
-        // Get current window dimensions
-        int canvas_width, canvas_height;
-        emscripten_get_canvas_element_size("#canvas", &canvas_width, &canvas_height);
-
-        // Calculate orthographic bounds based on canvas aspect ratio
-        GLfloat left = -1.0f, right = 1.0f, bottom = -1.0f, top = 1.0f;
-        GLfloat near = -1.0f, far = 1.0f;
-
-        if (canvas_width > 0 && canvas_height > 0) {
-            GLfloat canvas_aspect = (GLfloat)canvas_width / (GLfloat)canvas_height;
-
-            // Adjust orthographic bounds to maintain square content but fill canvas
-            if (canvas_aspect > 1.0f) {
-                // Wide canvas - expand horizontally
-                left = -canvas_aspect;
-                right = canvas_aspect;
-            } else {
-                // Tall canvas - expand vertically
-                bottom = -1.0f / canvas_aspect;
-                top = 1.0f / canvas_aspect;
-            }
-
-            DL(2, "DEBUG: Orthographic bounds: left=%f, right=%f, bottom=%f, top=%f (aspect=%f)\n",
-               left, right, bottom, top, canvas_aspect);
-        }
-
-        // Create orthographic projection matrix
-        GLfloat tx = -(right + left) / (right - left);
-        GLfloat ty = -(top + bottom) / (top - bottom);
-        GLfloat tz = -(far + near) / (far - near);
-
-        GLfloat projection[16] = {
-            2.0f / (right - left), 0.0f, 0.0f, 0.0f,
-            0.0f, 2.0f / (top - bottom), 0.0f, 0.0f,
-            0.0f, 0.0f, -2.0f / (far - near), 0.0f,
-            tx, ty, tz, 1.0f
-        };
-
+        GLfloat projection[16];
+        memcpy(projection, projection_stack.stack[projection_stack.top].m,
+               sizeof(projection));
         glUniformMatrix4fv(projection_loc, 1, GL_FALSE, projection);
         check_gl_error_wrapper("after projection matrix");
     }
 
-    // Set up modelview matrix - apply transformations directly
+    // Use the actual modelview matrix built by the hack.
     GLint modelview_loc = glGetUniformLocation(shader_program, "modelview");
     if (modelview_loc != -1) {
-        // Start with identity matrix
-        GLfloat modelview[16] = {
-            1.0f, 0.0f, 0.0f, 0.0f,
-            0.0f, 1.0f, 0.0f, 0.0f,
-            0.0f, 0.0f, 1.0f, 0.0f,
-            0.0f, 0.0f, 0.0f, 1.0f
-        };
-
-        // Apply scale factor of 3 (native version uses 18)
-        GLfloat scale = 2.0f;
-        modelview[0] = scale;
-        modelview[5] = scale;
-        modelview[10] = scale;
-
-        // Apply current frame's transformations from the rotator
-        // We'll get these values from the debug output in hextrail.c
-        // Note: We can't access hextrail internals from here due to circular dependencies
-        // For now, use a simple approach without direct rotator access
-
-        // Try to use the matrix stack, but fall back to hardcoded if it's broken
         GLfloat stack_matrix[16];
         memcpy(stack_matrix, modelview_stack.stack[modelview_stack.top].m, 16 * sizeof(GLfloat));
 
@@ -1846,44 +1798,8 @@ void glEnd(void) {
                    stack_matrix[0], stack_matrix[5], stack_matrix[10]);
             raw_matrix_debug_count++;
         }
-
-        // Scale down massive translations while keeping rotations and scales
-        float translation_scale = 0.1f;
-        stack_matrix[12] *= translation_scale;  // X translation
-        stack_matrix[13] *= translation_scale;  // Y translation
-        stack_matrix[14] *= translation_scale;  // Z translation
-
-        // Check if the scaled matrix has reasonable values
-        if (fabs(stack_matrix[12]) < 10.0f && fabs(stack_matrix[13]) < 10.0f && fabs(stack_matrix[14]) < 10.0f) {
-            // Use the scaled matrix stack (real transformations)
-            glUniformMatrix4fv(modelview_loc, 1, GL_FALSE, stack_matrix);
-
-            static int stack_debug_count = 0;
-            if (stack_debug_count < 3) {
-                DL(2, "DEBUG: Using scaled matrix stack (frame %d): trans=(%.3f,%.3f,%.3f)\n",
-                       stack_debug_count, stack_matrix[12], stack_matrix[13], stack_matrix[14]);
-                stack_debug_count++;
-            }
-        } else {
-            // Fall back to hardcoded matrix (safety net)
-            glUniformMatrix4fv(modelview_loc, 1, GL_FALSE, modelview);
-
-            static int fallback_debug_count = 0;
-            if (fallback_debug_count < 3) {
-                DL(2, "DEBUG: Using fallback matrix (frame %d): scale=%.1f\n", fallback_debug_count, scale);
-                fallback_debug_count++;
-            }
-        }
-
+        glUniformMatrix4fv(modelview_loc, 1, GL_FALSE, stack_matrix);
         check_gl_error_wrapper("after modelview matrix");
-
-        // Debug: Print the applied transformations
-        static int transform_debug_count = 0;
-        if (transform_debug_count < 3) {
-            DL(2, "DEBUG: Direct Transformations (frame %d): scale=%.1f\n",
-                   transform_debug_count, scale);
-            transform_debug_count++;
-        }
     }
 
     // Set up vertex attributes using pooled VBOs
@@ -1995,6 +1911,14 @@ void glXMakeCurrent(Display *display, Window window, GLXContext context) {
 
 void glViewport(GLint x, GLint y, GLsizei width, GLsizei height) {
     check_gl_error_wrapper("before glViewport");
+
+    if (web_mi.data) {
+        hextrail_state_prefix *bp = (hextrail_state_prefix *) web_mi.data;
+        bp->viewport[0] = x;
+        bp->viewport[1] = y;
+        bp->viewport[2] = width;
+        bp->viewport[3] = height;
+    }
 
     // Call the actual WebGL viewport function
     glViewport_real(x, y, width, height);
