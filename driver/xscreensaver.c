@@ -2205,6 +2205,7 @@ main_loop (Display *dpy)
                   super_pressed = check_super_l_combo (dpy, &xev.xkey, now,
                                                        &force_blank_p, &force_lock_p,
                                                        (int *)&current_state, &force_time);
+                                  ignore_activity_before = force_time + 2;
                   DL (1, "[KeyPress] check_super_l_combo returned super_pressed=%d, old_super_pressed=%d, force_blank_p=%d, force_lock_p=%d",
                       super_pressed, old_super_pressed, force_blank_p, force_lock_p);
                 }
@@ -2287,6 +2288,7 @@ main_loop (Display *dpy)
                       super_pressed = check_super_l_combo (dpy, &ev2.xkey, now,
                                                            &force_blank_p, &force_lock_p,
                                                            (int *)&current_state, &force_time);
+                                      ignore_activity_before = force_time + 2;
                     }
                 }
 
