@@ -173,16 +173,11 @@ start_web_server() {
         if kill -0 $SERVER_PID 2>/dev/null && curl -s http://localhost:$PORT > /dev/null 2>&1; then
             echo -e "${GREEN}✅ Web server started successfully (PID: $SERVER_PID, Port: $PORT)${NC}"
             echo -e "${CYAN}🌐 Open: http://localhost:$PORT${NC}"
-            echo -e "${YELLOW}💡 Server will run in background. To stop: kill $SERVER_PID${NC}"
-            echo "WEBSERVER_PORT:$PORT"  # Parseable output for scripts
-
-            # Store server info for potential cleanup (generic web port file)
-            # Save to repo root so probe script can find it
-            echo $PORT > "$REPO_ROOT/.web_port"
-            echo $SERVER_PID > "$REPO_ROOT/.web_pid"
 
             # Open browser automatically
             open_browser $PORT
+                        sleep 2
+                        kill $SERVER_PID
         else
             echo -e "${RED}❌ Failed to start web server${NC}"
             echo -e "${YELLOW}💡 Please manually start server: cd build_web && python3 -m http.server 8000${NC}"
