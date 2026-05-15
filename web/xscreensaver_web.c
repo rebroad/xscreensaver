@@ -90,6 +90,15 @@ double frand(double max) {
 #ifndef GL_CULL_FACE
 #define GL_CULL_FACE 0x0B44
 #endif
+#ifndef XK_BackSpace
+#define XK_BackSpace 0xff08
+#endif
+#ifndef XK_Return
+#define XK_Return 0xff0d
+#endif
+#ifndef XK_Delete
+#define XK_Delete 0xffff
+#endif
 #ifndef GL_CCW
 #define GL_CCW 0x0901
 #endif
@@ -785,7 +794,30 @@ static int wander_enabled = 1;
 
 // Keypress state for web events
 static char web_keypress_char = 0;
+static KeySym web_keypress_keysym = 0;
 static float animation_speed = 1.0f;
+
+static KeySym web_keysym_from_keycode(int keycode, int charcode) {
+    switch (keycode) {
+        case 8:  return XK_BackSpace;
+        case 13: return XK_Return;
+        case 33: return XK_Prior;
+        case 34: return XK_Next;
+        case 37: return XK_Left;
+        case 38: return XK_Up;
+        case 39: return XK_Right;
+        case 40: return XK_Down;
+        case 46: return XK_Delete;
+        default:
+            break;
+    }
+
+    if (charcode >= 32 && charcode < 127) {
+        return (KeySym)charcode;
+    }
+
+    return 0;
+}
 
 // Main loop callback
 void main_loop(void) {
@@ -1195,8 +1227,9 @@ void handle_keypress(int keycode, int charcode) {
         event.xkey.keycode = keycode;
         event.xkey.state = 0;  // No modifiers for now
 
-        // Store the character for XLookupString to return
-        web_keypress_char = (char)charcode;
+        // Store the character and keysym for XLookupString to return.
+        web_keypress_char = (char)((charcode >= 32 && charcode < 127) ? charcode : 0);
+        web_keypress_keysym = web_keysym_from_keycode(keycode, charcode);
 
         // Pass the event to the hack
         hack_handle_event(&web_mi, &event);
@@ -1255,12 +1288,12 @@ void jwxyz_abort(const char *fmt, ...) {
 
 int XLookupString(XKeyEvent *event_struct, char *buffer_return, int bytes_buffer, KeySym *keysym_return, XComposeStatus *status_in_out) {
     // Return the character stored by handle_keypress
+    if (keysym_return) *keysym_return = web_keypress_keysym;
     if (buffer_return && bytes_buffer > 0) {
         buffer_return[0] = web_keypress_char;
         if (bytes_buffer > 1) buffer_return[1] = '\0';
         return web_keypress_char ? 1 : 0;
     }
-    if (keysym_return) *keysym_return = 0;
     return 0;
 }
 

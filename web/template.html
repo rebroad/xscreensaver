@@ -872,12 +872,32 @@
                         wanderCheckbox.dispatchEvent(new Event('change'));
                         break;
                     default:
-                        // Pass other keys to the hack's event handler
+                        // Pass only printable keys and a small set of special keys to the hack.
                         if (Module._handle_keypress) {
-                            // Use the actual key character, or keyCode for special keys
-                            var charCode = e.key.length === 1 ? e.key.charCodeAt(0) : e.keyCode;
-                            Module._handle_keypress(e.keyCode, charCode);
-                            console.log("Sending keypress: key='" + e.key + "', keyCode=" + e.keyCode + ", charCode=" + charCode);
+                            var keyCode = 0;
+                            var charCode = 0;
+
+                            if (e.key.length === 1) {
+                                charCode = e.key.charCodeAt(0);
+                            } else {
+                                switch (e.key) {
+                                    case 'Backspace': keyCode = 8; break;
+                                    case 'Enter': keyCode = 13; break;
+                                    case 'PageUp': keyCode = 33; break;
+                                    case 'PageDown': keyCode = 34; break;
+                                    case 'ArrowLeft': keyCode = 37; break;
+                                    case 'ArrowUp': keyCode = 38; break;
+                                    case 'ArrowRight': keyCode = 39; break;
+                                    case 'ArrowDown': keyCode = 40; break;
+                                    case 'Delete': keyCode = 46; break;
+                                    default:
+                                        return;
+                                }
+                            }
+
+                            e.preventDefault();
+                            Module._handle_keypress(keyCode, charCode);
+                            console.log("Sending keypress: key='" + e.key + "', keyCode=" + keyCode + ", charCode=" + charCode);
                         }
                         break;
                 }
