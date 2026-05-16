@@ -792,6 +792,12 @@ static handle_event_func hack_handle_event = NULL;
 static int spin_enabled = 1;
 static int wander_enabled = 1;
 
+// Web mouse state for synthetic X events
+static Bool web_mouse_down = False;
+static int web_mouse_x = 0;
+static int web_mouse_y = 0;
+static GLfloat web_zoom = 1.0f;
+
 // Keypress state for web events
 static char web_keypress_char = 0;
 static KeySym web_keypress_keysym = 0;
@@ -818,6 +824,11 @@ static KeySym web_keysym_from_keycode(int keycode, int charcode) {
 
     return 0;
 }
+
+// Forward declarations for wrapper GL helpers used in the main loop.
+void glPushMatrix(void);
+void glPopMatrix(void);
+void glScalef(GLfloat x, GLfloat y, GLfloat z);
 
 // Main loop callback
 void main_loop(void) {
@@ -855,7 +866,10 @@ void main_loop(void) {
         }
 
         check_gl_error_wrapper("before hack_draw");
+        glPushMatrix();
+        glScalef(web_zoom, web_zoom, web_zoom);
         hack_draw(&web_mi);
+        glPopMatrix();
         check_gl_error_wrapper("after hack_draw");
 
         if (frame_count <= 240 && frame_count % 60 == 0) {
@@ -1207,14 +1221,86 @@ void start_rendering() {
 
 EMSCRIPTEN_KEEPALIVE
 void handle_mouse_drag(int delta_x, int delta_y) {
-    // This would need to be implemented per-hack
-    DL(1, "Mouse drag: %d, %d\n", delta_x, delta_y);
+    if (!web_mouse_down || !hack_handle_event) {
+        DL(1, "Mouse drag ignored: %d, %d\n", delta_x, delta_y);
+        return;
+    }
+
+    web_mouse_x += delta_x;
+    web_mouse_y += delta_y;
+
+    XEvent event;
+    memset(&event, 0, sizeof(event));
+    event.type = MotionNotify;
+    event.xmotion.x = web_mouse_x;
+    event.xmotion.y = web_mouse_y;
+    event.xmotion.state = Button1Mask;
+
+    hack_handle_event(&web_mi, &event);
+    DL(1, "Mouse drag: %d, %d -> %d, %d\n", delta_x, delta_y, web_mouse_x, web_mouse_y);
 }
 
 EMSCRIPTEN_KEEPALIVE
 void handle_mouse_wheel(int delta) {
-    // This would need to be implemented per-hack
-    DL(1, "Mouse wheel: %d\n", delta);
+    GLfloat factor = (delta > 0) ? 0.9f : 1.1f;
+
+    web_zoom *= factor;
+    if (web_zoom < 0.25f) web_zoom = 0.25f;
+    if (web_zoom > 4.0f) web_zoom = 4.0f;
+
+    DL(1, "Mouse wheel: %d -> zoom %.3f\n", delta, web_zoom);
+}
+
+EMSCRIPTEN_KEEPALIVE
+void handle_mouse_down(int x, int y) {
+    web_mouse_down = True;
+    web_mouse_x = x;
+    web_mouse_y = y;
+
+    if (!hack_handle_event) {
+        DL(1, "Mouse down ignored: %d, %d\n", x, y);
+        return;
+    }
+
+    XEvent event;
+    memset(&event, 0, sizeof(event));
+    event.type = ButtonPress;
+    event.xbutton.button = Button1;
+    event.xbutton.x = x;
+    event.xbutton.y = y;
+    event.xbutton.state = 0;
+
+    hack_handle_event(&web_mi, &event);
+    DL(1, "Mouse down: %d, %d\n", x, y);
+}
+
+EMSCRIPTEN_KEEPALIVE
+void handle_mouse_up(int x, int y) {
+    web_mouse_x = x;
+    web_mouse_y = y;
+
+    if (!web_mouse_down) {
+        DL(1, "Mouse up ignored: %d, %d\n", x, y);
+        return;
+    }
+
+    web_mouse_down = False;
+
+    if (!hack_handle_event) {
+        DL(1, "Mouse up with no handler: %d, %d\n", x, y);
+        return;
+    }
+
+    XEvent event;
+    memset(&event, 0, sizeof(event));
+    event.type = ButtonRelease;
+    event.xbutton.button = Button1;
+    event.xbutton.x = x;
+    event.xbutton.y = y;
+    event.xbutton.state = 0;
+
+    hack_handle_event(&web_mi, &event);
+    DL(1, "Mouse up: %d, %d\n", x, y);
 }
 
 EMSCRIPTEN_KEEPALIVE

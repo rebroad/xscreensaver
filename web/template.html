@@ -827,23 +827,51 @@
             var lastX = 0;
             var lastY = 0;
 
+            function canvasPoint(e) {
+                var rect = canvas.getBoundingClientRect();
+                return {
+                    x: Math.round(e.clientX - rect.left),
+                    y: Math.round(e.clientY - rect.top)
+                };
+            }
+
             canvas.addEventListener('mousedown', function(e) {
+                var p = canvasPoint(e);
                 isDragging = true;
-                lastX = e.clientX;
-                lastY = e.clientY;
+                lastX = p.x;
+                lastY = p.y;
+                if (Module._handle_mouse_down) {
+                    Module._handle_mouse_down(p.x, p.y);
+                }
             });
 
             canvas.addEventListener('mousemove', function(e) {
                 if (isDragging && Module._handle_mouse_drag) {
-                    var deltaX = e.clientX - lastX;
-                    var deltaY = e.clientY - lastY;
+                    var p = canvasPoint(e);
+                    var deltaX = p.x - lastX;
+                    var deltaY = p.y - lastY;
                     Module._handle_mouse_drag(deltaX, deltaY);
-                    lastX = e.clientX;
-                    lastY = e.clientY;
+                    lastX = p.x;
+                    lastY = p.y;
                 }
             });
 
-            canvas.addEventListener('mouseup', function() {
+            canvas.addEventListener('mouseup', function(e) {
+                var p = canvasPoint(e);
+                if (isDragging && Module._handle_mouse_up) {
+                    Module._handle_mouse_up(p.x, p.y);
+                }
+                isDragging = false;
+            });
+
+            document.addEventListener('mouseup', function(e) {
+                if (!isDragging) {
+                    return;
+                }
+                var p = canvasPoint(e);
+                if (Module._handle_mouse_up) {
+                    Module._handle_mouse_up(p.x, p.y);
+                }
                 isDragging = false;
             });
 
