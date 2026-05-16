@@ -226,6 +226,30 @@ free_rotator (rotator *r)
 }
 
 void
+update_rotator_speed (rotator *rot,
+                      double spin_x_speed,
+                      double spin_y_speed,
+                      double spin_z_speed,
+                      double wander_speed)
+{
+  if (!rot) return;
+
+  rot->spin_x_speed = spin_x_speed;
+  rot->spin_y_speed = spin_y_speed;
+  rot->spin_z_speed = spin_z_speed;
+  rot->wander_speed = wander_speed;
+
+  if (rot->spin_x_speed == 0) rot->dx = rot->ddx = 0;
+  if (rot->spin_y_speed == 0) rot->dy = rot->ddy = 0;
+  if (rot->spin_z_speed == 0) rot->dz = rot->ddz = 0;
+
+  if (rot->dx == 0 && rot->dy == 0 && rot->dz == 0)
+    rot->d_max = 0;
+  else if (rot->d_max == 0)
+    rot->d_max = 0.012;
+}
+
+void
 get_rotation (rotator *rot, double *x_ret, double *y_ret, double *z_ret,
               int update_p)
 {

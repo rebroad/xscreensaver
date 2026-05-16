@@ -1,0 +1,1031 @@
+/* hextrail, Copyright (c) 2022 Jamie Zawinski <jwz@jwz.org>
+ *
+ * Permission to use, copy, modify, distribute, and sell this software and its
+ * documentation for any purpose is hereby granted without fee, provided that
+ * the above copyright notice appear in all copies and that both that
+ * copyright notice and this permission notice appear in supporting
+ * documentation.  No representations are made about the suitability of this
+ * software for any purpose.  It is provided "as is" without express or
+ * implied warranty.
+ */
+
+#define DEFAULTS	"*delay:	30000       \n" \
+                        "*showFPS:      False       \n" \
+                        "*wireframe:    False       \n" \
+                        "*count:        20          \n" \
+                        "*suppressRotationAnimation: True\n" \
+
+# define release_hextrail 0
+
+#ifdef MATRIX_DEBUG
+#include "../../matrix_debug.h"
+#endif
+#ifndef WEB_BUILD
+#include "xlockmore.h"
+#endif
+#include "colors.h"
+#include "normals.h"
+#include "rotator.h"
+#include "gltrackball.h"
+#include <ctype.h>
+
+// Fast PRNG for better performance than random()
+static unsigned int fast_rand_seed = 1;
+static unsigned int fast_rand(void) {
+  fast_rand_seed = fast_rand_seed * 1103515245 + 12345;
+  return (fast_rand_seed >> 16) & 0x7fff;
+}
+
+// Rotator constants
+static const double SPIN_SPEED = 0.002;
+static const double WANDER_SPEED = 0.003;
+static const double SPIN_ACCEL = 1.0;
+
+#ifdef USE_GL /* whole file */
+
+
+#define DEF_SPIN        "True"
+#define DEF_WANDER      "True"
+#define DEF_SPEED       "1.0"
+#define DEF_THICKNESS   "0.15"
+
+typedef enum { EMPTY, IN, WAIT, OUT, DONE } state_t;
+
+typedef struct {
+  state_t state;
+  GLfloat ratio;
+  GLfloat speed;
+} arm;
+
+typedef struct hexagon hexagon;
+struct hexagon {
+  XYZ pos;
+  hexagon *neighbors[6];
+  arm arms[6];
+  int ccolor;
+  state_t border_state;
+  GLfloat border_ratio;
+  int invis;
+  // Cached color data to avoid repeated calculations
+  GLfloat cached_color[4];
+  int cached_color_frame;
+  Bool color_cache_valid;
+};
+
+typedef struct {
+  GLXContext *glx_context;
+  GLdouble model[16], proj[16];
+  GLint viewport[4];
+  rotator *rot;
+  trackball_state *trackball;
+  Bool button_down_p;
+
+  int grid_w, grid_h;
+  hexagon *hexagons;
+  int live_count, size;
+  enum { FIRST, DRAW, FADE } state;
+  GLfloat fade_ratio;
+
+  int ncolors;
+  XColor *colors;
+
+  // Pre-allocated arrays to avoid repeated malloc/free
+  int *random_indices;  // For add_arms random traversal
+  int random_indices_size;
+} hextrail_config;
+
+static hextrail_config *bps = NULL;
+
+#ifdef WEB_BUILD
+// Make these accessible to web wrapper
+Bool do_spin, do_wander;
+GLfloat speed, thickness;
+#else
+static Bool do_spin;
+static GLfloat speed;
+static Bool do_wander;
+static GLfloat thickness;
+#endif
+static int draw_invis = 2;
+
+static XrmOptionDescRec opts[] = {
+  { "-spin",   ".spin",   XrmoptionNoArg, "True" },
+  { "+spin",   ".spin",   XrmoptionNoArg, "False" },
+  { "-speed",  ".speed",  XrmoptionSepArg, 0 },
+  { "-wander", ".wander", XrmoptionNoArg, "True" },
+  { "+wander", ".wander", XrmoptionNoArg, "False" },
+  { "-thickness", ".thickness", XrmoptionSepArg, 0 },
+};
+
+static argtype vars[] = {
+  {&do_spin,   "spin",   "Spin",   DEF_SPIN,   t_Bool},
+  {&do_wander, "wander", "Wander", DEF_WANDER, t_Bool},
+  {&speed,     "speed",  "Speed",  DEF_SPEED,  t_Float},
+  {&thickness, "thickness", "Thickness", DEF_THICKNESS, t_Float},
+};
+
+ENTRYPOINT ModeSpecOpt hextrail_opts = {countof(opts), opts, countof(vars), vars, NULL};
+
+
+
+static void
+make_plane (ModeInfo *mi)
+{
+  hextrail_config *bp = &bps[MI_SCREEN(mi)];
+  int x, y;
+  GLfloat size, w, h;
+  hexagon *grid;
+
+  bp->grid_w = MI_COUNT(mi) * 2;
+  bp->grid_h = bp->grid_w;
+
+  grid = (bp->hexagons
+          ? bp->hexagons
+          : (hexagon *) malloc (bp->grid_w * bp->grid_h * sizeof(*grid)));
+  memset (grid, 0, bp->grid_w * bp->grid_h * sizeof(*grid));
+
+  bp->ncolors = 8;
+  if (! bp->colors)
+    bp->colors = (XColor *) calloc(bp->ncolors, sizeof(XColor));
+  make_smooth_colormap (0, 0, 0,
+                        bp->colors, &bp->ncolors,
+                        False, 0, False);
+
+  // Pre-allocate random indices array for add_arms
+  if (!bp->random_indices || bp->random_indices_size < 6) {
+    if (bp->random_indices) free(bp->random_indices);
+    bp->random_indices_size = 6;
+    bp->random_indices = malloc(bp->random_indices_size * sizeof(int));
+  }
+  // Remove duplicate colors at the end of bp->colors and update bp->ncolors accordingly.
+  {
+    int unique = bp->ncolors;
+    while (unique > 1) {
+      XColor *a = &bp->colors[unique - 1];
+      XColor *b = &bp->colors[unique - 2];
+      if (a->red == b->red && a->green == b->green && a->blue == b->blue) {
+        unique--;
+      } else {
+        break;
+      }
+    }
+    bp->ncolors = unique;
+  }
+
+  size = 2.0 / bp->grid_w;
+  w = size;
+  h = size * sqrt(3) / 2;
+
+  bp->hexagons = grid;
+
+  for (y = 0; y < bp->grid_h; y++)
+    for (x = 0; x < bp->grid_w; x++)
+      {
+        hexagon *h0 = &grid[y * bp->grid_w + x];
+        h0->pos.x = (x - bp->grid_w/2) * w;
+        h0->pos.y = (y - bp->grid_h/2) * h;
+        h0->border_state = EMPTY;
+        h0->border_ratio = 0;
+
+        if (y & 1)
+          h0->pos.x += w / 2;
+
+        h0->ccolor = fast_rand() % bp->ncolors;
+      }
+
+  for (y = 0; y < bp->grid_h; y++)
+    for (x = 0; x < bp->grid_w; x++)
+      {
+        hexagon *h0 = &grid[y * bp->grid_w + x];
+# undef NEIGHBOR
+# define NEIGHBOR(I,XE,XO,Y) do {                                        \
+          int x1 = x + (y & 1 ? (XO) : (XE));                            \
+          int y1 = y + (Y);                                              \
+          if (x1 >= 0 && x1 < bp->grid_w && y1 >= 0 && y1 < bp->grid_h)  \
+            h0->neighbors[(I)] = &grid [y1 * bp->grid_w + x1];           \
+        } while (0)
+
+        /*   0,0   1,0   2,0   3,0   4,0   5,0
+                0,1   1,1   2,1   3,1   4,1   5,1
+             0,2   1,2   2,2   3,2   4,2   5,2
+                0,3   1,3   2,3   3,3   4,3   5,3
+             0,4   1,4   2,4   3,4   4,4   5,4
+                0,5   1,5   2,5   3,5   4,5   5,5
+         */
+        NEIGHBOR (0,  0,  1, -1);
+        NEIGHBOR (1,  1,  1,  0);
+        NEIGHBOR (2,  0,  1,  1);
+        NEIGHBOR (3, -1,  0,  1);
+        NEIGHBOR (4, -1, -1,  0);
+        NEIGHBOR (5, -1,  0, -1);
+
+# undef NEIGHBOR
+      }
+}
+
+static int
+add_arms (ModeInfo *mi, hexagon *h0, GLfloat incoming_speed)
+{
+  hextrail_config *bp = &bps[MI_SCREEN(mi)];
+  int i;
+  int added = 0;
+  int target = fast_rand() % 4;	/* Aim for 0-3 arms */
+
+  // Use pre-allocated array instead of stack allocation
+  int *idx = bp->random_indices;
+  idx[0] = 0; idx[1] = 1; idx[2] = 2; idx[3] = 3; idx[4] = 4; idx[5] = 5;	/* Traverse in random order */
+  for (i = 0; i < 6; i++)
+    {
+      int j = fast_rand() % 6;
+      int swap = idx[j];
+      idx[j] = idx[i];
+      idx[i] = swap;
+    }
+
+  for (i = 0; i < 6; i++)
+    {
+      int j = idx[i];
+      hexagon *h1 = h0->neighbors[j];
+      arm *a0 = &h0->arms[j];
+      arm *a1;
+      if (!h1) continue;			/* No neighboring cell */
+      if (h1->border_state != EMPTY) continue;	/* Occupado */
+      if (a0->state != EMPTY) continue;		/* Incoming arm */
+
+      a1 = &h1->arms[(j + 3) % 6];		/* Opposite arm */
+
+      if (a1->state != EMPTY) {
+        printf("DEBUG: a1->state is %d, expected EMPTY\n", a1->state);
+        abort();
+      }
+      a0->state = OUT;
+      a0->ratio = 0;
+      a1->ratio = 0;
+      /* Blend speeds: 80% incoming speed, 20% original random algorithm */
+      GLfloat random_speed = 0.05 * (0.8 + frand(1.0));
+      a0->speed = incoming_speed > 0 ?
+        (0.8 * incoming_speed + 0.2 * random_speed) : random_speed;
+
+      h1->border_state = IN;
+
+      /* Mostly keep the same color */
+      h1->ccolor = h0->ccolor;
+      if (! (fast_rand() % 5))
+        h1->ccolor = (h0->ccolor + 1) % bp->ncolors;
+
+      bp->live_count++;
+      added++;
+      if (added >= target)
+        break;
+    }
+  return added;
+}
+
+static time_t now = 0;
+static unsigned int ticks = 0;
+
+// Helper function to efficiently update OpenGL color state
+static void update_gl_color(GLfloat new_color[4], GLfloat current_color[4], GLfloat current_material[4]) {
+  if (memcmp(current_color, new_color, sizeof(GLfloat) * 4) != 0) {
+    glColor4fv(new_color);
+    glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, new_color);
+    memcpy(current_color, new_color, sizeof(GLfloat) * 4);
+    memcpy(current_material, new_color, sizeof(GLfloat) * 4);
+  }
+}
+
+# undef H
+# define H 0.8660254037844386   /* sqrt(3)/2 */
+
+// Pre-calculate and cache hexagon colors to avoid repeated XColor lookups
+static void cache_hexagon_colors(hextrail_config *bp) {
+  for (int i = 0; i < bp->grid_w * bp->grid_h; i++) {
+    hexagon *h = &bp->hexagons[i];
+    if (!h->color_cache_valid || h->cached_color_frame != ticks) {
+      h->cached_color[0] = bp->colors[h->ccolor].red   / 65535.0 * bp->fade_ratio;
+      h->cached_color[1] = bp->colors[h->ccolor].green / 65535.0 * bp->fade_ratio;
+      h->cached_color[2] = bp->colors[h->ccolor].blue  / 65535.0 * bp->fade_ratio;
+      h->cached_color[3] = 1.0;
+      h->cached_color_frame = ticks;
+      h->color_cache_valid = 1;
+    }
+  }
+}
+
+// Cached visibility data to avoid repeated gluProject calls
+typedef struct {
+  GLdouble x, y, z;
+  GLdouble radius;
+  int cached_frame;
+  Bool is_valid;
+} visibility_cache_t;
+
+static visibility_cache_t *vis_cache = NULL;
+static int vis_cache_size = 0;
+
+static int hex_invis(hextrail_config *bp, XYZ pos, int i, GLfloat *rad) {
+  // Initialize cache if needed
+  if (!vis_cache || vis_cache_size != bp->grid_w * bp->grid_h) {
+    if (vis_cache) free(vis_cache);
+    vis_cache_size = bp->grid_w * bp->grid_h;
+    vis_cache = calloc(vis_cache_size, sizeof(visibility_cache_t));
+  }
+
+  visibility_cache_t *cache = &vis_cache[i];
+
+  // Use cached data if available and recent
+  if (cache->is_valid && cache->cached_frame == ticks) {
+    if (rad) *rad = cache->radius;
+    if (cache->z <= 0 || cache->z >= 1) return 2;
+    if (cache->x + cache->radius < bp->viewport[0] || cache->x - cache->radius > bp->viewport[0] + bp->viewport[2] ||
+        cache->y + cache->radius < bp->viewport[1] || cache->y - cache->radius > bp->viewport[1] + bp->viewport[3])
+      return 2; // Fully offscreen
+    if (cache->x < bp->viewport[0] || cache->x > bp->viewport[0] + bp->viewport[2] ||
+        cache->y < bp->viewport[1] || cache->y > bp->viewport[1] + bp->viewport[3])
+      return 1; // Center is offscreen
+    return 0; // Center is onscreen
+  }
+
+  // Calculate and cache new visibility data
+  GLdouble x, y, z;
+  gluProject(pos.x, pos.y, pos.z, bp->model, bp->proj, bp->viewport, &x, &y, &z);
+
+  if (z <= 0 || z >= 1) {
+    cache->x = x; cache->y = y; cache->z = z; cache->radius = 0;
+    cache->cached_frame = ticks; cache->is_valid = 1;
+    return 2;
+  }
+
+  // Pre-calculate hexagon dimensions to avoid repeated calculations
+  static GLfloat cached_wid = 0, cached_hgt = 0;
+  static int cached_size = 0;
+  if (cached_size != bp->size) {
+    cached_wid = 2.0 / bp->size;
+    cached_hgt = cached_wid * H;
+    cached_size = bp->size;
+  }
+
+  XYZ edge_posx = pos, edge_posy = pos;
+  edge_posx.x += cached_wid / 2;
+  edge_posy.y += cached_hgt / 2;
+
+  GLdouble edge_xx, edge_xy, edge_yx, edge_yy, edge_z;
+  gluProject(edge_posx.x, edge_posx.y, edge_posx.z, bp->model, bp->proj, bp->viewport, &edge_xx, &edge_xy, &edge_z);
+  gluProject(edge_posy.x, edge_posy.y, edge_posy.z, bp->model, bp->proj, bp->viewport, &edge_yx, &edge_yy, &edge_z);
+
+  GLfloat xx_diff = edge_xx - x, xy_diff = edge_xy - y;
+  GLfloat yx_diff = edge_yx - x, yy_diff = edge_yy - y;
+
+  // Use faster approximation for sqrt when possible
+  GLdouble radiusx_sq = xx_diff * xx_diff + xy_diff * xy_diff;
+  GLdouble radiusy_sq = yx_diff * yx_diff + yy_diff * yy_diff;
+  GLdouble radius_sq = radiusx_sq > radiusy_sq ? radiusx_sq : radiusy_sq;
+
+  // Fast sqrt approximation for small values (good enough for visibility culling)
+  GLdouble radius;
+  if (radius_sq < 0.01) {
+    // For very small values, use linear approximation
+    radius = radius_sq * 0.5f;
+  } else {
+    radius = sqrt(radius_sq);
+  }
+
+  // Cache the results
+  cache->x = x; cache->y = y; cache->z = z; cache->radius = radius;
+  cache->cached_frame = ticks; cache->is_valid = 1;
+
+  if (rad) *rad = radius;
+
+  if (x + radius < bp->viewport[0] || x - radius > bp->viewport[0] + bp->viewport[2] ||
+      y + radius < bp->viewport[1] || y - radius > bp->viewport[1] + bp->viewport[3])
+    return 2; // Fully offscreen
+
+  if (x < bp->viewport[0] || x > bp->viewport[0] + bp->viewport[2] ||
+      y < bp->viewport[1] || y > bp->viewport[1] + bp->viewport[3])
+    return 1; // Center is offscreen
+
+  return 0; // Center is onscreen
+}
+
+static void
+tick_hexagons (ModeInfo *mi)
+{
+  hextrail_config *bp = &bps[MI_SCREEN(mi)];
+  int i, j;
+  now = time(NULL);
+
+  /* Enlarge any still-growing arms.
+   */
+  ticks++;
+  for (i = 0; i < bp->grid_w * bp->grid_h; i++)
+    {
+      hexagon *h0 = &bp->hexagons[i];
+      if (!(ticks % 4))
+        h0->invis = hex_invis(bp, h0->pos, i, 0);
+
+      for (j = 0; j < 6; j++)
+        {
+          arm *a0 = &h0->arms[j];
+          switch (a0->state) {
+          case OUT:
+            if (a0->speed <= 0) {
+              printf("DEBUG: OUT arm speed is %f, expected > 0\n", a0->speed);
+              abort();
+            }
+            a0->ratio += a0->speed * speed;
+            if (a0->ratio > 1)
+              {
+                /* Just finished growing from center to edge.
+                   Pass the baton to this waiting neighbor. */
+                hexagon *h1 = h0->neighbors[j];
+                arm *a1 = &h1->arms[(j + 3) % 6];
+                a0->state = DONE;
+                a0->ratio = 1;
+                a1->state = IN;
+                a1->ratio = 0;
+                a1->speed = a0->speed;
+                /* bp->live_count unchanged */
+              }
+            break;
+          case IN:
+            if (a0->speed <= 0) {
+              printf("DEBUG: IN arm speed is %f, expected > 0\n", a0->speed);
+              abort();
+            }
+            a0->ratio += a0->speed * speed;
+            if (a0->ratio > 1)
+              {
+                h0->border_state = WAIT;
+                /* Just finished growing from edge to center.
+                   Look for any available exits. */
+                if (add_arms (mi, h0, a0->speed))
+                  {
+                    a0->state = DONE;
+                    a0->ratio = 1;
+                    bp->live_count--;
+                    if (bp->live_count < 0) abort();
+                  }
+                else /* nub grow */
+                  {
+                    a0->state = WAIT;
+                    a0->ratio = ((a0->ratio - 1) * 5) + 1;
+                    a0->speed *= 5;
+                  }
+              }
+            break;
+          case WAIT:
+            a0->ratio += a0->speed * speed * (2 - a0->ratio);
+            if (a0->ratio >= 1.999)
+              {
+                a0->state = DONE;
+                a0->ratio = 1;
+                //h0->border_state = OUT;
+                bp->live_count--;
+                if (bp->live_count < 0) abort();
+              }
+          case EMPTY: case DONE:
+            break;
+          default:
+            printf("DEBUG: Invalid arm state: %d\n", a0->state);
+            abort(); break;
+          }
+        }
+
+      switch (h0->border_state) {
+      case IN:
+        h0->border_ratio += 0.05 * speed;
+        if (h0->border_ratio >= 1)
+          {
+            h0->border_ratio = 1;
+          }
+        break;
+      case OUT:
+        h0->border_ratio -= 0.05 * speed;
+        if (h0->border_ratio <= 0)
+          {
+            h0->border_ratio = 0;
+            h0->border_state = DONE;
+          }
+      case WAIT:
+        if (! (fast_rand() % (int)(50.0/speed)))
+          h0->border_state = OUT;
+        break;
+      case EMPTY: case DONE:
+        break;
+      default:
+        printf("DEBUG: Invalid border_state: %d\n", h0->border_state);
+        abort();
+        break;
+      }
+    }
+
+  /* Start a new cell growing.
+   */
+  if (bp->live_count <= 0)
+    for (i = 0; i < (bp->grid_w * bp->grid_h) / 3; i++)
+      {
+        hexagon *h0;
+        int x, y;
+        if (bp->state == FIRST)
+          {
+            x = bp->grid_w / 2;
+            y = bp->grid_h / 2;
+            bp->state = DRAW;
+            bp->fade_ratio = 1;
+          }
+        else
+          {
+            x = fast_rand() % bp->grid_w;
+            y = fast_rand() % bp->grid_h;
+          }
+        h0 = &bp->hexagons[y * bp->grid_w + x];
+        if (h0->border_state == EMPTY &&
+            add_arms (mi, h0, 0.0))
+          {
+            h0->border_state = DONE;
+            break;
+          }
+      }
+
+  if (bp->live_count <= 0 && bp->state != FADE)
+    {
+      bp->state = FADE;
+      bp->fade_ratio = 1;
+
+      for (i = 0; i < bp->grid_w * bp->grid_h; i++)
+        {
+          hexagon *h = &bp->hexagons[i];
+          if (h->border_state == IN || h->border_state == WAIT)
+            h->border_state = OUT;
+        }
+    }
+  else if (bp->state == FADE)
+    {
+      bp->fade_ratio -= 0.01 * speed;
+      if (bp->fade_ratio <= 0)
+        {
+          make_plane (mi);
+          bp->state = FIRST;
+          bp->fade_ratio = 1;
+        }
+    }
+}
+
+
+static void
+draw_hexagons (ModeInfo *mi)
+{
+  hextrail_config *bp = &bps[MI_SCREEN(mi)];
+  int wire = MI_IS_WIREFRAME(mi);
+  // Pre-calculate sqrt(3)/3 to avoid repeated sqrt calls
+  static const GLfloat SQRT3_OVER_3 = 0.5773502691896258f; // sqrt(3)/3
+  GLfloat length = SQRT3_OVER_3;
+  GLfloat size = length / MI_COUNT(mi);
+  GLfloat thick2 = thickness * bp->fade_ratio;
+  int i;
+
+  // Pre-cache all hexagon colors
+  cache_hexagon_colors(bp);
+
+  const XYZ corners[] = {{  0, -1,   0 },       /*      0      */
+                         {  H, -0.5, 0 },       /*  5       1  */
+                         {  H,  0.5, 0 },       /*             */
+                         {  0,  1,   0 },       /*  4       2  */
+                         { -H,  0.5, 0 },       /*      3      */
+                         { -H, -0.5, 0 }};
+
+  glFrontFace (GL_CCW);
+  glBegin (wire ? GL_LINES : GL_TRIANGLES);
+  glNormal3f (0, 0, 1);
+
+  // Track current OpenGL state to avoid redundant calls
+  GLfloat current_color[4] = {-1, -1, -1, -1}; // Invalid initial state
+  GLfloat current_material[4] = {-1, -1, -1, -1};
+
+  for (i = 0; i < bp->grid_w * bp->grid_h; i++)
+    {
+      hexagon *h = &bp->hexagons[i];
+      if (draw_invis < h->invis) continue;
+      int total_arms = 0;
+      GLfloat color[4];
+      GLfloat nub_ratio = 2;
+      int j;
+
+      for (j = 0; j < 6; j++)
+        {
+          arm *a = &h->arms[j];
+          if (a->state == OUT || a->state == DONE || a->state == WAIT)
+            total_arms++;
+          if (a->state == WAIT)
+            nub_ratio = a->ratio;
+        }
+
+      // Use cached color instead of expensive XColor lookup
+      memcpy(color, h->cached_color, sizeof(color));
+
+      for (j = 0; j < 6; j++)
+        {
+          arm *a = &h->arms[j];
+          GLfloat margin = thickness * 0.4;
+          GLfloat size1 = size * (1 - margin * 2);
+          GLfloat size2 = size * (1 - margin * 3);
+          int k = (j + 1) % 6;
+          XYZ p[6];
+
+          if (h->border_state != EMPTY && h->border_state != DONE)
+            {
+              GLfloat color1[4];
+              memcpy (color1, color, sizeof(color1));
+              color1[0] *= h->border_ratio;
+              color1[1] *= h->border_ratio;
+              color1[2] *= h->border_ratio;
+
+              update_gl_color(color1, current_color, current_material);
+
+              /* Outer edge of hexagon border */
+              p[0].x = h->pos.x + corners[j].x * size1;
+              p[0].y = h->pos.y + corners[j].y * size1;
+              p[0].z = h->pos.z;
+
+              p[1].x = h->pos.x + corners[k].x * size1;
+              p[1].y = h->pos.y + corners[k].y * size1;
+              p[1].z = h->pos.z;
+
+              /* Inner edge of hexagon border */
+              p[2].x = h->pos.x + corners[k].x * size2;
+              p[2].y = h->pos.y + corners[k].y * size2;
+              p[2].z = h->pos.z;
+              p[3].x = h->pos.x + corners[j].x * size2;
+              p[3].y = h->pos.y + corners[j].y * size2;
+              p[3].z = h->pos.z;
+
+              glVertex3f (p[0].x, p[0].y, p[0].z);
+              glVertex3f (p[1].x, p[1].y, p[1].z);
+              if (! wire)
+                glVertex3f (p[2].x, p[2].y, p[2].z);
+              mi->polygon_count++;
+
+              glVertex3f (p[2].x, p[2].y, p[2].z);
+              glVertex3f (p[3].x, p[3].y, p[3].z);
+              if (! wire)
+                glVertex3f (p[0].x, p[0].y, p[0].z);
+              mi->polygon_count++;
+            }
+
+          /* Line from center to edge, or edge to center.
+           */
+          if (a->state == IN || a->state == OUT || a->state == DONE || a->state == WAIT)
+            {
+              GLfloat x   = (corners[j].x + corners[k].x) / 2;
+              GLfloat y   = (corners[j].y + corners[k].y) / 2;
+              GLfloat xoff = corners[k].x - corners[j].x;
+              GLfloat yoff = corners[k].y - corners[j].y;
+              GLfloat line_length = (a->state == WAIT) ? 1 : a->ratio;
+              GLfloat start, end;
+              GLfloat ncolor[4];
+              GLfloat color1[4];
+              GLfloat color2[4];
+
+              /* Color of the outer point of the line is average color of
+                 this and the neighbor. */
+              if (h->neighbors[j]) {
+                memcpy(ncolor, h->neighbors[j]->cached_color, sizeof(ncolor));
+                ncolor[0] = (ncolor[0] + color[0]) * 0.5f;
+                ncolor[1] = (ncolor[1] + color[1]) * 0.5f;
+                ncolor[2] = (ncolor[2] + color[2]) * 0.5f;
+                ncolor[3] = (ncolor[3] + color[3]) * 0.5f;
+              } else {
+                memcpy(ncolor, color, sizeof(ncolor));
+              }
+
+              if (a->state == OUT)
+                {
+                  start = 0;
+                  end = size * line_length;
+                  memcpy (color1, color,  sizeof(color1));
+                  memcpy (color2, ncolor, sizeof(color1));
+                }
+              else
+                {
+                  start = size;
+                  end = size * (1 - line_length);
+                  memcpy (color1, ncolor, sizeof(color1));
+                  memcpy (color2, color,  sizeof(color1));
+                }
+
+              if (! h->neighbors[j]) abort();  /* arm/neighbor mismatch */
+
+
+              /* Center */
+              p[0].x = h->pos.x + xoff * size2 * thick2 + x * start;
+              p[0].y = h->pos.y + yoff * size2 * thick2 + y * start;
+              p[0].z = h->pos.z;
+              p[1].x = h->pos.x - xoff * size2 * thick2 + x * start;
+              p[1].y = h->pos.y - yoff * size2 * thick2 + y * start;
+              p[1].z = h->pos.z;
+
+              /* Edge */
+              p[2].x = h->pos.x - xoff * size2 * thick2 + x * end;
+              p[2].y = h->pos.y - yoff * size2 * thick2 + y * end;
+              p[2].z = h->pos.z;
+              p[3].x = h->pos.x + xoff * size2 * thick2 + x * end;
+              p[3].y = h->pos.y + yoff * size2 * thick2 + y * end;
+              p[3].z = h->pos.z;
+
+              update_gl_color(color2, current_color, current_material);
+              glVertex3f (p[3].x, p[3].y, p[3].z);
+
+              update_gl_color(color1, current_color, current_material);
+              glVertex3f (p[0].x, p[0].y, p[0].z);
+              if (! wire)
+                glVertex3f (p[1].x, p[1].y, p[1].z);
+              mi->polygon_count++;
+
+              glVertex3f (p[1].x, p[1].y, p[1].z);
+
+              update_gl_color(color2, current_color, current_material);
+              glVertex3f (p[2].x, p[2].y, p[2].z);
+              if (! wire)
+                glVertex3f (p[3].x, p[3].y, p[3].z);
+              mi->polygon_count++;
+            }
+
+          /* Hexagon (one triangle of) in center to hide line miter/bevels.
+           */
+          if (total_arms)
+            {
+              GLfloat size3 = size * thick2 * 0.8;
+              if (total_arms == 1)
+                size3 *= nub_ratio;
+
+              p[0] = h->pos;
+
+              p[1].x = h->pos.x + corners[j].x * size3;
+              p[1].y = h->pos.y + corners[j].y * size3;
+              p[1].z = h->pos.z;
+
+              /* Inner edge of hexagon border */
+              p[2].x = h->pos.x + corners[k].x * size3;
+              p[2].y = h->pos.y + corners[k].y * size3;
+              p[2].z = h->pos.z;
+
+              update_gl_color(color, current_color, current_material);
+              if (! wire)
+                glVertex3f (p[0].x, p[0].y, p[0].z);
+              glVertex3f (p[1].x, p[1].y, p[1].z);
+              glVertex3f (p[2].x, p[2].y, p[2].z);
+              mi->polygon_count++;
+            }
+        }
+    }
+
+  glEnd();
+}
+
+
+/* Window management, etc
+ */
+ENTRYPOINT void
+reshape_hextrail (ModeInfo *mi, int width, int height)
+{
+  GLfloat h = (GLfloat) height / (GLfloat) width;
+  int y = 0;
+
+  if (width > height * 3) {   /* tiny window: show middle */
+    height = width * 9/16;
+    y = -height/2;
+    h = height / (GLfloat) width;
+  }
+
+  glViewport (0, y, (GLint) width, (GLint) height);
+
+  glMatrixMode(GL_PROJECTION);
+  glLoadIdentity();
+  gluPerspective (30.0, 1/h, 1.0, 100.0);
+
+  glMatrixMode(GL_MODELVIEW);
+  glLoadIdentity();
+  gluLookAt( 0.0, 0.0, 30.0,
+             0.0, 0.0, 0.0,
+             0.0, 1.0, 0.0);
+
+  {
+    GLfloat s = (MI_WIDTH(mi) < MI_HEIGHT(mi)
+                 ? (MI_WIDTH(mi) / (GLfloat) MI_HEIGHT(mi))
+                 : 1);
+    glScalef (s, s, s);
+  }
+
+  glClear(GL_COLOR_BUFFER_BIT);
+}
+
+// Function to update rotator when spin/wander or speed settings change
+void update_hextrail_rotator(ModeInfo *mi) {
+	hextrail_config *bp = &bps[MI_SCREEN(mi)];
+	if (!bp->rot) return;
+
+        // Update the rotator's speed parameters without destroying its state
+        update_rotator_speed(bp->rot,
+                             do_spin ? SPIN_SPEED * speed : 0,
+                             do_spin ? SPIN_SPEED * speed : 0,
+                             do_spin ? SPIN_SPEED * speed : 0,
+                             do_wander ? WANDER_SPEED * speed : 0);
+}
+
+ENTRYPOINT Bool
+hextrail_handle_event (ModeInfo *mi, XEvent *event)
+{
+  hextrail_config *bp = &bps[MI_SCREEN(mi)];
+
+  // Handle web parameter change events (NULL event means parameters changed)
+  if (event == NULL) {
+    printf("DEBUG: hextrail_handle_event - NULL event (parameter change)\n");
+    return True;
+  }
+
+  if (gltrackball_event_handler (event, bp->trackball,
+                                 MI_WIDTH (mi), MI_HEIGHT (mi),
+                                 &bp->button_down_p))
+    return True;
+  else if (event->xany.type == KeyPress)
+    {
+      KeySym keysym;
+      char c = 0;
+      XLookupString (&event->xkey, &c, 1, &keysym, 0);
+
+      if (c == ' ' || c == '\t' || c == '\r' || c == '\n')
+        ;
+      else if (c == '>' || c == '.' || c == '+' || c == '=' ||
+               keysym == XK_Up || keysym == XK_Next) {
+          printf("DEBUG: Increasing count from %ld to %ld\n", MI_COUNT(mi), MI_COUNT(mi) + 1);
+          MI_COUNT(mi)++;
+          bp->size = MI_COUNT(mi) * 2;
+      } else if (c == '<' || c == ',' || c == '-' || c == '_' ||
+               c == '\010' || c == '\177' || keysym == XK_Down || keysym == XK_Prior) {
+          printf("DEBUG: Decreasing count from %ld to %ld\n", MI_COUNT(mi), MI_COUNT(mi) - 1);
+          MI_COUNT(mi)--;
+          if (MI_COUNT(mi) < 1) {
+            printf("DEBUG: Count was %ld, resetting to 1\n", MI_COUNT(mi));
+            MI_COUNT(mi) = 1;
+          }
+          bp->size = MI_COUNT(mi) * 2;
+      } else if (keysym == XK_Right) {
+          printf("DEBUG: Increasing speed from %f to %f\n", speed, speed * 2);
+          speed *= 2;
+          if (speed > 20) speed = 20;
+          update_hextrail_rotator(mi);
+      } else if (keysym == XK_Left) {
+          printf("DEBUG: Decreasing speed from %f to %f\n", speed, speed / 2);
+          speed /= 2;
+          if (speed < 0.0001) speed = 0.0001;
+          update_hextrail_rotator(mi);
+      } else if (c == 'i') {
+          draw_invis = (draw_invis + 2) % 3;
+          printf("DEBUG: draw_invis = %d\n", draw_invis);
+      } else if (c == 'I') {
+          draw_invis = (draw_invis + 1) % 3;
+          printf("DEBUG: draw_invis = %d\n", draw_invis);
+      } else if (screenhack_event_helper (MI_DISPLAY(mi), MI_WINDOW(mi), event)) {
+          printf("DEBUG: Event handled by screenhack_event_helper\n");
+      } else {
+          printf("DEBUG: Unhandled key character '%c' (code=%d)\n", c, (int)c);
+          return False;
+      }
+    } // KeyPress
+  else if (screenhack_event_helper (MI_DISPLAY(mi), MI_WINDOW(mi), event))
+    return True;
+
+  return False;
+}
+
+// Function to create rotator with current spin/wander settings and speed
+static rotator* create_hextrail_rotator(void) {
+#ifdef WEB_BUILD
+    printf("DEBUG: Creating rotator - do_spin=%d, do_wander=%d, speed=%f\n", do_spin, do_wander, speed);
+#endif
+
+    return make_rotator(do_spin ? SPIN_SPEED * speed : 0,
+                       do_spin ? SPIN_SPEED * speed : 0,
+                       do_spin ? SPIN_SPEED * speed : 0,
+                       SPIN_ACCEL,
+                       do_wander ? WANDER_SPEED * speed : 0,
+                       False);
+}
+
+ENTRYPOINT void
+init_hextrail (ModeInfo *mi)
+{
+  hextrail_config *bp;
+
+  MI_INIT (mi, bps);
+
+  bp = &bps[MI_SCREEN(mi)];
+
+  bp->glx_context = init_GL(mi);
+
+  reshape_hextrail (mi, MI_WIDTH(mi), MI_HEIGHT(mi));
+
+  /* Initialize speed from resource */
+  speed = get_float_resource (MI_DISPLAY(mi), "speed", "Float"); // TODO - needed?
+  if (speed <= 0) speed = 1.0;
+
+  bp->rot = create_hextrail_rotator();
+  bp->trackball = gltrackball_init (True);
+
+  /* Let's tilt the scene a little. */
+  gltrackball_reset (bp->trackball,
+                     -0.4 + frand(0.8),
+                     -0.4 + frand(0.8));
+
+  if (thickness < 0.05) thickness = 0.05;
+  if (thickness > 0.5) thickness = 0.5;
+
+  make_plane (mi);
+  bp->state = FIRST;
+  bp->fade_ratio = 1;
+}
+
+
+ENTRYPOINT void
+draw_hextrail (ModeInfo *mi)
+{
+  hextrail_config *bp = &bps[MI_SCREEN(mi)];
+
+  #ifdef MATRIX_DEBUG
+  matrix_debug_next_frame(); // TODO - really needed for matrix debug?
+  #endif
+
+  if (!bp->glx_context) return;
+  Display *dpy = MI_DISPLAY(mi);
+  Window window = MI_WINDOW(mi);
+
+  glXMakeCurrent(MI_DISPLAY(mi), MI_WINDOW(mi), *bp->glx_context);
+
+  glShadeModel(GL_SMOOTH);
+
+  glDisable(GL_DEPTH_TEST);
+  glEnable(GL_NORMALIZE);
+  glDisable(GL_CULL_FACE);
+
+  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+  glPushMatrix ();
+
+  {
+    double x, y, z;
+    get_position (bp->rot, &x, &y, &z, !bp->button_down_p);
+    glTranslatef((x - 0.5) * 6,
+                 (y - 0.5) * 6,
+                 (z - 0.5) * 12);
+
+    gltrackball_rotate (bp->trackball);
+
+    get_rotation (bp->rot, &x, &y, &z, !bp->button_down_p);
+    glRotatef (z * 360, 0.0, 0.0, 1.0);
+  }
+
+  mi->polygon_count = 0;
+
+  {
+    GLfloat s = 18;
+    glScalef (s, s, s);
+  }
+
+  if (! bp->button_down_p)
+    {
+      glGetDoublev(GL_MODELVIEW_MATRIX, bp->model);
+      glGetDoublev(GL_PROJECTION_MATRIX, bp->proj);
+      tick_hexagons (mi);
+    }
+  draw_hexagons (mi);
+
+  glPopMatrix ();
+
+  if (mi->fps_p) do_fps (mi);
+  glFinish();
+
+  glXSwapBuffers(dpy, window);
+}
+
+
+ENTRYPOINT void
+free_hextrail (ModeInfo *mi)
+{
+  hextrail_config *bp = &bps[MI_SCREEN(mi)];
+
+  if (!bp->glx_context) return;
+  glXMakeCurrent(MI_DISPLAY(mi), MI_WINDOW(mi), *bp->glx_context);
+
+  if (bp->trackball) gltrackball_free (bp->trackball);
+  if (bp->rot) free_rotator (bp->rot);
+  if (bp->colors) free (bp->colors);
+  free (bp->hexagons);
+  if (bp->random_indices) free (bp->random_indices);
+  if (vis_cache) free (vis_cache);
+  vis_cache = NULL;
+  vis_cache_size = 0;
+}
+
+XSCREENSAVER_MODULE ("HexTrail", hextrail)
+
+#endif /* USE_GL */

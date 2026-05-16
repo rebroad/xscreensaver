@@ -54,6 +54,14 @@ extern void get_position (rotator *rot,
                           double *x_ret, double *y_ret, double *z_ret,
                           int update_p);
 
+/* Updates the rotator's speed parameters without disturbing its current
+   position or rotation state. */
+extern void update_rotator_speed (rotator *rot,
+                                  double spin_x_speed,
+                                  double spin_y_speed,
+                                  double spin_z_speed,
+                                  double wander_speed);
+
 /* Destroys and frees a `rotator' object. */
 extern void free_rotator (rotator *r);
 
