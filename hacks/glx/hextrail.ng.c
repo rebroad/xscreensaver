@@ -865,7 +865,9 @@ reshape_hextrail (ModeInfo *mi, int width, int height)
 }
 
 // Function to update rotator when spin/wander or speed settings change
-static void update_hextrail_rotator(ModeInfo *mi) {
+void update_hextrail_rotator(ModeInfo *mi);
+
+void update_hextrail_rotator(ModeInfo *mi) {
 	hextrail_config *bp = &bps[MI_SCREEN(mi)];
 	if (!bp->rot) return;
 

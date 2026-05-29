@@ -115,10 +115,10 @@ start_web_server() {
     # Check ports 8000-8005 for existing HexTrail server or find first available port
     PORT=8006  # Initialize to value > 8005 to detect if no port was found
     for test_port in 8000 8001 8002 8003 8004 8005; do
-        # Use nc to check if port is in use (much faster than curl)
-        if nc -z localhost $test_port 2>/dev/null; then
+        # Use lsof so we reliably detect any listener on the port.
+        if lsof -nP -iTCP:$test_port -sTCP:LISTEN >/dev/null 2>&1; then
             # Port is in use - check if it's serving HexTrail
-            CURL_OUTPUT=$(curl -s http://localhost:$test_port 2>/dev/null)
+            CURL_OUTPUT=$(curl -s http://localhost:$test_port 2>/dev/null || true)
             if [ ! -z "$CURL_OUTPUT" ] && echo "$CURL_OUTPUT" | grep -q "HexTrail"; then
                 echo -e "${YELLOW}🔍 Found HexTrail server on port $test_port, verifying directory...${NC}"
 
