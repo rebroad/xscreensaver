@@ -1737,6 +1737,8 @@ main_loop (Display *dpy)
      those modifiers don't prevent the grab from matching.
    */
   {
+    Bool old_ignore = ignore_x11_error_p;
+    Bool old_print  = print_x11_error_p;
     static const unsigned int ignored_mods[] = {
       0, Mod2Mask, LockMask, Mod2Mask|LockMask
     };
@@ -1745,6 +1747,15 @@ main_loop (Display *dpy)
     KeyCode l_key    = XKeysymToKeycode (dpy, XK_l);
     int nscreens = ScreenCount (dpy);
     int s, m;
+
+    /*
+     * This passive grab is best-effort: desktop environments and keybind
+     * daemons commonly own Super+L already, and that should not prevent the
+     * screensaver daemon from running.
+     */
+    ignore_x11_error_p = True;
+    print_x11_error_p = False;
+    error_handler_hit_p = False;
 
     for (s = 0; s < nscreens; s++)
       {
@@ -1759,9 +1770,13 @@ main_loop (Display *dpy)
                maps Mod4 to Super_R rather than Super_L. */
             (void) super_l;
             (void) super_r;
-          }
+        }
       }
     XSync (dpy, False);
+    if (error_handler_hit_p)
+      DL (1, "Super+L passive grab was unavailable; continuing");
+    ignore_x11_error_p = old_ignore;
+    print_x11_error_p = old_print;
     DL (1, "grabbed Super+L on %d screen root window(s)", nscreens);
   }
 
