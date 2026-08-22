@@ -250,6 +250,9 @@
 #include "xinput.h"
 #include "prefs.h"
 
+extern void sync_server_dpms_settings_2 (Display *, Bool, Bool,
+                                         Time, Time, Time, Bool);
+
 
 #undef countof
 #define countof(x) (sizeof((x))/sizeof((*x)))
@@ -284,6 +287,11 @@ static unsigned int blank_timeout = 0;
 static unsigned int lock_timeout = 0;
 static unsigned int pointer_hysteresis = 0;
 static unsigned int cursor_blank_interval = 60 * 30 + 17;
+static Bool dpms_enabled_p = False;
+static Bool dpms_quickoff_p = False;
+static unsigned int dpms_standby = 0;
+static unsigned int dpms_suspend = 0;
+static unsigned int dpms_off = 0;
 
 /* Subprocesses. */
 #define SAVER_GFX_PROGRAM     "xscreensaver-gfx"
@@ -915,6 +923,25 @@ static void init_line_handler (int lineno,
     {
       int t = parse_time (val);
       if (t >= 0) lock_timeout = t;
+    }
+  else if (!strcmp (key, "dpmsEnabled"))
+    dpms_enabled_p = !strcasecmp (val, "true");
+  else if (!strcmp (key, "dpmsQuickOff"))
+    dpms_quickoff_p = !strcasecmp (val, "true");
+  else if (!strcmp (key, "dpmsStandby"))
+    {
+      int t = parse_time (val);
+      if (t >= 0) dpms_standby = t;
+    }
+  else if (!strcmp (key, "dpmsSuspend"))
+    {
+      int t = parse_time (val);
+      if (t >= 0) dpms_suspend = t;
+    }
+  else if (!strcmp (key, "dpmsOff"))
+    {
+      int t = parse_time (val);
+      if (t >= 0) dpms_off = t;
     }
   else if (!strcmp (key, "pointerHysteresis"))
     {
@@ -1664,6 +1691,7 @@ main_loop (Display *dpy)
   time_t cursor_blanked_at = 0;
   time_t ignore_activity_before = now;
   time_t last_checked_init_file = now;
+  time_t next_dpms_check = now + 30;
   Bool authenticated_p = False;
   Bool ignore_motion_p = False;
   Bool wayland_p = False;
@@ -1854,6 +1882,9 @@ main_loop (Display *dpy)
         else if (!(current_state & STATE_LOCKED))
           until = blanked_at + lock_timeout;
 
+        if (!until || next_dpms_check < until)
+          until = next_dpms_check;
+
         if (current_state & STATE_BLANKED)
           {
             /* On rare occasions the mouse pointer re-appears, even though we
@@ -1937,6 +1968,18 @@ main_loop (Display *dpy)
       }
 
       now = time ((time_t *) 0);
+
+      if (now >= next_dpms_check)
+        {
+          sync_server_dpms_settings_2 (dpy,
+                                       dpms_enabled_p && !blanking_disabled_p,
+                                       dpms_quickoff_p,
+                                       (Time) dpms_standby * 1000,
+                                       (Time) dpms_suspend * 1000,
+                                       (Time) dpms_off * 1000,
+                                       verbose_p);
+          next_dpms_check = now + 30;
+        }
 
 
       /********************************************************************
@@ -3020,6 +3063,16 @@ main (int argc, char **argv)
     }
 
   XSetErrorHandler (error_handler);
+
+  /* Apply the profile before a pre-existing X server DPMS timeout can power
+     down the display.  The main loop checks for later divergence. */
+  sync_server_dpms_settings_2 (dpy,
+                               dpms_enabled_p && !blanking_disabled_p,
+                               dpms_quickoff_p,
+                               (Time) dpms_standby * 1000,
+                               (Time) dpms_suspend * 1000,
+                               (Time) dpms_off * 1000,
+                               verbose_p);
 
   main_loop (dpy);
   saver_exit (0);

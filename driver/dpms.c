@@ -51,6 +51,19 @@ disable_builtin_saver (Display *dpy)
 }
 
 
+void
+sync_server_dpms_settings_1 (Display *dpy, struct saver_preferences *p)
+{
+  sync_server_dpms_settings_2 (dpy,
+                               p->dpms_enabled_p && p->mode != DONT_BLANK,
+                               p->dpms_quickoff_p,
+                               p->dpms_standby,
+                               p->dpms_suspend,
+                               p->dpms_off,
+                               p->verbose_p);
+}
+
+
 #ifndef HAVE_DPMS_EXTENSION   /* almost the whole file */
 
 void
@@ -60,7 +73,13 @@ sync_server_dpms_settings (saver_info *si)
 }
 
 void
-sync_server_dpms_settings_1 (Display *dpy, struct saver_preferences *p)
+sync_server_dpms_settings_2 (Display *dpy,
+                             Bool enabled_p_arg,
+                             Bool dpms_quickoff_p,
+                             Time dpms_standby,
+                             Time dpms_suspend,
+                             Time dpms_off,
+                             Bool verbose_p)
 {
   disable_builtin_saver (dpy);
   DL(1, "DPMS not supported at compile time");
@@ -129,7 +148,13 @@ sync_server_dpms_settings (saver_info *si)
 }
 
 void
-sync_server_dpms_settings_1 (Display *dpy, struct saver_preferences *p)
+sync_server_dpms_settings_2 (Display *dpy,
+                             Bool enabled_p_arg,
+                             Bool dpms_quickoff_p,
+                             Time dpms_standby,
+                             Time dpms_suspend,
+                             Time dpms_off,
+                             Bool verbose_p)
 {
   int event = 0, error = 0;
   BOOL o_enabled = False;
@@ -139,12 +164,10 @@ sync_server_dpms_settings_1 (Display *dpy, struct saver_preferences *p)
   Bool changed_p = False;
   static int change_count = 0;
 
-  Bool enabled_p       = (p->dpms_enabled_p && p->mode != DONT_BLANK);
-  Bool dpms_quickoff_p = p->dpms_quickoff_p;
-  int standby_secs     = p->dpms_standby / 1000;
-  int suspend_secs     = p->dpms_suspend / 1000;
-  int off_secs         = p->dpms_off / 1000;
-  Bool verbose_p       = p->verbose_p;
+  Bool enabled_p       = enabled_p_arg;
+  int standby_secs     = dpms_standby / 1000;
+  int suspend_secs     = dpms_suspend / 1000;
+  int off_secs         = dpms_off / 1000;
   static Bool warned_p = False;
 
   changed_p = disable_builtin_saver (dpy);
@@ -195,6 +218,22 @@ sync_server_dpms_settings_1 (Display *dpy, struct saver_preferences *p)
       return;
     }
 
+  if (!DPMSGetTimeouts (dpy, &o_standby, &o_suspend, &o_off))
+    {
+      DL(1, "unable to get DPMS timeouts");
+      return;
+    }
+
+  if (o_enabled != enabled_p ||
+      o_standby != standby_secs ||
+      o_suspend != suspend_secs ||
+      o_off != off_secs)
+    DL(1, "DPMS divergence: server %s %u %u %u; profile %s %d %d %d",
+       o_enabled ? "enabled" : "disabled",
+       o_standby, o_suspend, o_off,
+       enabled_p ? "enabled" : "disabled",
+       standby_secs, suspend_secs, off_secs);
+
   if (o_enabled != enabled_p)
     {
       if (! (enabled_p ? DPMSEnable (dpy) : DPMSDisable (dpy)))
@@ -215,12 +254,6 @@ sync_server_dpms_settings_1 (Display *dpy, struct saver_preferences *p)
     {
       DL(1, "not setting bogus DPMS timeouts: %d %d %d",
          standby_secs, suspend_secs, off_secs);
-      return;
-    }
-
-  if (!DPMSGetTimeouts (dpy, &o_standby, &o_suspend, &o_off))
-    {
-      DL(1, "unable to get DPMS timeouts");
       return;
     }
 

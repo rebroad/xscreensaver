@@ -155,10 +155,13 @@ XML_LIBS	= @XML_LIBS@
 
 DAEMON_DEFS	= -DDEFAULT_PATH_PREFIX='"@HACKDIR@"' -DAD_DIR='"$(AD_DIR)"'
 DAEMON_SRCS	= xscreensaver.c blurb.c atoms.c clientmsg.c xinput.c prefs.c \
-		  $(WAYLAND_DPY_SRCS) $(WAYLAND_IDLE_SRCS)
+		  dpms.c $(WAYLAND_DPY_SRCS) $(WAYLAND_IDLE_SRCS) \
+		  $(WAYLAND_DPMS_SRCS)
 DAEMON_OBJS	= xscreensaver.o blurb.o atoms.o clientmsg.o xinput.o prefs.o \
-		  $(UTILS_BIN)/xmu.o $(WAYLAND_DPY_OBJS) $(WAYLAND_IDLE_OBJS)
-DAEMON_LIBS	= $(LIBS_PRE) $(XINPUT_LIBS) -lX11 $(WAYLAND_LIBS) $(LIBS_POST)
+		  dpms.o $(UTILS_BIN)/xmu.o $(WAYLAND_DPY_OBJS) \
+		  $(WAYLAND_IDLE_OBJS) $(WAYLAND_DPMS_OBJS)
+DAEMON_LIBS	= $(LIBS_PRE) $(XINPUT_LIBS) $(XDPMS_LIBS) -lX11 -lXext \
+		  $(WAYLAND_LIBS) $(LIBS_POST)
 
 GFX_DEFS	= @GL_CFLAGS@ -DLOCALEDIR=\"$(localedir)\"
 SUBP_DEFS	= @GL_CFLAGS@

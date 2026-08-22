@@ -221,6 +221,8 @@ struct saver_screen_info {
 /* From dpms.c */
 extern void sync_server_dpms_settings (saver_info *);
 extern void sync_server_dpms_settings_1 (Display *, struct saver_preferences *);
+extern void sync_server_dpms_settings_2 (Display *, Bool, Bool,
+                                         Time, Time, Time, Bool);
 extern void brute_force_dpms (saver_info *, time_t);
 
 
