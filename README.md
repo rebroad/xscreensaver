@@ -14,7 +14,11 @@ This is the XScreenSaver source code distribution. It is strongly recommended th
 
 ### For Unix systems with X11:
 
+Release tarballs include the generated `configure` script. For a git checkout,
+run the bootstrap command in [INSTALL.md](INSTALL.md) first.
+
 ```bash
+./install-dependencies.sh
 ./configure --help
 ./configure --prefix=/usr
 make
@@ -31,6 +35,7 @@ There are many compilation dependencies. The configure script will tell you what
 **Quick start for Ubuntu/Debian:**
 ```bash
 ./install-dependencies.sh
+INTLTOOLIZE=/bin/true autoreconf -fiv
 ./configure --prefix=/usr
 make
 ```

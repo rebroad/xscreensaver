@@ -4,6 +4,9 @@
 
 ### Building from a release tarball
 
+Release tarballs normally include the generated `configure` script. Install
+the dependencies, then configure and build:
+
 ```bash
 ./install-dependencies.sh
 ./configure --help
@@ -17,19 +20,22 @@ xscreensaver-settings
 
 ### Building from a git checkout (or after editing `configure.ac`)
 
-Install dependencies first:
+The git repository does not track generated Autotools files, so `./configure`
+will not exist in a fresh checkout. Install dependencies first:
 
 ```bash
 ./install-dependencies.sh
 ```
 
-Then regenerate `configure`:
+Then generate `configure` and the other Autotools helper files:
 
 ```bash
 INTLTOOLIZE=/bin/true autoreconf -fiv
 ```
 
-`./install-dependencies.sh` also installs `config.guess` and `config.sub` in the source tree if they are missing.
+If `configure` already exists, rerun this command after editing
+`configure.ac`. `./install-dependencies.sh` also installs `config.guess` and
+`config.sub` in the source tree if they are missing.
 
 Then configure and build. If you want to reuse a previous configuration:
 
