@@ -208,6 +208,7 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <ctype.h>
+#include <string.h>
 #include <time.h>
 #include <sys/time.h>
 #include <sys/types.h>
@@ -235,6 +236,8 @@
 #include <X11/Xatom.h>
 #include <X11/cursorfont.h>
 #include <X11/Xos.h>
+#include <X11/keysym.h>
+#include <X11/XF86keysym.h>
 #include <X11/extensions/XInput2.h>
 
 #ifdef HAVE_WAYLAND
@@ -1679,6 +1682,163 @@ check_super_l_combo (Display *dpy, XKeyEvent *xkey, time_t now,
 }
 
 
+/* The active keyboard grab deliberately prevents desktop shortcuts from
+   seeing keys while the screen is locked.  These are the only desktop
+   controls we handle ourselves.  Do not turn this into a general command
+   dispatcher: running arbitrary keyboard bindings while locked would make
+   the lock screen a command execution surface.
+
+   The commands below are the standard XFCE/PulseAudio and XRandR controls.
+   They are best-effort, and silently do nothing when the relevant helper is
+   unavailable. */
+#define LOCKED_MEDIA_MAX_OUTPUTS 16
+#define LOCKED_MEDIA_OUTPUT_NAME 64
+
+typedef struct {
+  Bool active_p;
+  int volume_percent;
+  int noutputs;
+  struct {
+    char name[LOCKED_MEDIA_OUTPUT_NAME];
+    double baseline;
+    double current;
+  } outputs[LOCKED_MEDIA_MAX_OUTPUTS];
+} locked_media_state;
+
+static int
+locked_media_query_volume (void)
+{
+  FILE *f = popen ("/usr/bin/pactl get-sink-volume @DEFAULT_SINK@ 2>/dev/null", "r");
+  char buf[256];
+  int volume = -1;
+
+  if (!f) return -1;
+  while (fgets (buf, sizeof(buf), f))
+    if (sscanf (buf, "%*[^/] / %d%%", &volume) == 1)
+      break;
+  pclose (f);
+  return volume;
+}
+
+static void
+locked_media_set_volume (int volume)
+{
+  char command[128];
+  if (volume < 0) volume = 0;
+  if (volume > 100) volume = 100;
+  snprintf (command, sizeof(command),
+            "/usr/bin/pactl set-sink-volume @DEFAULT_SINK@ %d%% 2>/dev/null",
+            volume);
+  (void) system (command);
+}
+
+static int
+locked_media_query_brightness (locked_media_state *state)
+{
+  FILE *f = popen ("/usr/bin/xrandr --current --verbose 2>/dev/null", "r");
+  char buf[256];
+  int output = -1;
+
+  if (!f) return 0;
+  while (fgets (buf, sizeof(buf), f))
+    {
+      char name[LOCKED_MEDIA_OUTPUT_NAME];
+      char status[16];
+      double brightness;
+
+      if (sscanf (buf, " %63s %15s", name, status) == 2 &&
+          !strcmp (status, "connected") &&
+          state->noutputs < LOCKED_MEDIA_MAX_OUTPUTS)
+        {
+          if (strspn (name, "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+                           "abcdefghijklmnopqrstuvwxyz0123456789-_.") ==
+              strlen (name))
+            {
+              strcpy (state->outputs[state->noutputs].name, name);
+              state->outputs[state->noutputs].baseline = -1.0;
+              state->outputs[state->noutputs].current = -1.0;
+              output = state->noutputs++;
+            }
+        }
+      else if (output >= 0 && sscanf (buf, "\tBrightness: %lf", &brightness) == 1)
+        {
+          state->outputs[output].baseline = brightness;
+          state->outputs[output].current = brightness;
+        }
+    }
+  pclose (f);
+  return state->noutputs;
+}
+
+static void
+locked_media_set_brightness (const char *output, double brightness)
+{
+  char command[256];
+  if (brightness < 0.0) brightness = 0.0;
+  if (brightness > 1.0) brightness = 1.0;
+  snprintf (command, sizeof(command),
+            "/usr/bin/xrandr --output %s --brightness %.3f 2>/dev/null",
+            output, brightness);
+  (void) system (command);
+}
+
+static void
+locked_media_snapshot (locked_media_state *state)
+{
+  memset (state, 0, sizeof(*state));
+  state->volume_percent = locked_media_query_volume ();
+  locked_media_query_brightness (state);
+  state->active_p = (state->volume_percent >= 0 || state->noutputs > 0);
+  DL (1, "locked media baseline: volume=%d, outputs=%d",
+      state->volume_percent, state->noutputs);
+}
+
+static Bool
+locked_media_key_p (KeySym keysym)
+{
+  return (keysym == XF86XK_AudioLowerVolume ||
+          keysym == XF86XK_AudioRaiseVolume ||
+          keysym == XF86XK_MonBrightnessDown ||
+          keysym == XF86XK_MonBrightnessUp);
+}
+
+static Bool
+handle_locked_media_key (locked_media_state *state, KeySym keysym)
+{
+  int volume;
+  int i;
+
+  if (!state->active_p || !locked_media_key_p (keysym))
+    return False;
+
+  if (keysym == XF86XK_AudioLowerVolume || keysym == XF86XK_AudioRaiseVolume)
+    {
+      volume = locked_media_query_volume ();
+      if (volume < 0 || state->volume_percent < 0)
+        return True;
+      volume += (keysym == XF86XK_AudioRaiseVolume ? 5 : -5);
+      if (volume > state->volume_percent) volume = state->volume_percent;
+      locked_media_set_volume (volume);
+    }
+  else
+    for (i = 0; i < state->noutputs; i++)
+      if (state->outputs[i].baseline >= 0.0)
+        {
+          double brightness = state->outputs[i].current;
+          brightness += (keysym == XF86XK_MonBrightnessUp ? 0.1 : -0.1);
+          if (brightness > state->outputs[i].baseline)
+            brightness = state->outputs[i].baseline;
+          if (brightness < 0.0)
+            brightness = 0.0;
+          locked_media_set_brightness (state->outputs[i].name, brightness);
+          state->outputs[i].current = brightness;
+        }
+
+  DL (1, "handled locked media key %s", XKeysymToString (keysym));
+  return True;
+}
+
+
 static void
 main_loop (Display *dpy)
 {
@@ -1701,6 +1861,7 @@ main_loop (Display *dpy)
 
   struct { time_t time; int x, y; } last_mouse = { 0, 0, 0 };
   static Bool super_pressed = False;  /* Track Super key state for Super+L detection */
+  locked_media_state locked_media = { 0, };
 
 # ifdef HAVE_WAYLAND
   Bool wayland_active_p = False;
@@ -2257,13 +2418,20 @@ main_loop (Display *dpy)
           case KeyRelease:
             {
               Bool old_super_pressed = super_pressed;
+              Bool media_key_p = False;
+              KeySym keysym = XLookupKeysym (&xev.xkey, 0);
+
+              media_key_p = ((current_state & STATE_LOCKED) &&
+                             locked_media_key_p (keysym));
 
               if (xev.xkey.type == KeyPress)
                 {
                   super_pressed = check_super_l_combo (dpy, &xev.xkey, now,
                                                        &force_blank_p, &force_lock_p,
                                                        (int *)&current_state, &force_time);
-                                  ignore_activity_before = force_time + 2;
+                  if (media_key_p)
+                    media_key_p = handle_locked_media_key (&locked_media, keysym);
+                  ignore_activity_before = force_time + 2;
                   DL (1, "[KeyPress] check_super_l_combo returned super_pressed=%d, old_super_pressed=%d, force_blank_p=%d, force_lock_p=%d",
                       super_pressed, old_super_pressed, force_blank_p, force_lock_p);
                 }
@@ -2277,7 +2445,8 @@ main_loop (Display *dpy)
                   super_pressed, old_super_pressed, force_blank_p, force_lock_p,
                   !(force_blank_p || force_lock_p || super_pressed || old_super_pressed));
 
-              if (!(force_blank_p || force_lock_p || super_pressed || old_super_pressed))
+              if (!(force_blank_p || force_lock_p || super_pressed ||
+                    old_super_pressed || media_key_p))
                 {
                   active_at = now;
                   log_activity_after_super_l ("KeyPress/KeyRelease", current_state, now, force_time);
@@ -2335,6 +2504,7 @@ main_loop (Display *dpy)
               /* Track Mod4 (Super) key state for Super+L detection */
               XIRawEvent *re = (XIRawEvent *) xev.xcookie.data;
               Bool old_super_pressed = super_pressed;
+              Bool media_key_p = False;
 
               /* Check for Super+L key combination to request screen blank
                  when the screen is already locked. */
@@ -2343,14 +2513,27 @@ main_loop (Display *dpy)
                   XEvent ev2;
                   if (xinput_event_to_xlib (XI_RawKeyPress, (XIDeviceEvent *) re, &ev2))
                     {
+                      KeySym keysym = XLookupKeysym (&ev2.xkey, 0);
+                      media_key_p = ((current_state & STATE_LOCKED) &&
+                                     locked_media_key_p (keysym));
                       super_pressed = check_super_l_combo (dpy, &ev2.xkey, now,
                                                            &force_blank_p, &force_lock_p,
                                                            (int *)&current_state, &force_time);
-                                      ignore_activity_before = force_time + 2;
+                      if (media_key_p)
+                        media_key_p = handle_locked_media_key (&locked_media, keysym);
+                      ignore_activity_before = force_time + 2;
                     }
                 }
+              else if (xev.xcookie.evtype == XI_RawKeyRelease && re)
+                {
+                  XEvent ev2;
+                  if (xinput_event_to_xlib (XI_RawKeyRelease, (XIDeviceEvent *) re, &ev2))
+                    media_key_p = ((current_state & STATE_LOCKED) &&
+                                   locked_media_key_p (XLookupKeysym (&ev2.xkey, 0)));
+                }
 
-              if (!(force_blank_p || force_lock_p || super_pressed || old_super_pressed))
+              if (!(force_blank_p || force_lock_p || super_pressed ||
+                    old_super_pressed || media_key_p))
                 {
                   active_at = now;
                   log_activity_after_super_l ("XI_RawKeyPress/Release (non-Super, non-L)", current_state, now, force_time);
@@ -2469,6 +2652,7 @@ main_loop (Display *dpy)
               {
                 current_state |= STATE_LOCKED;
                 locked_at = now;
+                locked_media_snapshot (&locked_media);
                 cursor_blanked_at = now;
                 authenticated_p = False;
                 if (lock_blank_later_p)
@@ -2515,6 +2699,7 @@ main_loop (Display *dpy)
                 if (grab_keyboard_and_mouse (mouse_screen (dpy)))
                   {
                     current_state |= STATE_BLANKED;
+                    locked_media_snapshot (&locked_media);
                     blanked_at = now;
                     cursor_blanked_at = now;
                     store_saver_status (dpy, True, current_state & STATE_LOCKED, False, blanked_at);
@@ -2654,6 +2839,7 @@ main_loop (Display *dpy)
             DL(1, "[BLANKED] unblanking (active=%lds ago), activity=%s)",
                        (long) (now - active_at), activity ? "TRUE" : "FALSE");
             current_state = INACTIVE;
+            memset (&locked_media, 0, sizeof(locked_media));
             ignore_motion_p = False;
             store_saver_status (dpy, False, False, False, now);
             stop_tray_icon ();
