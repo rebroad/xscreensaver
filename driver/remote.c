@@ -579,6 +579,7 @@ xscreensaver_command (Display *dpy, Atom command, long arg, Bool verbose_p,
       (command == XA_ACTIVATE ||
        command == XA_SUSPEND ||
        command == XA_LOCK ||
+       command == XA_UNLOCK ||
        command == XA_NEXT ||
        command == XA_PREV ||
        command == XA_SELECT))

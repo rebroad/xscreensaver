@@ -55,7 +55,8 @@ usage: %s -<option>\n\
   The xscreensaver program is a daemon that runs in the background.\n\
   You control a running xscreensaver process by sending it messages\n\
   with this program, xscreensaver-command.  See the man pages for\n\
-  details.  These are the arguments understood by xscreensaver-command:\n\
+  details.  Options may use one or two leading dashes.  These are the\n\
+  arguments understood by xscreensaver-command:\n\
 \n\
   -quiet        Only print output if an error occurs.\n\
   -verbose      Opposite of -quiet. Default.\n\
@@ -94,6 +95,9 @@ usage: %s -<option>\n\
                 immediately powers off the screen without fading out.\n\
                 This is intended to be run just after your laptop's lid\n\
                 is closed, and just before the CPU halts.\n\
+\n\
+  -unlock       Unlocks the screen without a password; use only as the owner\n\
+                of the X display.\n\
 \n\
   -exit         Causes the xscreensaver process to exit gracefully.\n\
                 This does nothing if the display is currently locked.\n\
@@ -187,6 +191,7 @@ main (int argc, char **argv)
       else if (!strncmp (s, "-restart", L))    cmd = &XA_RESTART;
       else if (!strncmp (s, "-demo", L))       cmd = &XA_DEMO;
       else if (!strncmp (s, "-lock", L))       cmd = &XA_LOCK;
+      else if (!strncmp (s, "-unlock", L))     cmd = &XA_UNLOCK;
       else if (!strncmp (s, "-version", L))    cmd = &XA_SCREENSAVER_VERSION;
       else if (!strncmp (s, "-time", L))       cmd = &XA_SCREENSAVER_STATUS;
       else if (!strncmp (s, "-watch", L))      cmd = &XA_WATCH;

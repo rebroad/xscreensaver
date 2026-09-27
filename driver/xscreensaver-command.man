@@ -14,6 +14,7 @@ xscreensaver-command - control a running xscreensaver process
 \-\-prev | \
 \-\-select \fIn\fP | \
 \-\-lock | \
+\-\-unlock | \
 \-\-suspend | \
 \-\-exit | \
 \-\-restart | \
@@ -23,7 +24,7 @@ xscreensaver-command - control a running xscreensaver process
 .SH DESCRIPTION
 The \fIxscreensaver\-command\fP program controls a running
 .BR xscreensaver (1)
-daemon.
+daemon.  Options may be written with either one or two leading dashes.
 .SH OPTIONS
 .I xscreensaver-command
 accepts the following command-line options:
@@ -83,6 +84,12 @@ Note that locking doesn't work unless the \fIxscreensaver\fP process is
 running as you.  See 
 .BR xscreensaver (1)
 for details.
+.TP 8
+.B \-\-unlock
+Tells the running xscreensaver process to unlock the screen immediately,
+without password authentication.  This is intended only for the owner of
+the X display, who already has the ability to terminate the screensaver
+process.  Any authentication dialog in progress is canceled.
 .TP 8
 .B \-\-suspend
 Like \fI\-\-activate\fP, but ignores \fIlockTimeout\fP and immediately

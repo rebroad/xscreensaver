@@ -1853,6 +1853,7 @@ main_loop (Display *dpy)
   time_t last_checked_init_file = now;
   time_t next_dpms_check = now + 30;
   Bool authenticated_p = False;
+  Bool force_unlock_p = False;
   Bool ignore_motion_p = False;
   Bool wayland_p = False;
 
@@ -2314,6 +2315,19 @@ main_loop (Display *dpy)
                     clientmessage_response (dpy, &xev, False,
                                             "already locked");
                 }
+              else if (msg == XA_UNLOCK)
+                {
+                  if (current_state & STATE_LOCKED)
+                    {
+                      force_unlock_p = True;
+                      if (saver_auth_pid)
+                        kill (saver_auth_pid, SIGTERM);
+                      clientmessage_response (dpy, &xev, True, "unlocking");
+                    }
+                  else
+                    clientmessage_response (dpy, &xev, False,
+                                            "screen is not locked");
+                }
               else if (msg == XA_SUSPEND)
                 {
                   force_blank_p = True;
@@ -2671,6 +2685,12 @@ main_loop (Display *dpy)
           }
         /* fallthrough */
       case LOCKED:
+        if ((current_state & STATE_LOCKED) && force_unlock_p &&
+            !saver_auth_pid)
+          {
+            force_unlock_p = False;
+            goto UNBLANK;
+          }
         Bool watch_activity = now >= ignore_activity_before;
         if (current_state & STATE_LOCKED)
           {
@@ -2873,6 +2893,11 @@ main_loop (Display *dpy)
         break;
 
       case BLANKED_LOCKED:
+        if (force_unlock_p && !saver_auth_pid)
+          {
+            force_unlock_p = False;
+            goto UNBLANK;
+          }
         activity = (active_at >= now && active_at >= ignore_activity_before);
         debug_log ("[BLANKED_LOCKED] active=%lds ago, activity=%d",
                    (long) (now - active_at), activity);
@@ -2926,7 +2951,13 @@ main_loop (Display *dpy)
 
       case AUTH:
       case BLANKED_AUTH:
-        if (saver_auth_pid)
+        if (force_unlock_p && !saver_auth_pid)
+          {
+            force_unlock_p = False;
+            authenticated_p = False;
+            goto UNBLANK;
+          }
+        else if (saver_auth_pid)
           {
             /* xscreensaver-auth still running -- wait for it to exit. */
           }
