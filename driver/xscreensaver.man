@@ -237,9 +237,11 @@ Add the line \fI@xscreensaver\fP to
 \fI/etc/xdg/lxsession/LXDE/autostart\fP or
 \fI/etc/xdg/lxsession/LXDE-pi/autostart\fP.
 .SS LAUNCHING XSCREENSAVER FROM SYSTEMD
-If you are not using GNOME, KDE or LXDE, the way to launch XScreenSaver
-at login is probably
-.BR systemd (1).
+The installer enables the systemd user service and installs an XDG
+autostart entry.  At graphical login, that entry imports the session's
+display authorization into the user manager and starts the service.
+This works even on desktops that do not activate
+\fIgraphical-session.target\fP.
 
 If the file \fI/usr/lib/systemd/user/xscreensaver.service\fP does not
 already exist, copy the file \fI/usr/share/xscreensaver/xscreensaver.service\fP

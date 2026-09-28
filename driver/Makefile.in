@@ -290,6 +290,7 @@ DEMO_EXES	= @ALL_DEMO_PROGRAMS@
 EXES_SYSTEMD	= xscreensaver-systemd
 DESKS		= xscreensaver.desktop \
 		  xscreensaver-settings.desktop \
+		  xscreensaver-session.desktop \
 		  xscreensaver.service
 
 HDRS		= XScreenSaver_ad.h XScreenSaver_Xm_ad.h \
@@ -307,6 +308,7 @@ EXTRAS		= README Makefile.in \
 		  XScreenSaver.ad.in XScreenSaver-Xm.ad xscreensaver.pam \
 		  demo.ui prefs.ui gresource.xml xscreensaver.desktop.in \
 		  xscreensaver-settings.desktop.in xscreensaver.service.in \
+		  xscreensaver-session.desktop.in xscreensaver-session-start \
 		  $(WAYLAND_GEN_XML)
 
 TARFILES	= $(DAEMON_SRCS) $(GFX_SRCS) $(AUTH_SRCS) $(SYSTEMD_SRCS) \
@@ -352,6 +354,15 @@ install-program:: $(EXES)
 	  echo $(INSTALL_PROGRAM) "$$exe" "$(DESTDIR)$(bindir)/$$exe" ;	      \
 	       $(INSTALL_PROGRAM) "$$exe" "$(DESTDIR)$(bindir)/$$exe" ;	      \
 	done
+
+install-program:: xscreensaver-session-start
+	@echo $(INSTALL_PROGRAM) "$(srcdir)/xscreensaver-session-start" \
+	     "$(DESTDIR)$(bindir)/xscreensaver-session-start" ;	      \
+	     $(INSTALL_PROGRAM) "$(srcdir)/xscreensaver-session-start" \
+	     "$(DESTDIR)$(bindir)/xscreensaver-session-start"
+
+uninstall-program::
+	-rm -f "$(DESTDIR)$(bindir)/xscreensaver-session-start"
 
 install-program:: $(UTIL_EXES)
 	@for exe in $(UTIL_EXES); do					      \
@@ -562,6 +573,21 @@ install-systemd:: xscreensaver.service
 	   if [ "$$dir" = "$$dir2" ] && [ "$$dir1" = "$$dir2" ]; then break; fi ;\
 	 done
 
+# Start the user service from the graphical session, after the desktop has
+# supplied DISPLAY and XAUTHORITY.  systemd's graphical-session.target is not
+# activated by every desktop environment.
+install-systemd:: xscreensaver-session.desktop
+	@dir="$(DESTDIR)/etc/xdg/autostart" ;				      \
+	 if [ ! -d "$$dir" ]; then					      \
+	   echo $(INSTALL_DIRS) "$$dir" ;				      \
+		$(INSTALL_DIRS) "$$dir" ;				      \
+	 fi ;								      \
+	 echo $(INSTALL_DATA) "$<" "$$dir/xscreensaver-session.desktop" ;      \
+	      $(INSTALL_DATA) "$<" "$$dir/xscreensaver-session.desktop"
+
+uninstall-systemd::
+	-rm -f "$(DESTDIR)/etc/xdg/autostart/xscreensaver-session.desktop"
+
 # Configure systemd user defaults for all users at install time.
 # This only runs for real installs (not DESTDIR packaging installs).
 install-systemd::
@@ -600,10 +626,6 @@ install-systemd::
 			 DBUS_SESSION_BUS_ADDRESS="$$bus"			     \
 			 systemctl --user enable xscreensaver.service	     \
 			 >/dev/null 2>&1 || true				     ;\
-		$$AS_USER env XDG_RUNTIME_DIR="$$xdg"			     \
-			 DBUS_SESSION_BUS_ADDRESS="$$bus"			     \
-			 systemctl --user start xscreensaver.service	     \
-			 >/dev/null 2>&1 || true				     ;\
 	      fi							     ;\
 	    else							     \
 	      echo "NOTE: user bus $$xdg/bus is unavailable; start at login.";\
@@ -626,8 +648,7 @@ install-systemd:: xscreensaver.service
 
 # Final user hint appears at the end of install output.
 install-systemd::
-	@echo "If XScreenSaver is not running yet, run in your desktop session:" ;\
-	 echo "  systemctl --user start xscreensaver.service"
+	@echo "XScreenSaver will start from the XDG autostart entry at graphical login."
 
 # xscreensaver.png
 # into /usr/share/pixmaps/

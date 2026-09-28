@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=XScreenSaver Session Service
+Comment=Start the XScreenSaver user service for this graphical session
+Exec=xscreensaver-session-start
+TryExec=xscreensaver-session-start
+NoDisplay=true
+Terminal=false
+StartupNotify=false

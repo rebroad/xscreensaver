@@ -1,0 +1,24 @@
+#!/bin/sh
+
+# Called by the XDG autostart entry after the desktop session has initialized.
+# Import its display credentials before starting the systemd user service.
+
+systemctl_bin=$(command -v systemctl) || exec xscreensaver
+
+if test -z "$DISPLAY"; then
+  echo "xscreensaver-session-start: DISPLAY is not set" >&2
+  exit 1
+fi
+
+if test -z "$XDG_RUNTIME_DIR" || test ! -S "$XDG_RUNTIME_DIR/bus"; then
+  exec xscreensaver
+fi
+
+set -- DISPLAY
+if test -n "$XAUTHORITY"; then set -- "$@" XAUTHORITY; fi
+if test -n "$WAYLAND_DISPLAY"; then set -- "$@" WAYLAND_DISPLAY; fi
+if test -n "$XDG_SESSION_TYPE"; then set -- "$@" XDG_SESSION_TYPE; fi
+
+"$systemctl_bin" --user import-environment "$@" || exit 1
+"$systemctl_bin" --user reset-failed xscreensaver.service >/dev/null 2>&1 || :
+exec "$systemctl_bin" --user start xscreensaver.service
