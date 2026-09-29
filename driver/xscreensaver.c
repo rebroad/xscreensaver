@@ -2287,7 +2287,7 @@ main_loop (Display *dpy)
                     {
                       clientmessage_response (dpy, &xev, True, "deactivating");
                     }
-                    active_at = now - 1;
+                    active_at = now + 1;
                     ignore_activity_before = now;
                     log_activity_after_super_l ("DEACTIVATE ClientMessage", current_state, now, force_time);
 
