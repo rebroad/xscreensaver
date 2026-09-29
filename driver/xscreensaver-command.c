@@ -96,8 +96,8 @@ usage: %s -<option>\n\
                 This is intended to be run just after your laptop's lid\n\
                 is closed, and just before the CPU halts.\n\
 \n\
-  -unlock       Unlocks the screen without a password; use only as the owner\n\
-                of the X display.\n\
+  -unlock       Unlocks without a password, or unblanks if not yet locked;\n\
+                use only as the owner of the X display.\n\
 \n\
   -exit         Causes the xscreensaver process to exit gracefully.\n\
                 This does nothing if the display is currently locked.\n\

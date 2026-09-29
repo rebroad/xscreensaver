@@ -2324,6 +2324,14 @@ main_loop (Display *dpy)
                         kill (saver_auth_pid, SIGTERM);
                       clientmessage_response (dpy, &xev, True, "unlocking");
                     }
+                  else if (current_state & STATE_BLANKED)
+                    {
+                      /* Unlock also means unblank when the screen has not
+                         reached its lock timeout yet. */
+                      active_at = now + 1;
+                      ignore_activity_before = 0;
+                      clientmessage_response (dpy, &xev, True, "unblanking");
+                    }
                   else
                     clientmessage_response (dpy, &xev, False,
                                             "screen is not locked");

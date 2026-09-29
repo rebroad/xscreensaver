@@ -89,7 +89,8 @@ for details.
 Tells the running xscreensaver process to unlock the screen immediately,
 without password authentication.  This is intended only for the owner of
 the X display, who already has the ability to terminate the screensaver
-process.  Any authentication dialog in progress is canceled.
+process.  Any authentication dialog in progress is canceled.  If the screen
+is blanked but has not reached its lock timeout, this command unblanks it.
 .TP 8
 .B \-\-suspend
 Like \fI\-\-activate\fP, but ignores \fIlockTimeout\fP and immediately

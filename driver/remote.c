@@ -201,11 +201,11 @@ send_xscreensaver_command (Display *dpy, Atom command, long arg,
                   ((unsigned long) data[2] & 0xFFFFFFFFL));
               char *s;
 
-	      if (state == XA_BLANK)
-		fputs (": screen blanked since ", stdout);
-	      else if (state == XA_LOCK || state == XA_AUTH)
+              if (state & 0x06)
 		fputs (": screen locked since ", stdout);
-	      else if (state == 0)
+              else if (state & 0x01)
+                fputs (": screen blanked since ", stdout);
+              else if (state == 0)
 		fputs (": screen non-blanked since ", stdout);
               else
                 goto STATUS_LOSE;
@@ -221,7 +221,7 @@ send_xscreensaver_command (Display *dpy, Atom command, long arg,
                 Bool any = False;
                 int i;
                 for (i = 0; i < nhacks; i++)
-                  if (data[i + 2] > 0)
+                  if (data[off + i] > 0)
                     {
                       any = True;
                       break;
