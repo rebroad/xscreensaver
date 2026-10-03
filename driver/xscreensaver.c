@@ -1682,27 +1682,18 @@ check_super_l_combo (Display *dpy, XKeyEvent *xkey, time_t now,
 }
 
 
-/* The active keyboard grab deliberately prevents desktop shortcuts from
-   seeing keys while the screen is locked.  These are the only desktop
-   controls we handle ourselves.  Do not turn this into a general command
-   dispatcher: running arbitrary keyboard bindings while locked would make
-   the lock screen a command execution surface.
-
-   The commands below are the standard XFCE/PulseAudio and XRandR controls.
-   They are best-effort, and silently do nothing when the relevant helper is
-   unavailable. */
-#define LOCKED_MEDIA_MAX_OUTPUTS 16
-#define LOCKED_MEDIA_OUTPUT_NAME 64
-
+/* The active keyboard grab prevents desktop shortcuts from seeing keys while
+   the screen is locked.  Handle only these explicit volume and display
+   brightness controls here.  XFCE's sysfs backlight path is used for display
+   brightness; XRandR's gamma-ramp brightness is only pixel dimming. */
 typedef struct {
   Bool active_p;
   int volume_percent;
-  int noutputs;
-  struct {
-    char name[LOCKED_MEDIA_OUTPUT_NAME];
-    double baseline;
-    double current;
-  } outputs[LOCKED_MEDIA_MAX_OUTPUTS];
+  int brightness_active_p;
+  int brightness_current;
+  int brightness_baseline;
+  int brightness_max;
+  int brightness_step;
 } locked_media_state;
 
 static int
@@ -1733,53 +1724,46 @@ locked_media_set_volume (int volume)
 }
 
 static int
-locked_media_query_brightness (locked_media_state *state)
+locked_media_query_backlight (const char *option)
 {
-  FILE *f = popen ("/usr/bin/xrandr --current --verbose 2>/dev/null", "r");
-  char buf[256];
-  int output = -1;
+  char command[128];
+  char buf[64];
+  char *end;
+  long value;
+  FILE *f;
+  int status;
 
-  if (!f) return 0;
-  while (fgets (buf, sizeof(buf), f))
+  /* option is selected only from the fixed --get-brightness and
+     --get-max-brightness strings below. */
+  snprintf (command, sizeof(command),
+            "/usr/sbin/xfpm-power-backlight-helper %s 2>/dev/null", option);
+  f = popen (command, "r");
+  if (!f) return -1;
+  if (!fgets (buf, sizeof(buf), f))
     {
-      char name[LOCKED_MEDIA_OUTPUT_NAME];
-      char status[16];
-      double brightness;
-
-      if (sscanf (buf, " %63s %15s", name, status) == 2 &&
-          !strcmp (status, "connected") &&
-          state->noutputs < LOCKED_MEDIA_MAX_OUTPUTS)
-        {
-          if (strspn (name, "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-                           "abcdefghijklmnopqrstuvwxyz0123456789-_.") ==
-              strlen (name))
-            {
-              strcpy (state->outputs[state->noutputs].name, name);
-              state->outputs[state->noutputs].baseline = -1.0;
-              state->outputs[state->noutputs].current = -1.0;
-              output = state->noutputs++;
-            }
-        }
-      else if (output >= 0 && sscanf (buf, "\tBrightness: %lf", &brightness) == 1)
-        {
-          state->outputs[output].baseline = brightness;
-          state->outputs[output].current = brightness;
-        }
+      pclose (f);
+      return -1;
     }
-  pclose (f);
-  return state->noutputs;
+  errno = 0;
+  value = strtol (buf, &end, 10);
+  status = pclose (f);
+  if (errno || end == buf || status != 0 || value < 0 || value > 2147483647L)
+    return -1;
+  return (int) value;
 }
 
-static void
-locked_media_set_brightness (const char *output, double brightness)
+static Bool
+locked_media_set_backlight (int brightness)
 {
-  char command[256];
-  if (brightness < 0.0) brightness = 0.0;
-  if (brightness > 1.0) brightness = 1.0;
+  char command[160];
+  int status;
+
+  /* Match XFCE Power Manager's Polkit helper path for this panel. */
   snprintf (command, sizeof(command),
-            "/usr/bin/xrandr --output %s --brightness %.3f 2>/dev/null",
-            output, brightness);
-  (void) system (command);
+            "/usr/bin/pkexec /usr/sbin/xfpm-power-backlight-helper "
+            "--set-brightness %d >/dev/null 2>&1", brightness);
+  status = system (command);
+  return status == 0;
 }
 
 static void
@@ -1787,10 +1771,23 @@ locked_media_snapshot (locked_media_state *state)
 {
   memset (state, 0, sizeof(*state));
   state->volume_percent = locked_media_query_volume ();
-  locked_media_query_brightness (state);
-  state->active_p = (state->volume_percent >= 0 || state->noutputs > 0);
-  DL (1, "locked media baseline: volume=%d, outputs=%d",
-      state->volume_percent, state->noutputs);
+  state->brightness_current =
+    locked_media_query_backlight ("--get-brightness");
+  state->brightness_max =
+    locked_media_query_backlight ("--get-max-brightness");
+  state->brightness_active_p = (state->brightness_current >= 0 &&
+                                 state->brightness_max > 0);
+  state->brightness_baseline = state->brightness_current;
+  /* XFCE 4.20 defaults to ten linear brightness steps with a zero minimum. */
+  state->brightness_step = (state->brightness_active_p
+                            ? (state->brightness_max < 20
+                               ? 1 : state->brightness_max / 10)
+                            : 0);
+  state->active_p = (state->volume_percent >= 0 ||
+                     state->brightness_active_p);
+  DL (1, "locked media baseline: volume=%d, backlight=%d/%d",
+      state->volume_percent, state->brightness_current,
+      state->brightness_max);
 }
 
 static Bool
@@ -1806,12 +1803,13 @@ static Bool
 handle_locked_media_key (locked_media_state *state, KeySym keysym)
 {
   int volume;
-  int i;
+  int brightness;
 
   if (!state->active_p || !locked_media_key_p (keysym))
     return False;
 
-  if (keysym == XF86XK_AudioLowerVolume || keysym == XF86XK_AudioRaiseVolume)
+  if (keysym == XF86XK_AudioLowerVolume ||
+      keysym == XF86XK_AudioRaiseVolume)
     {
       volume = locked_media_query_volume ();
       if (volume < 0 || state->volume_percent < 0)
@@ -1820,19 +1818,21 @@ handle_locked_media_key (locked_media_state *state, KeySym keysym)
       if (volume > state->volume_percent) volume = state->volume_percent;
       locked_media_set_volume (volume);
     }
+  else if (state->brightness_active_p)
+    {
+      brightness = state->brightness_current +
+        (keysym == XF86XK_MonBrightnessUp
+         ? state->brightness_step : -state->brightness_step);
+      if (brightness > state->brightness_baseline)
+        brightness = state->brightness_baseline;
+      if (brightness < 0)
+        brightness = 0;
+      if (brightness != state->brightness_current &&
+          locked_media_set_backlight (brightness))
+        state->brightness_current = brightness;
+    }
   else
-    for (i = 0; i < state->noutputs; i++)
-      if (state->outputs[i].baseline >= 0.0)
-        {
-          double brightness = state->outputs[i].current;
-          brightness += (keysym == XF86XK_MonBrightnessUp ? 0.1 : -0.1);
-          if (brightness > state->outputs[i].baseline)
-            brightness = state->outputs[i].baseline;
-          if (brightness < 0.0)
-            brightness = 0.0;
-          locked_media_set_brightness (state->outputs[i].name, brightness);
-          state->outputs[i].current = brightness;
-        }
+    return True;
 
   DL (1, "handled locked media key %s", XKeysymToString (keysym));
   return True;
