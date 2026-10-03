@@ -67,6 +67,24 @@ For a debug build:
 make CFLAGS="-g"
 ```
 
+### Building and installing this checkout with its separate build tree
+
+In this development environment, keep generated build files outside the
+source checkout. After making source changes, sync them to the build tree,
+then build and install from there:
+
+```bash
+cpto --no-lngit /mnt/kingston/@home/rebroad/src/xscreensaver /mnt/kingston/builds/rebroad/src/xscreensaver.build
+make -C /mnt/kingston/builds/rebroad/src/xscreensaver.build -j2
+sudo make -C /mnt/kingston/builds/rebroad/src/xscreensaver.build install
+```
+
+The build tree must first be configured. For a fresh build tree, run its
+`configure` script with the desired options (for example,
+`./configure --prefix=/usr`) before running `make`. Once configured, repeat
+the sync and build commands after source changes; rerun `configure` only when
+you need to change the build configuration.
+
 ## Dependencies
 
 Use the helper script. It is the canonical dependency installer for Debian/Ubuntu builds and handles package-name differences across releases (for example, GDK Pixbuf development package renames).
