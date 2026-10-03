@@ -626,6 +626,11 @@ install-systemd::
 			 DBUS_SESSION_BUS_ADDRESS="$$bus"			     \
 			 systemctl --user enable xscreensaver.service	     \
 			 >/dev/null 2>&1 || true				     ;\
+		echo systemctl --user restart xscreensaver.service	     ;\
+		$$AS_USER env XDG_RUNTIME_DIR="$$xdg"			     \
+			 DBUS_SESSION_BUS_ADDRESS="$$bus"			     \
+			 systemctl --user restart xscreensaver.service	     \
+			 >/dev/null 2>&1 || echo "NOTE: could not restart xscreensaver.service for $$SUDO_USER." ;\
 	      fi							     ;\
 	    else							     \
 	      echo "NOTE: user bus $$xdg/bus is unavailable; start at login.";\
